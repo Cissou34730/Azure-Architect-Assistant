@@ -16,7 +16,16 @@ class LLMService {
     this.apiEndpoint =
       process.env.OPENAI_API_ENDPOINT ||
       "https://api.openai.com/v1/chat/completions";
-    this.model = process.env.OPENAI_MODEL || "gpt-4o";
+    this.model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+    console.log("🔧 LLMService initialized:");
+    console.log(
+      `  - API Key: ${
+        this.apiKey ? `${this.apiKey.substring(0, 10)}...` : "NOT SET"
+      }`
+    );
+    console.log(`  - Model: ${this.model}`);
+    console.log(`  - Endpoint: ${this.apiEndpoint}`);
   }
 
   /**
@@ -150,7 +159,13 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
     systemPrompt: string,
     userPrompt: string
   ): Promise<string> {
+    console.log("📞 Calling LLM...");
+    console.log(`  - API Key present: ${!!this.apiKey}`);
+    console.log(`  - API Key length: ${this.apiKey?.length || 0}`);
+    console.log(`  - Model: ${this.model}`);
+
     if (!this.apiKey) {
+      console.error("❌ API key is missing!");
       throw new Error(
         "OpenAI API key not configured. Set OPENAI_API_KEY or AZURE_OPENAI_API_KEY environment variable."
       );
@@ -177,14 +192,20 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
       max_tokens: 4000,
     };
 
+    console.log(`📤 Sending request to: ${this.apiEndpoint}`);
+
     const response = await fetch(this.apiEndpoint, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
     });
 
+    console.log(`📥 Response status: ${response.status}`);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`❌ LLM API error: ${response.status}`);
+      console.error(`❌ Error details: ${errorText}`);
       throw new Error(`LLM API error: ${response.status} - ${errorText}`);
     }
 
@@ -321,4 +342,26 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
   }
 }
 
-export const llmService = new LLMService();
+// Lazy initialization - only create instance when first accessed
+let _llmService: LLMService | null = null;
+
+export const llmService = {
+  analyzeDocuments: (
+    ...args: Parameters<LLMService["analyzeDocuments"]>
+  ): ReturnType<LLMService["analyzeDocuments"]> => {
+    if (!_llmService) _llmService = new LLMService();
+    return _llmService.analyzeDocuments(...args);
+  },
+  processChatMessage: (
+    ...args: Parameters<LLMService["processChatMessage"]>
+  ): ReturnType<LLMService["processChatMessage"]> => {
+    if (!_llmService) _llmService = new LLMService();
+    return _llmService.processChatMessage(...args);
+  },
+  generateArchitectureProposal: (
+    ...args: Parameters<LLMService["generateArchitectureProposal"]>
+  ): ReturnType<LLMService["generateArchitectureProposal"]> => {
+    if (!_llmService) _llmService = new LLMService();
+    return _llmService.generateArchitectureProposal(...args);
+  },
+};

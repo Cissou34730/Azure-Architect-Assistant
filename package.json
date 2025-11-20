@@ -8,7 +8,7 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=backend & npm run dev --workspace=frontend",
+    "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "lint:fix": "npm run lint:fix --workspaces",
@@ -24,5 +24,8 @@
     "sqlite"
   ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
 }

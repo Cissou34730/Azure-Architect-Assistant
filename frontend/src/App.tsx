@@ -163,6 +163,12 @@ function App() {
   const analyzeDocuments = async (): Promise<void> => {
     if (!selectedProject) return
 
+    // Check if we have either text requirements or documents
+    if (!selectedProject.textRequirements?.trim() && (!files || files.length === 0)) {
+      alert('Please provide either text requirements or upload documents before analyzing.')
+      return
+    }
+
     setLoading(true)
     try {
       const response = await fetch(`/api/projects/${selectedProject.id}/analyze-docs`, {
@@ -173,7 +179,7 @@ function App() {
         const data = await response.json() as { projectState: ProjectState }
         setProjectState(data.projectState)
         setActiveTab('state')
-        alert('Documents analyzed successfully!')
+        alert('Analysis complete!')
       } else {
         const error = await response.json() as { error: string }
         alert(`Error: ${error.error}`)
@@ -379,11 +385,14 @@ function App() {
                       </form>
                       <button
                         onClick={analyzeDocuments}
-                        disabled={loading}
+                        disabled={loading || (!textRequirements.trim() && !selectedProject.textRequirements?.trim())}
                         className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
                       >
                         Analyze Requirements
                       </button>
+                      {!textRequirements.trim() && !selectedProject.textRequirements?.trim() && (
+                        <p className="text-sm text-gray-500 mt-2">Please add text requirements or upload documents to enable analysis.</p>
+                      )}
                     </div>
                   )}
 
