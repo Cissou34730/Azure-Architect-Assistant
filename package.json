@@ -1,0 +1,28 @@
+{
+  "name": "azure-architect-assistant",
+  "version": "1.0.0",
+  "description": "Full-stack TypeScript application with Express backend and React frontend",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=backend & npm run dev --workspace=frontend",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces",
+    "backend": "npm run dev --workspace=backend",
+    "frontend": "npm run dev --workspace=frontend",
+    "install:all": "npm install && npm install --workspaces"
+  },
+  "keywords": [
+    "typescript",
+    "express",
+    "react",
+    "vite",
+    "sqlite"
+  ],
+  "author": "",
+  "license": "ISC"
+}
