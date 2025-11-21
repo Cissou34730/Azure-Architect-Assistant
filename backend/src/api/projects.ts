@@ -3,6 +3,7 @@ import multer from "multer";
 import { randomUUID } from "crypto";
 import { storage } from "../services/StorageService.js";
 import { llmService } from "../services/LLMService.js";
+import { logger } from "../logger.js";
 import {
   Project,
   ProjectDocument,
@@ -10,9 +11,9 @@ import {
 } from "../models/Project.js";
 
 export const router = Router();
+const log = logger.child("ProjectsAPI");
 
 // Configure multer for file uploads (memory storage)
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 const upload = multer({ storage: multer.memoryStorage() });
 
 /**
@@ -37,10 +38,11 @@ router.post("/projects", (req: Request, res: Response) => {
     };
 
     storage.createProject(project);
+    log.info("Project created", { projectId: project.id, name: project.name });
 
     res.status(201).json({ project });
   } catch (error) {
-    console.error("Error creating project:", error);
+    log.error("Error creating project", error);
     res.status(500).json({ error: "Failed to create project" });
   }
 });
@@ -52,9 +54,10 @@ router.post("/projects", (req: Request, res: Response) => {
 router.get("/projects", (_req: Request, res: Response) => {
   try {
     const projects = storage.getAllProjects();
+    log.info("Listing projects", { count: projects.length });
     res.json({ projects });
   } catch (error) {
-    console.error("Error fetching projects:", error);
+    log.error("Error fetching projects", error);
     res.status(500).json({ error: "Failed to fetch projects" });
   }
 });
@@ -80,9 +83,14 @@ router.put("/projects/:id/requirements", (req: Request, res: Response) => {
         : undefined;
     storage.createProject(project); // Update project in storage
 
+    log.info("Updated project requirements", {
+      projectId: project.id,
+      hasText: Boolean(project.textRequirements),
+    });
+
     res.json({ project });
   } catch (error) {
-    console.error("Error updating requirements:", error);
+    log.error("Error updating requirements", error);
     res.status(500).json({ error: "Failed to update requirements" });
   }
 });
@@ -93,12 +101,10 @@ router.put("/projects/:id/requirements", (req: Request, res: Response) => {
  */
 router.post(
   "/projects/:id/documents",
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   upload.array("files"),
   (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const files = req.files as Express.Multer.File[];
 
       const project = storage.getProject(id);
@@ -118,37 +124,27 @@ router.post(
         // Extract text based on MIME type
         let rawText: string;
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         if (file.mimetype.startsWith("text/")) {
           // Plain text files
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
           rawText = file.buffer.toString("utf-8");
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         } else if (file.mimetype === "application/pdf") {
           // Placeholder for PDF extraction
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           rawText = `[PDF Document: ${file.originalname}]\n[Text extraction not implemented in POC - placeholder content]`;
         } else if (
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           file.mimetype ===
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           file.mimetype === "application/msword"
         ) {
           // Placeholder for DOCX/DOC extraction
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           rawText = `[Word Document: ${file.originalname}]\n[Text extraction not implemented in POC - placeholder content]`;
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           rawText = `[File: ${file.originalname}]\n[Unsupported file type for text extraction]`;
         }
 
         const document: ProjectDocument = {
           id: randomUUID(),
           projectId: id,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
           fileName: file.originalname,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
           mimeType: file.mimetype,
           rawText,
           uploadedAt: new Date().toISOString(),
@@ -158,9 +154,14 @@ router.post(
         documents.push(document);
       }
 
+      log.info("Documents uploaded", {
+        projectId: id,
+        documents: documents.length,
+      });
+
       res.status(201).json({ documents });
     } catch (error) {
-      console.error("Error uploading documents:", error);
+      log.error("Error uploading documents", error);
       res.status(500).json({ error: "Failed to upload documents" });
     }
   }
@@ -197,6 +198,11 @@ router.post(
         return;
       }
 
+      log.info("Document analysis requested", {
+        projectId: id,
+        documentCount: documentTexts.length,
+      });
+
       // Call LLM to analyze documents
       const projectState = await llmService.analyzeDocuments(documentTexts);
       projectState.projectId = id;
@@ -204,9 +210,10 @@ router.post(
       // Save state
       storage.saveState(projectState);
 
+      log.info("Document analysis completed", { projectId: id });
       res.json({ projectState });
     } catch (error) {
-      console.error("Error analyzing documents:", error);
+      log.error("Error analyzing documents", error);
       res.status(500).json({
         error: "Failed to analyze documents",
         details: error instanceof Error ? error.message : String(error),
@@ -256,6 +263,12 @@ router.post("/projects/:id/chat", async (req: Request, res: Response) => {
     // Get recent conversation history (last 10 messages)
     const recentMessages = storage.getMessages(id, 10);
 
+    log.info("Processing chat message", {
+      projectId: id,
+      messageLength: message.length,
+      historyCount: recentMessages.length,
+    });
+
     // Process with LLM
     const response = await llmService.processChatMessage(
       message,
@@ -277,12 +290,13 @@ router.post("/projects/:id/chat", async (req: Request, res: Response) => {
     // Update project state
     storage.saveState(response.projectState);
 
+    log.info("Chat response generated", { projectId: id });
     res.json({
       message: assistantMessage.content,
       projectState: response.projectState,
     });
   } catch (error) {
-    console.error("Error processing chat:", error);
+    log.error("Error processing chat", error);
     res.status(500).json({
       error: "Failed to process chat message",
       details: error instanceof Error ? error.message : String(error),
@@ -310,9 +324,10 @@ router.get("/projects/:id/state", (req: Request, res: Response) => {
       return;
     }
 
+    log.info("Returning project state", { projectId: id });
     res.json({ projectState: state });
   } catch (error) {
-    console.error("Error fetching state:", error);
+    log.error("Error fetching state", error);
     res.status(500).json({ error: "Failed to fetch project state" });
   }
 });
@@ -342,12 +357,14 @@ router.post(
         return;
       }
 
+      log.info("Generating architecture proposal", { projectId: id });
+
       // Generate architecture proposal
       const proposal = await llmService.generateArchitectureProposal(state);
 
       res.json({ proposal });
     } catch (error) {
-      console.error("Error generating proposal:", error);
+      log.error("Error generating proposal", error);
       res.status(500).json({
         error: "Failed to generate architecture proposal",
         details: error instanceof Error ? error.message : String(error),
@@ -371,9 +388,10 @@ router.get("/projects/:id/messages", (req: Request, res: Response) => {
     }
 
     const messages = storage.getMessages(id);
+    log.info("Returning messages", { projectId: id, count: messages.length });
     res.json({ messages });
   } catch (error) {
-    console.error("Error fetching messages:", error);
+    log.error("Error fetching messages", error);
     res.status(500).json({ error: "Failed to fetch messages" });
   }
 });

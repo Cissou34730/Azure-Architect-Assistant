@@ -1,8 +1,8 @@
 // Database module - not used in POC (in-memory storage only)
-// Keeping this file for backward compatibility
+import { logger } from "../logger.js";
 
 export function initDatabase(): void {
-  console.log("✅ Using in-memory storage (no database)");
+  logger.info("Using in-memory storage (no database)");
 }
 
 export function closeDatabase(): Promise<void> {

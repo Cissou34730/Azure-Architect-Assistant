@@ -5,19 +5,19 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { initDatabase } from "./db/index.js";
 import { apiRouter } from "./api/index.js";
+import { logger, configureLoggerFromEnv, getLogLevel } from "./logger.js";
 
-// Get directory name in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load .env from backend directory
+// Load .env from backend directory and configure logging
 dotenv.config({ path: join(__dirname, "..", ".env") });
-
-console.log("🔧 Environment check:");
-console.log(
-  `  - OPENAI_API_KEY: ${process.env.OPENAI_API_KEY ? "SET" : "NOT SET"}`
-);
-console.log(`  - PORT: ${process.env.PORT || 3000}`);
+configureLoggerFromEnv();
+logger.info("Environment loaded", {
+  openAiKey: process.env.OPENAI_API_KEY ? "SET" : "NOT SET",
+  port: process.env.PORT || 3000,
+  logLevel: getLogLevel(),
+});
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
@@ -31,6 +31,7 @@ initDatabase();
 
 // Routes
 app.get("/health", (_req: Request, res: Response) => {
+  logger.info("Health check requested");
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
@@ -38,5 +39,5 @@ app.use("/api", apiRouter);
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  logger.info(`Server running on http://localhost:${PORT}`);
 });

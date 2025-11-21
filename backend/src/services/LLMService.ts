@@ -1,4 +1,5 @@
 import { ProjectState, ConversationMessage } from "../models/Project.js";
+import { logger as rootLogger } from "../logger.js";
 
 interface LLMResponse {
   assistantMessage?: string;
@@ -9,6 +10,7 @@ class LLMService {
   private apiKey: string;
   private apiEndpoint: string;
   private model: string;
+  private log = rootLogger.child("LLMService");
 
   constructor() {
     this.apiKey =
@@ -18,14 +20,11 @@ class LLMService {
       "https://api.openai.com/v1/chat/completions";
     this.model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-    console.log("🔧 LLMService initialized:");
-    console.log(
-      `  - API Key: ${
-        this.apiKey ? `${this.apiKey.substring(0, 10)}...` : "NOT SET"
-      }`
-    );
-    console.log(`  - Model: ${this.model}`);
-    console.log(`  - Endpoint: ${this.apiEndpoint}`);
+    this.log.info("LLMService initialized", {
+      apiKeyPresent: Boolean(this.apiKey),
+      model: this.model,
+      endpoint: this.apiEndpoint,
+    });
   }
 
   /**
@@ -33,6 +32,7 @@ class LLMService {
    * Analyzes extracted text from documents and returns initial ProjectState
    */
   async analyzeDocuments(documentTexts: string[]): Promise<ProjectState> {
+    this.log.info("Analyzing documents", { documentCount: documentTexts.length });
     const combinedText = documentTexts.join("\n\n---\n\n");
 
     const systemPrompt = `You are an Azure Architecture Assistant. Analyze the provided project documents and extract key information to create a structured Architecture Sheet (ProjectState).
@@ -72,6 +72,7 @@ If information is not available in the documents, use "Not specified" or empty a
     const userPrompt = `Analyze the following project documents and create a structured Architecture Sheet:\n\n${combinedText}`;
 
     const response = await this.callLLM(systemPrompt, userPrompt);
+    this.log.info("Document analysis completed");
 
     return this.parseProjectStateFromResponse(response, "temp-project-id");
   }
@@ -85,6 +86,12 @@ If information is not available in the documents, use "Not specified" or empty a
     currentState: ProjectState,
     recentMessages: ConversationMessage[]
   ): Promise<LLMResponse> {
+    this.log.info("Processing chat message", {
+      projectId: currentState.projectId,
+      messageLength: userMessage.length,
+      historyCount: recentMessages.length,
+    });
+
     const conversationHistory = recentMessages
       .map(
         (msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
@@ -121,6 +128,7 @@ PROJECT_STATE_JSON:
     const userPrompt = `Previous conversation:\n${conversationHistory}\n\nUser message: ${userMessage}`;
 
     const response = await this.callLLM(systemPrompt, userPrompt);
+    this.log.info("Chat message processed");
 
     return this.parseChaClarificationResponse(response, currentState.projectId);
   }
@@ -130,6 +138,10 @@ PROJECT_STATE_JSON:
    * Generates Azure high-level architecture based on ProjectState
    */
   async generateArchitectureProposal(state: ProjectState): Promise<string> {
+    this.log.info("Generating architecture proposal", {
+      projectId: state.projectId,
+    });
+
     const systemPrompt = `You are an expert Azure Solution Architect. Based on the provided Architecture Sheet, generate a comprehensive high-level Azure architecture proposal.
 
 Include:
@@ -149,7 +161,9 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
       2
     )}`;
 
-    return await this.callLLM(systemPrompt, userPrompt);
+    const proposal = await this.callLLM(systemPrompt, userPrompt);
+    this.log.info("Architecture proposal generated");
+    return proposal;
   }
 
   /**
@@ -159,13 +173,8 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
     systemPrompt: string,
     userPrompt: string
   ): Promise<string> {
-    console.log("📞 Calling LLM...");
-    console.log(`  - API Key present: ${!!this.apiKey}`);
-    console.log(`  - API Key length: ${this.apiKey?.length || 0}`);
-    console.log(`  - Model: ${this.model}`);
-
     if (!this.apiKey) {
-      console.error("❌ API key is missing!");
+      this.log.error("OpenAI API key is missing");
       throw new Error(
         "OpenAI API key not configured. Set OPENAI_API_KEY or AZURE_OPENAI_API_KEY environment variable."
       );
@@ -192,27 +201,38 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
       max_tokens: 4000,
     };
 
-    console.log(`📤 Sending request to: ${this.apiEndpoint}`);
-
-    const response = await fetch(this.apiEndpoint, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
+    this.log.info("Calling LLM", {
+      endpoint: this.apiEndpoint,
+      model: this.model,
+      payloadChars: systemPrompt.length + userPrompt.length,
     });
 
-    console.log(`📥 Response status: ${response.status}`);
+    try {
+      const response = await fetch(this.apiEndpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ LLM API error: ${response.status}`);
-      console.error(`❌ Error details: ${errorText}`);
-      throw new Error(`LLM API error: ${response.status} - ${errorText}`);
+      this.log.info("LLM responded", { status: response.status });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.log.error("LLM API error", {
+          status: response.status,
+          details: errorText.slice(0, 1000),
+        });
+        throw new Error(`LLM API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = (await response.json()) as {
+        choices: Array<{ message: { content: string } }>;
+      };
+      return data.choices[0].message.content;
+    } catch (error) {
+      this.log.error("LLM call failed", error);
+      throw error;
     }
-
-    const data = (await response.json()) as {
-      choices: Array<{ message: { content: string } }>;
-    };
-    return data.choices[0].message.content;
   }
 
   /**
@@ -223,16 +243,15 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
     response: string,
     projectId: string
   ): ProjectState {
-    // Try to extract JSON from response
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      this.log.error("Failed to extract JSON from LLM response");
       throw new Error("Failed to extract JSON from LLM response");
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parsed = JSON.parse(jsonMatch[0]) as Record<string, any>;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     return {
       projectId,
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
@@ -259,7 +278,6 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
     response: string,
     projectId: string
   ): LLMResponse {
-    // Extract message and JSON
     const messageMatch = response.match(
       /MESSAGE:\s*([\s\S]*?)(?=PROJECT_STATE_JSON:|$)/
     );
@@ -271,7 +289,6 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
     if (jsonMatch) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parsed = JSON.parse(jsonMatch[1]) as Record<string, any>;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       projectState = {
         projectId,
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
@@ -289,12 +306,10 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
         lastUpdated: new Date().toISOString(),
       };
     } else {
-      // Fallback: try to extract any JSON from response
       const fallbackJsonMatch = response.match(/\{[\s\S]*\}/);
       if (fallbackJsonMatch) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
         const parsed = JSON.parse(fallbackJsonMatch[0]);
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         projectState = {
           projectId,
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
@@ -332,6 +347,7 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
           lastUpdated: new Date().toISOString(),
         };
       } else {
+        this.log.error("Failed to extract ProjectState JSON from chat response");
         throw new Error(
           "Failed to extract ProjectState JSON from chat response"
         );
