@@ -140,6 +140,13 @@ dmypy.json
 *.sqlite
 *.db
 
+# WAF Ingestion Output (generated files, can be regenerated)
+backend/src/python/waf_urls.txt
+backend/src/python/waf_documents.jsonl
+backend/src/python/chunks_review.csv
+backend/src/python/chunks_review.jsonl
+backend/src/python/waf_storage_clean/
+
 # Editor directories
 .vscode/*
 !.vscode/tasks.json

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { WAFQueryInterface } from './WAFQueryInterface.js'
 
 interface Project {
   id: string
@@ -58,6 +59,7 @@ function App() {
   const [architectureProposal, setArchitectureProposal] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'documents' | 'chat' | 'state' | 'proposal'>('documents')
+  const [currentView, setCurrentView] = useState<'projects' | 'waf'>('projects')
 
   useEffect(() => {
     void fetchProjects()
@@ -276,11 +278,49 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-blue-600 text-white p-4 shadow-lg">
-        <h1 className="text-2xl font-bold">Azure Architecture Assistant - POC</h1>
-      </div>
+      {/* Top Navigation */}
+      <nav className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex space-x-8">
+              <button
+                onClick={() => setCurrentView('projects')}
+                className={`px-3 py-2 text-sm font-medium ${
+                  currentView === 'projects'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Architecture Projects
+              </button>
+              <button
+                onClick={() => setCurrentView('waf')}
+                className={`px-3 py-2 text-sm font-medium ${
+                  currentView === 'waf'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                WAF Query
+              </button>
+            </div>
+            <div className="text-sm text-gray-600">
+              Azure Architect Assistant
+            </div>
+          </div>
+        </div>
+      </nav>
 
-      <div className="container mx-auto p-6">
+      {/* Main Content */}
+      {currentView === 'waf' ? (
+        <WAFQueryInterface />
+      ) : (
+        <>
+          <div className="bg-blue-600 text-white p-4 shadow-lg">
+            <h1 className="text-2xl font-bold">Azure Architecture Assistant - POC</h1>
+          </div>
+
+          <div className="container mx-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow p-4">
@@ -544,6 +584,8 @@ function App() {
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
