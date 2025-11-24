@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+# Global cache for loaded indices (singleton pattern)
+_INDEX_CACHE = {}
+
 
 class WAFQueryService:
     """Query service for WAF documentation."""
@@ -68,7 +71,7 @@ class WAFQueryService:
             timeout=90.0  # 90 second timeout for API call
         )
         
-        # Load index (lazy loading, cached after first load)
+        # Don't load index in __init__, use lazy loading via _load_index()
         self._index = None
         self._query_engine = None
         
@@ -76,31 +79,42 @@ class WAFQueryService:
     
     def _load_index(self) -> VectorStoreIndex:
         """
-        Load index from storage (cached).
+        Load index from storage with caching (singleton pattern).
+        Significantly reduces query time by avoiding 27s reload on each query.
         
         Returns:
             VectorStoreIndex
         """
-        if self._index is None:
-            from llama_index.core import load_index_from_storage
-            
-            logger.info(f"[WAFQueryService] Loading index from {self.storage_dir}")
-            
-            # Check if directory exists
-            if not os.path.exists(self.storage_dir):
-                logger.error(f"[WAFQueryService] Index directory not found: {self.storage_dir}")
-                logger.error(f"[WAFQueryService] Directory contents of parent: {os.listdir(os.path.dirname(self.storage_dir)) if os.path.exists(os.path.dirname(self.storage_dir)) else 'Parent does not exist'}")
-                raise FileNotFoundError(f"WAF index not found at {self.storage_dir}. Please run the ingestion pipeline first.")
-            
-            # List files in the directory
-            index_files = os.listdir(self.storage_dir)
-            logger.info(f"[WAFQueryService] Index directory contains {len(index_files)} files: {index_files[:5]}...")
-            
-            storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
-            self._index = load_index_from_storage(storage_context)
-            logger.info("[WAFQueryService] Index loaded successfully")
+        # Check global cache first
+        cache_key = self.storage_dir
+        if cache_key in _INDEX_CACHE:
+            logger.info(f"[WAFQueryService] Using cached index from {self.storage_dir}")
+            return _INDEX_CACHE[cache_key]
         
-        return self._index
+        # Load from disk if not cached
+        from llama_index.core import load_index_from_storage
+        
+        logger.info(f"[WAFQueryService] Loading index from {self.storage_dir} (first time - will be cached)")
+        
+        # Check if directory exists
+        if not os.path.exists(self.storage_dir):
+            logger.error(f"[WAFQueryService] Index directory not found: {self.storage_dir}")
+            logger.error(f"[WAFQueryService] Directory contents of parent: {os.listdir(os.path.dirname(self.storage_dir)) if os.path.exists(os.path.dirname(self.storage_dir)) else 'Parent does not exist'}")
+            raise FileNotFoundError(f"WAF index not found at {self.storage_dir}. Please run the ingestion pipeline first.")
+        
+        # List files in the directory
+        index_files = os.listdir(self.storage_dir)
+        logger.info(f"[WAFQueryService] Index directory contains {len(index_files)} files: {index_files[:5]}...")
+        
+        storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
+        index = load_index_from_storage(storage_context)
+        
+        # Cache globally for reuse across instances
+        _INDEX_CACHE[cache_key] = index
+        
+        logger.info("[WAFQueryService] Index loaded successfully and cached")
+        
+        return _INDEX_CACHE[cache_key]
     
     def _get_query_engine(self):
         """
@@ -137,9 +151,19 @@ class WAFQueryService:
         """
         logger.info(f"Processing query: {question}")
         
+        import time
+        total_start = time.time()
+        
         # Load index and get retriever
+        index_start = time.time()
         index = self._load_index()
+        index_time = time.time() - index_start
+        logger.info(f"[query] Index load time: {index_time:.2f}s")
+        
+        retriever_start = time.time()
         retriever = index.as_retriever(similarity_top_k=top_k)
+        retriever_time = time.time() - retriever_start
+        logger.info(f"[query] Retriever creation time: {retriever_time:.2f}s")
         
         # Apply metadata filters if provided
         if metadata_filters:
@@ -156,9 +180,11 @@ class WAFQueryService:
             )
         
         # Retrieve relevant chunks
+        retrieve_start = time.time()
         retrieved_nodes = retriever.retrieve(question)
+        retrieve_time = time.time() - retrieve_start
         
-        logger.info(f"[query] Retrieved {len(retrieved_nodes)} nodes")
+        logger.info(f"[query] Retrieved {len(retrieved_nodes)} nodes in {retrieve_time:.2f}s")
         for i, node in enumerate(retrieved_nodes[:3], 1):
             logger.info(f"[query] Node {i}: score={node.score:.4f}, title={node.metadata.get('title', 'N/A')[:50]}")
         
@@ -205,15 +231,21 @@ class WAFQueryService:
         
         # Generate answer using LLM
         try:
+            import time
+            start_time = time.time()
+            
             llm = Settings.llm
             response = llm.complete(prompt)
             answer = response.text.strip()
-            logger.info(f"[query] LLM response received, length: {len(answer)} chars")
+            
+            elapsed_time = time.time() - start_time
+            logger.info(f"[query] LLM response received in {elapsed_time:.2f}s, length: {len(answer)} chars")
         except Exception as e:
             logger.error(f"[query] LLM generation failed: {str(e)}")
             raise
         
-        logger.info(f"Query completed. Retrieved {len(filtered_nodes)} relevant chunks")
+        total_time = time.time() - total_start
+        logger.info(f"Query completed in {total_time:.2f}s total. Retrieved {len(filtered_nodes)} relevant chunks")
         
         return {
             'answer': answer,
@@ -276,6 +308,109 @@ Answer:"""
         
         return response
     
+    def query_stream(
+        self,
+        question: str,
+        top_k: int = 3,
+        metadata_filters: Optional[Dict[str, any]] = None
+    ):
+        """
+        Query with streaming response (yields chunks as they arrive).
+        
+        Args:
+            question: User question
+            top_k: Number of top chunks to retrieve
+            metadata_filters: Optional metadata filters
+            
+        Yields:
+            Answer chunks as they are generated
+        """
+        logger.info(f"Processing streaming query: {question}")
+        
+        # Load index and get retriever
+        index = self._load_index()
+        retriever = index.as_retriever(similarity_top_k=top_k)
+        
+        # Apply metadata filters if provided
+        if metadata_filters:
+            from llama_index.core.vector_stores import MetadataFilters, MetadataFilter
+            filters = MetadataFilters(
+                filters=[
+                    MetadataFilter(key=k, value=v)
+                    for k, v in metadata_filters.items()
+                ]
+            )
+            retriever = index.as_retriever(
+                similarity_top_k=top_k,
+                filters=filters
+            )
+        
+        # Retrieve relevant chunks
+        import time
+        retrieve_start = time.time()
+        retrieved_nodes = retriever.retrieve(question)
+        retrieve_time = time.time() - retrieve_start
+        
+        logger.info(f"[query_stream] Retrieved {len(retrieved_nodes)} nodes in {retrieve_time:.2f}s")
+        
+        # Filter by similarity threshold
+        filtered_nodes = [
+            node for node in retrieved_nodes
+            if node.score >= self.similarity_threshold
+        ]
+        
+        logger.info(f"[query_stream] After filtering: {len(filtered_nodes)} nodes")
+        
+        if not filtered_nodes:
+            yield {
+                'type': 'answer',
+                'content': "I couldn't find relevant information in the Azure Well-Architected Framework documentation to answer your question. Please try rephrasing or asking a different question.",
+                'done': True,
+                'sources': [],
+                'scores': []
+            }
+            return
+        
+        # Build context
+        context_parts = []
+        sources = []
+        scores = []
+        
+        for i, node in enumerate(filtered_nodes, 1):
+            chunk_text = node.text
+            context_parts.append(f"[Source {i}]\n{chunk_text}\n")
+            sources.append({
+                'url': node.metadata.get('url', ''),
+                'title': node.metadata.get('title', ''),
+                'section': node.metadata.get('section', ''),
+                'score': float(node.score)
+            })
+            scores.append(float(node.score))
+        
+        context = "\n".join(context_parts)
+        prompt = self._build_prompt(question, context)
+        
+        logger.info(f"[query_stream] Starting streaming generation")
+        
+        # Stream response
+        llm = Settings.llm
+        response_gen = llm.stream_complete(prompt)
+        
+        for chunk in response_gen:
+            yield {
+                'type': 'chunk',
+                'content': chunk.delta,
+                'done': False
+            }
+        
+        # Send final metadata
+        yield {
+            'type': 'complete',
+            'done': True,
+            'sources': sources,
+            'scores': scores
+        }
+
     def _generate_follow_up_questions(self, original_question: str, answer: str) -> List[str]:
         """
         Generate follow-up questions based on the answer.

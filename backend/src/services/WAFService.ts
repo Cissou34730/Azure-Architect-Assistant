@@ -51,6 +51,10 @@ export interface IngestionStatus {
 export class WAFService {
   private pythonPath: string;
   private ragPath: string;
+  private queryProcess: any = null;
+  private queryProcessReady: boolean = false;
+  private pendingQueries: Map<string, { resolve: any; reject: any }> =
+    new Map();
 
   constructor() {
     // Determine Python path (consider virtual environment)
@@ -61,6 +65,9 @@ export class WAFService {
       pythonPath: this.pythonPath,
       ragPath: this.ragPath,
     });
+
+    // Start the long-running query service
+    this.startQueryService();
   }
 
   /**
@@ -265,10 +272,180 @@ export class WAFService {
   }
 
   /**
+   * Start the long-running query service process
+   */
+  private startQueryService(): void {
+    const scriptPath = join(this.ragPath, "query_service.py");
+    const rootPath = join(this.ragPath, "..", "..", "..");
+    const storageDir = join(
+      rootPath,
+      "data",
+      "knowledge_bases",
+      "waf",
+      "index"
+    );
+
+    logger.info("[WAFService] Starting long-running query service", {
+      scriptPath,
+      storageDir,
+    });
+
+    this.queryProcess = spawn(this.pythonPath, [scriptPath], {
+      cwd: this.ragPath,
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: "1",
+        WAF_STORAGE_DIR: storageDir,
+      },
+    });
+
+    let stdoutBuffer = "";
+
+    this.queryProcess.stdout.on("data", (data: Buffer) => {
+      const text = data.toString();
+      stdoutBuffer += text;
+
+      // Process line by line
+      const lines = stdoutBuffer.split("\n");
+      stdoutBuffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+
+        try {
+          const response = JSON.parse(line);
+
+          // Check for ready signal
+          if (response.status === "ready") {
+            this.queryProcessReady = true;
+            logger.info("[WAFService] Query service ready");
+            return;
+          }
+
+          // Handle query response (match by content for now - could use query IDs)
+          const pendingQuery = Array.from(this.pendingQueries.values())[0];
+          if (pendingQuery) {
+            const queryId = Array.from(this.pendingQueries.keys())[0];
+            this.pendingQueries.delete(queryId);
+            pendingQuery.resolve(response);
+          }
+        } catch (e) {
+          logger.warn("[WAFService] Failed to parse response line", { line });
+        }
+      }
+    });
+
+    this.queryProcess.stderr.on("data", (data: Buffer) => {
+      const text = data.toString();
+      logger.info("[WAFService] Query service stderr:", { text });
+    });
+
+    this.queryProcess.on("error", (error: Error) => {
+      logger.error("[WAFService] Query service error", { error });
+      this.queryProcessReady = false;
+    });
+
+    this.queryProcess.on("close", (code: number) => {
+      logger.warn("[WAFService] Query service closed", { code });
+      this.queryProcessReady = false;
+      this.queryProcess = null;
+
+      // Reject all pending queries
+      for (const [queryId, pending] of this.pendingQueries.entries()) {
+        pending.reject(new Error("Query service closed unexpectedly"));
+        this.pendingQueries.delete(queryId);
+      }
+    });
+  }
+
+  /**
+   * Send a query to the long-running service
+   */
+  private async queryLongRunningService(
+    question: string,
+    topK: number = 3
+  ): Promise<any> {
+    // Wait for service to be ready (with timeout)
+    const maxWait = 60000; // 60 seconds for initial index load
+    const startWait = Date.now();
+
+    while (!this.queryProcessReady && Date.now() - startWait < maxWait) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    if (!this.queryProcessReady) {
+      throw new Error("Query service not ready after 60 seconds");
+    }
+
+    return new Promise((resolve, reject) => {
+      const queryId = `query-${Date.now()}`;
+      this.pendingQueries.set(queryId, { resolve, reject });
+
+      const queryData = {
+        question,
+        top_k: topK,
+      };
+
+      // Send query to service
+      this.queryProcess.stdin.write(JSON.stringify(queryData) + "\n");
+
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (this.pendingQueries.has(queryId)) {
+          this.pendingQueries.delete(queryId);
+          reject(new Error("Query timeout after 30 seconds"));
+        }
+      }, 30000);
+    });
+  }
+
+  /**
    * Query the WAF documentation
    */
   async query(request: WAFQueryRequest): Promise<WAFQueryResponse> {
     logger.info("Processing WAF query", { question: request.question });
+
+    try {
+      // Use long-running service instead of spawning new process
+      const result = await this.queryLongRunningService(
+        request.question,
+        request.topK || 3
+      );
+
+      // Handle error responses
+      if (result.error) {
+        throw new Error(result.message || result.error);
+      }
+
+      logger.info("WAF query completed", {
+        hasResults: result.has_results,
+        sourceCount: result.sources?.length || 0,
+      });
+
+      return {
+        answer: result.answer,
+        sources: result.sources || [],
+        scores: result.scores || [],
+        hasResults: result.has_results || false,
+        discussionEnabled: result.discussion_enabled,
+        suggestedFollowUps: result.suggested_follow_ups,
+      };
+    } catch (error) {
+      logger.error("WAF query failed", { error });
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to query WAF documentation: ${message}`);
+    }
+  }
+
+  /**
+   * Old query method using spawn (kept as fallback)
+   */
+  private async queryWithSpawn(
+    request: WAFQueryRequest
+  ): Promise<WAFQueryResponse> {
+    logger.info("Processing WAF query with spawn", {
+      question: request.question,
+    });
 
     try {
       // Prepare query input
@@ -382,6 +559,11 @@ export class WAFService {
       pythonProcess.on("close", (code) => {
         clearTimeout(timeoutHandle);
 
+        // Log stderr even on success (contains Python logging output)
+        if (stderr) {
+          logger.info("Python stderr output:", { stderr });
+        }
+
         if (code === 0) {
           resolve(stdout);
         } else {
@@ -489,7 +671,46 @@ export class WAFService {
       return false;
     }
   }
+
+  /**
+   * Cleanup: stop the query service process
+   */
+  public cleanup(): void {
+    if (this.queryProcess) {
+      logger.info("[WAFService] Shutting down query service");
+
+      try {
+        // Send exit command
+        this.queryProcess.stdin.write(
+          JSON.stringify({ command: "exit" }) + "\n"
+        );
+
+        // Force kill after 5 seconds if not closed
+        setTimeout(() => {
+          if (this.queryProcess) {
+            this.queryProcess.kill();
+          }
+        }, 5000);
+      } catch (error) {
+        logger.error("[WAFService] Error during cleanup", { error });
+        this.queryProcess.kill();
+      }
+    }
+  }
 }
 
 // Singleton instance
 export const wafService = new WAFService();
+
+// Cleanup on process exit
+process.on("SIGINT", () => {
+  logger.info("SIGINT received, cleaning up...");
+  wafService.cleanup();
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  logger.info("SIGTERM received, cleaning up...");
+  wafService.cleanup();
+  process.exit(0);
+});
