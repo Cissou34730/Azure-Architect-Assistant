@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { WAFQueryInterface } from './WAFQueryInterface.js'
 
 interface Project {
@@ -45,6 +45,14 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
+  wafSources?: WAFSource[]
+}
+
+interface WAFSource {
+  url: string
+  title: string
+  section: string
+  score: number
 }
 
 function App() {
@@ -58,21 +66,51 @@ function App() {
   const [projectState, setProjectState] = useState<ProjectState | null>(null)
   const [architectureProposal, setArchitectureProposal] = useState<string>('')
   const [loading, setLoading] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState<string>('')
+  const [proposalStage, setProposalStage] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'documents' | 'chat' | 'state' | 'proposal'>('documents')
   const [currentView, setCurrentView] = useState<'projects' | 'waf'>('projects')
+  const proposalTimers = useRef<NodeJS.Timeout[]>([])
+
+  // Logging helper
+  const logAction = (action: string, details?: any) => {
+    const timestamp = new Date().toISOString()
+    console.log(`[${timestamp}] ${action}`, details || '')
+  }
 
   useEffect(() => {
+    logAction('App initialized')
     void fetchProjects()
   }, [])
 
   useEffect(() => {
     if (selectedProject) {
+      logAction('Project selected', { projectId: selectedProject.id, name: selectedProject.name })
       void fetchProjectState()
       void fetchMessages()
       setTextRequirements(selectedProject.textRequirements || '')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject])
+
+  useEffect(() => {
+    if (projectState) {
+      logAction('Project state changed in UI', { 
+        projectId: projectState.projectId,
+        lastUpdated: projectState.lastUpdated,
+        openQuestionsCount: projectState.openQuestions.length
+      })
+    }
+  }, [projectState])
+
+  // Refresh state when switching to State tab
+  useEffect(() => {
+    if (activeTab === 'state' && selectedProject) {
+      logAction('State tab activated, refreshing project state')
+      void fetchProjectState()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
 
   const fetchProjects = async (): Promise<void> => {
     try {
@@ -198,8 +236,10 @@ function App() {
     e.preventDefault()
     if (!selectedProject || !chatInput.trim()) return
 
-    setLoading(true)
     const userMessage = chatInput
+    logAction('Sending chat message', { projectId: selectedProject.id, messagePreview: userMessage.substring(0, 50) })
+    setLoading(true)
+    setLoadingMessage('Processing your question (checking WAF documentation)...')
     setChatInput('')
 
     try {
@@ -210,18 +250,40 @@ function App() {
       })
 
       if (response.ok) {
-        const data = await response.json() as { message: string; projectState: ProjectState }
-        setProjectState(data.projectState)
+        const data = await response.json() as { 
+          message: string
+          projectState: ProjectState
+          wafSources?: WAFSource[]
+        }
+        logAction('Chat message processed', { 
+          hasWafSources: Boolean(data.wafSources && data.wafSources.length > 0),
+          sourceCount: data.wafSources?.length || 0,
+          stateUpdated: Boolean(data.projectState)
+        })
+        
+        // Update project state - force re-render by creating new object
+        if (data.projectState) {
+          setProjectState({ ...data.projectState })
+          logAction('Architecture sheet updated', { 
+            lastUpdated: data.projectState.lastUpdated,
+            openQuestions: data.projectState.openQuestions.length
+          })
+        }
+        
+        // Fetch messages to get the complete conversation including WAF sources
         await fetchMessages()
       } else {
         const error = await response.json() as { error: string }
+        logAction('Chat message failed', { error: error.error })
         alert(`Error: ${error.error}`)
       }
     } catch (error) {
+      logAction('Chat message error', error)
       console.error('Error sending message:', error)
       alert('Failed to send message')
     } finally {
       setLoading(false)
+      setLoadingMessage('')
     }
   }
 
@@ -244,34 +306,86 @@ function App() {
       const response = await fetch(`/api/projects/${selectedProject.id}/state`)
       if (response.ok) {
         const data = await response.json() as { projectState: ProjectState }
+        logAction('Fetched project state', { 
+          hasState: Boolean(data.projectState),
+          lastUpdated: data.projectState?.lastUpdated
+        })
         setProjectState(data.projectState)
+      } else {
+        logAction('Failed to fetch project state', { status: response.status })
       }
     } catch (error) {
+      logAction('Error fetching project state', error)
       console.error('Error fetching state:', error)
     }
   }
 
-  const generateProposal = async (): Promise<void> => {
+  const generateProposal = (): void => {
     if (!selectedProject) return
 
+    logAction('Generating architecture proposal', { projectId: selectedProject.id })
     setLoading(true)
-    try {
-      const response = await fetch(`/api/projects/${selectedProject.id}/architecture/proposal`, {
-        method: 'POST',
-      })
-
-      if (response.ok) {
-        const data = await response.json() as { proposal: string }
-        setArchitectureProposal(data.proposal)
-        setActiveTab('proposal')
-      } else {
-        const error = await response.json() as { error: string }
-        alert(`Error: ${error.error}`)
+    setProposalStage('Starting proposal generation...')
+    
+    const url = `/api/projects/${selectedProject.id}/architecture/proposal`
+    logAction('Opening SSE connection', { url })
+    
+    // Create EventSource connection (backend handles it as POST)
+    const eventSource = new EventSource(url)
+    
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        logAction('SSE message received', data)
+        
+        if (data.stage === 'done') {
+          // Proposal complete
+          setArchitectureProposal(data.proposal)
+          setProposalStage('Refreshing architecture sheet...')
+          
+          // Close the connection
+          eventSource.close()
+          
+          // Refresh state
+          fetchProjectState().then(() => {
+            logAction('State refresh complete after proposal')
+            setProposalStage('')
+            setLoading(false)
+          }).catch((error) => {
+            logAction('Error refreshing state', error)
+            setProposalStage('')
+            setLoading(false)
+          })
+        } else if (data.stage === 'error') {
+          // Error occurred
+          logAction('Proposal generation error from SSE', data)
+          alert(`Error: ${data.error}`)
+          eventSource.close()
+          setProposalStage('')
+          setLoading(false)
+        } else {
+          // Progress update
+          const stageMessages: Record<string, string> = {
+            'started': 'Initializing...',
+            'querying_waf': data.detail || 'Querying Azure Well-Architected Framework...',
+            'building_context': 'Building context from WAF guidance...',
+            'generating_proposal': 'Generating comprehensive proposal with AI...',
+            'finalizing': 'Finalizing proposal...',
+            'completed': 'Completed successfully'
+          }
+          setProposalStage(stageMessages[data.stage] || data.detail || 'Processing...')
+        }
+      } catch (error) {
+        logAction('Error parsing SSE message', error)
       }
-    } catch (error) {
-      console.error('Error generating proposal:', error)
-      alert('Failed to generate proposal')
-    } finally {
+    }
+    
+    eventSource.onerror = (error) => {
+      logAction('SSE connection error', error)
+      eventSource.close()
+      
+      alert('Connection error during proposal generation')
+      setProposalStage('')
       setLoading(false)
     }
   }
@@ -426,10 +540,21 @@ function App() {
                       <button
                         onClick={analyzeDocuments}
                         disabled={loading || (!textRequirements.trim() && !selectedProject.textRequirements?.trim())}
-                        className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
+                        className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
                       >
-                        Analyze Requirements
+                        {loading && loadingMessage.includes('Analyzing') ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Analyzing...</span>
+                          </>
+                        ) : 'Analyze Requirements'}
                       </button>
+                      {loading && loadingMessage.includes('Analyzing') && (
+                        <p className="text-sm text-blue-600 mt-2">{loadingMessage}</p>
+                      )}
                       {!textRequirements.trim() && !selectedProject.textRequirements?.trim() && (
                         <p className="text-sm text-gray-500 mt-2">Please add text requirements or upload documents to enable analysis.</p>
                       )}
@@ -439,6 +564,15 @@ function App() {
                   {activeTab === 'chat' && (
                     <div>
                       <h2 className="text-xl font-semibold mb-4">Clarification Chat</h2>
+                      {loading && loadingMessage && (
+                        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md flex items-center gap-2">
+                          <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span className="text-sm text-blue-800">{loadingMessage}</span>
+                        </div>
+                      )}
                       <div className="h-96 overflow-y-auto border border-gray-200 rounded-md p-4 mb-4">
                         {messages.map((msg) => (
                           <div
@@ -458,6 +592,25 @@ function App() {
                                 {msg.role === 'user' ? 'You' : 'Assistant'}
                               </div>
                               <div className="whitespace-pre-wrap">{msg.content}</div>
+                              {msg.role === 'assistant' && msg.wafSources && msg.wafSources.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-gray-300">
+                                  <div className="text-xs font-semibold mb-2">Sources (Azure Well-Architected Framework):</div>
+                                  <div className="space-y-1">
+                                    {msg.wafSources.map((source, idx) => (
+                                      <div key={idx} className="text-xs">
+                                        <a
+                                          href={source.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:underline"
+                                        >
+                                          {source.title} ({source.section})
+                                        </a>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -469,13 +622,22 @@ function App() {
                           onChange={(e) => setChatInput(e.target.value)}
                           placeholder="Ask a question or provide clarification..."
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                          disabled={loading}
                         />
                         <button
                           type="submit"
-                          disabled={loading}
-                          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                          disabled={loading || !chatInput.trim()}
+                          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
                         >
-                          Send
+                          {loading ? (
+                            <>
+                              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              <span>Sending...</span>
+                            </>
+                          ) : 'Send'}
                         </button>
                       </form>
                     </div>
@@ -483,7 +645,19 @@ function App() {
 
                   {activeTab === 'state' && (
                     <div>
-                      <h2 className="text-xl font-semibold mb-4">Architecture Sheet</h2>
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-semibold">Architecture Sheet</h2>
+                        <button
+                          onClick={() => void fetchProjectState()}
+                          disabled={loading}
+                          className="bg-gray-600 text-white px-3 py-1 rounded-md hover:bg-gray-700 disabled:opacity-50 text-sm flex items-center gap-1"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Refresh
+                        </button>
+                      </div>
                       {projectState ? (
                         <div className="space-y-4">
                           <Section title="Context">
@@ -558,14 +732,35 @@ function App() {
                   {activeTab === 'proposal' && (
                     <div>
                       <h2 className="text-xl font-semibold mb-4">Azure Architecture Proposal</h2>
+                      
                       <button
                         onClick={generateProposal}
-                        disabled={loading}
-                        className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 disabled:opacity-50 mb-4"
+                        disabled={loading && proposalStage !== ''}
+                        className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 disabled:opacity-50 mb-4 flex items-center gap-2"
                       >
-                        Generate Proposal
+                        {loading && proposalStage ? 'Generating...' : 'Generate Proposal'}
                       </button>
-                      {architectureProposal && (
+                      
+                      {proposalStage && (
+                        <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+                          <div className="flex items-start gap-3">
+                            <div className="shrink-0 mt-1">
+                              <div className="flex space-x-1">
+                                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
+                                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-purple-900 mb-1">Thinking...</div>
+                              <div className="text-sm text-purple-700">{proposalStage}</div>
+                              <div className="mt-2 text-xs text-purple-600">This may take up to 40 seconds</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {architectureProposal && !proposalStage && (
                         <div className="prose max-w-none">
                           <pre className="whitespace-pre-wrap bg-gray-50 p-4 rounded-md border border-gray-200">
                             {architectureProposal}
@@ -585,15 +780,6 @@ function App() {
         </div>
       </div>
         </>
-      )}
-
-      {loading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-700">Processing...</p>
-          </div>
-        </div>
       )}
     </div>
   )

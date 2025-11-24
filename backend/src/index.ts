@@ -26,18 +26,25 @@ const PORT = process.env.PORT ?? 3000;
 app.use(cors());
 app.use(express.json());
 
-// Initialize database
-initDatabase();
+// Initialize database and start server
+initDatabase()
+  .then(() => {
+    logger.info("Database initialized successfully");
 
-// Routes
-app.get("/health", (_req: Request, res: Response) => {
-  logger.info("Health check requested");
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
-});
+    // Routes
+    app.get("/health", (_req: Request, res: Response) => {
+      logger.info("Health check requested");
+      res.json({ status: "ok", timestamp: new Date().toISOString() });
+    });
 
-app.use("/api", apiRouter);
+    app.use("/api", apiRouter);
 
-// Start server
-app.listen(PORT, () => {
-  logger.info(`Server running on http://localhost:${PORT}`);
-});
+    // Start server
+    app.listen(PORT, () => {
+      logger.info(`Server running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    logger.error("Failed to initialize database", error);
+    process.exit(1);
+  });

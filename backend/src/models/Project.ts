@@ -45,10 +45,18 @@ export interface ProjectState {
   lastUpdated: string;
 }
 
+export interface WAFSource {
+  url: string;
+  title: string;
+  section: string;
+  score: number;
+}
+
 export interface ConversationMessage {
   id: string;
   projectId: string;
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  wafSources?: WAFSource[];
 }

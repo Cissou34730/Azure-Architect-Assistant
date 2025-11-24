@@ -1,9 +1,18 @@
 import { ProjectState, ConversationMessage } from "../models/Project.js";
 import { logger as rootLogger } from "../logger.js";
+import { wafService, WAFQueryResponse } from "./WAFService.js";
+
+interface WAFSource {
+  url: string;
+  title: string;
+  section: string;
+  score: number;
+}
 
 interface LLMResponse {
   assistantMessage?: string;
   projectState: ProjectState;
+  wafSources?: WAFSource[];
 }
 
 class LLMService {
@@ -28,11 +37,39 @@ class LLMService {
   }
 
   /**
+   * Query WAF for Azure best practices and guidance
+   */
+  private async queryWAF(question: string): Promise<WAFQueryResponse | null> {
+    try {
+      this.log.info("Querying WAF", { question });
+      const response = await wafService.query({ question, topK: 3 });
+
+      if (!response.hasResults) {
+        this.log.info("No WAF results found for question");
+        return null;
+      }
+
+      this.log.info("WAF query successful", {
+        sourceCount: response.sources.length,
+        hasAnswer: Boolean(response.answer),
+      });
+      return response;
+    } catch (error) {
+      this.log.warn("WAF query failed, continuing without WAF context", {
+        error,
+      });
+      return null;
+    }
+  }
+
+  /**
    * Mode A: Document Analysis
    * Analyzes extracted text from documents and returns initial ProjectState
    */
   async analyzeDocuments(documentTexts: string[]): Promise<ProjectState> {
-    this.log.info("Analyzing documents", { documentCount: documentTexts.length });
+    this.log.info("Analyzing documents", {
+      documentCount: documentTexts.length,
+    });
     const combinedText = documentTexts.join("\n\n---\n\n");
 
     const systemPrompt = `You are an Azure Architecture Assistant. Analyze the provided project documents and extract key information to create a structured Architecture Sheet (ProjectState).
@@ -92,6 +129,57 @@ If information is not available in the documents, use "Not specified" or empty a
       historyCount: recentMessages.length,
     });
 
+    // Check if question is about Azure services, architecture, or best practices
+    const azureKeywords = [
+      "azure",
+      "app service",
+      "function",
+      "cosmos",
+      "sql",
+      "storage",
+      "kubernetes",
+      "aks",
+      "security",
+      "availability",
+      "performance",
+      "cost",
+      "architecture",
+      "best practice",
+      "recommendation",
+      "pillar",
+      "reliability",
+      "scalability",
+      "monitoring",
+      "deployment",
+    ];
+    const lowerMessage = userMessage.toLowerCase();
+    const isAzureRelated = azureKeywords.some((keyword) =>
+      lowerMessage.includes(keyword)
+    );
+
+    // Query WAF if Azure-related
+    let wafContext = "";
+    let wafSources: WAFSource[] | undefined;
+
+    if (isAzureRelated) {
+      this.log.info("Azure-related question detected, querying WAF");
+      const wafResponse = await this.queryWAF(userMessage);
+
+      if (wafResponse && wafResponse.hasResults) {
+        wafContext = `\n\n=== Azure Well-Architected Framework Context ===\n${
+          wafResponse.answer
+        }\n\nSources:\n${wafResponse.sources
+          .map((s, i) => `${i + 1}. ${s.title} (${s.section}) - ${s.url}`)
+          .join(
+            "\n"
+          )}\n\nUse this WAF guidance to inform your response and cite sources when relevant.\n`;
+        wafSources = wafResponse.sources;
+        this.log.info("WAF context added to chat", {
+          sourceCount: wafSources.length,
+        });
+      }
+    }
+
     const conversationHistory = recentMessages
       .map(
         (msg) => `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`
@@ -107,6 +195,7 @@ You must:
 1. Answer the user's question or address their input
 2. Update the Architecture Sheet if new information is provided
 3. Refine open questions, constraints, or NFRs as appropriate
+4. When Azure Well-Architected Framework context is provided, incorporate it into your answer and cite sources${wafContext}
 
 Your response MUST contain:
 1. A conversational message to the user
@@ -130,17 +219,120 @@ PROJECT_STATE_JSON:
     const response = await this.callLLM(systemPrompt, userPrompt);
     this.log.info("Chat message processed");
 
-    return this.parseChaClarificationResponse(response, currentState.projectId);
+    const result = this.parseChaClarificationResponse(
+      response,
+      currentState.projectId
+    );
+
+    // Add WAF sources if available
+    if (wafSources && wafSources.length > 0) {
+      result.wafSources = wafSources;
+    }
+
+    return result;
   }
 
   /**
    * Mode C: Architecture Proposal
    * Generates Azure high-level architecture based on ProjectState
    */
-  async generateArchitectureProposal(state: ProjectState): Promise<string> {
+  async generateArchitectureProposal(
+    state: ProjectState,
+    onProgress?: (stage: string, detail?: string) => void
+  ): Promise<string> {
     this.log.info("Generating architecture proposal", {
       projectId: state.projectId,
     });
+
+    onProgress?.(
+      "querying_waf",
+      "Preparing to query Azure Well-Architected Framework"
+    );
+
+    // Query WAF for each pillar to get best practices
+    this.log.info("Querying WAF for architecture guidance");
+
+    const wafQueries = [
+      `What are the security best practices for ${
+        state.context.scenarioType || "cloud applications"
+      }?`,
+      `What are the reliability and availability best practices for ${
+        state.context.scenarioType || "cloud applications"
+      }?`,
+      `What are the cost optimization best practices for Azure services?`,
+      `What are the performance efficiency best practices for Azure?`,
+      `What are the operational excellence best practices for Azure?`,
+    ];
+
+    this.log.info("About to query WAF sequentially", {
+      queryCount: wafQueries.length,
+    });
+
+    // Query pillars sequentially to avoid overwhelming the Python service
+    const wafResponses: (WAFQueryResponse | null)[] = [];
+    const pillarNames = [
+      "Security",
+      "Reliability",
+      "Cost Optimization",
+      "Performance",
+      "Operational Excellence",
+    ];
+
+    for (let i = 0; i < wafQueries.length; i++) {
+      const pillarName = pillarNames[i];
+      onProgress?.(
+        "querying_waf",
+        `Querying ${pillarName} pillar (${i + 1}/${wafQueries.length})`
+      );
+      this.log.info(`Querying WAF pillar ${i + 1}/${wafQueries.length}`);
+      try {
+        const response = await this.queryWAF(wafQueries[i]);
+        wafResponses.push(response);
+        this.log.info(`WAF pillar ${i + 1} completed`);
+      } catch (error) {
+        this.log.warn(`WAF pillar ${i + 1} failed, continuing`, { error });
+        wafResponses.push(null);
+      }
+    }
+
+    this.log.info("WAF queries completed", {
+      responseCount: wafResponses.length,
+      successCount: wafResponses.filter((r) => r !== null).length,
+    });
+
+    onProgress?.(
+      "building_context",
+      "Building proposal context from WAF guidance"
+    );
+
+    // Build WAF context from responses
+    let wafContext = "";
+    const allSources: WAFSource[] = [];
+
+    wafResponses.forEach((response, index) => {
+      if (response && response.hasResults) {
+        const pillarName = [
+          "Security",
+          "Reliability",
+          "Cost Optimization",
+          "Performance",
+          "Operational Excellence",
+        ][index];
+        wafContext += `\n\n=== ${pillarName} Pillar Guidance ===\n${response.answer}\n`;
+        allSources.push(...response.sources);
+      }
+    });
+
+    if (wafContext) {
+      wafContext += `\n\n=== Sources ===\n${allSources
+        .map((s, i) => `[${i + 1}] ${s.title} - ${s.url}`)
+        .join(
+          "\n"
+        )}\n\nIMPORTANT: Cite these sources in your proposal using [1], [2], etc. format.\n`;
+      this.log.info("WAF context added to proposal", {
+        sourceCount: allSources.length,
+      });
+    }
 
     const systemPrompt = `You are an expert Azure Solution Architect. Based on the provided Architecture Sheet, generate a comprehensive high-level Azure architecture proposal.
 
@@ -148,12 +340,14 @@ Include:
 1. Recommended Azure services and their purposes
 2. Architecture diagram description (textual)
 3. Key design decisions and rationale
-4. Security considerations
-5. Scalability and availability approach
-6. Cost optimization suggestions
+4. Security considerations (cite WAF sources)
+5. Scalability and availability approach (cite WAF sources)
+6. Cost optimization suggestions (cite WAF sources)
 7. Implementation phases/roadmap
 
-Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, Azure Functions, etc.).`;
+Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, Azure Functions, etc.).
+
+When Azure Well-Architected Framework guidance is provided below, incorporate it into your recommendations and cite sources using [1], [2], etc.${wafContext}`;
 
     const userPrompt = `Generate a high-level Azure architecture proposal based on this Architecture Sheet:\n\n${JSON.stringify(
       state,
@@ -161,8 +355,14 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
       2
     )}`;
 
+    onProgress?.(
+      "generating_proposal",
+      "Generating comprehensive architecture proposal with AI"
+    );
     const proposal = await this.callLLM(systemPrompt, userPrompt);
     this.log.info("Architecture proposal generated");
+
+    onProgress?.("finalizing", "Finalizing proposal");
     return proposal;
   }
 
@@ -347,7 +547,9 @@ Be specific about Azure services (e.g., Azure App Service, Azure SQL Database, A
           lastUpdated: new Date().toISOString(),
         };
       } else {
-        this.log.error("Failed to extract ProjectState JSON from chat response");
+        this.log.error(
+          "Failed to extract ProjectState JSON from chat response"
+        );
         throw new Error(
           "Failed to extract ProjectState JSON from chat response"
         );

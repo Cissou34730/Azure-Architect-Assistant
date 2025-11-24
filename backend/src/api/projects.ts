@@ -20,7 +20,7 @@ const upload = multer({ storage: multer.memoryStorage() });
  * 1. POST /projects
  * Create a new project
  */
-router.post("/projects", (req: Request, res: Response) => {
+router.post("/projects", async (req: Request, res: Response) => {
   try {
     const { name } = req.body as {
       name?: string;
@@ -37,7 +37,7 @@ router.post("/projects", (req: Request, res: Response) => {
       createdAt: new Date().toISOString(),
     };
 
-    storage.createProject(project);
+    await storage.createProject(project);
     log.info("Project created", { projectId: project.id, name: project.name });
 
     res.status(201).json({ project });
@@ -51,9 +51,9 @@ router.post("/projects", (req: Request, res: Response) => {
  * GET /projects
  * List all projects
  */
-router.get("/projects", (_req: Request, res: Response) => {
+router.get("/projects", async (_req: Request, res: Response) => {
   try {
-    const projects = storage.getAllProjects();
+    const projects = await storage.getAllProjects();
     log.info("Listing projects", { count: projects.length });
     res.json({ projects });
   } catch (error) {
@@ -66,34 +66,40 @@ router.get("/projects", (_req: Request, res: Response) => {
  * PUT /projects/:id/requirements
  * Update text requirements for a project
  */
-router.put("/projects/:id/requirements", (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { textRequirements } = req.body as { textRequirements?: string };
+router.put(
+  "/projects/:id/requirements",
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { textRequirements } = req.body as { textRequirements?: string };
 
-    const project = storage.getProject(id);
-    if (!project) {
-      res.status(404).json({ error: "Project not found" });
-      return;
+      const project = await storage.getProject(id);
+      if (!project) {
+        res.status(404).json({ error: "Project not found" });
+        return;
+      }
+
+      project.textRequirements =
+        textRequirements && typeof textRequirements === "string"
+          ? textRequirements.trim()
+          : undefined;
+      await storage.updateProjectRequirements(
+        id,
+        project.textRequirements || ""
+      );
+
+      log.info("Updated project requirements", {
+        projectId: project.id,
+        hasText: Boolean(project.textRequirements),
+      });
+
+      res.json({ project });
+    } catch (error) {
+      log.error("Error updating requirements", error);
+      res.status(500).json({ error: "Failed to update requirements" });
     }
-
-    project.textRequirements =
-      textRequirements && typeof textRequirements === "string"
-        ? textRequirements.trim()
-        : undefined;
-    storage.createProject(project); // Update project in storage
-
-    log.info("Updated project requirements", {
-      projectId: project.id,
-      hasText: Boolean(project.textRequirements),
-    });
-
-    res.json({ project });
-  } catch (error) {
-    log.error("Error updating requirements", error);
-    res.status(500).json({ error: "Failed to update requirements" });
   }
-});
+);
 
 /**
  * 2. POST /projects/:id/documents
@@ -102,12 +108,12 @@ router.put("/projects/:id/requirements", (req: Request, res: Response) => {
 router.post(
   "/projects/:id/documents",
   upload.array("files"),
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const files = req.files as Express.Multer.File[];
 
-      const project = storage.getProject(id);
+      const project = await storage.getProject(id);
       if (!project) {
         res.status(404).json({ error: "Project not found" });
         return;
@@ -150,7 +156,7 @@ router.post(
           uploadedAt: new Date().toISOString(),
         };
 
-        storage.addDocument(document);
+        await storage.addDocument(document);
         documents.push(document);
       }
 
@@ -177,13 +183,13 @@ router.post(
     try {
       const { id } = req.params;
 
-      const project = storage.getProject(id);
+      const project = await storage.getProject(id);
       if (!project) {
         res.status(404).json({ error: "Project not found" });
         return;
       }
 
-      const documents = storage.getDocuments(id);
+      const documents = await storage.getDocuments(id);
 
       // Collect text sources: documents + text requirements
       const documentTexts = documents.map((doc) => doc.rawText);
@@ -208,7 +214,7 @@ router.post(
       projectState.projectId = id;
 
       // Save state
-      storage.saveState(projectState);
+      await storage.saveState(projectState);
 
       log.info("Document analysis completed", { projectId: id });
       res.json({ projectState });
@@ -236,13 +242,13 @@ router.post("/projects/:id/chat", async (req: Request, res: Response) => {
       return;
     }
 
-    const project = storage.getProject(id);
+    const project = await storage.getProject(id);
     if (!project) {
       res.status(404).json({ error: "Project not found" });
       return;
     }
 
-    const currentState = storage.getState(id);
+    const currentState = await storage.getState(id);
     if (!currentState) {
       res.status(400).json({
         error: "Project state not initialized. Please analyze documents first.",
@@ -258,10 +264,10 @@ router.post("/projects/:id/chat", async (req: Request, res: Response) => {
       content: message,
       timestamp: new Date().toISOString(),
     };
-    storage.addMessage(userMessage);
+    await storage.addMessage(userMessage);
 
     // Get recent conversation history (last 10 messages)
-    const recentMessages = storage.getMessages(id, 10);
+    const recentMessages = await storage.getMessages(id, 10);
 
     log.info("Processing chat message", {
       projectId: id,
@@ -284,16 +290,24 @@ router.post("/projects/:id/chat", async (req: Request, res: Response) => {
       content:
         response.assistantMessage || "I've updated the architecture sheet.",
       timestamp: new Date().toISOString(),
+      wafSources: response.wafSources,
     };
-    storage.addMessage(assistantMessage);
+    await storage.addMessage(assistantMessage);
 
     // Update project state
-    storage.saveState(response.projectState);
+    await storage.saveState(response.projectState);
 
-    log.info("Chat response generated", { projectId: id });
+    log.info("Chat response generated", {
+      projectId: id,
+      hasWafSources: Boolean(
+        response.wafSources && response.wafSources.length > 0
+      ),
+    });
+
     res.json({
       message: assistantMessage.content,
       projectState: response.projectState,
+      wafSources: response.wafSources || [],
     });
   } catch (error) {
     log.error("Error processing chat", error);
@@ -308,17 +322,17 @@ router.post("/projects/:id/chat", async (req: Request, res: Response) => {
  * 5. GET /projects/:id/state
  * Get current project state (Architecture Sheet)
  */
-router.get("/projects/:id/state", (req: Request, res: Response) => {
+router.get("/projects/:id/state", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const project = storage.getProject(id);
+    const project = await storage.getProject(id);
     if (!project) {
       res.status(404).json({ error: "Project not found" });
       return;
     }
 
-    const state = storage.getState(id);
+    const state = await storage.getState(id);
     if (!state) {
       res.status(404).json({ error: "Project state not initialized" });
       return;
@@ -333,22 +347,22 @@ router.get("/projects/:id/state", (req: Request, res: Response) => {
 });
 
 /**
- * 6. POST /projects/:id/architecture/proposal
- * Generate Azure architecture proposal
+ * 6. GET /projects/:id/architecture/proposal
+ * Generate Azure architecture proposal with Server-Sent Events for progress
  */
-router.post(
+router.get(
   "/projects/:id/architecture/proposal",
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
 
-      const project = storage.getProject(id);
+      const project = await storage.getProject(id);
       if (!project) {
         res.status(404).json({ error: "Project not found" });
         return;
       }
 
-      const state = storage.getState(id);
+      const state = await storage.getState(id);
       if (!state) {
         res.status(400).json({
           error:
@@ -357,18 +371,67 @@ router.post(
         return;
       }
 
-      log.info("Generating architecture proposal", { projectId: id });
+      // Set up SSE headers
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
 
-      // Generate architecture proposal
-      const proposal = await llmService.generateArchitectureProposal(state);
+      const sendProgress = (stage: string, detail?: string) => {
+        const data = { stage, detail, timestamp: new Date().toISOString() };
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+      };
 
-      res.json({ proposal });
+      log.info("Generating architecture proposal with SSE", { projectId: id });
+
+      sendProgress("started", "Initializing proposal generation");
+
+      // Create progress callback
+      const onProgress = (stage: string, detail?: string) => {
+        log.info("Progress update", { stage, detail });
+        sendProgress(stage, detail);
+      };
+
+      // Generate architecture proposal with progress updates
+      const proposal = await llmService.generateArchitectureProposal(
+        state,
+        onProgress
+      );
+
+      sendProgress("completed", "Proposal generated successfully");
+
+      // Send final result
+      res.write(
+        `data: ${JSON.stringify({
+          stage: "done",
+          proposal,
+          timestamp: new Date().toISOString(),
+        })}\n\n`
+      );
+
+      res.end();
+      log.info("Proposal generation completed and streamed to client");
     } catch (error) {
       log.error("Error generating proposal", error);
-      res.status(500).json({
-        error: "Failed to generate architecture proposal",
-        details: error instanceof Error ? error.message : String(error),
-      });
+
+      // Try to send error via SSE if connection is still open
+      try {
+        res.write(
+          `data: ${JSON.stringify({
+            stage: "error",
+            error: error instanceof Error ? error.message : String(error),
+            timestamp: new Date().toISOString(),
+          })}\n\n`
+        );
+        res.end();
+      } catch {
+        // If SSE connection failed, send regular error response
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: "Failed to generate architecture proposal",
+            details: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
     }
   }
 );
@@ -377,17 +440,17 @@ router.post(
  * GET /projects/:id/messages
  * Get conversation history
  */
-router.get("/projects/:id/messages", (req: Request, res: Response) => {
+router.get("/projects/:id/messages", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const project = storage.getProject(id);
+    const project = await storage.getProject(id);
     if (!project) {
       res.status(404).json({ error: "Project not found" });
       return;
     }
 
-    const messages = storage.getMessages(id);
+    const messages = await storage.getMessages(id);
     log.info("Returning messages", { projectId: id, count: messages.length });
     res.json({ messages });
   } catch (error) {

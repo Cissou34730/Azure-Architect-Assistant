@@ -5,31 +5,46 @@ This is a proof-of-concept application that helps Azure Solution Architects anal
 ## Features
 
 ### Architecture Project Management
-1. **Project Management**: Create and manage multiple architecture projects
+1. **Project Management**: Create and manage multiple architecture projects with automatic SQLite persistence
 2. **Document Upload**: Upload RFP, specifications, and other project documents (supports plain text, with placeholders for PDF/DOCX)
 3. **Document Analysis**: AI-powered analysis to extract project context, requirements, and constraints
-4. **Interactive Chat**: Clarify requirements and refine the architecture sheet through conversation
+4. **Interactive Chat with WAF Integration**: Ask questions and get answers enriched with Azure Well-Architected Framework best practices and source citations
 5. **Architecture Sheet**: Structured view of project requirements, NFRs, constraints, and open questions
-6. **Architecture Proposal**: Generate comprehensive Azure architecture proposals based on gathered requirements
+6. **Architecture Proposal with WAF Guidance**: Generate comprehensive Azure architecture proposals grounded in WAF documentation with cited sources
+7. **Real-Time Progress Updates**: Server-Sent Events (SSE) provide live progress tracking during proposal generation
 
-### WAF Query System (New)
-7. **WAF Documentation Ingestion**: Automated crawling and processing of Azure Well-Architected Framework documentation
-8. **Vector Search**: Semantic search across WAF content using OpenAI embeddings
-9. **Source-Grounded Answers**: Get accurate answers with citations to official WAF documentation
-10. **Interactive Queries**: Ask questions about Azure best practices, architecture patterns, and recommendations
+### WAF Query System
+8. **Standalone WAF Query**: Dedicated interface to query Azure Well-Architected Framework documentation
+9. **Integrated WAF Guidance**: Automatic WAF queries during chat (Azure-related questions) and proposal generation (all 5 pillars)
+10. **Two-Phase Ingestion Pipeline**: Separate crawling/cleaning and indexing phases with document validation workflow
+11. **Vector Search**: Fast semantic search using OpenAI embeddings with cached indices
+12. **Long-Running Service**: Persistent Python process keeps index in memory for 6-second query responses (after initial 35s startup)
+13. **Sequential WAF Querying**: Proposal generation queries WAF pillars sequentially to avoid overwhelming Python service
+14. **Source Citations**: All WAF-enhanced responses include clickable links to Microsoft Learn documentation
 
 ## Architecture
 
 - **Backend**: Express + TypeScript REST API
 - **Frontend**: React + Vite with Tailwind CSS
-- **Storage**: In-memory (no persistence - resets on restart)
+- **Storage**: SQLite database with automatic persistence (`data/projects.db`)
 - **AI**: OpenAI / Azure OpenAI API for document analysis and architecture generation
-- **WAF System**:
-  - **Python**: LlamaIndex for document ingestion, chunking, embeddings, and vector indexing
-  - **Vector Store**: Local persistent storage (no external database required)
-  - **Embeddings**: OpenAI text-embedding-3-small
-  - **Generation**: OpenAI gpt-4-turbo-preview
-  - **Integration**: TypeScript backend orchestrates Python processes
+- **WAF RAG System**:
+  - **Python**: LlamaIndex 0.10.x for document processing, chunking, embeddings, and vector indexing
+  - **Architecture**: Long-running Python service with in-memory index caching
+  - **Vector Store**: File-based persistent storage (~60MB per knowledge base)
+  - **Embeddings**: OpenAI text-embedding-3-small (1536 dimensions)
+  - **Generation**: OpenAI gpt-4o-mini (optimized for cost and speed)
+  - **Performance**: First query ~35s (index loading), subsequent queries ~6s
+  - **Integration**: 
+    - TypeScript orchestrates persistent Python process via stdin/stdout
+    - Automatic WAF queries in chat (keyword detection) and proposals (5 pillars)
+    - Source citations stored with messages and displayed in UI
+  - **UX Enhancements**:
+    - Real-time progress updates via Server-Sent Events (SSE)
+    - Modern inline thinking indicators with animated progress
+    - Stage-by-stage progress messages ("Querying Security pillar 1/5...")
+    - Comprehensive action logging to browser console
+    - Non-blocking UI during operations
 
 ## Prerequisites
 
@@ -115,98 +130,137 @@ Frontend runs on `http://localhost:5173`
      - Technical Constraints
      - Open Questions
 
-4. **Clarify Requirements**
+4. **Clarify Requirements with WAF Guidance**
    - Go to the "Chat" tab
-   - Ask questions or provide additional information
+   - Ask questions about Azure services, architecture, or best practices
+   - **Automatic WAF Integration**: Azure-related questions trigger WAF queries
+   - View AI responses with cited sources from Microsoft Learn documentation
    - The Architecture Sheet updates automatically based on the conversation
 
-5. **Generate Architecture Proposal**
+5. **Generate Architecture Proposal with WAF Best Practices**
    - Go to the "Proposal" tab
-   - Click "Generate Proposal"
-   - Review the comprehensive Azure architecture recommendation
+   - Click "Generate Proposal" (takes ~40 seconds)
+   - **Automatic WAF Integration**: System queries all 5 WAF pillars (Security, Reliability, Cost, Performance, Operations)
+   - Review comprehensive proposal with [1], [2], [3] citations
+   - Click source links to read original WAF documentation
 
 ## WAF Query System
 
 ### Overview
 
-The WAF Query System provides intelligent, source-grounded answers to questions about the Azure Well-Architected Framework. It uses advanced RAG (Retrieval-Augmented Generation) techniques to combine semantic search with LLM generation.
+The WAF Query System provides intelligent, source-grounded answers to questions about the Azure Well-Architected Framework. It uses a two-phase RAG (Retrieval-Augmented Generation) pipeline with document validation and a long-running service architecture for fast query responses.
 
 ### Architecture
 
-The system consists of four main components:
+#### Phase 1: Ingestion & Validation
+Separate crawling/cleaning from indexing to allow manual document review:
 
-1. **Crawler** (`backend/src/python/crawler.py`)
+1. **Crawler** (`backend/src/rag/crawler.py`)
    - BFS traversal of learn.microsoft.com/azure/well-architected/
-   - Depth control and domain restriction
+   - Handles /en-us/ path prefixes automatically
    - Deduplication and graceful error handling
+   - Exports URLs to `data/knowledge_bases/waf/urls.txt`
 
-2. **Ingestion Pipeline** (`backend/src/python/ingestion.py`)
-   - HTML extraction using Readability
-   - Content cleaning with BeautifulSoup
-   - HTML-to-text conversion
-   - Text normalization
+2. **Cleaner** (`backend/src/rag/cleaner.py`)
+   - Three-layer cleaning: Readability → BeautifulSoup → html2text
+   - Removes navigation, footers, sidebars
+   - Exports cleaned markdown to `data/knowledge_bases/waf/documents/`
+   - Creates validation manifest: `data/knowledge_bases/waf/manifest.json`
 
-3. **Chunking & Validation** (`backend/src/python/chunker.py`)
-   - Token-based splitting (800 tokens, 120 overlap)
-   - Manual validation workflow (CSV export)
-   - Metadata preservation (URL, title, section)
+3. **Validation Workflow**
+   - Manual review via `manifest.json` (status: PENDING → APPROVED/REJECTED)
+   - Auto-approval script: `scripts/utils/approve_documents.py`
+   - Only APPROVED documents proceed to Phase 2
 
-4. **Vector Indexing** (`backend/src/python/indexer.py`)
-   - Embedding generation (text-embedding-3-small)
-   - LlamaIndex persistent vector store
-   - Local storage (no external DB)
+#### Phase 2: Chunking & Indexing
 
-5. **Query Service** (`backend/src/python/query_service.py`)
-   - Semantic retrieval (top-K chunks)
-   - Similarity filtering (threshold: 0.75)
-   - Answer generation (gpt-4-turbo-preview)
-   - Source attribution with relevance scores
+4. **Indexer** (`backend/src/rag/indexer.py`)
+   - Loads APPROVED documents from manifest
+   - Token-based chunking (800 tokens, 120 overlap)
+   - Generates embeddings via OpenAI API
+   - Builds vector index at `data/knowledge_bases/waf/index/`
+   - Index size: ~60MB (51MB vector store + 8.5MB docstore)
+
+#### Query Architecture: Long-Running Service
+
+5. **Query Service** (`backend/src/rag/query_service.py`)
+   - **Persistent Python process** started on server boot
+   - Pre-loads 51MB vector index into memory (~35s startup)
+   - Listens for queries on stdin, responds on stdout
+   - Global index caching via `_INDEX_CACHE` dictionary
+   - **Performance**: First query ~35s, subsequent queries ~6s
+
+6. **WAFService Integration** (`backend/src/services/WAFService.ts`)
+   - Spawns long-running Python service in constructor
+   - Maintains bidirectional stdin/stdout communication
+   - Tracks service readiness via `{"status": "ready"}` signal
+   - Routes queries as JSON lines, receives responses as JSON
+   - Graceful shutdown on SIGINT/SIGTERM
+   - Used by both standalone WAF Query interface and LLMService integration
+
+7. **LLMService WAF Integration** (`backend/src/services/LLMService.ts`)
+   - **Chat Integration**: Detects Azure keywords (azure, security, performance, etc.)
+   - Queries WAF automatically for Azure-related questions (~6s per query)
+   - Includes WAF context and sources in LLM prompt
+   - Returns WAF sources with chat responses
+   - **Proposal Integration**: Queries all 5 WAF pillars in parallel (~30s total)
+   - Aggregates guidance into system prompt with source citations
+   - LLM generates proposal citing [1], [2], [3] sources
 
 ### Initial Setup
 
-#### 1. Run WAF Ingestion (One-Time Setup)
+#### 1. Run WAF Ingestion (Two-Phase Pipeline)
 
-The ingestion process must be run once to build the vector index. This can take 15-30 minutes.
+The ingestion process runs in two separate phases to allow document validation.
 
-**Option A: Via Web Interface**
-1. Navigate to the "WAF Query" tab in the application
-2. Click "Start WAF Ingestion"
-3. Wait for the process to complete (monitor status via refresh)
-
-**Option B: Via Python CLI (Complete Pipeline)**
+**Phase 1: Crawl and Clean**
 
 ```bash
-# Run the complete pipeline with one command
-python run_waf_ingestion.py
+# Option A: Via Python script
+cd Azure-Architect-Assistant
+python scripts/ingest/waf_phase1.py
+
+# Option B: Via web interface
+# Navigate to "WAF Query" tab → Click "Start Phase 1"
 ```
 
-This script will:
-- Crawl ~500 WAF documentation pages
-- Extract and clean content
-- Chunk documents into searchable pieces
-- Auto-validate all chunks
-- Generate embeddings and build vector index
+This will:
+- Crawl ~275 WAF documentation pages
+- Clean and convert HTML to markdown
+- Create validation manifest with status: PENDING
 
-**Option C: Via Python CLI (Step-by-Step)**
+**Document Validation (Optional)**
 
 ```bash
-cd backend/src/python
+# Review and approve documents
+# Edit data/knowledge_bases/waf/manifest.json
+# Change status from PENDING to APPROVED or REJECTED
 
-# Step 1: Crawl WAF documentation
-python crawler.py
-
-# Step 2: Process and clean documents
-python ingestion.py
-
-# Step 3: Chunk documents
-python chunker.py
-
-# Step 4: (Optional) Manually validate chunks
-# Edit chunks_review.csv - set status to KEEP or DROP for each chunk
-
-# Step 5: Build vector index
-python indexer.py
+# Or auto-approve all documents
+python scripts/utils/approve_documents.py
 ```
+
+**Phase 2: Chunk and Index**
+
+```bash
+# Option A: Via Python script
+python scripts/ingest/waf_phase2.py
+
+# Option B: Via web interface
+# Navigate to "WAF Query" tab → Click "Start Phase 2"
+```
+
+This will:
+- Load APPROVED documents (skip REJECTED/PENDING)
+- Create 1,556 chunks from 275 documents
+- Generate embeddings (~$0.01 cost)
+- Build 60MB vector index (~10-15 minutes)
+
+**Performance Notes:**
+- Phase 1: ~5-10 minutes (network dependent)
+- Phase 2: ~10-15 minutes (OpenAI API dependent)
+- Server startup: Loads index in ~35 seconds
+- Queries: 6 seconds after initial load
 
 #### 2. Configuration
 
@@ -222,43 +276,94 @@ PYTHON_PATH=python  # or /path/to/venv/bin/python
 
 ### Using the WAF Query System
 
-1. **Access the Interface**
-   - Click the "WAF Query" tab in the navigation bar
-   - Ensure the index status shows "ready"
+1. **Server Startup**
+   - Backend automatically starts long-running Python query service
+   - Wait for log message: `[WAFService] Query service ready` (~35 seconds)
+   - Service pre-loads 51MB index into memory
 
 2. **Ask Questions**
+   - Navigate to "WAF Query" tab
    - Enter your question in natural language
    - Examples:
+     - "What are the five pillars of the Well-Architected Framework?"
      - "What are the best practices for securing Azure SQL databases?"
      - "How should I design a highly available multi-region architecture?"
      - "What are the cost optimization recommendations for Azure Storage?"
 
 3. **Review Answers**
-   - Read the AI-generated answer
-   - Check the source documents with relevance scores
+   - First query: ~35s (includes index loading time)
+   - Subsequent queries: ~6s (index cached in memory)
+   - AI-generated answer with source citations
+   - Relevance scores for each source
    - Click source links to view original documentation
-   - Use suggested follow-up questions for deeper exploration
+
+### Performance Characteristics
+
+| Operation | Time | Notes |
+|-----------|------|-------|
+| Server startup | 35s | One-time cost: loads 51MB index |
+| First WAF query | 35s | If service restarts |
+| Subsequent WAF queries | 6s | Index cached in memory |
+| Chat with WAF (Azure question) | ~8s | 6s WAF query + 2s LLM generation |
+| Chat without WAF | ~2s | Direct LLM, no WAF query |
+| Architecture proposal | ~40s | 5 WAF queries (sequential) + LLM with live progress updates |
+| Index loading | 27s | From disk to memory |
+| Embedding generation | 3.5s | Query → embedding via API |
+| LLM generation | 2-5s | Answer generation |
+| Phase 1 ingestion | 5-10 min | Network dependent |
+| Phase 2 ingestion | 10-15 min | OpenAI API dependent |
 
 ### Technical Specifications
 
 | Component | Technology | Configuration |
 |-----------|-----------|---------------|
-| Crawler | Python requests + BeautifulSoup | Max 500 pages, depth 3 |
-| Text Extraction | readability-lxml + html2text | Removes nav, footer, sidebar |
+| Crawler | Python requests + BeautifulSoup | 275 pages, BFS traversal |
+| Text Extraction | readability-lxml + html2text | Three-layer cleaning |
 | Chunking | LlamaIndex TokenTextSplitter | 800 tokens, 120 overlap |
 | Embeddings | OpenAI text-embedding-3-small | 1536 dimensions |
-| Vector Store | LlamaIndex Local Storage | `waf_storage_clean/` |
-| Generation | OpenAI gpt-4-turbo-preview | Temperature: default |
-| Retrieval | Similarity search | Top-5, threshold 0.75 |
+| Vector Store | LlamaIndex File Storage | 60MB (51MB vectors + 8.5MB docs) |
+| Index Caching | Python global dictionary | In-memory, persistent across queries |
+| Generation | OpenAI gpt-4o-mini | Temperature: 0.1, max tokens: 1000 |
+| Retrieval | Cosine similarity search | Top-3 chunks, threshold 0.5 |
+| Service Architecture | Long-running Python process | stdin/stdout communication |
+| Query Time | First: ~35s, After: ~6s | Index cached in memory |
+
+### Data Structure
+
+```
+data/knowledge_bases/waf/
+├── urls.txt                    # 275 crawled URLs
+├── documents/                  # 275 cleaned markdown files
+├── manifest.json              # Document validation status
+└── index/                     # Vector store (60MB)
+    ├── default__vector_store.json  # 51MB - embeddings
+    ├── docstore.json              # 8.5MB - document content
+    ├── index_store.json           # 130KB - index metadata
+    ├── graph_store.json           # Empty
+    ├── image__vector_store.json   # Empty
+    └── build_info.json            # Build metadata
+```
 
 ### Extending the System
 
-The WAF ingestion pipeline is designed to be extensible to other documentation sources:
+The WAF ingestion pipeline is designed to scale to multiple knowledge bases:
 
-1. **Add New Sources**: Modify `crawler.py` to accept different base URLs
-2. **Custom Extractors**: Create source-specific extractors in `ingestion.py`
-3. **Multiple Indexes**: Build separate indexes for different documentation sets
-4. **Metadata Filtering**: Use `metadataFilters` in queries to scope searches
+**Current Limitations:**
+- 51MB index takes ~27s to load per KB
+- With 40 KBs: ~2GB RAM, ~18 min startup time
+- File-based storage not optimized for production scale
+
+**Recommended Production Architecture:**
+1. **Azure AI Search**: Cloud vector database with instant queries
+2. **Chroma/Qdrant**: Local vector DB with disk-based storage
+3. **Multiple Services**: Run separate Python processes per KB (parallel loading)
+
+**To Add New Knowledge Bases:**
+1. Create new KB directory: `data/knowledge_bases/<kb_name>/`
+2. Modify crawler for different documentation sources
+3. Run Phase 1 and Phase 2 for new KB
+4. Start additional query service instance
+5. Route queries to appropriate service based on KB selection
 
 ## API Endpoints
 
@@ -270,17 +375,19 @@ The WAF ingestion pipeline is designed to be extensible to other documentation s
 | GET | `/api/projects` | List all projects |
 | POST | `/api/projects/:id/documents` | Upload documents |
 | POST | `/api/projects/:id/analyze-docs` | Analyze documents and create Architecture Sheet |
-| POST | `/api/projects/:id/chat` | Send chat message and update Architecture Sheet |
+| POST | `/api/projects/:id/chat` | Send chat message (auto-queries WAF for Azure questions), returns message, state, and WAF sources |
 | GET | `/api/projects/:id/state` | Get current Architecture Sheet |
-| POST | `/api/projects/:id/architecture/proposal` | Generate Azure architecture proposal |
-| GET | `/api/projects/:id/messages` | Get conversation history |
+| GET | `/api/projects/:id/architecture/proposal` | Generate Azure architecture proposal with real-time progress via SSE (auto-queries 5 WAF pillars sequentially) |
+| GET | `/api/projects/:id/messages` | Get conversation history with WAF sources |
 
 ### WAF Query System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/waf/query` | Query WAF documentation |
-| POST | `/api/waf/ingest` | Start WAF ingestion pipeline |
+| POST | `/api/waf/query` | Query WAF documentation (uses long-running service) |
+| POST | `/api/waf/ingest/phase1` | Start Phase 1: Crawl and clean |
+| POST | `/api/waf/ingest/phase2` | Start Phase 2: Chunk and index |
+| POST | `/api/waf/ingest` | Legacy: Start full pipeline |
 | GET | `/api/waf/status` | Get ingestion status |
 | GET | `/api/waf/ready` | Check if index is ready |
 
@@ -289,10 +396,7 @@ The WAF ingestion pipeline is designed to be extensible to other documentation s
 ```json
 {
   "question": "What are the security best practices for Azure Storage?",
-  "topK": 5,
-  "metadataFilters": {
-    "section": "pillar"
-  }
+  "topK": 3
 }
 ```
 
@@ -303,9 +407,9 @@ The WAF ingestion pipeline is designed to be extensible to other documentation s
   "answer": "According to the Azure Well-Architected Framework...",
   "sources": [
     {
-      "url": "https://learn.microsoft.com/azure/well-architected/...",
+      "url": "https://learn.microsoft.com/azure/well-architected/security/...",
       "title": "Security pillar overview",
-      "section": "pillar",
+      "section": "security",
       "score": 0.89
     }
   ],
@@ -357,26 +461,51 @@ The WAF ingestion pipeline is designed to be extensible to other documentation s
 }
 ```
 
+### ConversationMessage (with WAF Sources)
+
+```typescript
+{
+  id: string
+  projectId: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: string
+  wafSources?: Array<{
+    url: string
+    title: string
+    section: string
+    score: number
+  }>
+}
+```
+
 ## Limitations (POC)
 
 ### Architecture Projects
-- **No Persistence**: All data stored in memory; resets on server restart
+- **Local SQLite Storage**: Projects stored in `data/projects.db`; suitable for single-user but not distributed deployments
 - **No Authentication**: Single-user, no access control
 - **Limited Document Parsing**: Full text extraction only for plain text files; PDF/DOCX are placeholders
 - **No Multi-tenancy**: Designed for single-user proof-of-concept
 - **Basic Error Handling**: Minimal validation and error messages
 
 ### WAF Query System
-- **Local Storage Only**: Vector index stored locally; not suitable for distributed deployment
+- **Local File Storage**: 60MB vector index stored locally; not suitable for distributed deployment
+- **Startup Time**: 35-second delay on server start (loading 51MB index into memory)
+- **Query Performance**: ~6-8s per chat response with WAF, ~40s for full proposal generation (sequential pillar queries)
+- **Keyword Detection**: Simple keyword matching for Azure-related questions (may miss context)
+- **Sequential Processing**: Proposal generation queries 5 pillars sequentially to avoid overwhelming Python service (more reliable but slower than parallel)
+- **Scalability**: With 40 KBs, would require ~2GB RAM and ~18 min startup time
 - **No Incremental Updates**: Full re-ingestion required to update documentation
 - **OpenAI Dependency**: Requires OpenAI API access; no offline mode
-- **Basic Validation**: Manual chunk validation workflow is optional
+- **Single Knowledge Base**: Current implementation optimized for WAF only
 - **Single Language**: English only; no multilingual support
+- **Answer Quality**: RAG responses vary based on chunk retrieval quality (ongoing optimization)
 
 ## Future Enhancements
 
 ### Architecture Projects
-- Database persistence (MongoDB, PostgreSQL)
+- ✅ SQLite database persistence (completed)
+- Cloud database migration (MongoDB, PostgreSQL, Azure SQL)
 - User authentication and multi-tenancy
 - Advanced document parsing (PDF, DOCX, Excel)
 - Architecture diagram generation
@@ -385,15 +514,26 @@ The WAF ingestion pipeline is designed to be extensible to other documentation s
 - Collaborative editing
 - Integration with Azure services for validation
 
+### WAF Integration Improvements
+- ✅ **Real-Time Progress Updates**: Server-Sent Events for live proposal generation tracking (completed)
+- ✅ **Sequential WAF Querying**: Reliable pillar-by-pillar processing (completed)
+- **Smart Context Detection**: ML-based question classification (not just keywords)
+- **Improved Answer Quality**: Fine-tune retrieval parameters, re-ranking, chunk size optimization
+- **Parallel Optimization**: Optimize Python service to handle concurrent WAF queries safely
+- **Answer Confidence Scores**: Display reliability indicators for WAF-sourced information
+- **User Feedback Loop**: Rate answers to improve retrieval quality
+- **Contextual Follow-ups**: Suggest related WAF topics based on conversation
+
 ### WAF Query System
-- **Multi-Source Support**: Ingest additional documentation (Azure docs, whitepapers, blogs)
+- **Production Vector Database**: Migrate to Azure AI Search, Chroma, or Qdrant for instant queries
+- **Multi-KB Support**: Support 40+ knowledge bases with parallel query services
 - **Incremental Updates**: Delta updates for changed documentation
-- **Advanced Filtering**: Date ranges, content types, quality scores
+- **Advanced Caching**: Redis/Memcached for query result caching
+- **Streaming Responses**: Real-time answer generation for better UX
 - **Conversation Memory**: Multi-turn dialogue with context retention
-- **Distributed Storage**: Support for vector databases (Pinecone, Weaviate, Azure AI Search)
 - **Monitoring & Analytics**: Query logs, popular questions, answer quality metrics
 - **Multilingual Support**: Query and retrieve in multiple languages
-- **Custom Models**: Support for Azure OpenAI and other embedding/LLM providers
+- **Hybrid Search**: Combine semantic and keyword search for better recall
 
 ## Troubleshooting
 
@@ -404,7 +544,7 @@ The WAF ingestion pipeline is designed to be extensible to other documentation s
 # Solution: Ensure Python packages are installed
 pip install -r requirements.txt
 
-# Or use a virtual environment
+# Or use a virtual environment (recommended)
 python -m venv .venv
 # Windows
 .venv\Scripts\activate
@@ -415,37 +555,48 @@ pip install -r requirements.txt
 
 **Problem**: OPENAI_API_KEY not found
 ```bash
-# Solution: Create .env file in backend directory with:
+# Solution: Create .env file in project root with:
 OPENAI_API_KEY=your-key-here
 ```
 
 **Problem**: Ingestion timeout or failure
 ```bash
-# Solution: Run steps individually to identify the issue
-cd backend/src/python
-python crawler.py      # Test crawling
-python ingestion.py    # Test document processing
-python chunker.py      # Test chunking
-python indexer.py      # Test indexing
+# Solution: Run phases individually to identify the issue
+python scripts/ingest/waf_phase1.py   # Crawl and clean
+python scripts/utils/approve_documents.py  # Auto-approve
+python scripts/ingest/waf_phase2.py   # Chunk and index
 ```
 
-**Problem**: TypeScript can't find Python
+**Problem**: Server not starting long-running service
 ```bash
-# Solution: Set PYTHON_PATH in backend/.env
-PYTHON_PATH=/path/to/python  # or python3, python, etc.
+# Check logs for "[WAFService] Starting long-running query service"
+# Ensure query_service.py exists in backend/src/rag/
+# Verify Python path is correct in backend/.env
 ```
 
 ### Query Issues
 
 **Problem**: "Index not found" error
-- **Solution**: Run the ingestion pipeline first (see "Initial Setup" section)
+- **Solution**: Run the two-phase ingestion pipeline first (see "Initial Setup" section)
 
 **Problem**: Low-quality answers
-- **Solution**: Adjust similarity threshold or top-K in query parameters
-- **Alternative**: Manually validate chunks before indexing (edit `chunks_review.csv`)
+- **Solution**: Adjust similarity threshold (currently 0.5) in `query.py`
+- **Alternative**: Review and reject low-quality documents in Phase 1
 
-**Problem**: Slow query response
-- **Solution**: This is normal for first query (index loading). Subsequent queries are faster.
+**Problem**: First query takes 35 seconds
+- **Solution**: This is expected - index loads into memory on first query
+- **Subsequent queries take ~6 seconds**
+
+**Problem**: Slow query response after restart
+- **Solution**: The long-running service pre-loads index on server startup
+- Wait for "[WAFService] Query service ready" log message (~35s)
+
+**Problem**: Query service crashes or becomes unresponsive
+```bash
+# Restart the backend server to restart the service
+# Check stderr logs for Python errors
+# Verify sufficient RAM available (~100MB per KB)
+```
 
 ### General Issues
 
@@ -467,30 +618,47 @@ Azure-Architect-Assistant/
 ├── backend/
 │   ├── src/
 │   │   ├── api/            # REST API routes
-│   │   │   ├── projects.ts # Architecture project endpoints
-│   │   │   └── waf.ts      # WAF query endpoints
+│   │   │   ├── projects.ts # Architecture project endpoints (with WAF integration)
+│   │   │   └── waf.ts      # Standalone WAF query endpoints
 │   │   ├── services/       # Business logic
-│   │   │   └── WAFService.ts
-│   │   ├── python/         # WAF ingestion & query
+│   │   │   ├── LLMService.ts      # Chat & proposals with WAF integration
+│   │   │   └── WAFService.ts      # Long-running Python service manager
+│   │   ├── rag/            # WAF RAG pipeline (Python)
 │   │   │   ├── crawler.py
-│   │   │   ├── ingestion.py
-│   │   │   ├── chunker.py
+│   │   │   ├── cleaner.py
 │   │   │   ├── indexer.py
-│   │   │   ├── query_service.py
-│   │   │   └── query_wrapper.py
+│   │   │   ├── query.py           # Query with caching
+│   │   │   ├── query_service.py   # Long-running service (stdin/stdout)
+│   │   │   └── query_wrapper.py   # Legacy wrapper
 │   │   ├── db/             # Database (in-memory)
-│   │   ├── models/         # Data models
+│   │   ├── models/         # Data models (includes WAFSource)
 │   │   └── index.ts        # Server entry point
 │   ├── package.json
 │   └── .env                # Environment variables
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx         # Main application
-│   │   └── WAFQueryInterface.tsx
+│   │   ├── App.tsx                # Main app with WAF source display
+│   │   └── WAFQueryInterface.tsx  # Standalone WAF query
 │   ├── package.json
 │   └── vite.config.ts
+├── scripts/
+│   ├── ingest/
+│   │   ├── waf_phase1.py   # Phase 1 orchestration
+│   │   └── waf_phase2.py   # Phase 2 orchestration
+│   └── utils/
+│       └── approve_documents.py  # Auto-approval
+├── data/
+│   └── knowledge_bases/
+│       ├── config.json      # KB registry
+│       └── waf/
+│           ├── urls.txt
+│           ├── documents/   # 275 cleaned markdown files
+│           ├── manifest.json
+│           └── index/       # 60MB vector store
+├── docs/
+│   ├── guides/             # Implementation guides
+│   └── specs/              # Technical specifications
 ├── requirements.txt        # Python dependencies
-├── run_waf_ingestion.py   # Complete ingestion script
 ├── package.json            # Workspace config
 └── README.md
 ```
