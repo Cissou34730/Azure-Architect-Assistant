@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { WAFQueryInterface } from './WAFQueryInterface.js'
 
 interface Project {
@@ -70,7 +70,6 @@ function App() {
   const [proposalStage, setProposalStage] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'documents' | 'chat' | 'state' | 'proposal'>('documents')
   const [currentView, setCurrentView] = useState<'projects' | 'waf'>('projects')
-  const proposalTimers = useRef<NodeJS.Timeout[]>([])
 
   // Logging helper
   const logAction = (action: string, details?: any) => {
@@ -747,8 +746,8 @@ function App() {
                             <div className="shrink-0 mt-1">
                               <div className="flex space-x-1">
                                 <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"></div>
-                                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }}></div>
-                                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }}></div>
+                                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce [animation-delay:150ms]"></div>
+                                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce [animation-delay:300ms]"></div>
                               </div>
                             </div>
                             <div className="flex-1">

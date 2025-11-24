@@ -376,7 +376,7 @@ router.get(
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      const sendProgress = (stage: string, detail?: string) => {
+      const sendProgress = (stage: string, detail?: string): void => {
         const data = { stage, detail, timestamp: new Date().toISOString() };
         res.write(`data: ${JSON.stringify(data)}\n\n`);
       };
@@ -386,7 +386,7 @@ router.get(
       sendProgress("started", "Initializing proposal generation");
 
       // Create progress callback
-      const onProgress = (stage: string, detail?: string) => {
+      const onProgress = (stage: string, detail?: string): void => {
         log.info("Progress update", { stage, detail });
         sendProgress(stage, detail);
       };

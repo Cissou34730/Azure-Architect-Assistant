@@ -440,6 +440,7 @@ export class WAFService {
   /**
    * Old query method using spawn (kept as fallback)
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private async queryWithSpawn(
     request: WAFQueryRequest
   ): Promise<WAFQueryResponse> {
