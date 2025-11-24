@@ -1,0 +1,26 @@
+{
+  "knowledge_bases": [
+    {
+      "id": "waf",
+      "name": "Azure Well-Architected Framework",
+      "description": "Microsoft Azure Well-Architected Framework documentation covering reliability, security, cost optimization, operational excellence, and performance efficiency",
+      "version": "1.0.0",
+      "status": "active",
+      "storage_type": "file",
+      "embedding_model": "text-embedding-3-small",
+      "generation_model": "gpt-4o-mini",
+      "chunk_size": 800,
+      "chunk_overlap": 120,
+      "source_url": "https://learn.microsoft.com/en-us/azure/well-architected/",
+      "documents": 275,
+      "chunks": 1556,
+      "last_updated": "2025-11-24T11:28:00Z",
+      "paths": {
+        "documents": "data/knowledge_bases/waf/documents",
+        "index": "data/knowledge_bases/waf/index",
+        "manifest": "data/knowledge_bases/waf/manifest.json",
+        "urls": "data/knowledge_bases/waf/urls.txt"
+      }
+    }
+  ]
+}

@@ -140,12 +140,21 @@ dmypy.json
 *.sqlite
 *.db
 
-# WAF Ingestion Output (generated files, can be regenerated)
-backend/src/python/waf_urls.txt
-backend/src/python/waf_documents.jsonl
-backend/src/python/chunks_review.csv
-backend/src/python/chunks_review.jsonl
-backend/src/python/waf_storage_clean/
+# Knowledge Base Data (generated files, can be regenerated)
+data/knowledge_bases/*/documents/
+data/knowledge_bases/*/index/
+data/knowledge_bases/*/urls.txt
+data/knowledge_bases/*/manifest.json
+data/knowledge_bases/**/raw/
+
+# Legacy files (to be removed)
+backend/src/python/
+cleaned_documents/
+waf_storage_clean/
+validation_manifest.json
+waf_urls.txt
+run_waf_*.py
+auto_approve_docs.py
 
 # Editor directories
 .vscode/*
@@ -164,6 +173,3 @@ Thumbs.db
 # Misc
 *.orig
 .cache/
-
-# cleaned documents
-cleaned_documents/

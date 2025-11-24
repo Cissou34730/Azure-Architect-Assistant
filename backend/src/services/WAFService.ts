@@ -50,16 +50,16 @@ export interface IngestionStatus {
 
 export class WAFService {
   private pythonPath: string;
-  private scriptsPath: string;
+  private ragPath: string;
 
   constructor() {
     // Determine Python path (consider virtual environment)
     this.pythonPath = process.env.PYTHON_PATH || "python";
-    this.scriptsPath = join(__dirname, "..", "python");
+    this.ragPath = join(__dirname, "..", "rag");
 
     logger.info("WAF Service initialized", {
       pythonPath: this.pythonPath,
-      scriptsPath: this.scriptsPath,
+      ragPath: this.ragPath,
     });
   }
 
@@ -72,15 +72,33 @@ export class WAFService {
     timeout: number = 300000 // 5 minutes default
   ): Promise<string> {
     return new Promise((resolve, reject) => {
-      const scriptPath = join(this.scriptsPath, scriptName);
+      const scriptPath = join(this.ragPath, scriptName);
 
       logger.info(`Executing Python script: ${scriptName}`, { args });
 
+      // Calculate absolute path to storage directory
+      const rootPath = join(this.ragPath, "..", "..", "..");
+      const storageDir = join(
+        rootPath,
+        "data",
+        "knowledge_bases",
+        "waf",
+        "index"
+      );
+
+      logger.info("[WAFService] Path calculation:", {
+        ragPath: this.ragPath,
+        rootPath,
+        storageDir,
+        envVar: "WAF_STORAGE_DIR will be set to: " + storageDir,
+      });
+
       const pythonProcess = spawn(this.pythonPath, [scriptPath, ...args], {
-        cwd: this.scriptsPath,
+        cwd: this.ragPath,
         env: {
           ...process.env,
           PYTHONUNBUFFERED: "1",
+          WAF_STORAGE_DIR: storageDir,
         },
       });
 
@@ -195,7 +213,7 @@ export class WAFService {
       logger.info("Phase 1 - Step 2: Cleaning and exporting documents", {
         jobId,
       });
-      await this.executePythonScript("ingestion.py", [], 600000);
+      await this.executePythonScript("cleaner.py", [], 600000);
 
       logger.info("Phase 1 completed - Ready for validation", { jobId });
     } catch (error) {
@@ -210,7 +228,7 @@ export class WAFService {
   private async runIngestionPhase2(jobId: string): Promise<void> {
     try {
       logger.info("Phase 2: Building index from approved documents", { jobId });
-      await this.executePythonScript("build_index.py", [], 900000); // 15 min for embeddings
+      await this.executePythonScript("indexer.py", [], 900000); // 15 min for embeddings
 
       logger.info("Phase 2 completed - Index ready", { jobId });
     } catch (error) {
@@ -229,9 +247,9 @@ export class WAFService {
 
       // Auto-approve all documents
       logger.info("Auto-approving all documents", { jobId });
-      const rootPath = join(this.scriptsPath, "..", "..", "..");
+      const rootPath = join(this.ragPath, "..", "..", "..");
       await this.executePythonScript(
-        join(rootPath, "auto_approve_docs.py"),
+        join(rootPath, "scripts", "utils", "approve_documents.py"),
         [],
         60000
       );
@@ -244,13 +262,6 @@ export class WAFService {
       logger.error("Full ingestion pipeline error", { jobId, error });
       throw error;
     }
-  }
-
-  /**
-   * Run the complete ingestion pipeline (legacy - deprecated)
-   */
-  private async runIngestionPipeline(jobId: string): Promise<void> {
-    await this.runFullIngestionPipeline(jobId);
   }
 
   /**
@@ -271,7 +282,7 @@ export class WAFService {
       const result = await this.executePythonScriptWithInput(
         "query_wrapper.py",
         queryInput,
-        60000
+        120000 // 2 minutes for LLM generation
       );
 
       // Parse JSON response
@@ -318,15 +329,33 @@ export class WAFService {
     timeout: number = 60000
   ): Promise<string> {
     return new Promise((resolve, reject) => {
-      const scriptPath = join(this.scriptsPath, scriptName);
+      const scriptPath = join(this.ragPath, scriptName);
 
       logger.info(`Executing Python script with input: ${scriptName}`);
 
+      // Calculate absolute path to storage directory
+      const rootPath = join(this.ragPath, "..", "..", "..");
+      const storageDir = join(
+        rootPath,
+        "data",
+        "knowledge_bases",
+        "waf",
+        "index"
+      );
+
+      logger.info("[WAFService] Path calculation for query:", {
+        ragPath: this.ragPath,
+        rootPath,
+        storageDir,
+        envVar: "WAF_STORAGE_DIR will be set to: " + storageDir,
+      });
+
       const pythonProcess = spawn(this.pythonPath, [scriptPath], {
-        cwd: this.scriptsPath,
+        cwd: this.ragPath,
         env: {
           ...process.env,
           PYTHONUNBUFFERED: "1",
+          WAF_STORAGE_DIR: storageDir,
         },
       });
 
@@ -375,7 +404,8 @@ export class WAFService {
    */
   async isIndexReady(): Promise<boolean> {
     const fs = await import("fs/promises");
-    const indexPath = join(this.scriptsPath, "waf_storage_clean");
+    const rootPath = join(this.ragPath, "..", "..", "..");
+    const indexPath = join(rootPath, "data", "knowledge_bases", "waf", "index");
 
     try {
       await fs.access(indexPath);
@@ -392,9 +422,10 @@ export class WAFService {
     const indexReady = await this.isIndexReady();
 
     // Check phase files
-    const rootPath = join(this.scriptsPath, "..", "..", "..");
-    const manifestPath = join(rootPath, "validation_manifest.json");
-    const cleanedDocsPath = join(rootPath, "cleaned_documents");
+    const rootPath = join(this.ragPath, "..", "..", "..");
+    const dataPath = join(rootPath, "data", "knowledge_bases", "waf");
+    const manifestPath = join(dataPath, "manifest.json");
+    const cleanedDocsPath = join(dataPath, "documents");
 
     let stage = "not_started";
     let progress = 0;
