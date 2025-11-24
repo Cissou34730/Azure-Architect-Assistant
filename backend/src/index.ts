@@ -10,17 +10,18 @@ import { logger, configureLoggerFromEnv, getLogLevel } from "./logger.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load .env from backend directory and configure logging
-dotenv.config({ path: join(__dirname, "..", ".env") });
+// Load .env from project root (shared with Python service)
+dotenv.config({ path: join(__dirname, "..", "..", ".env") });
 configureLoggerFromEnv();
 logger.info("Environment loaded", {
   openAiKey: process.env.OPENAI_API_KEY ? "SET" : "NOT SET",
-  port: process.env.PORT || 3000,
+  port: process.env.EXPRESS_PORT || 3000,
+  pythonServiceUrl: process.env.PYTHON_SERVICE_URL || "http://localhost:8000",
   logLevel: getLogLevel(),
 });
 
 const app = express();
-const PORT = process.env.PORT ?? 3000;
+const PORT = process.env.EXPRESS_PORT ?? 3000;
 
 // Middleware
 app.use(cors());

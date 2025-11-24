@@ -6,8 +6,7 @@ Azure Well-Architected Framework documentation.
 
 Components:
 - crawler: BFS web crawler for documentation discovery
-- ingestion: HTML extraction, cleaning, and text normalization
-- chunker: Document chunking and validation
+- cleaner: HTML extraction, cleaning, and text normalization
 - indexer: Vector index building with OpenAI embeddings
 - query_service: Semantic search and answer generation
 - query_wrapper: JSON interface for TypeScript integration
@@ -18,15 +17,13 @@ __author__ = "Azure Architect Assistant Team"
 
 # Import main classes for convenience
 from .crawler import WAFCrawler
-from .ingestion import WAFIngestionPipeline
-from .chunker import ChunkValidator
-from .indexer import WAFIndexer
+from .cleaner import WAFIngestionPipeline
+from .indexer import WAFIndexBuilder
 from .query_service import WAFQueryService
 
 __all__ = [
     'WAFCrawler',
     'WAFIngestionPipeline',
-    'ChunkValidator',
-    'WAFIndexer',
+    'WAFIndexBuilder',
     'WAFQueryService',
 ]

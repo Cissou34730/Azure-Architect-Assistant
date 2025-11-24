@@ -9,7 +9,7 @@ import json
 import os
 import logging
 from dotenv import load_dotenv
-from query import WAFQueryService
+from .query import WAFQueryService
 
 # Load environment variables
 load_dotenv()

@@ -8,13 +8,16 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "dev": "concurrently \"npm run dev:python\" \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "dev:python": "powershell -ExecutionPolicy Bypass -File ./scripts/run-python-service.ps1",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "lint:fix": "npm run lint:fix --workspaces",
     "backend": "npm run dev --workspace=backend",
     "frontend": "npm run dev --workspace=frontend",
-    "install:all": "npm install && npm install --workspaces"
+    "install:all": "npm install && npm install --workspaces && cd python-service && pip install -r requirements.txt && cd .."
   },
   "keywords": [
     "typescript",

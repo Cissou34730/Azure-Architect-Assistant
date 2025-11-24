@@ -105,17 +105,22 @@ router.post("/waf/ingest/phase2", (_req: Request, res: Response) => {
 
 /**
  * GET /api/waf/status
- * Get WAF ingestion status
+ * Get WAF index status
  */
 router.get("/waf/status", async (_req: Request, res: Response) => {
   try {
-    const status = await wafService.getIngestionStatus();
-    res.json(status);
+    const health = await wafService.checkHealth();
+    res.json({
+      ready: health.index_ready,
+      status: health.status,
+      storage_dir: health.storage_dir,
+    });
   } catch (error) {
     logger.error("WAF status endpoint error", { error });
-    res.status(500).json({
-      error: "Failed to get WAF status",
-      message: error instanceof Error ? error.message : "Unknown error",
+    res.status(200).json({
+      ready: false,
+      status: "unavailable",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 });
