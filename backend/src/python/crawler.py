@@ -20,7 +20,7 @@ class WAFCrawler:
     
     def __init__(
         self,
-        start_url: str = "https://learn.microsoft.com/azure/well-architected/",
+        start_url: str = "https://learn.microsoft.com/en-us/azure/well-architected/",
         max_depth: int = 3,
         max_pages: int = 500,
         delay: float = 0.5
@@ -42,7 +42,11 @@ class WAFCrawler:
         # Parse the base domain
         parsed = urlparse(start_url)
         self.base_domain = f"{parsed.scheme}://{parsed.netloc}"
-        self.allowed_path = "/azure/well-architected/"
+        # Accept both with and without language code
+        self.allowed_paths = [
+            "/azure/well-architected/",
+            "/en-us/azure/well-architected/"
+        ]
         
         # Tracking
         self.visited: Set[str] = set()
@@ -64,8 +68,9 @@ class WAFCrawler:
         if not parsed.netloc.endswith("learn.microsoft.com"):
             return False
             
-        # Check path
-        if not parsed.path.startswith(self.allowed_path):
+        # Check path - must start with one of the allowed paths
+        path_valid = any(parsed.path.startswith(path) for path in self.allowed_paths)
+        if not path_valid:
             return False
             
         # Exclude media, downloads, etc.
@@ -195,7 +200,7 @@ class WAFCrawler:
 def main():
     """Main entry point for crawler."""
     crawler = WAFCrawler(
-        start_url="https://learn.microsoft.com/azure/well-architected/",
+        start_url="https://learn.microsoft.com/en-us/azure/well-architected/",
         max_depth=3,
         max_pages=500,
         delay=0.5

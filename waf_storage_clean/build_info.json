@@ -1,0 +1,11 @@
+{
+  "total_documents": 275,
+  "total_chunks": 1556,
+  "chunk_size": 800,
+  "chunk_overlap": 120,
+  "embedding_model": "text-embedding-3-small",
+  "sections": {
+    "general": 238,
+    "service-guide": 37
+  }
+}

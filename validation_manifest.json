@@ -1,0 +1,2477 @@
+[
+  {
+    "document_id": "doc_0000",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/",
+    "title": "Azure Well-Architected Framework - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0000.md",
+    "char_count": 478,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0001",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/what-is-well-architected-framework",
+    "title": "How to use the Azure Well-Architected Framework documentation - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0001.md",
+    "char_count": 15106,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0002",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/whats-new",
+    "title": "What's New in the Azure Well-Architected Framework - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0002.md",
+    "char_count": 27428,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0003",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/pillars",
+    "title": "Microsoft Azure Well-Architected Framework - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0003.md",
+    "char_count": 2450,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0004",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/workloads",
+    "title": "Azure Well-Architected Framework workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0004.md",
+    "char_count": 15535,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0005",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/",
+    "title": "Azure service guidance mapped to Azure Well-Architected Framework - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0005.md",
+    "char_count": 274,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0006",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/design",
+    "title": "Design Essentials Overview - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0006.md",
+    "char_count": 138,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0007",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/design-guides/disaster-recovery",
+    "title": "Develop a disaster recovery plan for multi-region deployments - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0007.md",
+    "char_count": 35042,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0008",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/",
+    "title": "Reliability quick links - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0008.md",
+    "char_count": 204,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0009",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/",
+    "title": "Security quick links - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0009.md",
+    "char_count": 158,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0010",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/",
+    "title": "Cost optimization quick links - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0010.md",
+    "char_count": 142,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0011",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/",
+    "title": "Operational excellence quick links - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0011.md",
+    "char_count": 169,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0012",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/",
+    "title": "Performance efficiency quick links - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0012.md",
+    "char_count": 134,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0013",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/",
+    "title": "AI Workload Documentation - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0013.md",
+    "char_count": 395,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0014",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/",
+    "title": "Software as a service (SaaS) Workload Documentation - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0014.md",
+    "char_count": 397,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0015",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/oracle-iaas/overview",
+    "title": "Oracle workloads on Azure infrastructure as a service (IaaS) - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0015.md",
+    "char_count": 6831,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0016",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sap/quick-links",
+    "title": "SAP workload documentation - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0016.md",
+    "char_count": 146,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0017",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/",
+    "title": "Mission-critical workload documentation - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0017.md",
+    "char_count": 535,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0018",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/",
+    "title": "Sustainability workload documentation - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0018.md",
+    "char_count": 330,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0019",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-vmware/",
+    "title": "Azure VMware Solution workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0019.md",
+    "char_count": 201,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0020",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/",
+    "title": "Azure Virtual Desktop workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0020.md",
+    "char_count": 124,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0021",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/architect-role/fundamentals",
+    "title": "Solution architect's fundamentals - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0021.md",
+    "char_count": 7560,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0022",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/architect-role/checklist",
+    "title": "Solution architect's checklist - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0022.md",
+    "char_count": 1318,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0023",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/principles",
+    "title": "Reliability design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0023.md",
+    "char_count": 15345,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0024",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/principles",
+    "title": "Security design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0024.md",
+    "char_count": 22473,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0025",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/principles",
+    "title": "Cost Optimization design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0025.md",
+    "char_count": 13555,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0026",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/principles",
+    "title": "Operational Excellence cloud design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0026.md",
+    "char_count": 21144,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0027",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/principles",
+    "title": "Performance Efficiency design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0027.md",
+    "char_count": 13177,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0028",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/checklist",
+    "title": "Design review checklist for Reliability - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0028.md",
+    "char_count": 3474,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0029",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/checklist",
+    "title": "Design review checklist for Security - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0029.md",
+    "char_count": 3652,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0030",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/checklist",
+    "title": "Design review checklist for Cost Optimization - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0030.md",
+    "char_count": 5349,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0031",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/checklist",
+    "title": "Design review checklist for Operational Excellence - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0031.md",
+    "char_count": 3929,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0032",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/checklist",
+    "title": "Design review checklist for Performance Efficiency - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0032.md",
+    "char_count": 4122,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0033",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/tradeoffs",
+    "title": "Reliability tradeoffs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0033.md",
+    "char_count": 10521,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0034",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/tradeoffs",
+    "title": "Security tradeoffs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0034.md",
+    "char_count": 13776,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0035",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/tradeoffs",
+    "title": "Cost Optimization tradeoffs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0035.md",
+    "char_count": 14006,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0036",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/tradeoffs",
+    "title": "Operational Excellence tradeoffs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0036.md",
+    "char_count": 13614,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0037",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/tradeoffs",
+    "title": "Performance Efficiency tradeoffs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0037.md",
+    "char_count": 12904,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0038",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/maturity-model",
+    "title": "Reliability Maturity Model - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0038.md",
+    "char_count": 63613,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0039",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/maturity-model",
+    "title": "Security Maturity Model - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0039.md",
+    "char_count": 28509,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0040",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/maturity-model",
+    "title": "Cost Maturity Model - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0040.md",
+    "char_count": 31700,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0041",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/maturity-model",
+    "title": "Operational Excellence Maturity Model - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0041.md",
+    "char_count": 53292,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0042",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/maturity-model",
+    "title": "Performance Efficiency Maturity Model - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0042.md",
+    "char_count": 29190,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0043",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/incident-response",
+    "title": "Architecture strategies for designing an incident management (IcM) process - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0043.md",
+    "char_count": 14008,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0044",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-service-bus",
+    "title": "Architecture Best Practices for Azure Service Bus - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0044.md",
+    "char_count": 51307,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0045",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/application-design",
+    "title": "Application Design for AI Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0045.md",
+    "char_count": 34192,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0046",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/training-data-design",
+    "title": "Design Training Data for AI Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0046.md",
+    "char_count": 24174,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0047",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/networking",
+    "title": "Networking and connectivity considerations for Azure Virtual Desktop workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0047.md",
+    "char_count": 11346,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0048",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/postgresql",
+    "title": "Architecture Best Practices for Azure Database for PostgreSQL - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0048.md",
+    "char_count": 16827,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0049",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-kubernetes-service",
+    "title": "Architecture Best Practices for Azure Kubernetes Service (AKS) - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0049.md",
+    "char_count": 41233,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0050",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-netapp-files",
+    "title": "Architecture Best Practices for Azure NetApp Files - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0050.md",
+    "char_count": 51081,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0051",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-databricks",
+    "title": "Architecture Best Practices for Azure Databricks - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0051.md",
+    "char_count": 86883,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0052",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/design-guides/regions-availability-zones",
+    "title": "Architecture Strategies for Using Availability Zones and Regions - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0052.md",
+    "char_count": 48841,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0053",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-architecture-pattern",
+    "title": "Architecture pattern for mission-critical workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0053.md",
+    "char_count": 8401,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0054",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/design-guides/health-modeling",
+    "title": "Health modeling for workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0054.md",
+    "char_count": 23900,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0055",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/test",
+    "title": "Test and Evaluate AI Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0055.md",
+    "char_count": 17976,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0056",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/redundancy",
+    "title": "Architecture Strategies for Designing for Redundancy - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0056.md",
+    "char_count": 26612,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0057",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-machine-learning",
+    "title": "Architecture Best Practices for Azure Machine Learning - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0057.md",
+    "char_count": 33009,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0058",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/observability",
+    "title": "Architecture strategies for designing and creating a monitoring system - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0058.md",
+    "char_count": 27647,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0059",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/monitoring-alerting-strategy",
+    "title": "Architecture strategies for designing a reliable monitoring and alerting strategy - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0059.md",
+    "char_count": 13343,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0060",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-files",
+    "title": "Architecture Best Practices for Azure Files - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0060.md",
+    "char_count": 40213,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0061",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/app-service-web-apps",
+    "title": "Architecture Best Practices for Azure App Service (Web Apps) - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0061.md",
+    "char_count": 48999,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0062",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-firewall",
+    "title": "Architecture Best Practices for Azure Firewall - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0062.md",
+    "char_count": 40725,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0063",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-application-gateway",
+    "title": "Architecture Best Practices for Azure Application Gateway v2 - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0063.md",
+    "char_count": 29874,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0064",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/virtual-network",
+    "title": "Architecture Best Practices for Azure Virtual Network - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0064.md",
+    "char_count": 32158,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0065",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-sql-database",
+    "title": "Architecture Best Practices for Azure SQL Database - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0065.md",
+    "char_count": 28777,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0066",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-traffic-manager",
+    "title": "Architecture Best Practices for Azure Traffic Manager - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0066.md",
+    "char_count": 26850,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0067",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/event-hubs",
+    "title": "Architecture Best Practices for Azure Event Hubs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0067.md",
+    "char_count": 7691,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0068",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/personas",
+    "title": "Workload team personas for AI workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0068.md",
+    "char_count": 14956,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0069",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-log-analytics",
+    "title": "Architecture Best Practices for Log Analytics - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0069.md",
+    "char_count": 41849,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0070",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/architect-role/design-diagrams",
+    "title": "Architecture design diagrams - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0070.md",
+    "char_count": 13457,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0071",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/automate-tasks",
+    "title": "Architecture strategies for implementing automation - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0071.md",
+    "char_count": 16408,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0072",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/networking",
+    "title": "Architecture strategies for networking and connectivity - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0072.md",
+    "char_count": 35436,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0073",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/segmentation",
+    "title": "Architecture strategies for building a segmentation strategy - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0073.md",
+    "char_count": 24614,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0074",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-front-door",
+    "title": "Architecture Best Practices for Azure Front Door - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0074.md",
+    "char_count": 31884,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0075",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-disk-storage",
+    "title": "Architecture Best Practices for Azure Disk Storage - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0075.md",
+    "char_count": 28642,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0076",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/design-guides/implementing-recommendations",
+    "title": "Complete an Azure Well-Architected Review assessment - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0076.md",
+    "char_count": 5977,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0077",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/responsible-ai",
+    "title": "Responsible AI in Azure Workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0077.md",
+    "char_count": 24108,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0078",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-local",
+    "title": "Architecture Best Practices for Azure Local - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0078.md",
+    "char_count": 54057,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0079",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/sustainable-ai-design",
+    "title": "Sustainable Design for AI Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0079.md",
+    "char_count": 13824,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0080",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-design-methodology",
+    "title": "Design methodology for mission-critical workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0080.md",
+    "char_count": 5526,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0081",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-overview",
+    "title": "Mission-critical workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0081.md",
+    "char_count": 6311,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0082",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-design-principles",
+    "title": "Design principles of a mission-critical workload - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0082.md",
+    "char_count": 10297,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0083",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/grounding-data-design",
+    "title": "Grounding Data Design for AI Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0083.md",
+    "char_count": 33027,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0084",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/scaling",
+    "title": "Architecture strategies for designing a reliable scaling strategy - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0084.md",
+    "char_count": 15930,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0085",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/design-guides/partition-data",
+    "title": "Data partitioning recommendations for reliability - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0085.md",
+    "char_count": 31822,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0086",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/cosmos-db",
+    "title": "Architecture Best Practices for Azure Cosmos DB for NoSQL - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0086.md",
+    "char_count": 36807,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0087",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-container-apps",
+    "title": "Architecture Best Practices for Azure Container Apps - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0087.md",
+    "char_count": 28580,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0088",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/application-delivery",
+    "title": "Application Delivery Considerations for Azure Virtual Desktop Workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0088.md",
+    "char_count": 26816,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0089",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/disaster-recovery",
+    "title": "Architecture strategies for disaster recovery - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0089.md",
+    "char_count": 14786,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0090",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-api-management",
+    "title": "Architecture Best Practices for Azure API Management - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0090.md",
+    "char_count": 46590,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0091",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/virtual-machines",
+    "title": "Architecture Best Practices for Azure Virtual Machines and Scale Sets - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0091.md",
+    "char_count": 41962,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0092",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/self-preservation",
+    "title": "Architecture strategies for self-healing and self-preservation - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0092.md",
+    "char_count": 11949,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0093",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/design-guides/handle-transient-faults",
+    "title": "Recommendations for handling transient faults - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0093.md",
+    "char_count": 23698,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0094",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/design-guides/background-jobs",
+    "title": "Recommendations for developing background jobs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0094.md",
+    "char_count": 35764,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0095",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-iot-hub",
+    "title": "Architecture Best Practices for Azure IoT Hub - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0095.md",
+    "char_count": 49001,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0096",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-functions-security",
+    "title": "Architecture Best Practices for Azure Functions - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0096.md",
+    "char_count": 16394,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0097",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-load-balancer",
+    "title": "Architecture Best Practices for Azure Load Balancer - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0097.md",
+    "char_count": 24432,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0098",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-service-fabric-well-architected-framework",
+    "title": "Architecture Best Practices for Azure Service Fabric - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0098.md",
+    "char_count": 21476,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0099",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/application-insights",
+    "title": "Architecture Best Practices for Azure Monitor Application Insights - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0099.md",
+    "char_count": 27379,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0100",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/get-started",
+    "title": "AI workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0100.md",
+    "char_count": 9845,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0101",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/design-methodology",
+    "title": "Design Methodology for AI Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0101.md",
+    "char_count": 4582,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0102",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/design-principles",
+    "title": "Design Principles for AI Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0102.md",
+    "char_count": 19593,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0103",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/application-platform",
+    "title": "Application Platform for AI Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0103.md",
+    "char_count": 20202,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0104",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/data-platform",
+    "title": "Data Platform for AI Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0104.md",
+    "char_count": 32660,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0105",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/mlops-genaiops",
+    "title": "MLOps and GenAIOps for AI Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0105.md",
+    "char_count": 25348,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0106",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/operations",
+    "title": "AI Workload Operations on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0106.md",
+    "char_count": 14101,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0107",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/ai/assessment",
+    "title": "AI workload assessment - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0107.md",
+    "char_count": 1557,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0108",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/get-started",
+    "title": "SaaS Workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0108.md",
+    "char_count": 8096,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0109",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/design-methodology",
+    "title": "Design Methodology for SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0109.md",
+    "char_count": 5401,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0110",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/design-principles",
+    "title": "Design Principles of SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0110.md",
+    "char_count": 9406,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0111",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/billing-cost-management",
+    "title": "Billing and Cost Management for SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0111.md",
+    "char_count": 14392,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0112",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/governance",
+    "title": "Governance for SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0112.md",
+    "char_count": 15949,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0113",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/resource-organization",
+    "title": "Resource Organization for SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0113.md",
+    "char_count": 9999,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0114",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/identity-access",
+    "title": "Identity and Access Management for SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0114.md",
+    "char_count": 17431,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0115",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/compute",
+    "title": "Compute for SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0115.md",
+    "char_count": 16616,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0116",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/networking",
+    "title": "Networking for SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0116.md",
+    "char_count": 23084,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0117",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/data",
+    "title": "Data for SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0117.md",
+    "char_count": 26453,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0118",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/devops",
+    "title": "DevOps Practices for SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0118.md",
+    "char_count": 13356,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0119",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/incident-management",
+    "title": "Incident Management for SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0119.md",
+    "char_count": 12226,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0120",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/saas/assessment",
+    "title": "Assessment Review Tool for SaaS Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0120.md",
+    "char_count": 1442,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0121",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-blob-storage",
+    "title": "Architecture Best Practices for Azure Blob Storage - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0121.md",
+    "char_count": 39064,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0122",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-db-mysql-cost-optimization",
+    "title": "Architecture Best Practices for Azure Database for MySQL and Cost Optimization - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0122.md",
+    "char_count": 4261,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0123",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/event-grid/reliability",
+    "title": "Event Grid and reliability - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0123.md",
+    "char_count": 5893,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0124",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-expressroute",
+    "title": "Architecture Best Practices for Azure ExpressRoute - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0124.md",
+    "char_count": 41562,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0125",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-functions",
+    "title": "Architecture Best Practices for Azure Functions - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0125.md",
+    "char_count": 16394,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0126",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-service-fabric",
+    "title": "Architecture Best Practices for Azure Service Fabric - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0126.md",
+    "char_count": 21476,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0127",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-sql-managed-instance/reliability",
+    "title": "Azure SQL Managed Instance and reliability - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0127.md",
+    "char_count": 5197,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0128",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/design-guides/optimize-workload-using-flows",
+    "title": "Optimize workload design using flows - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0128.md",
+    "char_count": 15162,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0129",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/design-guides/release-engineering-continuous-integration",
+    "title": "Recommendations for using continuous integration - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0129.md",
+    "char_count": 7261,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0130",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/design-guides/incident-management",
+    "title": "Develop an incident management practice to recover from disruptions - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0130.md",
+    "char_count": 27145,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0131",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/metrics",
+    "title": "Architecture strategies for defining reliability targets - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0131.md",
+    "char_count": 28356,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0132",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/design-patterns",
+    "title": "Architecture design patterns that support reliability - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0132.md",
+    "char_count": 11009,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0133",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/identify-flows",
+    "title": "Architecture strategies for identifying and rating flows - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0133.md",
+    "char_count": 12940,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0134",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/failure-mode-analysis",
+    "title": "Architecture strategies for failure mode analysis - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0134.md",
+    "char_count": 14352,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0135",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/simplify",
+    "title": "Architecture strategies for designing for simplicity and efficiency - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0135.md",
+    "char_count": 11686,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0136",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/testing-strategy",
+    "title": "Architecture strategies for designing a reliability testing strategy - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0136.md",
+    "char_count": 14747,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0137",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/design-patterns",
+    "title": "Architecture design patterns that support security - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0137.md",
+    "char_count": 6714,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0138",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/establish-baseline",
+    "title": "Architecture strategies for establishing a security baseline - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0138.md",
+    "char_count": 13255,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0139",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/secure-development-lifecycle",
+    "title": "Architecture strategies for securing a development lifecycle - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0139.md",
+    "char_count": 19577,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0140",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/data-classification",
+    "title": "Architecture strategies for data classification - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0140.md",
+    "char_count": 13908,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0141",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/monitor-threats",
+    "title": "Architecture strategies for monitoring and threat detection - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0141.md",
+    "char_count": 24936,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0142",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/threat-model",
+    "title": "Architecture strategies for application threat analysis - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0142.md",
+    "char_count": 9689,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0143",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/identity-access",
+    "title": "Architecture strategies for identity and access management - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0143.md",
+    "char_count": 26213,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0144",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/encryption",
+    "title": "Architecture strategies for encryption - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0144.md",
+    "char_count": 20966,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0145",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/harden-resources",
+    "title": "Architecture strategies for hardening resources - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0145.md",
+    "char_count": 15256,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0146",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/application-secrets",
+    "title": "Architecture strategies for protecting application secrets - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0146.md",
+    "char_count": 13146,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0147",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/test",
+    "title": "Architecture strategies for security testing - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0147.md",
+    "char_count": 17899,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0148",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/incident-response",
+    "title": "Architecture strategies for security incident response - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0148.md",
+    "char_count": 11039,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0149",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/design-patterns",
+    "title": "Architecture design patterns that support cost optimization - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0149.md",
+    "char_count": 6231,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0150",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/create-culture-financial-responsibility",
+    "title": "Architecture strategies for creating a culture of financial responsibility - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0150.md",
+    "char_count": 12123,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0151",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/cost-model",
+    "title": "Architecture strategies for creating a cost model - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0151.md",
+    "char_count": 20112,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0152",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/collect-review-cost-data",
+    "title": "Architecture strategies for collecting and reviewing cost data - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0152.md",
+    "char_count": 22356,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0153",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/set-spending-guardrails",
+    "title": "Architecture strategies for setting spending guardrails - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0153.md",
+    "char_count": 17346,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0154",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/get-best-rates",
+    "title": "Architecture strategies for getting the best rates from providers - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0154.md",
+    "char_count": 25374,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0155",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/align-usage-to-billing-increments",
+    "title": "Architecture strategies for aligning billing and usage - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0155.md",
+    "char_count": 13021,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0156",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/optimize-component-costs",
+    "title": "Architecture strategies for optimizing component costs. - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0156.md",
+    "char_count": 17635,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0157",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/consolidation",
+    "title": "Architecture strategies for consolidation - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0157.md",
+    "char_count": 12022,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0158",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/optimize-environment-costs",
+    "title": "Architecture strategies for optimizing environment costs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0158.md",
+    "char_count": 22221,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0159",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/optimize-flow-costs",
+    "title": "Architecture strategies for optimizing flow costs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0159.md",
+    "char_count": 14789,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0160",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/optimize-data-costs",
+    "title": "Architecture strategies for optimizing data costs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0160.md",
+    "char_count": 23806,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0161",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/optimize-code-costs",
+    "title": "Architecture strategies for optimizing code costs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0161.md",
+    "char_count": 31429,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0162",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/optimize-scaling-costs",
+    "title": "Architecture strategies for optimizing scaling costs - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0162.md",
+    "char_count": 23848,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0163",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cost-optimization/optimize-personnel-time",
+    "title": "Architecture strategies for optimizing personnel time - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0163.md",
+    "char_count": 23298,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0164",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/design-patterns",
+    "title": "Architecture design patterns that support operational excellence - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0164.md",
+    "char_count": 7539,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0165",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/devops-culture",
+    "title": "Architecture strategies for fostering DevOps culture - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0165.md",
+    "char_count": 6825,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0166",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/formalize-operations-tasks",
+    "title": "Architecture strategies for formalizing routine and nonroutine tasks - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0166.md",
+    "char_count": 9225,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0167",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/formalize-development-practices",
+    "title": "Architecture strategies for formalizing software development management practices - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0167.md",
+    "char_count": 7933,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0168",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/tools-processes",
+    "title": "Architecture strategies for standardizing tools and processes - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0168.md",
+    "char_count": 15091,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0169",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/safe-deployments",
+    "title": "Architecture strategies for safe deployment practices - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0169.md",
+    "char_count": 13986,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0170",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/enable-automation",
+    "title": "Architecture strategies for enabling automation in a workload - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0170.md",
+    "char_count": 15493,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0171",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/infrastructure-as-code-design",
+    "title": "Architecture strategies for using infrastructure as code - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0171.md",
+    "char_count": 14353,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0172",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/workload-supply-chain",
+    "title": "Architecture strategies for designing a workload development supply chain - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0172.md",
+    "char_count": 15467,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0173",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/design-patterns",
+    "title": "Architecture design patterns that support performance efficiency - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0173.md",
+    "char_count": 12128,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0174",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/performance-targets",
+    "title": "Architecture strategies for defining performance targets - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0174.md",
+    "char_count": 10303,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0175",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/select-services",
+    "title": "Architecture strategies for selecting the right services - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0175.md",
+    "char_count": 21281,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0176",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/capacity-planning",
+    "title": "Architecture strategies for capacity planning - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0176.md",
+    "char_count": 16778,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0177",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/collect-performance-data",
+    "title": "Architecture strategies for collecting performance data - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0177.md",
+    "char_count": 25603,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0178",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/scale-partition",
+    "title": "Architecture strategies for optimizing scaling and partitioning - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0178.md",
+    "char_count": 31305,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0179",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/optimize-code-infrastructure",
+    "title": "Architecture strategies for optimizing code and infrastructure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0179.md",
+    "char_count": 27417,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0180",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/optimize-data-performance",
+    "title": "Architecture strategies for optimizing data performance - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0180.md",
+    "char_count": 30887,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0181",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/prioritize-critical-flows",
+    "title": "Architecture strategies for prioritizing the performance of critical flows - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0181.md",
+    "char_count": 13309,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0182",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/optimize-operational-tasks",
+    "title": "Architecture strategies for optimizing operational tasks - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0182.md",
+    "char_count": 16255,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0183",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/continuous-performance-optimize",
+    "title": "Architecture strategies for continuous performance optimization - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0183.md",
+    "char_count": 14359,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0184",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/performance-test",
+    "title": "Architecture strategies for performance testing - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0184.md",
+    "char_count": 23033,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0185",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/respond-live-performance-issues",
+    "title": "Architecture strategies for responding to live performance issues - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0185.md",
+    "char_count": 12187,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0186",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/oracle-iaas/choose-compute-storage",
+    "title": "Choose compute and storage - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0186.md",
+    "char_count": 11022,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0187",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/oracle-iaas/optimize-business-continuity-disaster-recovery",
+    "title": "Optimize business continuity and disaster recovery - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0187.md",
+    "char_count": 9680,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0188",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/oracle-iaas/optimize-security",
+    "title": "Optimize security for your Oracle workload - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0188.md",
+    "char_count": 8585,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0189",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/oracle-iaas/design-applications",
+    "title": "Design Oracle applications - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0189.md",
+    "char_count": 5627,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0190",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/oracle-iaas/monitor-workloads",
+    "title": "Monitor your Oracle workload - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0190.md",
+    "char_count": 3680,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0191",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/oracle-iaas/review-design-principles",
+    "title": "Design principles for an Oracle workload on Azure infrastructure as a service (IaaS) - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0191.md",
+    "char_count": 7807,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0192",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sap/get-started",
+    "title": "SAP workload - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0192.md",
+    "char_count": 2501,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0193",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sap/design-principles",
+    "title": "SAP workload design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0193.md",
+    "char_count": 5309,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0194",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sap/design-areas/application-design",
+    "title": "SAP workload application design - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0194.md",
+    "char_count": 2920,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0195",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sap/design-areas/application-platform",
+    "title": "SAP workload application platform - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0195.md",
+    "char_count": 8498,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0196",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sap/design-areas/data-platform",
+    "title": "SAP workload data platform - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0196.md",
+    "char_count": 12158,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0197",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sap/design-areas/networking-and-connectivity",
+    "title": "SAP workload networking and connectivity - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0197.md",
+    "char_count": 3462,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0198",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sap/design-areas/security",
+    "title": "SAP workload security - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0198.md",
+    "char_count": 8940,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0199",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sap/design-areas/operational-procedures",
+    "title": "SAP workload operational procedures - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0199.md",
+    "char_count": 6117,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0200",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-application-design",
+    "title": "Application design of mission-critical workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0200.md",
+    "char_count": 18604,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0201",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-application-platform",
+    "title": "Application platform considerations for mission-critical workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0201.md",
+    "char_count": 38251,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0202",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-data-platform",
+    "title": "Data platform considerations for mission-critical workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0202.md",
+    "char_count": 74424,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0203",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-networking-connectivity",
+    "title": "Networking and connectivity for mission-critical workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0203.md",
+    "char_count": 55433,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0204",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-health-modeling",
+    "title": "Health modeling and observability of mission-critical workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0204.md",
+    "char_count": 40551,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0205",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-deployment-testing",
+    "title": "Deployment and testing for mission-critical workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0205.md",
+    "char_count": 28951,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0206",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-security",
+    "title": "Security considerations for mission-critical workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0206.md",
+    "char_count": 28726,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0207",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-operational-procedures",
+    "title": "Operational procedures for mission-critical workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0207.md",
+    "char_count": 19360,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0208",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/mission-critical/mission-critical-assessment",
+    "title": "Well-Architected assessment for mission-critical workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0208.md",
+    "char_count": 1443,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0209",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/sustainability-get-started",
+    "title": "Sustainability workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0209.md",
+    "char_count": 4839,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0210",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/sustainability-design-methodology",
+    "title": "Design methodology for sustainability workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0210.md",
+    "char_count": 9992,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0211",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/sustainability-design-principles",
+    "title": "Design principles for sustainability workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0211.md",
+    "char_count": 5971,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0212",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/sustainability-application-design",
+    "title": "Application design of sustainable workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0212.md",
+    "char_count": 8512,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0213",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/sustainability-application-platform",
+    "title": "Application platform considerations for sustainable workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0213.md",
+    "char_count": 11237,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0214",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/sustainability-testing",
+    "title": "Testing Considerations for Sustainable Workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0214.md",
+    "char_count": 6856,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0215",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/sustainability-operational-procedures",
+    "title": "Operational procedure considerations for sustainable workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0215.md",
+    "char_count": 10795,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0216",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/sustainability-networking",
+    "title": "Networking considerations for sustainable workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0216.md",
+    "char_count": 4652,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0217",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/sustainability-storage",
+    "title": "Data and storage design considerations for sustainable workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0217.md",
+    "char_count": 4518,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0218",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/sustainability/sustainability-security",
+    "title": "Security considerations for sustainable workloads on Azure - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0218.md",
+    "char_count": 10796,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0219",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-vmware/overview",
+    "title": "Azure VMware Solution workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0219.md",
+    "char_count": 8593,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0220",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-vmware/design-principles",
+    "title": "Azure VMware Solution design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0220.md",
+    "char_count": 7939,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0221",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-vmware/landing-zone-integration",
+    "title": "Integrate an Azure VMware Solution workload with Azure landing zones - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0221.md",
+    "char_count": 10387,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0222",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-vmware/infrastructure",
+    "title": "Infrastructure considerations for Azure VMware Solution workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0222.md",
+    "char_count": 14150,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0223",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-vmware/application-platform",
+    "title": "Application considerations for Azure VMware Solution workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0223.md",
+    "char_count": 15039,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0224",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-vmware/networking",
+    "title": "Networking considerations for Azure VMware Solution workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0224.md",
+    "char_count": 7811,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0225",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-vmware/monitoring",
+    "title": "Monitoring considerations for Azure VMware Solution workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0225.md",
+    "char_count": 14138,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0226",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-vmware/security",
+    "title": "Security considerations for Azure VMware Solution workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0226.md",
+    "char_count": 11015,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0227",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-vmware/operations",
+    "title": "Operations considerations for Azure VMware Solution workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0227.md",
+    "char_count": 16019,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0228",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-vmware/assessment",
+    "title": "Azure VMware Solution assessment - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0228.md",
+    "char_count": 1434,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0229",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/overview",
+    "title": "Azure Virtual Desktop workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0229.md",
+    "char_count": 7064,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0230",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/design-principles",
+    "title": "Azure Virtual Desktop design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0230.md",
+    "char_count": 14553,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0231",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/landing-zone-integration",
+    "title": "Integrate an Azure Virtual Desktop workload with Azure landing zones - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0231.md",
+    "char_count": 12334,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0232",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/monitoring",
+    "title": "Monitoring considerations for Azure Virtual Desktop workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0232.md",
+    "char_count": 15582,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0233",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/security",
+    "title": "Security and identity and access management (IAM) considerations for Azure Virtual Desktop workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0233.md",
+    "char_count": 14241,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0234",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/operations",
+    "title": "Operational procedure considerations for Azure Virtual Desktop workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0234.md",
+    "char_count": 12622,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0235",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/business-continuity",
+    "title": "Business continuity considerations for Azure Virtual Desktop workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0235.md",
+    "char_count": 12414,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0236",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/storage",
+    "title": "Storage considerations for Azure Virtual Desktop workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0236.md",
+    "char_count": 12921,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0237",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/azure-virtual-desktop/assessment",
+    "title": "Azure Virtual Desktop assessment - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0237.md",
+    "char_count": 1464,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0238",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/architect-role/architecture-design-specification",
+    "title": "Workload architecture design specification - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0238.md",
+    "char_count": 6001,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0239",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/architect-role/architecture-decision-record",
+    "title": "Architecture decision record - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0239.md",
+    "char_count": 2792,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0240",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/architect-role/collaboration",
+    "title": "Collaboration with the workload team - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0240.md",
+    "char_count": 2359,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0241",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/architect-role/ongoing-support",
+    "title": "Support the workload in a consultative role - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0241.md",
+    "char_count": 3460,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0242",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/instrument-application",
+    "title": "Architecture strategies for instrumenting an application - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0242.md",
+    "char_count": 13669,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0243",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/resiliency/principles",
+    "title": "Reliability design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0243.md",
+    "char_count": 15345,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0244",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/security/security-principles",
+    "title": "Security design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0244.md",
+    "char_count": 22473,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0245",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/devops/monitor-analysis",
+    "title": "Architecture strategies for designing and creating a monitoring system - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0245.md",
+    "char_count": 27647,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0246",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/devops/monitor-instrument",
+    "title": "Architecture strategies for designing and creating a monitoring system - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0246.md",
+    "char_count": 27647,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0247",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/devops/alerts",
+    "title": "Architecture strategies for designing and creating a monitoring system - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0247.md",
+    "char_count": 27647,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0248",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/devops/monitor-alerts",
+    "title": "Architecture strategies for designing and creating a monitoring system - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0248.md",
+    "char_count": 27647,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0249",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/regions-availability-zones",
+    "title": "Architecture Strategies for Using Availability Zones and Regions - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0249.md",
+    "char_count": 48841,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0250",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/highly-available-multi-region-design",
+    "title": "Architecture Strategies for Designing for Redundancy - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0250.md",
+    "char_count": 26612,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0251",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/devops/principles",
+    "title": "Operational Excellence cloud design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0251.md",
+    "char_count": 21144,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0252",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/devops/",
+    "title": "Operational excellence quick links - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0252.md",
+    "char_count": 169,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0253",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/scalability/",
+    "title": "Performance efficiency quick links - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0253.md",
+    "char_count": 134,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0254",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/scalability/test-checklist",
+    "title": "Architecture strategies for performance testing - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0254.md",
+    "char_count": 23033,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0255",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/scalability/principles",
+    "title": "Performance Efficiency design principles - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0255.md",
+    "char_count": 13177,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0256",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/reliability/handle-transient-faults",
+    "title": "Recommendations for handling transient faults - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0256.md",
+    "char_count": 23698,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0257",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/event-grid/operational-excellence",
+    "title": "Event Grid and operational excellence - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0257.md",
+    "char_count": 5855,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0258",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/cross-cutting-guides/health-modeling",
+    "title": "Health modeling for workloads - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0258.md",
+    "char_count": 23900,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0259",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-sql-managed-instance/operational-excellence",
+    "title": "Azure SQL Managed Instance and operational excellence - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "service-guide",
+    "file_path": "cleaned_documents\\doc_0259.md",
+    "char_count": 6109,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0260",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/resiliency/design-resiliency",
+    "title": "Architecture strategies for failure mode analysis - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0260.md",
+    "char_count": 14352,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0261",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/resiliency/backup-and-recovery",
+    "title": "Architecture strategies for disaster recovery - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0261.md",
+    "char_count": 14786,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0262",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/resiliency/testing",
+    "title": "Architecture strategies for designing a reliability testing strategy - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0262.md",
+    "char_count": 14747,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0263",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/release-engineering-continuous-integration",
+    "title": "Recommendations for using continuous integration - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0263.md",
+    "char_count": 7261,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0264",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/devops/release-engineering-ci",
+    "title": "Recommendations for using continuous integration - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0264.md",
+    "char_count": 7261,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0265",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/operational-excellence/emergency-response",
+    "title": "Architecture strategies for designing an incident management (IcM) process - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0265.md",
+    "char_count": 14008,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0266",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/devops/release-engineering-performance",
+    "title": "Recommendations for using continuous integration - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0266.md",
+    "char_count": 7261,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0267",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/devops/release-engineering-app-dev",
+    "title": "Architecture strategies for formalizing software development management practices - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0267.md",
+    "char_count": 7933,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0268",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/devops/release-engineering-rollback",
+    "title": "Architecture strategies for safe deployment practices - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0268.md",
+    "char_count": 13986,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0269",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/devops/monitor-collection-data-storage",
+    "title": "Architecture strategies for designing and creating a monitoring system - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0269.md",
+    "char_count": 27647,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0270",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/services/compute/azure-kubernetes-service/azure-kubernetes-service",
+    "title": "Architecture Best Practices for Azure Kubernetes Service (AKS) - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0270.md",
+    "char_count": 41233,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0271",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/services/compute/azure-app-service/reliability",
+    "title": "Architecture Best Practices for Azure App Service (Web Apps) - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0271.md",
+    "char_count": 48999,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0272",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/services/compute/azure-app-service/operational-excellence",
+    "title": "Architecture Best Practices for Azure App Service (Web Apps) - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0272.md",
+    "char_count": 48999,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0273",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/resiliency/",
+    "title": "Reliability quick links - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0273.md",
+    "char_count": 204,
+    "status": "APPROVED"
+  },
+  {
+    "document_id": "doc_0274",
+    "url": "https://learn.microsoft.com/en-us/azure/well-architected/services/monitoring/log-analytics/cost-optimization",
+    "title": "Architecture Best Practices for Log Analytics - Microsoft Azure Well-Architected Framework | Microsoft Learn",
+    "section": "general",
+    "file_path": "cleaned_documents\\doc_0274.md",
+    "char_count": 41849,
+    "status": "APPROVED"
+  }
+]

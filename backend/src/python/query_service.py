@@ -27,7 +27,7 @@ class WAFQueryService:
         self,
         storage_dir: str = "waf_storage_clean",
         embedding_model: str = "text-embedding-3-small",
-        llm_model: str = "gpt-4-turbo-preview",
+        llm_model: str = "gpt-4o-mini",
         similarity_threshold: float = 0.75
     ):
         """
@@ -36,7 +36,7 @@ class WAFQueryService:
         Args:
             storage_dir: Directory with persisted index
             embedding_model: OpenAI embedding model name
-            llm_model: OpenAI LLM model name
+            llm_model: OpenAI LLM model name (gpt-4o-mini for RAG)
             similarity_threshold: Minimum similarity score for results
         """
         self.storage_dir = storage_dir

@@ -126,48 +126,131 @@ export class WAFService {
   }
 
   /**
-   * Trigger full WAF ingestion pipeline (crawler -> ingestion -> chunking)
+   * Trigger WAF ingestion Phase 1 (crawl + clean + export)
+   */
+  startIngestionPhase1(): { jobId: string; message: string } {
+    logger.info("Starting WAF ingestion Phase 1");
+
+    const jobId = `waf-phase1-${Date.now()}`;
+
+    // Run Phase 1 in background
+    void this.runIngestionPhase1(jobId).catch((error: unknown) => {
+      logger.error("Phase 1 failed", { jobId, error });
+    });
+
+    return {
+      jobId,
+      message: "Phase 1 started: Crawling and cleaning documents.",
+    };
+  }
+
+  /**
+   * Trigger WAF ingestion Phase 2 (chunk + embed + index)
+   */
+  startIngestionPhase2(): { jobId: string; message: string } {
+    logger.info("Starting WAF ingestion Phase 2");
+
+    const jobId = `waf-phase2-${Date.now()}`;
+
+    // Run Phase 2 in background
+    void this.runIngestionPhase2(jobId).catch((error: unknown) => {
+      logger.error("Phase 2 failed", { jobId, error });
+    });
+
+    return {
+      jobId,
+      message: "Phase 2 started: Building index from approved documents.",
+    };
+  }
+
+  /**
+   * Trigger full WAF ingestion pipeline (legacy - backward compatible)
+   * Now runs Phase 1 + auto-approve + Phase 2
    */
   startIngestion(): { jobId: string; message: string } {
-    logger.info("Starting WAF ingestion pipeline");
+    logger.info("Starting full WAF ingestion pipeline");
 
-    // For now, return a job ID and run asynchronously
-    // In production, you'd use a proper job queue
     const jobId = `waf-ingestion-${Date.now()}`;
 
-    // Run ingestion in background
-    void this.runIngestionPipeline(jobId).catch((error: unknown) => {
+    // Run full pipeline in background
+    void this.runFullIngestionPipeline(jobId).catch((error: unknown) => {
       logger.error("Ingestion pipeline failed", { jobId, error });
     });
 
     return {
       jobId,
-      message: "WAF ingestion started. This will take several minutes.",
+      message:
+        "WAF ingestion started. Documents will be auto-approved. This will take several minutes.",
     };
   }
 
   /**
-   * Run the complete ingestion pipeline
+   * Run Phase 1: Crawl and clean documents
    */
-  private async runIngestionPipeline(jobId: string): Promise<void> {
+  private async runIngestionPhase1(jobId: string): Promise<void> {
     try {
-      logger.info("Step 1: Crawling WAF documentation", { jobId });
+      logger.info("Phase 1 - Step 1: Crawling WAF documentation", { jobId });
       await this.executePythonScript("crawler.py", [], 600000); // 10 min timeout
 
-      logger.info("Step 2: Processing documents", { jobId });
+      logger.info("Phase 1 - Step 2: Cleaning and exporting documents", {
+        jobId,
+      });
       await this.executePythonScript("ingestion.py", [], 600000);
 
-      logger.info("Step 3: Chunking documents", { jobId });
-      await this.executePythonScript("chunker.py", [], 300000);
-
-      logger.info("Step 4: Building vector index", { jobId });
-      await this.executePythonScript("indexer.py", [], 900000); // 15 min for embeddings
-
-      logger.info("Ingestion pipeline completed", { jobId });
+      logger.info("Phase 1 completed - Ready for validation", { jobId });
     } catch (error) {
-      logger.error("Ingestion pipeline error", { jobId, error });
+      logger.error("Phase 1 error", { jobId, error });
       throw error;
     }
+  }
+
+  /**
+   * Run Phase 2: Build index from approved documents
+   */
+  private async runIngestionPhase2(jobId: string): Promise<void> {
+    try {
+      logger.info("Phase 2: Building index from approved documents", { jobId });
+      await this.executePythonScript("build_index.py", [], 900000); // 15 min for embeddings
+
+      logger.info("Phase 2 completed - Index ready", { jobId });
+    } catch (error) {
+      logger.error("Phase 2 error", { jobId, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Run the complete ingestion pipeline (auto-approve)
+   */
+  private async runFullIngestionPipeline(jobId: string): Promise<void> {
+    try {
+      // Phase 1
+      await this.runIngestionPhase1(jobId);
+
+      // Auto-approve all documents
+      logger.info("Auto-approving all documents", { jobId });
+      const rootPath = join(this.scriptsPath, "..", "..", "..");
+      await this.executePythonScript(
+        join(rootPath, "auto_approve_docs.py"),
+        [],
+        60000
+      );
+
+      // Phase 2
+      await this.runIngestionPhase2(jobId);
+
+      logger.info("Full ingestion pipeline completed", { jobId });
+    } catch (error) {
+      logger.error("Full ingestion pipeline error", { jobId, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Run the complete ingestion pipeline (legacy - deprecated)
+   */
+  private async runIngestionPipeline(jobId: string): Promise<void> {
+    await this.runFullIngestionPipeline(jobId);
   }
 
   /**
@@ -308,10 +391,10 @@ export class WAFService {
   async getIngestionStatus(): Promise<IngestionStatus> {
     const indexReady = await this.isIndexReady();
 
-    // Check intermediate files
-    const urlsPath = join(this.scriptsPath, "waf_urls.txt");
-    const docsPath = join(this.scriptsPath, "waf_documents.jsonl");
-    const chunksPath = join(this.scriptsPath, "chunks_review.jsonl");
+    // Check phase files
+    const rootPath = join(this.scriptsPath, "..", "..", "..");
+    const manifestPath = join(rootPath, "validation_manifest.json");
+    const cleanedDocsPath = join(rootPath, "cleaned_documents");
 
     let stage = "not_started";
     let progress = 0;
@@ -322,18 +405,37 @@ export class WAFService {
         stage = "complete";
         progress = 100;
         message = "Index ready for queries";
-      } else if (await this.fileExists(chunksPath)) {
-        stage = "indexing";
-        progress = 75;
-        message = "Building vector index...";
-      } else if (await this.fileExists(docsPath)) {
-        stage = "chunking";
-        progress = 50;
-        message = "Chunking documents...";
-      } else if (await this.fileExists(urlsPath)) {
-        stage = "processing";
-        progress = 25;
-        message = "Processing documents...";
+      } else if (await this.fileExists(manifestPath)) {
+        // Check if documents are approved
+        const fs = await import("fs/promises");
+        const manifestContent = await fs.readFile(manifestPath, "utf-8");
+        const manifest = JSON.parse(manifestContent) as Array<{
+          status: string;
+        }>;
+        const approvedCount = manifest.filter(
+          (doc) => doc.status === "APPROVED"
+        ).length;
+        const pendingCount = manifest.filter(
+          (doc) => doc.status === "PENDING_REVIEW"
+        ).length;
+
+        if (approvedCount > 0 && pendingCount === 0) {
+          stage = "ready_for_phase2";
+          progress = 60;
+          message = `Phase 1 complete. ${approvedCount} documents approved. Ready for Phase 2.`;
+        } else if (pendingCount > 0) {
+          stage = "pending_validation";
+          progress = 50;
+          message = `Phase 1 complete. ${pendingCount} documents pending validation.`;
+        } else {
+          stage = "phase1_complete";
+          progress = 50;
+          message = "Phase 1 complete. Awaiting document validation.";
+        }
+      } else if (await this.fileExists(cleanedDocsPath)) {
+        stage = "phase1_running";
+        progress = 30;
+        message = "Phase 1: Cleaning documents...";
       }
     } catch (error) {
       logger.error("Error checking ingestion status", { error });

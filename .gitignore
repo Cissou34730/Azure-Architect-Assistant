@@ -164,3 +164,6 @@ Thumbs.db
 # Misc
 *.orig
 .cache/
+
+# cleaned documents
+cleaned_documents/

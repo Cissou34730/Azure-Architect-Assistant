@@ -1,12 +1,14 @@
 """
-WAF Documentation Ingestion Pipeline
-Handles HTML extraction, cleaning, normalization, and chunking.
+WAF Documentation Ingestion Pipeline - Phase 1
+Handles HTML extraction, cleaning, normalization, and document export.
+No chunking - exports cleaned documents for manual validation.
 """
 
 import os
+import json
 import requests
 from typing import List, Dict
-from readability import Document
+from readability.readability import Document
 from bs4 import BeautifulSoup
 import html2text
 import re
@@ -236,25 +238,74 @@ class WAFIngestionPipeline:
         logger.info(f"Successfully processed {len(documents)} documents")
         return documents
     
-    def save_documents(self, documents: List[Dict[str, any]], output_file: str = "waf_documents.jsonl"):
+    def export_for_validation(
+        self, 
+        documents: List[Dict[str, any]], 
+        output_dir: str = "cleaned_documents",
+        manifest_file: str = "validation_manifest.json"
+    ):
         """
-        Save processed documents to JSONL file.
+        Export cleaned documents as .md files for manual validation.
+        Creates a manifest with PENDING_REVIEW status.
         
         Args:
             documents: List of document dictionaries
-            output_file: Output file path
+            output_dir: Directory to save cleaned documents
+            manifest_file: Path to validation manifest JSON
         """
-        import json
+        # Create output directory
+        os.makedirs(output_dir, exist_ok=True)
         
-        with open(output_file, 'w', encoding='utf-8') as f:
-            for doc in documents:
-                f.write(json.dumps(doc, ensure_ascii=False) + '\n')
+        manifest = []
         
-        logger.info(f"Saved {len(documents)} documents to {output_file}")
+        for i, doc in enumerate(documents):
+            # Generate safe filename
+            doc_id = f"doc_{i:04d}"
+            filename = f"{doc_id}.md"
+            filepath = os.path.join(output_dir, filename)
+            
+            # Write cleaned document
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(f"# {doc['title']}\n\n")
+                f.write(f"**URL:** {doc['url']}\n\n")
+                f.write(f"**Section:** {doc['section']}\n\n")
+                f.write("---\n\n")
+                f.write(doc['content'])
+            
+            # Add to manifest
+            manifest.append({
+                'document_id': doc_id,
+                'url': doc['url'],
+                'title': doc['title'],
+                'section': doc['section'],
+                'file_path': filepath,
+                'char_count': doc['char_count'],
+                'status': 'PENDING_REVIEW'  # PENDING_REVIEW, APPROVED, REJECTED
+            })
+        
+        # Write manifest
+        with open(manifest_file, 'w', encoding='utf-8') as f:
+            json.dump(manifest, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"Exported {len(documents)} documents to {output_dir}/")
+        logger.info(f"Created manifest: {manifest_file}")
+        
+        print(f"\n{'='*70}")
+        print(f"PHASE 1 COMPLETE: Document Cleaning & Export")
+        print(f"{'='*70}")
+        print(f"Exported {len(documents)} cleaned documents to: {output_dir}/")
+        print(f"Manifest created: {manifest_file}")
+        print(f"\nNEXT STEPS:")
+        print(f"1. Review cleaned documents in {output_dir}/")
+        print(f"2. Edit {manifest_file} and set status to:")
+        print(f"   - 'APPROVED' for documents to include in the index")
+        print(f"   - 'REJECTED' for documents to exclude")
+        print(f"3. Run Phase 2 (chunking + indexing) after validation")
+        print(f"{'='*70}\n")
 
 
 def main():
-    """Main entry point for ingestion pipeline."""
+    """Main entry point for Phase 1 ingestion pipeline."""
     pipeline = WAFIngestionPipeline()
     
     # Process URLs from crawler output
@@ -267,12 +318,16 @@ def main():
     # Process documents
     documents = pipeline.process_urls_from_file(urls_file)
     
-    # Save results
-    pipeline.save_documents(documents, "waf_documents.jsonl")
+    # Export for validation (Phase 1 output)
+    pipeline.export_for_validation(
+        documents, 
+        output_dir="cleaned_documents",
+        manifest_file="validation_manifest.json"
+    )
     
-    print(f"\nIngestion Summary:")
+    print(f"\nPhase 1 Summary:")
     print(f"Total documents processed: {len(documents)}")
-    print(f"Documents saved to: waf_documents.jsonl")
+    print(f"Ready for manual validation")
 
 
 if __name__ == "__main__":

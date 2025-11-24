@@ -43,11 +43,12 @@ router.post("/waf/query", async (req: Request, res: Response) => {
 
 /**
  * POST /api/waf/ingest
- * Start WAF ingestion pipeline
+ * Start full WAF ingestion pipeline (Phase 1 + auto-approve + Phase 2)
+ * Legacy endpoint - maintained for backward compatibility
  */
 router.post("/waf/ingest", (_req: Request, res: Response) => {
   try {
-    logger.info("WAF ingestion request received");
+    logger.info("WAF full ingestion request received");
 
     const result = wafService.startIngestion();
 
@@ -56,6 +57,47 @@ router.post("/waf/ingest", (_req: Request, res: Response) => {
     logger.error("WAF ingestion endpoint error", { error });
     return res.status(500).json({
       error: "Failed to start WAF ingestion",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+/**
+ * POST /api/waf/ingest/phase1
+ * Start WAF ingestion Phase 1 (crawl + clean + export)
+ */
+router.post("/waf/ingest/phase1", (_req: Request, res: Response) => {
+  try {
+    logger.info("WAF Phase 1 ingestion request received");
+
+    const result = wafService.startIngestionPhase1();
+
+    return res.json(result);
+  } catch (error) {
+    logger.error("WAF Phase 1 endpoint error", { error });
+    return res.status(500).json({
+      error: "Failed to start WAF Phase 1",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+
+/**
+ * POST /api/waf/ingest/phase2
+ * Start WAF ingestion Phase 2 (chunk + embed + index)
+ * Requires Phase 1 to be complete and documents to be validated
+ */
+router.post("/waf/ingest/phase2", (_req: Request, res: Response) => {
+  try {
+    logger.info("WAF Phase 2 ingestion request received");
+
+    const result = wafService.startIngestionPhase2();
+
+    return res.json(result);
+  } catch (error) {
+    logger.error("WAF Phase 2 endpoint error", { error });
+    return res.status(500).json({
+      error: "Failed to start WAF Phase 2",
       message: error instanceof Error ? error.message : "Unknown error",
     });
   }
