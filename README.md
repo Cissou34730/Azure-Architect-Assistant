@@ -24,27 +24,44 @@ This is a proof-of-concept application that helps Azure Solution Architects anal
 
 ## Architecture
 
-- **Backend**: Express + TypeScript REST API
-- **Frontend**: React + Vite with Tailwind CSS
+### Microservices Architecture
+
+- **Express Backend** (TypeScript): Main API gateway on port 3000
+  - REST API endpoints for projects, documents, chat
+  - OpenAI integration for document analysis and proposal generation
+  - HTTP client for Python RAG service
+  
+- **Python FastAPI Service**: Specialized RAG service on port 8000
+  - FastAPI REST endpoints for WAF queries and ingestion
+  - LlamaIndex 0.12.x for vector search and RAG
+  - In-memory index caching for fast queries
+  
+- **Frontend**: React + Vite with Tailwind CSS on port 5173
 - **Storage**: SQLite database with automatic persistence (`data/projects.db`)
-- **AI**: OpenAI / Azure OpenAI API for document analysis and architecture generation
-- **WAF RAG System**:
-  - **Python**: LlamaIndex 0.10.x for document processing, chunking, embeddings, and vector indexing
-  - **Architecture**: Long-running Python service with in-memory index caching
-  - **Vector Store**: File-based persistent storage (~60MB per knowledge base)
-  - **Embeddings**: OpenAI text-embedding-3-small (1536 dimensions)
-  - **Generation**: OpenAI gpt-4o-mini (optimized for cost and speed)
-  - **Performance**: First query ~35s (index loading), subsequent queries ~6s
-  - **Integration**: 
-    - TypeScript orchestrates persistent Python process via stdin/stdout
-    - Automatic WAF queries in chat (keyword detection) and proposals (5 pillars)
-    - Source citations stored with messages and displayed in UI
-  - **UX Enhancements**:
-    - Real-time progress updates via Server-Sent Events (SSE)
-    - Modern inline thinking indicators with animated progress
-    - Stage-by-stage progress messages ("Querying Security pillar 1/5...")
-    - Comprehensive action logging to browser console
-    - Non-blocking UI during operations
+
+### AI & RAG Pipeline
+
+- **Main AI (TypeScript → OpenAI)**:
+  - Document analysis: Extract project requirements
+  - Conversation processing: Refine architecture based on chat
+  - Proposal generation: Create comprehensive architecture documents
+  - Model: `gpt-4o-mini`
+  
+- **WAF RAG System (Python → LlamaIndex → OpenAI)**:
+  - **Embeddings**: `text-embedding-3-small` (1536 dimensions)
+  - **Generation**: `gpt-4o-mini` for answer synthesis
+  - **Vector Store**: File-based persistent storage (~60MB)
+  - **Performance**: First query ~35s (index loading), subsequent ~6s
+  - **Query Flow**: Question → Embedding → Vector search → Context retrieval → Answer generation
+  
+- **Integration Pattern**:
+  - TypeScript calls Python via HTTP (`POST /query`)
+  - Automatic WAF queries in chat and proposals
+  - Source citations with clickable links
+  
+- **Cost per Chat** (with WAF):
+  - 1 embedding call (~$0.00002/1K tokens)
+  - 2 generation calls (~$0.30/1M tokens total)
 
 ## Prerequisites
 
@@ -57,52 +74,92 @@ This is a proof-of-concept application that helps Azure Solution Architects anal
 ### 1. Clone and Install Dependencies
 
 ```bash
-# Install all dependencies (backend + frontend)
+# Install all dependencies (backend + frontend + Python)
 npm run install:all
 
 # OR install individually
+
+# Install workspace dependencies
+npm install
 
 # Install backend dependencies
 cd backend
 npm install
 
 # Install frontend dependencies
-cd ../frontend
+cd frontend
 npm install
 
-# Install Python dependencies (for WAF functionality)
+# Install Python dependencies in virtual environment
+cd ..
+python -m venv .venv
+.venv\Scripts\Activate.ps1  # Windows
+# source .venv/bin/activate  # Linux/Mac
+cd python-service
 pip install -r requirements.txt
 ```
 
-### 2. Configure OpenAI API
+### 2. Configure Environment Variables
 
-Create a `.env` file in the `backend` directory:
+Create a `.env` file in the **project root** (shared by all services):
 
 ```bash
-# For OpenAI
+# OpenAI Configuration
 OPENAI_API_KEY=your-openai-api-key
-OPENAI_MODEL=gpt-4o
+OPENAI_MODEL=gpt-4o-mini
+
+# Service Ports
+EXPRESS_PORT=3000
+PYTHON_PORT=8000
+PYTHON_SERVICE_URL=http://localhost:8000
+
+# Logging
+LOG_LEVEL=info
 
 # OR for Azure OpenAI
 AZURE_OPENAI_API_KEY=your-azure-openai-key
 OPENAI_API_ENDPOINT=https://your-resource.openai.azure.com/openai/deployments/your-deployment/chat/completions?api-version=2024-02-15-preview
-OPENAI_MODEL=gpt-4o
 ```
 
 ### 3. Run the Application
 
-**Terminal 1 - Start Backend:**
+**Option 1 - Run All Services (Recommended):**
 
 ```bash
+npm run dev
+```
+
+This starts all three services concurrently:
+- Python FastAPI service on `http://localhost:8000`
+- Express backend on `http://localhost:3000`
+- React frontend on `http://localhost:5173`
+
+**Option 2 - Run Services Individually:**
+
+**Terminal 1 - Python Service:**
+
+```bash
+npm run dev:python
+```
+
+Python FastAPI service runs on `http://localhost:8000`
+
+**Terminal 2 - Express Backend:**
+
+```bash
+npm run dev:backend
+# OR
 cd backend
 npm run dev
 ```
 
 Backend runs on `http://localhost:3000`
 
-**Terminal 2 - Start Frontend:**
+**Terminal 3 - React Frontend:**
 
 ```bash
+npm run dev:frontend
+# OR
 cd frontend
 npm run dev
 ```
@@ -615,51 +672,68 @@ PORT=3001
 
 ```
 Azure-Architect-Assistant/
-├── backend/
+├── backend/                    # Express TypeScript API (port 3000)
 │   ├── src/
-│   │   ├── api/            # REST API routes
-│   │   │   ├── projects.ts # Architecture project endpoints (with WAF integration)
-│   │   │   └── waf.ts      # Standalone WAF query endpoints
-│   │   ├── services/       # Business logic
-│   │   │   ├── LLMService.ts      # Chat & proposals with WAF integration
-│   │   │   └── WAFService.ts      # Long-running Python service manager
-│   │   ├── rag/            # WAF RAG pipeline (Python)
-│   │   │   ├── crawler.py
-│   │   │   ├── cleaner.py
-│   │   │   ├── indexer.py
-│   │   │   ├── query.py           # Query with caching
-│   │   │   ├── query_service.py   # Long-running service (stdin/stdout)
-│   │   │   └── query_wrapper.py   # Legacy wrapper
-│   │   ├── db/             # Database (in-memory)
-│   │   ├── models/         # Data models (includes WAFSource)
-│   │   └── index.ts        # Server entry point
+│   │   ├── api/               # REST API routes
+│   │   │   ├── projects.ts    # Project management endpoints
+│   │   │   └── waf.ts         # WAF query proxy endpoints
+│   │   ├── services/          # Business logic
+│   │   │   ├── LLMService.ts       # OpenAI integration (chat & proposals)
+│   │   │   ├── WAFService.ts       # HTTP client for Python service
+│   │   │   └── StorageService.ts   # SQLite persistence
+│   │   ├── db/                # Database utilities
+│   │   ├── models/            # TypeScript models (Project, Message, WAFSource)
+│   │   ├── logger.ts          # Logging configuration
+│   │   └── index.ts           # Express server entry point
 │   ├── package.json
-│   └── .env                # Environment variables
-├── frontend/
+│   └── tsconfig.json
+├── python-service/            # FastAPI Python Service (port 8000)
+│   ├── app/
+│   │   ├── main.py           # FastAPI application & endpoints
+│   │   └── rag/              # RAG pipeline modules
+│   │       ├── __init__.py
+│   │       ├── crawler.py         # Web crawler for WAF docs
+│   │       ├── cleaner.py         # HTML cleaning & markdown conversion
+│   │       ├── indexer.py         # Vector index builder
+│   │       ├── query.py           # RAG query engine (LlamaIndex)
+│   │       └── query_service.py   # Legacy stdin/stdout service
+│   ├── requirements.txt      # Python dependencies (FastAPI, LlamaIndex, etc.)
+│   └── README.md
+├── frontend/                  # React + Vite frontend (port 5173)
 │   ├── src/
-│   │   ├── App.tsx                # Main app with WAF source display
-│   │   └── WAFQueryInterface.tsx  # Standalone WAF query
+│   │   ├── App.tsx                # Main app with routing
+│   │   ├── WAFQueryInterface.tsx  # Standalone WAF query UI
+│   │   ├── main.tsx               # React entry point
+│   │   └── index.css              # Tailwind styles
 │   ├── package.json
-│   └── vite.config.ts
+│   ├── vite.config.ts
+│   └── tsconfig.json
 ├── scripts/
 │   ├── ingest/
-│   │   ├── waf_phase1.py   # Phase 1 orchestration
-│   │   └── waf_phase2.py   # Phase 2 orchestration
-│   └── utils/
-│       └── approve_documents.py  # Auto-approval
+│   │   ├── waf_phase1.py     # Phase 1: Crawl & clean orchestration
+│   │   └── waf_phase2.py     # Phase 2: Index & embed orchestration
+│   ├── utils/
+│   │   └── approve_documents.py   # Auto-approve manifest docs
+│   └── run-python-service.ps1     # PowerShell script to start Python service
 ├── data/
+│   ├── projects.db           # SQLite database (auto-created)
 │   └── knowledge_bases/
-│       ├── config.json      # KB registry
+│       ├── config.json       # Knowledge base registry
 │       └── waf/
-│           ├── urls.txt
-│           ├── documents/   # 275 cleaned markdown files
-│           ├── manifest.json
-│           └── index/       # 60MB vector store
+│           ├── urls.txt      # Crawled URLs (~275)
+│           ├── documents/    # Cleaned markdown files
+│           ├── manifest.json # Document validation manifest
+│           └── index/        # Vector index (~60MB)
 ├── docs/
-│   ├── guides/             # Implementation guides
-│   └── specs/              # Technical specifications
-├── requirements.txt        # Python dependencies
-├── package.json            # Workspace config
+│   ├── guides/               # Implementation documentation
+│   │   └── WAF_GUIDE.md     # Comprehensive WAF system guide
+│   ├── ARCHITECTURE.md       # System architecture overview
+│   ├── QUICKSTART.md         # Quick start guide
+│   └── REFACTORING_COMPLETE.md  # Refactoring summary
+├── .venv/                    # Python virtual environment
+├── .env                      # Shared environment variables (root)
+├── .env.example              # Environment template
+├── package.json              # Workspace configuration & scripts
 └── README.md
 ```
 
