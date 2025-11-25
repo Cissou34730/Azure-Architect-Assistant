@@ -19,11 +19,12 @@ __author__ = "Azure Architect Assistant Team"
 from .crawler import WAFCrawler
 from .cleaner import WAFIngestionPipeline
 from .indexer import WAFIndexBuilder
-from .query_service import WAFQueryService
+from .kb_query import WAFQueryService, KnowledgeBaseQueryService
 
 __all__ = [
     'WAFCrawler',
     'WAFIngestionPipeline',
     'WAFIndexBuilder',
     'WAFQueryService',
+    'KnowledgeBaseQueryService',
 ]
