@@ -3,6 +3,7 @@ import multer from "multer";
 import { randomUUID } from "crypto";
 import { storage } from "../services/StorageService.js";
 import { llmService } from "../services/LLMService.js";
+import { ragService } from "../services/RAGService.js";
 import { logger } from "../logger.js";
 import {
   Project,
@@ -290,7 +291,7 @@ router.post("/projects/:id/chat", async (req: Request, res: Response) => {
       content:
         response.assistantMessage || "I've updated the architecture sheet.",
       timestamp: new Date().toISOString(),
-      wafSources: response.wafSources,
+      wafSources: response.sources,
     };
     await storage.addMessage(assistantMessage);
 
@@ -299,15 +300,13 @@ router.post("/projects/:id/chat", async (req: Request, res: Response) => {
 
     log.info("Chat response generated", {
       projectId: id,
-      hasWafSources: Boolean(
-        response.wafSources && response.wafSources.length > 0
-      ),
+      hasWafSources: Boolean(response.sources && response.sources.length > 0),
     });
 
     res.json({
       message: assistantMessage.content,
       projectState: response.projectState,
-      wafSources: response.wafSources || [],
+      wafSources: response.sources || [],
     });
   } catch (error) {
     log.error("Error processing chat", error);
@@ -456,5 +455,35 @@ router.get("/projects/:id/messages", async (req: Request, res: Response) => {
   } catch (error) {
     log.error("Error fetching messages", error);
     res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
+
+/**
+ * GET /kb/list
+ * List all available knowledge bases
+ */
+router.get("/kb/list", async (_req: Request, res: Response) => {
+  try {
+    const kbs = await ragService.listKnowledgeBases();
+    log.info("Listing knowledge bases", { count: kbs.knowledge_bases.length });
+    res.json(kbs);
+  } catch (error) {
+    log.error("Error listing knowledge bases", error);
+    res.status(500).json({ error: "Failed to list knowledge bases" });
+  }
+});
+
+/**
+ * GET /kb/health
+ * Check health status of all knowledge bases
+ */
+router.get("/kb/health", async (_req: Request, res: Response) => {
+  try {
+    const health = await ragService.getKBHealth();
+    log.info("KB health check", { kbCount: health.knowledge_bases.length });
+    res.json(health);
+  } catch (error) {
+    log.error("Error checking KB health", error);
+    res.status(500).json({ error: "Failed to check KB health" });
   }
 });

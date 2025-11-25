@@ -1,6 +1,6 @@
 """
 FastAPI Backend for RAG (LlamaIndex + OpenAI)
-Provides WAF documentation query and ingestion endpoints.
+Provides multi-source knowledge base query and ingestion endpoints with profile-based selection.
 """
 
 from fastapi import FastAPI, HTTPException
@@ -12,6 +12,10 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
+# New KB module
+from app.kb import KBManager, MultiSourceQueryService, QueryProfile
+
+# Keep legacy RAG imports for backward compatibility
 from app.rag.query import WAFQueryService
 from app.rag.crawler import WAFCrawler
 from app.rag.cleaner import WAFIngestionPipeline
@@ -47,8 +51,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global service instance (lazy loaded)
+# Global service instances (lazy loaded)
 _query_service: Optional[WAFQueryService] = None
+_kb_manager: Optional[KBManager] = None
+_multi_query_service: Optional[MultiSourceQueryService] = None
 
 def get_query_service() -> WAFQueryService:
     """Get or create WAFQueryService instance (singleton pattern)."""
@@ -76,6 +82,21 @@ def get_query_service() -> WAFQueryService:
     
     return _query_service
 
+def get_kb_manager() -> KBManager:
+    """Get or create KBManager instance (singleton pattern)."""
+    global _kb_manager
+    if _kb_manager is None:
+        _kb_manager = KBManager()
+    return _kb_manager
+
+def get_multi_query_service() -> MultiSourceQueryService:
+    """Get or create MultiSourceQueryService instance (singleton pattern)."""
+    global _multi_query_service
+    if _multi_query_service is None:
+        manager = get_kb_manager()
+        _multi_query_service = MultiSourceQueryService(manager)
+    return _multi_query_service
+
 
 # Request/Response Models
 class QueryRequest(BaseModel):
@@ -84,11 +105,19 @@ class QueryRequest(BaseModel):
     metadataFilters: Optional[Dict[str, Any]] = Field(None, description="Optional metadata filters")
 
 
+class ProfileQueryRequest(BaseModel):
+    question: str = Field(..., min_length=1, description="Question to ask knowledge bases")
+    profile: str = Field(..., description="Query profile: 'chat' or 'proposal'")
+    topKPerKB: Optional[int] = Field(None, ge=1, le=10, description="Results per KB (overrides profile defaults)")
+
+
 class SourceInfo(BaseModel):
     url: str
     title: str
     section: str
     score: float
+    kb_id: Optional[str] = None
+    kb_name: Optional[str] = None
 
 
 class QueryResponse(BaseModel):
@@ -96,6 +125,26 @@ class QueryResponse(BaseModel):
     sources: List[SourceInfo]
     hasResults: bool
     suggestedFollowUps: Optional[List[str]] = None
+
+
+class KBInfo(BaseModel):
+    id: str
+    name: str
+    profiles: List[str]
+    priority: int
+    status: str
+
+
+class KBListResponse(BaseModel):
+    knowledge_bases: List[KBInfo]
+
+
+class KBHealthResponse(BaseModel):
+    kb_id: str
+    kb_name: str
+    status: str
+    index_ready: bool
+    error: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -140,6 +189,146 @@ async def health_check():
         index_ready=index_ready,
         storage_dir=storage_dir
     )
+
+
+@app.post("/query/chat", response_model=QueryResponse)
+async def query_chat(request: ProfileQueryRequest):
+    """
+    Query knowledge bases using CHAT profile (fast, targeted responses).
+    
+    Returns answer with sources from chat-enabled knowledge bases.
+    """
+    try:
+        logger.info(f"Chat query request received: {request.question[:100]}")
+        
+        service = get_multi_query_service()
+        
+        result = service.query_profile(
+            question=request.question,
+            profile=QueryProfile.CHAT,
+            top_k_per_kb=request.topKPerKB
+        )
+        
+        # Convert to response model
+        sources = [
+            SourceInfo(
+                url=source.get('url', ''),
+                title=source.get('title', ''),
+                section=source.get('section', ''),
+                score=source.get('score', 0.0),
+                kb_id=source.get('kb_id'),
+                kb_name=source.get('kb_name')
+            )
+            for source in result.get('sources', [])
+        ]
+        
+        return QueryResponse(
+            answer=result['answer'],
+            sources=sources,
+            hasResults=result.get('has_results', True),
+            suggestedFollowUps=result.get('suggested_follow_ups')
+        )
+        
+    except Exception as e:
+        logger.error(f"Chat query failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Chat query failed: {str(e)}")
+
+
+@app.post("/query/proposal", response_model=QueryResponse)
+async def query_proposal(request: ProfileQueryRequest):
+    """
+    Query knowledge bases using PROPOSAL profile (comprehensive, detailed responses).
+    
+    Returns answer with sources from proposal-enabled knowledge bases.
+    """
+    try:
+        logger.info(f"Proposal query request received: {request.question[:100]}")
+        
+        service = get_multi_query_service()
+        
+        result = service.query_profile(
+            question=request.question,
+            profile=QueryProfile.PROPOSAL,
+            top_k_per_kb=request.topKPerKB
+        )
+        
+        # Convert to response model
+        sources = [
+            SourceInfo(
+                url=source.get('url', ''),
+                title=source.get('title', ''),
+                section=source.get('section', ''),
+                score=source.get('score', 0.0),
+                kb_id=source.get('kb_id'),
+                kb_name=source.get('kb_name')
+            )
+            for source in result.get('sources', [])
+        ]
+        
+        return QueryResponse(
+            answer=result['answer'],
+            sources=sources,
+            hasResults=result.get('has_results', True),
+            suggestedFollowUps=result.get('suggested_follow_ups')
+        )
+        
+    except Exception as e:
+        logger.error(f"Proposal query failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Proposal query failed: {str(e)}")
+
+
+@app.get("/kb/list", response_model=KBListResponse)
+async def list_knowledge_bases():
+    """
+    List all available knowledge bases with their configuration.
+    """
+    try:
+        manager = get_kb_manager()
+        kbs_info = manager.list_kbs()
+        
+        kb_list = [
+            KBInfo(
+                id=kb['id'],
+                name=kb['name'],
+                profiles=kb.get('profiles', []),
+                priority=kb.get('priority', 0),
+                status=kb.get('status', 'unknown')
+            )
+            for kb in kbs_info
+        ]
+        
+        return KBListResponse(knowledge_bases=kb_list)
+        
+    except Exception as e:
+        logger.error(f"Failed to list knowledge bases: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list KBs: {str(e)}")
+
+
+@app.get("/kb/health")
+async def check_kb_health():
+    """
+    Check health status of all knowledge bases.
+    """
+    try:
+        service = get_multi_query_service()
+        health_dict = service.get_kb_health()
+        
+        health_list = [
+            KBHealthResponse(
+                kb_id=kb_id,
+                kb_name=info['name'],
+                status=info['status'],
+                index_ready=(info['status'] == 'ready'),
+                error=info.get('error')
+            )
+            for kb_id, info in health_dict.items()
+        ]
+        
+        return {"knowledge_bases": health_list}
+        
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
 
 @app.post("/query", response_model=QueryResponse)

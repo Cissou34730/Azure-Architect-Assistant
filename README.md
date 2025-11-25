@@ -8,19 +8,26 @@ This is a proof-of-concept application that helps Azure Solution Architects anal
 1. **Project Management**: Create and manage multiple architecture projects with automatic SQLite persistence
 2. **Document Upload**: Upload RFP, specifications, and other project documents (supports plain text, with placeholders for PDF/DOCX)
 3. **Document Analysis**: AI-powered analysis to extract project context, requirements, and constraints
-4. **Interactive Chat with WAF Integration**: Ask questions and get answers enriched with Azure Well-Architected Framework best practices and source citations
+4. **Interactive Chat with KB Integration**: Ask questions and get answers enriched with knowledge base best practices and source citations
 5. **Architecture Sheet**: Structured view of project requirements, NFRs, constraints, and open questions
-6. **Architecture Proposal with WAF Guidance**: Generate comprehensive Azure architecture proposals grounded in WAF documentation with cited sources
+6. **Architecture Proposal with KB Guidance**: Generate comprehensive Azure architecture proposals grounded in knowledge base documentation with cited sources
 7. **Real-Time Progress Updates**: Server-Sent Events (SSE) provide live progress tracking during proposal generation
 
-### WAF Query System
-8. **Standalone WAF Query**: Dedicated interface to query Azure Well-Architected Framework documentation
-9. **Integrated WAF Guidance**: Automatic WAF queries during chat (Azure-related questions) and proposal generation (all 5 pillars)
-10. **Two-Phase Ingestion Pipeline**: Separate crawling/cleaning and indexing phases with document validation workflow
-11. **Vector Search**: Fast semantic search using OpenAI embeddings with cached indices
-12. **Long-Running Service**: Persistent Python process keeps index in memory for 6-second query responses (after initial 35s startup)
-13. **Sequential WAF Querying**: Proposal generation queries WAF pillars sequentially to avoid overwhelming Python service
-14. **Source Citations**: All WAF-enhanced responses include clickable links to Microsoft Learn documentation
+### Multi-Source RAG System (NEW)
+8. **Profile-Based Querying**: Automatic query optimization based on context (chat vs proposal)
+9. **Multiple Knowledge Bases**: Support for WAF, Azure Services, and custom documentation sources
+10. **Parallel Multi-KB Queries**: Query multiple knowledge bases simultaneously for comprehensive results
+11. **Source Attribution**: All results tagged with source KB (e.g., `[WAF]`, `[Azure Services]`)
+12. **KB Management API**: List, health check, and manage knowledge bases via REST API
+13. **Vector Search**: Fast semantic search using OpenAI embeddings with global index caching
+14. **Two Query Profiles**:
+    - **CHAT**: Fast, targeted (3 results/KB) for interactive conversations
+    - **PROPOSAL**: Comprehensive (5 results/KB) for architecture proposals
+
+### Legacy WAF Support
+15. **Standalone WAF Query**: Dedicated interface to query Azure Well-Architected Framework documentation
+16. **Two-Phase Ingestion Pipeline**: Separate crawling/cleaning and indexing phases with document validation workflow
+17. **Source Citations**: All responses include clickable links to Microsoft Learn documentation
 
 ## Architecture
 
@@ -30,14 +37,49 @@ This is a proof-of-concept application that helps Azure Solution Architects anal
   - REST API endpoints for projects, documents, chat
   - OpenAI integration for document analysis and proposal generation
   - HTTP client for Python RAG service
+  - New: KB management endpoints (`/kb/list`, `/kb/health`)
   
-- **Python FastAPI Service**: Specialized RAG service on port 8000
-  - FastAPI REST endpoints for WAF queries and ingestion
+- **Python FastAPI Service**: Multi-source RAG service on port 8000
+  - Profile-based query endpoints (`/query/chat`, `/query/proposal`)
+  - KB management endpoints (`/kb/list`, `/kb/health`)
   - LlamaIndex 0.12.x for vector search and RAG
-  - In-memory index caching for fast queries
+  - Global index caching across all knowledge bases
+  - Parallel multi-KB query support
   
 - **Frontend**: React + Vite with Tailwind CSS on port 5173
 - **Storage**: SQLite database with automatic persistence (`data/projects.db`)
+
+### New Service Architecture (TypeScript)
+
+```
+projects.ts (API Layer)
+    ↓
+LLMService (Orchestration)
+    ↓
+RAGService (High-level RAG operations)
+    ├─→ queryForChat()       # Fast, 3 results/KB
+    ├─→ queryForAnalysis()   # Moderate, 5 results/KB
+    └─→ queryForProposal()   # Comprehensive, 5+ results/KB
+         ↓
+KBService (HTTP Client)
+    ├─→ queryChat()          # → POST /query/chat
+    ├─→ queryProposal()      # → POST /query/proposal
+    ├─→ listKnowledgeBases() # → GET /kb/list
+    └─→ checkKBHealth()      # → GET /kb/health
+         ↓
+Python FastAPI Service
+    ↓
+MultiSourceQueryService (Python)
+    ├─→ KBManager (Config & Selection)
+    └─→ KnowledgeBaseService (Generic KB Wrapper)
+         ↓
+LlamaIndex + OpenAI
+```
+
+### Legacy Support
+- `WAFService.ts` functionality migrated to `KBService.ts`
+- Backward compatibility via export alias: `wafService = kbService`
+- Old `/query` endpoint redirects to `/query/chat`
 
 ### AI & RAG Pipeline
 
@@ -47,21 +89,26 @@ This is a proof-of-concept application that helps Azure Solution Architects anal
   - Proposal generation: Create comprehensive architecture documents
   - Model: `gpt-4o-mini`
   
-- **WAF RAG System (Python → LlamaIndex → OpenAI)**:
+- **Multi-Source RAG System (Python → LlamaIndex → OpenAI)**:
   - **Embeddings**: `text-embedding-3-small` (1536 dimensions)
   - **Generation**: `gpt-4o-mini` for answer synthesis
-  - **Vector Store**: File-based persistent storage (~60MB)
-  - **Performance**: First query ~35s (index loading), subsequent ~6s
-  - **Query Flow**: Question → Embedding → Vector search → Context retrieval → Answer generation
+  - **Vector Store**: File-based persistent storage (~60MB per KB)
+  - **Performance**: First query ~35s (index loading), subsequent ~2-6s
+  - **Query Profiles**:
+    - `CHAT`: 3 results per KB, ~6 total results, fast responses
+    - `PROPOSAL`: 5 results per KB, ~15 total results, comprehensive
+  - **Query Flow**: Question → Embedding → Multi-KB vector search (parallel) → Context retrieval → Answer generation
   
 - **Integration Pattern**:
-  - TypeScript calls Python via HTTP (`POST /query`)
-  - Automatic WAF queries in chat and proposals
-  - Source citations with clickable links
+  - TypeScript calls Python via HTTP (`POST /query/chat` or `/query/proposal`)
+  - Automatic profile selection based on context
+  - Parallel multi-KB queries for comprehensive results
+  - Source citations with KB attribution
   
-- **Cost per Chat** (with WAF):
-  - 1 embedding call (~$0.00002/1K tokens)
-  - 2 generation calls (~$0.30/1M tokens total)
+- **Cost per Operation**:
+  - **Chat with RAG**: 1 embedding + 2 generation calls (~$0.001)
+  - **Proposal with RAG**: 5 embeddings + 6 generation calls (~$0.005)
+  - Scales linearly with number of active knowledge bases
 
 ## Prerequisites
 
@@ -675,12 +722,15 @@ Azure-Architect-Assistant/
 ├── backend/                    # Express TypeScript API (port 3000)
 │   ├── src/
 │   │   ├── api/               # REST API routes
-│   │   │   ├── projects.ts    # Project management endpoints
-│   │   │   └── waf.ts         # WAF query proxy endpoints
-│   │   ├── services/          # Business logic
-│   │   │   ├── LLMService.ts       # OpenAI integration (chat & proposals)
-│   │   │   ├── WAFService.ts       # HTTP client for Python service
-│   │   │   └── StorageService.ts   # SQLite persistence
+│   │   │   ├── projects.ts    # Project + KB management endpoints
+│   │   │   └── waf.ts         # Legacy WAF proxy endpoints
+│   │   ├── services/          # Business logic (NEW ARCHITECTURE)
+│   │   │   ├── index.ts            # Unified service exports
+│   │   │   ├── LLMService.ts       # OpenAI orchestration (chat & proposals)
+│   │   │   ├── RAGService.ts       # High-level RAG operations (NEW)
+│   │   │   ├── KBService.ts        # Generic KB HTTP client (NEW)
+│   │   │   ├── StorageService.ts   # SQLite persistence
+│   │   │   └── WAFService.ts       # DEPRECATED (use KBService)
 │   │   ├── db/                # Database utilities
 │   │   ├── models/            # TypeScript models (Project, Message, WAFSource)
 │   │   ├── logger.ts          # Logging configuration
@@ -690,13 +740,18 @@ Azure-Architect-Assistant/
 ├── python-service/            # FastAPI Python Service (port 8000)
 │   ├── app/
 │   │   ├── main.py           # FastAPI application & endpoints
-│   │   └── rag/              # RAG pipeline modules
+│   │   ├── kb/               # Multi-source KB infrastructure (NEW)
+│   │   │   ├── __init__.py
+│   │   │   ├── manager.py         # KB configuration & selection
+│   │   │   ├── service.py         # Generic KB query service
+│   │   │   └── multi_query.py     # Profile-based multi-KB querying
+│   │   └── rag/              # Legacy WAF-specific modules
 │   │       ├── __init__.py
 │   │       ├── crawler.py         # Web crawler for WAF docs
 │   │       ├── cleaner.py         # HTML cleaning & markdown conversion
 │   │       ├── indexer.py         # Vector index builder
 │   │       ├── query.py           # RAG query engine (LlamaIndex)
-│   │       └── query_service.py   # Legacy stdin/stdout service
+│   │       └── query_service.py   # DEPRECATED stdin/stdout service
 │   ├── requirements.txt      # Python dependencies (FastAPI, LlamaIndex, etc.)
 │   └── README.md
 ├── frontend/                  # React + Vite frontend (port 5173)
@@ -727,6 +782,7 @@ Azure-Architect-Assistant/
 ├── docs/
 │   ├── guides/               # Implementation documentation
 │   │   └── WAF_GUIDE.md     # Comprehensive WAF system guide
+│   ├── RAG-ARCHITECTURE.md   # NEW: Multi-source RAG architecture
 │   ├── ARCHITECTURE.md       # System architecture overview
 │   ├── QUICKSTART.md         # Quick start guide
 │   └── REFACTORING_COMPLETE.md  # Refactoring summary
@@ -736,6 +792,41 @@ Azure-Architect-Assistant/
 ├── package.json              # Workspace configuration & scripts
 └── README.md
 ```
+
+## Quick Reference
+
+### New RAG Service Usage
+
+**TypeScript (Recommended)**
+```typescript
+import { ragService } from "./services/RAGService.js";
+
+// Chat context (fast)
+const chatResult = await ragService.queryForChat("What is Azure reliability?");
+
+// Proposal context (comprehensive)
+const proposalResult = await ragService.queryForProposal([
+  "What are security best practices?",
+  "What are reliability patterns?"
+]);
+```
+
+**Python Endpoints**
+```bash
+# Chat profile (fast, 3 results/KB)
+curl -X POST http://localhost:8000/query/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What is reliability?", "profile": "chat"}'
+
+# List knowledge bases
+curl http://localhost:8000/kb/list
+```
+
+### Documentation
+
+- **[RAG Architecture](docs/RAG-ARCHITECTURE.md)** - Multi-source RAG guide (NEW)
+- **[WAF Guide](docs/guides/WAF_GUIDE.md)** - Legacy WAF documentation
+- **[Architecture Overview](docs/ARCHITECTURE.md)** - System design
 
 ## License
 
