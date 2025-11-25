@@ -37,42 +37,63 @@ This is a proof-of-concept application that helps Azure Solution Architects anal
   - REST API endpoints for projects, documents, chat
   - OpenAI integration for document analysis and proposal generation
   - HTTP client for Python RAG service
-  - New: KB management endpoints (`/kb/list`, `/kb/health`)
+  - KB management endpoints (`/kb/list`, `/kb/health`)
   
 - **Python FastAPI Service**: Multi-source RAG service on port 8000
+  - **Startup Preloading**: Indices load into memory at startup for instant first queries
   - Profile-based query endpoints (`/query/chat`, `/query/proposal`)
   - KB management endpoints (`/kb/list`, `/kb/health`)
   - LlamaIndex 0.12.x for vector search and RAG
-  - Global index caching across all knowledge bases
+  - Singleton service pattern with in-memory index caching
   - Parallel multi-KB query support
+  - **Routers**: Clean separation (query, kb, ingest)
   
 - **Frontend**: React + Vite with Tailwind CSS on port 5173
+  - **Refactored Components**: ProjectList, ChatPanel, StatePanel, ProposalPanel, DocumentsPanel
+  - **Custom Hooks**: useProjects, useProjectState, useChat, useProposal
+  - **API Service Layer**: Centralized HTTP client
+  
 - **Storage**: SQLite database with automatic persistence (`data/projects.db`)
 
 ### New Service Architecture (TypeScript)
 
 ```
-projects.ts (API Layer)
+Frontend (React)
+    ├── Components (UI)
+    │   ├── ProjectList.tsx
+    │   ├── ChatPanel.tsx
+    │   ├── StatePanel.tsx
+    │   ├── ProposalPanel.tsx
+    │   └── DocumentsPanel.tsx
+    ├── Hooks (State Management)
+    │   ├── useProjects.ts
+    │   ├── useProjectState.ts
+    │   ├── useChat.ts
+    │   └── useProposal.ts
+    └── Services (API Layer)
+        └── apiService.ts
+             ↓
+Express Backend (TypeScript)
+    ├── Routes: projects.ts
+    ├── Services
+    │   ├── LLMService (Orchestration)
+    │   ├── RAGService (High-level RAG)
+    │   └── KBService (HTTP Client)
     ↓
-LLMService (Orchestration)
-    ↓
-RAGService (High-level RAG operations)
-    ├─→ queryForChat()       # Fast, 3 results/KB
-    ├─→ queryForAnalysis()   # Moderate, 5 results/KB
-    └─→ queryForProposal()   # Comprehensive, 5+ results/KB
-         ↓
-KBService (HTTP Client)
-    ├─→ queryChat()          # → POST /query/chat
-    ├─→ queryProposal()      # → POST /query/proposal
-    ├─→ listKnowledgeBases() # → GET /kb/list
-    └─→ checkKBHealth()      # → GET /kb/health
-         ↓
 Python FastAPI Service
-    ↓
-MultiSourceQueryService (Python)
-    ├─→ KBManager (Config & Selection)
-    └─→ KnowledgeBaseService (Generic KB Wrapper)
-         ↓
+    ├── @startup event → Preloads services
+    ├── Routers
+    │   ├── query.py (chat, proposal, legacy)
+    │   ├── kb.py (list, health)
+    │   └── ingest.py (phase1, phase2)
+    ├── Services (services.py)
+    │   ├── get_query_service() → WAFQueryService
+    │   ├── get_kb_manager() → KBManager
+    │   └── get_multi_query_service() → MultiSourceQueryService
+    └── RAG Modules
+        ├── kb_query.py → KnowledgeBaseQueryService (Generic)
+        └── kb/ → Multi-source management
+             ↓
 LlamaIndex + OpenAI
 ```
 
@@ -90,14 +111,18 @@ LlamaIndex + OpenAI
   - Model: `gpt-4o-mini`
   
 - **Multi-Source RAG System (Python → LlamaIndex → OpenAI)**:
+  - **Startup**: Indices preload at server start (~5-10s once)
   - **Embeddings**: `text-embedding-3-small` (1536 dimensions)
   - **Generation**: `gpt-4o-mini` for answer synthesis
   - **Vector Store**: File-based persistent storage (~60MB per KB)
-  - **Performance**: First query ~35s (index loading), subsequent ~2-6s
+  - **Performance**: 
+    - First query: Instant (preloaded at startup!)
+    - Subsequent queries: ~2-3s (retrieval + generation)
   - **Query Profiles**:
-    - `CHAT`: 3 results per KB, ~6 total results, fast responses
-    - `PROPOSAL`: 5 results per KB, ~15 total results, comprehensive
+    - `CHAT`: 3 results per KB, fast responses for interactive chat
+    - `PROPOSAL`: 5 results per KB, comprehensive for architecture proposals
   - **Query Flow**: Question → Embedding → Multi-KB vector search (parallel) → Context retrieval → Answer generation
+  - **Singleton Pattern**: Services initialized once, reused across all requests
   
 - **Integration Pattern**:
   - TypeScript calls Python via HTTP (`POST /query/chat` or `/query/proposal`)
