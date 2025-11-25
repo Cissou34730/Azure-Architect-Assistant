@@ -5,7 +5,7 @@ Handles listing and health checking of knowledge bases
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import logging
 
 from app.services import get_kb_manager, get_multi_query_service
@@ -33,7 +33,7 @@ class KBHealthInfo(BaseModel):
     kb_name: str
     status: str
     index_ready: bool
-    error: str = None
+    error: Optional[str] = None
 
 
 class KBHealthResponse(BaseModel):
@@ -78,22 +78,30 @@ async def check_kb_health():
     """
     try:
         service = get_multi_query_service()
-        health_result = service.check_health()
+        health_dict = service.get_kb_health()
         
-        kb_health = [
-            KBHealthInfo(
-                kb_id=kb['kb_id'],
-                kb_name=kb['kb_name'],
-                status=kb['status'],
-                index_ready=kb['index_ready'],
-                error=kb.get('error')
-            )
-            for kb in health_result['kbs']
-        ]
+        # Convert dict to list format
+        kb_health = []
+        all_ready = True
         
-        logger.info(f"Health check: {health_result['overall_status']}")
+        for kb_id, kb_info in health_dict.items():
+            index_ready = kb_info.get('status') == 'ready'
+            if not index_ready:
+                all_ready = False
+                
+            kb_health.append(KBHealthInfo(
+                kb_id=kb_id,
+                kb_name=kb_info['name'],
+                status=kb_info['status'],
+                index_ready=index_ready,
+                error=kb_info.get('error')
+            ))
+        
+        overall_status = 'healthy' if all_ready else 'degraded' if len(kb_health) > 0 else 'unavailable'
+        
+        logger.info(f"Health check: {overall_status} ({len(kb_health)} KBs)")
         return KBHealthResponse(
-            overall_status=health_result['overall_status'],
+            overall_status=overall_status,
             knowledge_bases=kb_health
         )
         

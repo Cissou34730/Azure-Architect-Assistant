@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { WAFQueryInterface } from './WAFQueryInterface.js'
+import { KnowledgeBaseQuery } from './KnowledgeBaseQuery.js'
 import { useProjects } from './hooks/useProjects'
 import { useProjectState } from './hooks/useProjectState'
 import { useChat } from './hooks/useChat'
@@ -51,7 +51,7 @@ function App() {
   const [textRequirements, setTextRequirements] = useState('')
   const [files, setFiles] = useState<FileList | null>(null)
   const [activeTab, setActiveTab] = useState<'documents' | 'chat' | 'state' | 'proposal'>('documents')
-  const [currentView, setCurrentView] = useState<'projects' | 'waf'>('projects')
+  const [currentView, setCurrentView] = useState<'projects' | 'kb'>('projects')
 
   // Determine overall loading state
   const loading = projectsLoading || stateLoading || chatLoading || proposalLoading
@@ -191,14 +191,14 @@ function App() {
                 Architecture Projects
               </button>
               <button
-                onClick={() => setCurrentView('waf')}
+                onClick={() => setCurrentView('kb')}
                 className={`px-3 py-2 text-sm font-medium ${
-                  currentView === 'waf'
+                  currentView === 'kb'
                     ? 'text-blue-600 border-b-2 border-blue-600'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                WAF Query
+                Knowledge Base Query
               </button>
             </div>
             <div className="text-sm text-gray-600">
@@ -209,8 +209,8 @@ function App() {
       </nav>
 
       {/* Main Content */}
-      {currentView === 'waf' ? (
-        <WAFQueryInterface />
+      {currentView === 'kb' ? (
+        <KnowledgeBaseQuery />
       ) : (
         <>
           <div className="bg-blue-600 text-white p-4 shadow-lg">

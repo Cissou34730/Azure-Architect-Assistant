@@ -1,78 +1,74 @@
 import { useState, useEffect } from 'react'
 
-interface WAFSource {
+interface KBSource {
   url: string
   title: string
   section: string
   score: number
+  kb_id?: string
+  kb_name?: string
 }
 
-interface WAFQueryResponse {
+interface KBQueryResponse {
   answer: string
-  sources: WAFSource[]
-  scores: number[]
+  sources: KBSource[]
   hasResults: boolean
-  discussionEnabled?: boolean
   suggestedFollowUps?: string[]
 }
 
-interface WAFStatus {
-  stage: string
-  progress: number
-  message: string
-  isComplete: boolean
+interface KBHealthInfo {
+  kb_id: string
+  kb_name: string
+  status: string
+  index_ready: boolean
   error?: string
 }
 
-export function WAFQueryInterface() {
+interface KBHealthResponse {
+  overall_status: string
+  knowledge_bases: KBHealthInfo[]
+}
+
+export function KnowledgeBaseQuery() {
   const [question, setQuestion] = useState('')
-  const [response, setResponse] = useState<WAFQueryResponse | null>(null)
+  const [response, setResponse] = useState<KBQueryResponse | null>(null)
   const [loading, setLoading] = useState(false)
-  const [indexReady, setIndexReady] = useState(false)
-  const [status, setStatus] = useState<WAFStatus | null>(null)
+  const [kbsReady, setKbsReady] = useState(false)
+  const [healthStatus, setHealthStatus] = useState<KBHealthResponse | null>(null)
   const [checkingStatus, setCheckingStatus] = useState(true)
 
   useEffect(() => {
-    void checkIndexStatus()
+    void checkKBHealth()
   }, [])
 
-  const checkIndexStatus = async (): Promise<void> => {
+  const checkKBHealth = async (): Promise<void> => {
     try {
       setCheckingStatus(true)
-      const readyResponse = await fetch('/api/waf/ready')
-      const readyData = await readyResponse.json() as { ready: boolean }
-      setIndexReady(readyData.ready)
-
-      const statusResponse = await fetch('/api/waf/status')
-      const statusData = await statusResponse.json() as WAFStatus
-      setStatus(statusData)
+      const response = await fetch('/api/kb/health')
+      
+      if (!response.ok) {
+        console.error('KB health check failed:', response.status)
+        setKbsReady(false)
+        setHealthStatus(null)
+        return
+      }
+      
+      const data = await response.json() as KBHealthResponse
+      setHealthStatus(data)
+      
+      // Check if at least one KB is ready
+      const anyReady = data.knowledge_bases?.some(kb => kb.index_ready) ?? false
+      setKbsReady(anyReady)
     } catch (error) {
-      console.error('Error checking WAF status:', error)
+      console.error('Error checking KB health:', error)
+      setKbsReady(false)
+      setHealthStatus(null)
     } finally {
       setCheckingStatus(false)
     }
   }
 
-  const startIngestion = async (): Promise<void> => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/waf/ingest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
 
-      if (response.ok) {
-        alert('WAF ingestion started. This will take several minutes. Refresh the page to check status.')
-      } else {
-        alert('Failed to start ingestion')
-      }
-    } catch (error) {
-      console.error('Error starting ingestion:', error)
-      alert('Error starting ingestion')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const submitQuery = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
@@ -82,24 +78,24 @@ export function WAFQueryInterface() {
     setResponse(null)
 
     try {
-      const res = await fetch('/api/waf/query', {
+      const res = await fetch('/api/query/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: question.trim(),
-          topK: 5
+          topKPerKB: 3
         })
       })
 
       if (res.ok) {
-        const data = await res.json() as WAFQueryResponse
+        const data = await res.json() as KBQueryResponse
         setResponse(data)
       } else {
-        alert('Failed to query WAF documentation')
+        alert('Failed to query knowledge bases')
       }
     } catch (error) {
-      console.error('Error querying WAF:', error)
-      alert('Error querying WAF documentation')
+      console.error('Error querying knowledge bases:', error)
+      alert('Error querying knowledge bases')
     } finally {
       setLoading(false)
     }
@@ -114,68 +110,67 @@ export function WAFQueryInterface() {
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking WAF status...</p>
+          <p className="text-gray-600">Checking knowledge base status...</p>
         </div>
       </div>
     )
   }
 
-  if (!indexReady) {
+  if (!kbsReady) {
     return (
       <div className="max-w-4xl mx-auto p-8">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold text-yellow-800 mb-2">
-            WAF Index Not Ready
+            Knowledge Bases Not Ready
           </h2>
           <p className="text-yellow-700 mb-4">
-            {status?.message || 'The WAF documentation index has not been built yet.'}
+            No knowledge bases are currently loaded. Status: {healthStatus?.overall_status || 'unknown'}
           </p>
-          {status && !status.isComplete && (
-            <div className="mb-4">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-yellow-700">Progress: {status.stage}</span>
-                <span className="text-yellow-700">{status.progress}%</span>
-              </div>
-              <div className="w-full bg-yellow-200 rounded-full h-2">
-                <div
-                  className="bg-yellow-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${status.progress}%` } as React.CSSProperties}
-                ></div>
-              </div>
+          
+          {healthStatus && healthStatus.knowledge_bases && healthStatus.knowledge_bases.length > 0 && (
+            <div className="mb-4 space-y-2">
+              {healthStatus.knowledge_bases.map(kb => (
+                <div key={kb.kb_id} className="flex items-center justify-between bg-white p-3 rounded">
+                  <div>
+                    <span className="font-medium">{kb.kb_name}</span>
+                    <span className="text-sm text-gray-600 ml-2">({kb.kb_id})</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className={`px-2 py-1 rounded text-sm ${
+                      kb.index_ready ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {kb.index_ready ? '✓ Ready' : '✗ Not Ready'}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
+          
           <button
-            onClick={() => void startIngestion()}
-            disabled={loading}
-            className="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            onClick={() => void checkKBHealth()}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
           >
-            {loading ? 'Starting...' : 'Start WAF Ingestion'}
-          </button>
-          <button
-            onClick={() => void checkIndexStatus()}
-            className="ml-4 bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300"
-          >
-            Refresh Status
+            🔄 Refresh Status
           </button>
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-blue-800 mb-2">
-            About WAF Query System
+            About Knowledge Base Query System
           </h3>
           <p className="text-blue-700 mb-2">
-            This feature allows you to query the Azure Well-Architected Framework documentation
-            using natural language questions. The system will:
+            This feature allows you to query multiple Azure knowledge bases including:
           </p>
           <ul className="list-disc list-inside text-blue-700 space-y-1">
-            <li>Crawl and process WAF documentation</li>
-            <li>Build a searchable vector index</li>
-            <li>Provide source-grounded answers to your questions</li>
-            <li>Include relevant documentation links</li>
+            <li>Azure Well-Architected Framework</li>
+            <li>Cloud Adoption Framework</li>
+            <li>Architecture Center patterns and guidance</li>
+            <li>Azure service documentation</li>
           </ul>
           <p className="text-blue-600 text-sm mt-4">
-            <strong>Note:</strong> The initial ingestion process takes 15-30 minutes and requires
-            an OpenAI API key to be configured.
+            <strong>Note:</strong> Knowledge bases are preloaded at startup. If none are ready, 
+            check the server logs or restart the Python service.
           </p>
         </div>
       </div>
@@ -186,11 +181,16 @@ export function WAFQueryInterface() {
     <div className="max-w-6xl mx-auto p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Azure Well-Architected Framework Query
+          Azure Knowledge Base Query
         </h1>
         <p className="text-gray-600">
-          Ask questions about Azure best practices, architecture patterns, and recommendations
+          Ask questions about Azure best practices, architecture patterns, frameworks, and recommendations
         </p>
+        {healthStatus && healthStatus.knowledge_bases && (
+          <p className="text-sm text-gray-500 mt-2">
+            {healthStatus.knowledge_bases.filter(kb => kb.index_ready).length} of {healthStatus.knowledge_bases.length} knowledge bases ready
+          </p>
+        )}
       </div>
 
       {/* Query Form */}
@@ -219,12 +219,12 @@ export function WAFQueryInterface() {
                   Searching...
                 </>
               ) : (
-                'Search WAF Documentation'
+                'Search Knowledge Bases'
               )}
             </button>
             <button
               type="button"
-              onClick={() => void checkIndexStatus()}
+              onClick={() => void checkKBHealth()}
               className="text-gray-600 hover:text-gray-800"
             >
               🔄 Refresh Status
@@ -267,6 +267,11 @@ export function WAFQueryInterface() {
                           {source.title}
                         </a>
                         <div className="flex items-center gap-3 mt-1">
+                          {source.kb_name && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
+                              {source.kb_name}
+                            </span>
+                          )}
                           <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
                             {source.section}
                           </span>

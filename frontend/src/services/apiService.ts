@@ -49,14 +49,16 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
-  wafSources?: WAFSource[];
+  kbSources?: KBSource[];
 }
 
-export interface WAFSource {
+export interface KBSource {
   url: string;
   title: string;
   section: string;
   score: number;
+  kb_id?: string;
+  kb_name?: string;
 }
 
 /**
@@ -168,7 +170,7 @@ export const chatApi = {
   ): Promise<{
     message: string;
     projectState: ProjectState;
-    wafSources?: WAFSource[];
+    kbSources?: KBSource[];
   }> {
     const response = await fetch(`${API_BASE}/projects/${projectId}/chat`, {
       method: "POST",

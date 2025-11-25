@@ -50,11 +50,11 @@ export function ChatPanel({
                 {msg.role === 'user' ? 'You' : 'Assistant'}
               </div>
               <div className="whitespace-pre-wrap">{msg.content}</div>
-              {msg.role === 'assistant' && msg.wafSources && msg.wafSources.length > 0 && (
+              {msg.role === 'assistant' && msg.kbSources && msg.kbSources.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-gray-300">
-                  <div className="text-xs font-semibold mb-2">Sources (Azure Well-Architected Framework):</div>
+                  <div className="text-xs font-semibold mb-2">Sources:</div>
                   <div className="space-y-1">
-                    {msg.wafSources.map((source, idx) => (
+                    {msg.kbSources.map((source, idx) => (
                       <div key={idx} className="text-xs">
                         <a
                           href={source.url}
