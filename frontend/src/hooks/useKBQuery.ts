@@ -15,7 +15,7 @@ export function useKBQuery() {
 
     try {
       let data: KBQueryResponse;
-      
+
       if (kbIds && kbIds.length > 0) {
         // Manual KB selection
         data = await kbApi.queryKBs(question.trim(), kbIds, 5);
@@ -23,7 +23,7 @@ export function useKBQuery() {
         // Legacy query (fallback)
         data = await kbApi.query(question.trim(), 3);
       }
-      
+
       setResponse(data);
     } catch (error) {
       console.error("Error querying knowledge bases:", error);

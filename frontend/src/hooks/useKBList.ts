@@ -37,11 +37,15 @@ export function useKBList() {
 
       // Auto-select all active KBs with kb-query profile
       const autoSelect = data.knowledge_bases
-        .filter((kb) => kb.status === "active" && kb.profiles.includes("kb-query"))
+        .filter(
+          (kb) => kb.status === "active" && kb.profiles.includes("kb-query")
+        )
         .map((kb) => kb.id);
       setSelectedKBs(autoSelect);
 
-      console.log(`[KB List] Loaded ${data.knowledge_bases.length} KBs, auto-selected ${autoSelect.length}`);
+      console.log(
+        `[KB List] Loaded ${data.knowledge_bases.length} KBs, auto-selected ${autoSelect.length}`
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(message);
