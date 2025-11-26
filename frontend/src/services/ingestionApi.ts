@@ -90,6 +90,22 @@ export async function cancelJob(kbId: string): Promise<void> {
 }
 
 /**
+ * Delete a knowledge base and all its data
+ */
+export async function deleteKB(kbId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Failed to delete KB" }));
+    throw new Error(error.detail || "Failed to delete KB");
+  }
+}
+
+/**
  * List all jobs, optionally filtered by KB
  */
 export async function listJobs(

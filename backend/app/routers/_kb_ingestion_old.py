@@ -299,6 +299,73 @@ async def cancel_ingestion(kb_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to cancel ingestion: {str(e)}")
 
 
+@router.delete("/kb/{kb_id}")
+async def delete_kb(kb_id: str):
+    """
+    Delete a knowledge base and all its data.
+    
+    This will:
+    - Cancel any running ingestion jobs
+    - Unload the index from memory
+    - Remove the KB from configuration
+    - Delete all KB data (index, documents, etc.)
+    """
+    try:
+        import asyncio
+        from app.kb.service import clear_index_cache
+        
+        kb_manager = KBManager()
+        job_manager = get_job_manager()
+        
+        # Check if KB exists
+        if not kb_manager.kb_exists(kb_id):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Knowledge base '{kb_id}' not found"
+            )
+        
+        # Get KB config before deletion
+        kb_config = kb_manager.get_kb(kb_id)
+        if kb_config:
+            storage_dir = kb_config.index_path
+        else:
+            storage_dir = None
+        
+        # Cancel any running jobs
+        job = job_manager.get_latest_job_for_kb(kb_id)
+        if job and job.status == JobStatus.RUNNING:
+            job_manager.cancel_job(job.job_id)
+            logger.info(f"Cancelled running job {job.job_id} before deleting KB: {kb_id}")
+            # Wait a moment for job to clean up and release file handles
+            await asyncio.sleep(1.0)
+        
+        # Clear index from memory cache to release file handles
+        if storage_dir:
+            clear_index_cache(kb_id=kb_id, storage_dir=storage_dir)
+            logger.info(f"Cleared index cache for KB: {kb_id}")
+            # Give OS time to release file handles
+            await asyncio.sleep(0.5)
+        
+        # Delete the KB
+        kb_manager.delete_kb(kb_id)
+        
+        logger.info(f"Deleted KB: {kb_id}")
+        
+        return {
+            "message": f"Knowledge base '{kb_id}' deleted successfully",
+            "kb_id": kb_id
+        }
+        
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logger.error(f"Failed to delete KB: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to delete KB: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete KB: {str(e)}")
+
+
 @router.get("/jobs", response_model=JobListResponse)
 async def list_jobs(kb_id: Optional[str] = None, limit: int = 50):
     """

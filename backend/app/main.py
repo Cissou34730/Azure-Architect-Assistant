@@ -13,10 +13,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Import routers
-from app.routers import query, kb, ingest, ingestion, projects
-from app.database import init_database, close_database
-
-# Load environment variables from root .env (one level up from backend)
+from app.routers import query, kb
+from app.routers.kb_ingestion import router as kb_ingestion_router
+from app.routers.project_management import router as project_router
+from app.database import init_database, close_database# Load environment variables from root .env (one level up from backend)
 backend_root = Path(__file__).parent.parent
 root_dir = backend_root.parent
 env_path = root_dir / ".env"
@@ -157,11 +157,10 @@ async def shutdown_event():
 
 
 # Include routers
-app.include_router(projects.router)   # Project management endpoints
-app.include_router(query.router)      # KB query endpoints
-app.include_router(kb.router)         # KB health/list endpoints
-app.include_router(ingest.router)     # KB ingestion endpoints (legacy WAF)
-app.include_router(ingestion.router)  # Generic KB ingestion endpoints
+app.include_router(project_router)             # Project management
+app.include_router(query.router)               # KB query endpoints
+app.include_router(kb.router)                  # KB health/list endpoints
+app.include_router(kb_ingestion_router)        # Generic KB ingestion
 
 
 # Health check

@@ -224,3 +224,63 @@ class KBManager:
         self._load_config()
         
         logger.info(f"Updated KB: {kb_id}")
+    
+    def delete_kb(self, kb_id: str):
+        """
+        Delete a knowledge base and all its data.
+        
+        Args:
+            kb_id: KB identifier
+        """
+        if not self.kb_exists(kb_id):
+            raise ValueError(f"KB '{kb_id}' not found")
+        
+        # Remove from config.json
+        try:
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        except FileNotFoundError:
+            config = {'knowledge_bases': []}
+        
+        config['knowledge_bases'] = [
+            kb for kb in config['knowledge_bases'] if kb['id'] != kb_id
+        ]
+        
+        with open(self.config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2)
+        
+        # Delete KB directory and all its data
+        backend_root = Path(__file__).parent.parent.parent
+        kb_dir = backend_root / "data" / "knowledge_bases" / kb_id
+        
+        if kb_dir.exists():
+            import shutil
+            import time
+            
+            # Try to delete with retries (handles Windows file locking issues)
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    # On Windows, use onerror handler to handle permission issues
+                    def handle_remove_readonly(func, path, exc):
+                        """Handle readonly files on Windows"""
+                        import stat
+                        import os
+                        os.chmod(path, stat.S_IWRITE)
+                        func(path)
+                    
+                    shutil.rmtree(kb_dir, onerror=handle_remove_readonly)
+                    logger.info(f"Deleted KB directory: {kb_dir}")
+                    break
+                except PermissionError as e:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"Attempt {attempt + 1} failed to delete {kb_dir}: {e}. Retrying...")
+                        time.sleep(0.5)  # Wait before retry
+                    else:
+                        logger.error(f"Failed to delete KB directory after {max_retries} attempts: {e}")
+                        raise ValueError(f"Failed to delete KB data: {str(e)}. Files may be in use.")
+        
+        # Reload config
+        self._load_config()
+        
+        logger.info(f"Deleted KB: {kb_id}")

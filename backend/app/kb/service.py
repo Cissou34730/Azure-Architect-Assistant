@@ -192,3 +192,30 @@ Answer:"""
     def is_index_ready(self) -> bool:
         """Check if index exists and is ready."""
         return os.path.exists(self.storage_dir)
+
+
+def clear_index_cache(kb_id: Optional[str] = None, storage_dir: Optional[str] = None):
+    """
+    Clear cached indexes from memory.
+    
+    Args:
+        kb_id: KB ID to clear (optional, for logging)
+        storage_dir: Storage directory path to remove from cache
+    """
+    global _INDEX_CACHE
+    
+    if storage_dir:
+        if storage_dir in _INDEX_CACHE:
+            del _INDEX_CACHE[storage_dir]
+            logger.info(f"[{kb_id or 'Unknown'}] Cleared index cache for: {storage_dir}")
+        else:
+            logger.debug(f"[{kb_id or 'Unknown'}] Index not in cache: {storage_dir}")
+    else:
+        # Clear all cached indexes
+        _INDEX_CACHE.clear()
+        logger.info("Cleared all index caches")
+
+
+def get_cached_index_count() -> int:
+    """Get number of cached indexes."""
+    return len(_INDEX_CACHE)
