@@ -53,8 +53,8 @@ def main():
         if storage_dir is None:
             # Fallback to calculated path
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            project_root = os.path.abspath(os.path.join(script_dir, "..", "..", ".."))
-            storage_dir = os.path.join(project_root, "data", "knowledge_bases", "waf", "index")
+            backend_root = os.path.abspath(os.path.join(script_dir, "..", ".."))
+            storage_dir = os.path.join(backend_root, "data", "knowledge_bases", "waf", "index")
             logger.info(f"[query_wrapper] Calculated storage_dir: {storage_dir}")
         
         logger.info(f"[query_wrapper] Final storage_dir: {storage_dir}")

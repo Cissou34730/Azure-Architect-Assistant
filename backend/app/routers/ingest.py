@@ -45,12 +45,13 @@ async def ingest_phase1():
             try:
                 logger.info(f"[{job_id}] Starting Phase 1: Crawling WAF documentation")
                 
-                # Get project root
-                project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+                # Get backend root (backend/)
+                backend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+                data_dir = os.path.join(backend_root, "data")
                 
                 # Crawl WAF documentation
                 crawler = WAFCrawler()
-                output_file = os.path.join(project_root, "waf_urls.txt")
+                output_file = os.path.join(data_dir, "waf_urls.txt")
                 crawler.save_urls(output_file)
                 
                 logger.info(f"[{job_id}] Starting cleaning documents")
@@ -60,8 +61,8 @@ async def ingest_phase1():
                 documents = pipeline.process_urls_from_file(output_file)
                 
                 # Export for validation
-                output_dir = os.path.join(project_root, "cleaned_documents")
-                manifest_file = os.path.join(project_root, "validation_manifest.json")
+                output_dir = os.path.join(data_dir, "cleaned_documents")
+                manifest_file = os.path.join(data_dir, "validation_manifest.json")
                 pipeline.export_for_validation(documents, output_dir, manifest_file)
                 
                 logger.info(f"[{job_id}] Phase 1 completed successfully")
@@ -101,8 +102,9 @@ async def ingest_phase2():
             try:
                 logger.info(f"[{job_id}] Starting Phase 2: Building index")
                 
-                project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-                manifest_file = os.path.join(project_root, "validation_manifest.json")
+                backend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+                data_dir = os.path.join(backend_root, "data")
+                manifest_file = os.path.join(data_dir, "validation_manifest.json")
                 
                 if not os.path.exists(manifest_file):
                     raise FileNotFoundError(f"Validation manifest not found: {manifest_file}")
@@ -110,7 +112,7 @@ async def ingest_phase2():
                 # Get storage directory
                 storage_dir = os.getenv("WAF_STORAGE_DIR")
                 if not storage_dir:
-                    storage_dir = os.path.join(project_root, "data", "knowledge_bases", "waf", "index")
+                    storage_dir = os.path.join(data_dir, "knowledge_bases", "waf", "index")
                 
                 # Build index
                 builder = WAFIndexBuilder(

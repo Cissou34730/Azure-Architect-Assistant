@@ -13,22 +13,42 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Import routers
-from app.routers import query, kb, ingest, projects
+from app.routers import query, kb, ingest, ingestion, projects
 from app.database import init_database, close_database
 
-# Load environment variables from root .env
-root_dir = Path(__file__).parent.parent.parent
+# Load environment variables from root .env (one level up from backend)
+backend_root = Path(__file__).parent.parent
+root_dir = backend_root.parent
 env_path = root_dir / ".env"
 load_dotenv(dotenv_path=env_path)
-logger_init = logging.getLogger(__name__)
-logger_init.info(f"Loading environment from: {env_path}")
 
-# Configure logging
+# Configure logging with timestamps and colors
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    force=True  # Override any existing configuration
 )
+
+# Set uvicorn loggers to use our format
+for logger_name in ['uvicorn', 'uvicorn.error', 'uvicorn.access']:
+    uvicorn_logger = logging.getLogger(logger_name)
+    uvicorn_logger.setLevel(logging.INFO)
+    # Remove default handlers
+    uvicorn_logger.handlers.clear()
+    # Add our handler with timestamp
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+    )
+    uvicorn_logger.addHandler(handler)
+    uvicorn_logger.propagate = False
+
 logger = logging.getLogger(__name__)
+logger.info(f"Loading environment from: {env_path}")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -137,10 +157,11 @@ async def shutdown_event():
 
 
 # Include routers
-app.include_router(projects.router)  # Project management endpoints
-app.include_router(query.router)     # KB query endpoints
-app.include_router(kb.router)        # KB health/list endpoints
-app.include_router(ingest.router)    # KB ingestion endpoints
+app.include_router(projects.router)   # Project management endpoints
+app.include_router(query.router)      # KB query endpoints
+app.include_router(kb.router)         # KB health/list endpoints
+app.include_router(ingest.router)     # KB ingestion endpoints (legacy WAF)
+app.include_router(ingestion.router)  # Generic KB ingestion endpoints
 
 
 # Health check

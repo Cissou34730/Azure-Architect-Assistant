@@ -1,12 +1,13 @@
 interface NavigationProps {
-  currentView: 'projects' | 'kb'
-  onViewChange: (view: 'projects' | 'kb') => void
+  currentView: 'projects' | 'kb' | 'kb-management'
+  onViewChange: (view: 'projects' | 'kb' | 'kb-management') => void
 }
 
 export function Navigation({ currentView, onViewChange }: NavigationProps) {
   const navItems = [
     { id: 'projects' as const, label: 'Architecture Projects' },
     { id: 'kb' as const, label: 'Knowledge Base Query' },
+    { id: 'kb-management' as const, label: 'KB Management' },
   ]
 
   return (

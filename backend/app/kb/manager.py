@@ -39,9 +39,9 @@ class KBConfig:
             index_path = self.paths['index']
             if os.path.isabs(index_path):
                 return index_path
-            # Relative to project root
-            project_root = Path(__file__).parent.parent.parent.parent
-            return str(project_root / index_path)
+            # Relative to backend root (backend/data/...)
+            backend_root = Path(__file__).parent.parent.parent
+            return str(backend_root / index_path)
         return ""
     
     @property
@@ -65,8 +65,8 @@ class KBManager:
             config_path: Path to config.json. If None, uses default location.
         """
         if config_path is None:
-            project_root = Path(__file__).parent.parent.parent.parent
-            config_path = project_root / "data" / "knowledge_bases" / "config.json"
+            backend_root = Path(__file__).parent.parent.parent
+            config_path = backend_root / "data" / "knowledge_bases" / "config.json"
         
         self.config_path = Path(config_path)
         self.knowledge_bases: Dict[str, KBConfig] = {}
@@ -127,3 +127,100 @@ class KBManager:
             }
             for kb in self.knowledge_bases.values()
         ]
+    
+    def kb_exists(self, kb_id: str) -> bool:
+        """Check if a KB with given ID exists."""
+        return kb_id in self.knowledge_bases
+    
+    def get_kb_config(self, kb_id: str) -> Dict:
+        """Get raw KB configuration dictionary."""
+        kb = self.get_kb(kb_id)
+        if not kb:
+            raise ValueError(f"KB '{kb_id}' not found")
+        
+        # Return full config dict
+        with open(self.config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        for kb_dict in config.get('knowledge_bases', []):
+            if kb_dict['id'] == kb_id:
+                return kb_dict
+        
+        raise ValueError(f"KB '{kb_id}' not found in config")
+    
+    def get_kb_storage_path(self, kb_id: str) -> str:
+        """Get storage directory path for a KB."""
+        backend_root = Path(__file__).parent.parent.parent
+        kb_dir = backend_root / "data" / "knowledge_bases" / kb_id
+        return str(kb_dir / "index")
+    
+    def create_kb(self, kb_id: str, kb_config: Dict):
+        """
+        Create a new knowledge base.
+        
+        Args:
+            kb_id: Unique KB identifier
+            kb_config: KB configuration dictionary
+        """
+        if self.kb_exists(kb_id):
+            raise ValueError(f"KB '{kb_id}' already exists")
+        
+        # Create KB directory structure
+        backend_root = Path(__file__).parent.parent.parent
+        kb_dir = backend_root / "data" / "knowledge_bases" / kb_id
+        kb_dir.mkdir(parents=True, exist_ok=True)
+        (kb_dir / "index").mkdir(exist_ok=True)
+        (kb_dir / "documents").mkdir(exist_ok=True)
+        
+        # Update paths in config
+        kb_config['paths'] = {
+            'index': f"data/knowledge_bases/{kb_id}/index",
+            'documents': f"data/knowledge_bases/{kb_id}/documents"
+        }
+        
+        # Add to config.json
+        try:
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        except FileNotFoundError:
+            config = {'knowledge_bases': []}
+        
+        config['knowledge_bases'].append(kb_config)
+        
+        with open(self.config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2)
+        
+        # Reload config
+        self._load_config()
+        
+        logger.info(f"Created KB: {kb_id}")
+    
+    def update_kb_config(self, kb_id: str, kb_config: Dict):
+        """
+        Update KB configuration.
+        
+        Args:
+            kb_id: KB identifier
+            kb_config: Updated KB configuration
+        """
+        if not self.kb_exists(kb_id):
+            raise ValueError(f"KB '{kb_id}' not found")
+        
+        # Load current config
+        with open(self.config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        # Update KB in list
+        for i, kb_dict in enumerate(config['knowledge_bases']):
+            if kb_dict['id'] == kb_id:
+                config['knowledge_bases'][i] = kb_config
+                break
+        
+        # Save config
+        with open(self.config_path, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2)
+        
+        # Reload config
+        self._load_config()
+        
+        logger.info(f"Updated KB: {kb_id}")

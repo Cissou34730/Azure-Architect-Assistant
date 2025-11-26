@@ -292,8 +292,8 @@ class WAFQueryService(KnowledgeBaseQueryService):
             
             if storage_dir is None:
                 script_dir = os.path.dirname(os.path.abspath(__file__))
-                project_root = os.path.abspath(os.path.join(script_dir, "..", "..", ".."))
-                storage_dir = os.path.join(project_root, "data", "knowledge_bases", "waf", "index")
+                backend_root = os.path.abspath(os.path.join(script_dir, "..", ".."))
+                storage_dir = os.path.join(backend_root, "data", "knowledge_bases", "waf", "index")
         
         super().__init__(
             kb_id="waf",
