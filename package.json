@@ -1,23 +1,20 @@
 {
   "name": "azure-architect-assistant",
-  "version": "1.0.0",
-  "description": "Full-stack TypeScript application with Express backend and React frontend",
+  "version": "4.0.0",
+  "description": "Azure Architecture Assistant - Unified Python FastAPI backend with React frontend",
   "private": true,
   "workspaces": [
-    "backend",
     "frontend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:python\" \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
-    "dev:python": "powershell -ExecutionPolicy Bypass -File ./scripts/run-python-service.ps1",
-    "dev:backend": "npm run dev --workspace=backend",
+    "dev": "concurrently \"npm run dev:python\" \"npm run dev --workspace=frontend\"",
+    "dev:python": "cd backend && python -m uvicorn app.main:app --reload --port 8000",
     "dev:frontend": "npm run dev --workspace=frontend",
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "lint:fix": "npm run lint:fix --workspaces",
-    "backend": "npm run dev --workspace=backend",
     "frontend": "npm run dev --workspace=frontend",
-    "install:all": "npm install && npm install --workspaces && cd python-service && pip install -r requirements.txt && cd .."
+    "install:all": "npm install && npm install --workspaces && cd backend && pip install -r requirements.txt && cd .."
   },
   "keywords": [
     "typescript",

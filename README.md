@@ -1,158 +1,179 @@
-# Azure Architecture Assistant - POC
+# Azure Architecture Assistant
 
-**SIMPLIFIED ARCHITECTURE (v3.0)** - Unified Python Backend
+**Version 4.0** - Unified Python Backend with Modern React Architecture
 
-This is a proof-of-concept application that helps Azure Solution Architects analyze project documents, clarify requirements through interactive chat, generate high-level Azure architecture proposals, and query the Azure Well-Architected Framework (WAF) documentation.
+A proof-of-concept application that helps Azure Solution Architects analyze project documents, clarify requirements through interactive chat, generate high-level Azure architecture proposals, and query multiple Azure knowledge bases including the Well-Architected Framework (WAF).
 
 ## Features
 
 ### Architecture Project Management
-1. **Project Management**: Create and manage multiple architecture projects with automatic SQLite persistence
-2. **Document Upload**: Upload RFP, specifications, and other project documents (supports plain text, with placeholders for PDF/DOCX)
-3. **Document Analysis**: AI-powered analysis to extract project context, requirements, and constraints
-4. **Interactive Chat with KB Integration**: Ask questions and get answers enriched with knowledge base best practices and source citations
-5. **Architecture Sheet**: Structured view of project requirements, NFRs, constraints, and open questions
-6. **Architecture Proposal with KB Guidance**: Generate comprehensive Azure architecture proposals grounded in knowledge base documentation with cited sources
-7. **Real-Time Progress Updates**: Server-Sent Events (SSE) provide live progress tracking during proposal generation
+1. **Project Management**: Create and manage multiple architecture projects with SQLAlchemy + async SQLite
+2. **Document Upload**: Upload RFP, specifications, and project documents (text format supported)
+3. **Document Analysis**: AI-powered analysis to extract requirements, constraints, and architecture context
+4. **Interactive Chat**: Multi-turn conversations with AI to refine architecture understanding
+5. **Architecture State**: Structured view of project context, NFRs, constraints, and open questions
+6. **Architecture Proposal**: Generate comprehensive Azure architecture proposals with streaming progress
+7. **Real-Time Progress**: Server-Sent Events (SSE) provide live updates during proposal generation
 
-### Multi-Source RAG System
-8. **Profile-Based Querying**: Automatic query optimization based on context (chat vs proposal)
-9. **Multiple Knowledge Bases**: Support for WAF, Azure Services, and custom documentation sources
-10. **Parallel Multi-KB Queries**: Query multiple knowledge bases simultaneously for comprehensive results
-11. **Source Attribution**: All results tagged with source KB (e.g., `[WAF]`, `[Azure Services]`)
-12. **KB Management API**: List, health check, and manage knowledge bases via REST API
-13. **Vector Search**: Fast semantic search using OpenAI embeddings with global index caching
-14. **Two Query Profiles**:
-    - **CHAT**: Fast, targeted (3 results/KB) for interactive conversations
-    - **PROPOSAL**: Comprehensive (5 results/KB) for architecture proposals
+### Multi-Source Knowledge Base System
+8. **Multiple Knowledge Bases**: WAF (Well-Architected Framework), Azure Services, and custom sources
+9. **Parallel Querying**: Query multiple KBs simultaneously for comprehensive results
+10. **Source Attribution**: All results tagged with source KB and relevance scores
+11. **Health Monitoring**: KB status checks and readiness indicators
+12. **Vector Search**: Fast semantic search using OpenAI embeddings with preloaded indices
+13. **Dedicated KB Interface**: Standalone query interface with status monitoring
 
-### Standalone KB Query
-15. **Knowledge Base Query Tab**: Dedicated interface to query multiple knowledge bases directly
-16. **Two-Phase Ingestion Pipeline**: Separate crawling/cleaning and indexing phases with document validation workflow
-17. **Source Citations**: All responses include clickable links to Microsoft Learn documentation
+### Modern React Architecture
+14. **Component Organization**: Feature-based structure (common/, projects/, kb/)
+15. **Custom Hooks**: Separation of business logic (useProjectWorkspace, useKBWorkspace)
+16. **Barrel Exports**: Clean imports with index.ts files per feature
+17. **Type Safety**: Full TypeScript coverage throughout the stack
 
 ## Architecture
 
-### **Simplified Single-Backend Architecture (NEW in v3.0)**
+### **Unified Python Backend (v4.0)**
 
-**Migration Complete**: Consolidated from TypeScript + Python split to unified Python backend for simplicity and maintainability.
+**Fully migrated** from TypeScript + Python to unified Python FastAPI backend for simplicity, performance, and maintainability.
 
 ```
 Frontend (React + Vite) → Python Backend (FastAPI) → LlamaIndex + OpenAI
-       Port 5173            Port 8000
+       Port 5173                  Port 8000
 ```
 
-#### Components:
+#### Stack Overview:
 
-- **Python FastAPI Backend** (Single Server): Port 8000
-  - **Project Management**: SQLAlchemy + async SQLite for project CRUD
-  - **Document Analysis**: OpenAI GPT-4o-mini for requirements extraction
-  - **Chat Orchestration**: Context-aware chat with automatic KB integration
-  - **Proposal Generation**: Multi-step architecture proposal with SSE progress
-  - **Multi-KB RAG**: LlamaIndex 0.12.x for semantic search across knowledge bases
-  - **Startup Preloading**: Indices load into RAM at startup for instant queries
-  
-- **Frontend**: React + Vite with Tailwind CSS on port 5173
-  - **Components**: ProjectList, ChatPanel, StatePanel, ProposalPanel, DocumentsPanel, KnowledgeBaseQuery
-  - **Custom Hooks**: useProjects, useProjectState, useChat, useProposal
-  - **API Service**: Direct calls to Python backend (`http://localhost:8000/api`)
-  
-- **Storage**: 
-  - SQLite database: `data/projects.db` (project data, conversations, state)
-  - Vector indices: `data/knowledge_bases/*/index/` (LlamaIndex)
+**Backend (Python FastAPI)** - Port 8000
+- **FastAPI Framework**: Modern, async Python web framework
+- **SQLAlchemy + aiosqlite**: Async SQLite ORM for project persistence
+- **LlamaIndex 0.12.x**: Multi-source RAG with vector search
+- **OpenAI Integration**: GPT-4o-mini for LLM, text-embedding-3-small for embeddings
+- **Startup Preloading**: KB indices load at startup for instant queries
+- **SSE Support**: Server-Sent Events for real-time progress updates
 
-### Service Architecture
+**Frontend (React + TypeScript + Vite)** - Port 5173
+- **React 18**: Modern React with hooks
+- **TypeScript**: Full type safety
+- **Vite**: Fast development with HMR
+- **Tailwind CSS**: Utility-first styling
+- **Component Architecture**: Feature-based organization
+  - `components/common/` - Reusable UI (Navigation, TabNavigation)
+  - `components/projects/` - Project workspace and panels
+  - `components/kb/` - Knowledge base query interface
+- **Custom Hooks**: Business logic separation
+  - `useProjectWorkspace` - Orchestrates project state, chat, proposals
+  - `useKBWorkspace` - Manages KB health and queries
+- **API Layer**: Centralized service objects (projectApi, chatApi, kbApi)
+
+**Storage:**
+- SQLite: `data/projects.db` (projects, conversations, state)
+- Vector Indices: `data/knowledge_bases/*/index/` (LlamaIndex persistent storage)
+
+### Component Architecture
 
 ```
-Frontend (React)
-    ├── Components (UI)
-    │   ├── ProjectList.tsx
-    │   ├── ChatPanel.tsx
-    │   ├── StatePanel.tsx
-    │   ├── ProposalPanel.tsx
-    │   ├── DocumentsPanel.tsx
-    │   └── KnowledgeBaseQuery.tsx
-    ├── Hooks (State Management)
-    │   ├── useProjects.ts
-    │   ├── useProjectState.ts
-    │   ├── useChat.ts
-    │   └── useProposal.ts
-    └── Services (API Layer)
-        └── apiService.ts → http://localhost:8000/api
-             ↓
+App.tsx (Composition Root)
+├── Navigation (View Switcher)
+│   └── common/Navigation.tsx
+├── ProjectWorkspace (Project Feature)
+│   ├── useProjectWorkspace (Orchestration Hook)
+│   │   ├── useProjects (project CRUD)
+│   │   ├── useProjectState (state management)
+│   │   ├── useChat (conversation)
+│   │   └── useProposal (architecture generation)
+│   └── UI Components
+│       ├── ProjectList (sidebar)
+│       ├── TabNavigation (common)
+│       ├── DocumentsPanel
+│       ├── ChatPanel
+│       ├── StatePanel
+│       └── ProposalPanel
+└── KBWorkspace (Knowledge Base Feature)
+    ├── useKBWorkspace (Orchestration Hook)
+    │   ├── useKBHealth (health monitoring)
+    │   └── useKBQuery (query execution)
+    └── UI Components
+        ├── KBLoadingScreen
+        ├── KBStatusNotReady
+        ├── KBHeader
+        ├── KBQueryForm
+        └── KBQueryResults
+```
+
+### Backend Service Architecture
+
+```
 Python FastAPI Backend (Port 8000)
-    ├── @startup event → Init DB + Preload RAG
-    ├── Database Layer
-    │   ├── database.py (SQLAlchemy + async SQLite)
-    │   └── models/project.py (ORM models)
-    ├── Routers
-    │   ├── projects.py (Project workflow endpoints)
-    │   ├── query.py (KB query: chat, proposal)
-    │   ├── kb.py (KB management: list, health)
-    │   └── ingest.py (KB ingestion pipelines)
-    ├── Services
-    │   ├── llm_service.py (Document analysis, chat, proposals)
-    │   └── services.py (RAG service singletons)
-    └── RAG Modules
-        ├── kb/ (Multi-KB management)
-        │   ├── manager.py → KBManager
-        │   ├── service.py → KnowledgeBaseService
-        │   └── multi_query.py → MultiSourceQueryService
-        └── rag/kb_query.py → Base query service
-             ↓
-LlamaIndex + OpenAI (Embeddings + LLM)
+├── Startup Initialization
+│   ├── Initialize database (SQLAlchemy async)
+│   └── Preload KB indices (LlamaIndex)
+├── API Routers
+│   ├── /api/projects (Project CRUD)
+│   ├── /api/chat (Conversation handling)
+│   ├── /api/state (Architecture state)
+│   ├── /api/proposal (Proposal generation with SSE)
+│   ├── /api/kb (KB health & management)
+│   ├── /api/query (KB queries)
+│   └── /api/ingest (Document ingestion)
+├── Services Layer
+│   ├── LLMService (Document analysis, chat, proposals)
+│   ├── KnowledgeBaseService (Generic KB queries)
+│   └── MultiSourceQueryService (Multi-KB orchestration)
+└── Data Layer
+    ├── SQLAlchemy models (Project, Message, State)
+    └── LlamaIndex (Vector indices, embeddings)
 ```
 
-### Migration Benefits
+### Key Design Principles
 
-**Before (v2.0)**: TypeScript Backend (port 3000) + Python Backend (port 8000)
-- ❌ Two servers to run and monitor
-- ❌ Proxy layer adds latency and complexity
-- ❌ Duplicate error handling and logging
-- ❌ More deployment complexity
+**Frontend Architecture:**
+- **Feature-based organization** - Components grouped by domain (projects/, kb/, common/)
+- **Custom hooks** - Business logic separated from UI (useProjectWorkspace, useKBWorkspace)
+- **Composition pattern** - Small, focused components composed into larger features
+- **Barrel exports** - Clean imports via index.ts files
+- **Type safety** - Full TypeScript coverage
 
-**After (v3.0)**: Python Backend Only (port 8000)
-- ✅ One server to run (`uvicorn app.main:app --reload --port 8000`)
-- ✅ Direct Python-to-LlamaIndex integration (no HTTP overhead)
-- ✅ Simpler deployment (Python + React build)
-- ✅ SQLAlchemy provides type safety like TypeScript
-- ✅ Python is the natural fit for LLM/AI workflows
-- `WAFService.ts` functionality migrated to `KBService.ts`
-- Backward compatibility via export alias: `wafService = kbService`
-- Old `/query` endpoint redirects to `/query/chat`
+**Backend Architecture:**
+- **Async-first** - FastAPI with async/await throughout
+- **Service layer** - Business logic separated from routes
+- **Singleton services** - KB services initialized once, reused across requests
+- **Lazy initialization** - Defer expensive operations until needed
+- **Streaming responses** - SSE for real-time progress updates
 
-### AI & RAG Pipeline
+**Benefits of v4.0 Architecture:**
+- ✅ Single backend to run and monitor (Python only)
+- ✅ Direct Python-to-LlamaIndex integration (no HTTP proxy)
+- ✅ Simpler deployment (one service + static React build)
+- ✅ Better type safety (SQLAlchemy models + TypeScript)
+- ✅ Natural fit for AI/LLM workflows
+- ✅ Modular, testable component structure
 
-- **Main AI (TypeScript → OpenAI)**:
-  - Document analysis: Extract project requirements
-  - Conversation processing: Refine architecture based on chat
-  - Proposal generation: Create comprehensive architecture documents
-  - Model: `gpt-4o-mini`
-  
-- **Multi-Source RAG System (Python → LlamaIndex → OpenAI)**:
-  - **Startup**: Indices preload at server start (~5-10s once)
-  - **Embeddings**: `text-embedding-3-small` (1536 dimensions)
-  - **Generation**: `gpt-4o-mini` for answer synthesis
-  - **Vector Store**: File-based persistent storage (~60MB per KB)
-  - **Performance**: 
-    - First query: Instant (preloaded at startup!)
-    - Subsequent queries: ~2-3s (retrieval + generation)
-  - **Query Profiles**:
-    - `CHAT`: 3 results per KB, fast responses for interactive chat
-    - `PROPOSAL`: 5 results per KB, comprehensive for architecture proposals
-  - **Query Flow**: Question → Embedding → Multi-KB vector search (parallel) → Context retrieval → Answer generation
-  - **Singleton Pattern**: Services initialized once, reused across all requests
-  
-- **Integration Pattern**:
-  - TypeScript calls Python via HTTP (`POST /query/chat` or `/query/proposal`)
-  - Automatic profile selection based on context
-  - Parallel multi-KB queries for comprehensive results
-  - Source citations with KB attribution
-  
-- **Cost per Operation**:
-  - **Chat with RAG**: 1 embedding + 2 generation calls (~$0.001)
-  - **Proposal with RAG**: 5 embeddings + 6 generation calls (~$0.005)
-  - Scales linearly with number of active knowledge bases
+### AI & Knowledge Base Pipeline
+
+**LLM Operations (OpenAI GPT-4o-mini):**
+- Document analysis: Extract requirements, constraints, and context
+- Chat conversations: Multi-turn dialogue with context
+- Proposal generation: Comprehensive architecture documents
+- Model: `gpt-4o-mini` with temperature 0.7
+
+**Knowledge Base RAG (LlamaIndex + OpenAI):**
+- **Embeddings**: `text-embedding-3-small` (1536 dimensions)
+- **Vector Store**: File-based persistent storage (~60MB per KB)
+- **Startup**: Indices preload at server start for instant queries
+- **Query Flow**: 
+  1. Question → Embedding generation
+  2. Vector similarity search across loaded KBs
+  3. Context retrieval (top-K chunks)
+  4. Answer generation with source citations
+- **Performance**:
+  - Index loading: ~5-10s at startup (one-time cost)
+  - Query time: ~2-3s (retrieval + generation)
+  - Parallel multi-KB queries supported
+
+**Integration:**
+- Direct Python service calls (no HTTP proxy)
+- Automatic KB selection based on query context
+- Source attribution with relevance scores
+- Streaming progress for long-running operations
 
 ## Prerequisites
 
@@ -170,7 +191,7 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1  # Windows
 # source .venv/bin/activate  # Linux/Mac
 
-cd python-service
+cd backend
 pip install -r requirements.txt
 cd ..
 
@@ -202,11 +223,11 @@ OPENAI_API_ENDPOINT=https://your-resource.openai.azure.com/
 
 ### 3. Run the Application
 
-**Option 1 - Development Mode (Recommended):**
+**Development Mode (Recommended):**
 
-```bash
+```powershell
 # Terminal 1 - Start Python backend
-cd python-service
+cd backend
 python -m uvicorn app.main:app --reload --port 8000
 
 # Terminal 2 - Start React frontend
@@ -214,644 +235,479 @@ cd frontend
 npm run dev
 ```
 
-- Python backend runs on `http://localhost:8000`
-- React frontend runs on `http://localhost:5173`
+Access the application at `http://localhost:5173`
 
-**Option 2 - Single Terminal (Background Mode):**
+**Using NPM Scripts (from project root):**
 
-```bash
-# Start Python backend in background
-cd python-service
-python -m uvicorn app.main:app --reload --port 8000 &
+```powershell
+# Start Python backend
+npm run dev:python
 
-# Start frontend
-cd frontend
-npm run dev
-```
-
-```bash
+# Start frontend (separate terminal)
 npm run dev:frontend
-# OR
-cd frontend
-npm run dev
 ```
-
-Frontend runs on `http://localhost:5173`
 
 ## Usage Workflow
 
+### Architecture Projects Tab
+
 1. **Create a Project**
-   - Enter a project name in the left sidebar
+   - Enter a project name in the sidebar
    - Click "Create Project"
 
-2. **Upload Documents**
-   - Select the project
-   - Go to the "Documents" tab
-   - Upload project files (RFP, specifications, etc.)
-   - Click "Analyze Documents" to generate the initial Architecture Sheet
+2. **Add Requirements**
+   - Select your project from the list
+   - Go to "Documents" tab
+   - Either:
+     - Enter text requirements directly in the textarea
+     - Upload document files
+   - Click "Save Requirements" or "Upload Documents"
 
-3. **Review Architecture Sheet**
-   - Go to the "State" tab to see the extracted information:
-     - Context & Objectives
+3. **Analyze Documents**
+   - Click "Analyze Documents" button
+   - AI extracts architecture context, requirements, and constraints
+   - Automatically switches to "State" tab
+
+4. **Review Architecture State**
+   - View extracted information:
+     - Project Context & Objectives
      - Non-Functional Requirements (NFRs)
      - Application Structure
      - Data & Compliance
      - Technical Constraints
      - Open Questions
 
-4. **Clarify Requirements with WAF Guidance**
-   - Go to the "Chat" tab
-   - Ask questions about Azure services, architecture, or best practices
-   - **Automatic WAF Integration**: Azure-related questions trigger WAF queries
-   - View AI responses with cited sources from Microsoft Learn documentation
-   - The Architecture Sheet updates automatically based on the conversation
+5. **Refine with Chat**
+   - Go to "Chat" tab
+   - Ask questions to clarify requirements
+   - Discuss architecture approaches
+   - State updates automatically based on conversation
 
-5. **Generate Architecture Proposal with WAF Best Practices**
-   - Go to the "Proposal" tab
-   - Click "Generate Proposal" (takes ~40 seconds)
-   - **Automatic WAF Integration**: System queries all 5 WAF pillars (Security, Reliability, Cost, Performance, Operations)
-   - Review comprehensive proposal with [1], [2], [3] citations
-   - Click source links to read original WAF documentation
+6. **Generate Architecture Proposal**
+   - Go to "Proposal" tab
+   - Click "Generate Proposal"
+   - Watch real-time progress updates
+   - Review comprehensive architecture document
 
-## WAF Query System
+### Knowledge Base Query Tab
 
-### Overview
+1. **Check KB Status**
+   - Navigate to "Knowledge Base Query" tab
+   - View KB health status (ready/not ready count)
+   - Click "Refresh Status" to update
 
-The WAF Query System provides intelligent, source-grounded answers to questions about the Azure Well-Architected Framework. It uses a two-phase RAG (Retrieval-Augmented Generation) pipeline with document validation and a long-running service architecture for fast query responses.
-
-### Architecture
-
-#### Phase 1: Ingestion & Validation
-Separate crawling/cleaning from indexing to allow manual document review:
-
-1. **Crawler** (`backend/src/rag/crawler.py`)
-   - BFS traversal of learn.microsoft.com/azure/well-architected/
-   - Handles /en-us/ path prefixes automatically
-   - Deduplication and graceful error handling
-   - Exports URLs to `data/knowledge_bases/waf/urls.txt`
-
-2. **Cleaner** (`backend/src/rag/cleaner.py`)
-   - Three-layer cleaning: Readability → BeautifulSoup → html2text
-   - Removes navigation, footers, sidebars
-   - Exports cleaned markdown to `data/knowledge_bases/waf/documents/`
-   - Creates validation manifest: `data/knowledge_bases/waf/manifest.json`
-
-3. **Validation Workflow**
-   - Manual review via `manifest.json` (status: PENDING → APPROVED/REJECTED)
-   - Auto-approval script: `scripts/utils/approve_documents.py`
-   - Only APPROVED documents proceed to Phase 2
-
-#### Phase 2: Chunking & Indexing
-
-4. **Indexer** (`backend/src/rag/indexer.py`)
-   - Loads APPROVED documents from manifest
-   - Token-based chunking (800 tokens, 120 overlap)
-   - Generates embeddings via OpenAI API
-   - Builds vector index at `data/knowledge_bases/waf/index/`
-   - Index size: ~60MB (51MB vector store + 8.5MB docstore)
-
-#### Query Architecture: Long-Running Service
-
-5. **Query Service** (`backend/src/rag/query_service.py`)
-   - **Persistent Python process** started on server boot
-   - Pre-loads 51MB vector index into memory (~35s startup)
-   - Listens for queries on stdin, responds on stdout
-   - Global index caching via `_INDEX_CACHE` dictionary
-   - **Performance**: First query ~35s, subsequent queries ~6s
-
-6. **WAFService Integration** (`backend/src/services/WAFService.ts`)
-   - Spawns long-running Python service in constructor
-   - Maintains bidirectional stdin/stdout communication
-   - Tracks service readiness via `{"status": "ready"}` signal
-   - Routes queries as JSON lines, receives responses as JSON
-   - Graceful shutdown on SIGINT/SIGTERM
-   - Used by both standalone WAF Query interface and LLMService integration
-
-7. **LLMService WAF Integration** (`backend/src/services/LLMService.ts`)
-   - **Chat Integration**: Detects Azure keywords (azure, security, performance, etc.)
-   - Queries WAF automatically for Azure-related questions (~6s per query)
-   - Includes WAF context and sources in LLM prompt
-   - Returns WAF sources with chat responses
-   - **Proposal Integration**: Queries all 5 WAF pillars in parallel (~30s total)
-   - Aggregates guidance into system prompt with source citations
-   - LLM generates proposal citing [1], [2], [3] sources
-
-### Initial Setup
-
-#### 1. Run WAF Ingestion (Two-Phase Pipeline)
-
-The ingestion process runs in two separate phases to allow document validation.
-
-**Phase 1: Crawl and Clean**
-
-```bash
-# Option A: Via Python script
-cd Azure-Architect-Assistant
-python scripts/ingest/waf_phase1.py
-
-# Option B: Via web interface
-# Navigate to "WAF Query" tab → Click "Start Phase 1"
-```
-
-This will:
-- Crawl ~275 WAF documentation pages
-- Clean and convert HTML to markdown
-- Create validation manifest with status: PENDING
-
-**Document Validation (Optional)**
-
-```bash
-# Review and approve documents
-# Edit data/knowledge_bases/waf/manifest.json
-# Change status from PENDING to APPROVED or REJECTED
-
-# Or auto-approve all documents
-python scripts/utils/approve_documents.py
-```
-
-**Phase 2: Chunk and Index**
-
-```bash
-# Option A: Via Python script
-python scripts/ingest/waf_phase2.py
-
-# Option B: Via web interface
-# Navigate to "WAF Query" tab → Click "Start Phase 2"
-```
-
-This will:
-- Load APPROVED documents (skip REJECTED/PENDING)
-- Create 1,556 chunks from 275 documents
-- Generate embeddings (~$0.01 cost)
-- Build 60MB vector index (~10-15 minutes)
-
-**Performance Notes:**
-- Phase 1: ~5-10 minutes (network dependent)
-- Phase 2: ~10-15 minutes (OpenAI API dependent)
-- Server startup: Loads index in ~35 seconds
-- Queries: 6 seconds after initial load
-
-#### 2. Configuration
-
-Ensure your `.env` file includes:
-
-```bash
-# Required for WAF functionality
-OPENAI_API_KEY=your-openai-api-key
-
-# Optional: Specify Python path if using virtual environment
-PYTHON_PATH=python  # or /path/to/venv/bin/python
-```
-
-### Using the WAF Query System
-
-1. **Server Startup**
-   - Backend automatically starts long-running Python query service
-   - Wait for log message: `[WAFService] Query service ready` (~35 seconds)
-   - Service pre-loads 51MB index into memory
-
-2. **Ask Questions**
-   - Navigate to "WAF Query" tab
+2. **Query Knowledge Bases**
    - Enter your question in natural language
    - Examples:
      - "What are the five pillars of the Well-Architected Framework?"
-     - "What are the best practices for securing Azure SQL databases?"
-     - "How should I design a highly available multi-region architecture?"
-     - "What are the cost optimization recommendations for Azure Storage?"
+     - "What are best practices for Azure SQL security?"
+     - "How do I design a highly available multi-region architecture?"
+   - Click "Search Knowledge Bases"
 
-3. **Review Answers**
-   - First query: ~35s (includes index loading time)
-   - Subsequent queries: ~6s (index cached in memory)
-   - AI-generated answer with source citations
-   - Relevance scores for each source
-   - Click source links to view original documentation
-
-### Performance Characteristics
-
-| Operation | Time | Notes |
-|-----------|------|-------|
-| Server startup | 35s | One-time cost: loads 51MB index |
-| First WAF query | 35s | If service restarts |
-| Subsequent WAF queries | 6s | Index cached in memory |
-| Chat with WAF (Azure question) | ~8s | 6s WAF query + 2s LLM generation |
-| Chat without WAF | ~2s | Direct LLM, no WAF query |
-| Architecture proposal | ~40s | 5 WAF queries (sequential) + LLM with live progress updates |
-| Index loading | 27s | From disk to memory |
-| Embedding generation | 3.5s | Query → embedding via API |
-| LLM generation | 2-5s | Answer generation |
-| Phase 1 ingestion | 5-10 min | Network dependent |
-| Phase 2 ingestion | 10-15 min | OpenAI API dependent |
-
-### Technical Specifications
-
-| Component | Technology | Configuration |
-|-----------|-----------|---------------|
-| Crawler | Python requests + BeautifulSoup | 275 pages, BFS traversal |
-| Text Extraction | readability-lxml + html2text | Three-layer cleaning |
-| Chunking | LlamaIndex TokenTextSplitter | 800 tokens, 120 overlap |
-| Embeddings | OpenAI text-embedding-3-small | 1536 dimensions |
-| Vector Store | LlamaIndex File Storage | 60MB (51MB vectors + 8.5MB docs) |
-| Index Caching | Python global dictionary | In-memory, persistent across queries |
-| Generation | OpenAI gpt-4o-mini | Temperature: 0.1, max tokens: 1000 |
-| Retrieval | Cosine similarity search | Top-3 chunks, threshold 0.5 |
-| Service Architecture | Long-running Python process | stdin/stdout communication |
-| Query Time | First: ~35s, After: ~6s | Index cached in memory |
-
-### Data Structure
-
-```
-data/knowledge_bases/waf/
-├── urls.txt                    # 275 crawled URLs
-├── documents/                  # 275 cleaned markdown files
-├── manifest.json              # Document validation status
-└── index/                     # Vector store (60MB)
-    ├── default__vector_store.json  # 51MB - embeddings
-    ├── docstore.json              # 8.5MB - document content
-    ├── index_store.json           # 130KB - index metadata
-    ├── graph_store.json           # Empty
-    ├── image__vector_store.json   # Empty
-    └── build_info.json            # Build metadata
-```
-
-### Extending the System
-
-The WAF ingestion pipeline is designed to scale to multiple knowledge bases:
-
-**Current Limitations:**
-- 51MB index takes ~27s to load per KB
-- With 40 KBs: ~2GB RAM, ~18 min startup time
-- File-based storage not optimized for production scale
-
-**Recommended Production Architecture:**
-1. **Azure AI Search**: Cloud vector database with instant queries
-2. **Chroma/Qdrant**: Local vector DB with disk-based storage
-3. **Multiple Services**: Run separate Python processes per KB (parallel loading)
-
-**To Add New Knowledge Bases:**
-1. Create new KB directory: `data/knowledge_bases/<kb_name>/`
-2. Modify crawler for different documentation sources
-3. Run Phase 1 and Phase 2 for new KB
-4. Start additional query service instance
-5. Route queries to appropriate service based on KB selection
+3. **Review Results**
+   - Read AI-generated answer
+   - View source citations with relevance scores
+   - Click source links to read original documentation
+   - Use suggested follow-up questions
 
 ## API Endpoints
 
-### Architecture Projects
+### Projects
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/projects` | Create a new project |
 | GET | `/api/projects` | List all projects |
-| POST | `/api/projects/:id/documents` | Upload documents |
-| POST | `/api/projects/:id/analyze-docs` | Analyze documents and create Architecture Sheet |
-| POST | `/api/projects/:id/chat` | Send chat message (auto-queries WAF for Azure questions), returns message, state, and WAF sources |
-| GET | `/api/projects/:id/state` | Get current Architecture Sheet |
-| GET | `/api/projects/:id/architecture/proposal` | Generate Azure architecture proposal with real-time progress via SSE (auto-queries 5 WAF pillars sequentially) |
-| GET | `/api/projects/:id/messages` | Get conversation history with WAF sources |
+| POST | `/api/projects` | Create new project |
+| GET | `/api/projects/{id}` | Get project details |
+| PUT | `/api/projects/{id}` | Update project |
+| DELETE | `/api/projects/{id}` | Delete project |
 
-### WAF Query System
+### Documents & Analysis
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/waf/query` | Query WAF documentation (uses long-running service) |
-| POST | `/api/waf/ingest/phase1` | Start Phase 1: Crawl and clean |
-| POST | `/api/waf/ingest/phase2` | Start Phase 2: Chunk and index |
-| POST | `/api/waf/ingest` | Legacy: Start full pipeline |
-| GET | `/api/waf/status` | Get ingestion status |
-| GET | `/api/waf/ready` | Check if index is ready |
+| POST | `/api/projects/{id}/documents` | Upload documents |
+| POST | `/api/projects/{id}/text-requirements` | Save text requirements |
+| POST | `/api/projects/{id}/analyze` | Analyze documents and extract state |
 
-#### WAF Query Request
+### Chat & State
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/projects/{id}/messages` | Get conversation history |
+| POST | `/api/projects/{id}/chat` | Send chat message |
+| GET | `/api/projects/{id}/state` | Get architecture state |
+
+### Proposals
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/projects/{id}/proposal/stream` | Generate proposal with SSE progress |
+
+### Knowledge Base
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/kb/health` | Check KB health status |
+| GET | `/api/kb/list` | List available knowledge bases |
+| POST | `/api/query/chat` | Query KBs (returns answer + sources) |
+| POST | `/api/ingest/start` | Start KB ingestion (if supported) |
+
+#### KB Query Request
 
 ```json
 {
-  "question": "What are the security best practices for Azure Storage?",
-  "topK": 3
+  "question": "What are security best practices for Azure Storage?",
+  "top_k_per_kb": 3
 }
 ```
 
-#### WAF Query Response
+#### KB Query Response
 
 ```json
 {
-  "answer": "According to the Azure Well-Architected Framework...",
+  "answer": "Based on Azure best practices...",
   "sources": [
     {
-      "url": "https://learn.microsoft.com/azure/well-architected/security/...",
-      "title": "Security pillar overview",
+      "url": "https://learn.microsoft.com/...",
+      "title": "Security best practices",
       "section": "security",
+      "kb_name": "WAF",
       "score": 0.89
     }
   ],
-  "scores": [0.89, 0.85, 0.82],
-  "hasResults": true,
-  "discussionEnabled": true,
-  "suggestedFollowUps": [
+  "has_results": true,
+  "suggested_follow_ups": [
     "How do I implement encryption at rest?",
-    "What about network security?",
-    "How does this relate to compliance requirements?"
+    "What about network security?"
   ]
 }
 ```
 
 ## Data Models
 
-### ProjectState (Architecture Sheet)
+### Project
 
-```typescript
+```python
 {
-  projectId: string
-  context: {
-    summary: string
-    objectives: string[]
-    targetUsers: string
-    scenarioType: string
-  }
-  nfrs: {
-    availability: string
-    security: string
-    performance: string
-    costConstraints: string
-  }
-  applicationStructure: {
-    components: string[]
-    integrations: string[]
-  }
-  dataCompliance: {
-    dataTypes: string[]
-    complianceRequirements: string[]
-    dataResidency: string
-  }
-  technicalConstraints: {
-    constraints: string[]
-    assumptions: string[]
-  }
-  openQuestions: string[]
-  lastUpdated: string
+  "id": "uuid",
+  "name": "string",
+  "text_requirements": "string",
+  "created_at": "datetime",
+  "updated_at": "datetime"
 }
 ```
 
-### ConversationMessage (with WAF Sources)
+### ProjectState
 
-```typescript
+```python
 {
-  id: string
-  projectId: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: string
-  wafSources?: Array<{
-    url: string
-    title: string
-    section: string
-    score: number
-  }>
+  "project_id": "uuid",
+  "context": {
+    "summary": "string",
+    "objectives": ["string"],
+    "target_users": "string",
+    "scenario_type": "string"
+  },
+  "nfrs": {
+    "availability": "string",
+    "security": "string", 
+    "performance": "string",
+    "cost_constraints": "string"
+  },
+  "application_structure": {
+    "components": ["string"],
+    "integrations": ["string"]
+  },
+  "data_compliance": {
+    "data_types": ["string"],
+    "compliance_requirements": ["string"],
+    "data_residency": "string"
+  },
+  "technical_constraints": {
+    "constraints": ["string"],
+    "assumptions": ["string"]
+  },
+  "open_questions": ["string"],
+  "last_updated": "datetime"
+}
+```
+
+### Message
+
+```python
+{
+  "id": "uuid",
+  "project_id": "uuid",
+  "role": "user" | "assistant",
+  "content": "string",
+  "timestamp": "datetime"
 }
 ```
 
 ## Limitations (POC)
 
-### Architecture Projects
-- **Local SQLite Storage**: Projects stored in `data/projects.db`; suitable for single-user but not distributed deployments
-- **No Authentication**: Single-user, no access control
-- **Limited Document Parsing**: Full text extraction only for plain text files; PDF/DOCX are placeholders
-- **No Multi-tenancy**: Designed for single-user proof-of-concept
-- **Basic Error Handling**: Minimal validation and error messages
+### Current Scope
+- **Single-user application**: No authentication or multi-tenancy
+- **Local storage**: SQLite database not suitable for distributed deployments
+- **Text-only documents**: Full support for text files; PDF/DOCX parsing not implemented
+- **Basic error handling**: Minimal validation and user feedback
+- **Development mode**: Not production-ready (no containerization, monitoring, etc.)
 
-### WAF Query System
-- **Local File Storage**: 60MB vector index stored locally; not suitable for distributed deployment
-- **Startup Time**: 35-second delay on server start (loading 51MB index into memory)
-- **Query Performance**: ~6-8s per chat response with WAF, ~40s for full proposal generation (sequential pillar queries)
-- **Keyword Detection**: Simple keyword matching for Azure-related questions (may miss context)
-- **Sequential Processing**: Proposal generation queries 5 pillars sequentially to avoid overwhelming Python service (more reliable but slower than parallel)
-- **Scalability**: With 40 KBs, would require ~2GB RAM and ~18 min startup time
-- **No Incremental Updates**: Full re-ingestion required to update documentation
-- **OpenAI Dependency**: Requires OpenAI API access; no offline mode
-- **Single Knowledge Base**: Current implementation optimized for WAF only
-- **Single Language**: English only; no multilingual support
-- **Answer Quality**: RAG responses vary based on chunk retrieval quality (ongoing optimization)
+### Knowledge Base System
+- **File-based storage**: Vector indices stored locally (~60MB per KB)
+- **Startup time**: 5-10 seconds to load indices at server start
+- **Query performance**: ~2-3 seconds per query
+- **Limited scalability**: Multiple KBs increase memory usage linearly
+- **Manual ingestion**: KB content updates require re-ingestion
+- **OpenAI dependency**: Requires API access; no offline mode
+- **English only**: No multilingual support
 
 ## Future Enhancements
 
-### Architecture Projects
-- ✅ SQLite database persistence (completed)
-- Cloud database migration (MongoDB, PostgreSQL, Azure SQL)
-- User authentication and multi-tenancy
-- Advanced document parsing (PDF, DOCX, Excel)
-- Architecture diagram generation
-- Export capabilities (Word, PDF)
-- Version history for Architecture Sheets
-- Collaborative editing
-- Integration with Azure services for validation
+### Architecture & Deployment
+- **Production deployment**: Docker containerization, Azure App Service
+- **Cloud database**: Migrate to PostgreSQL, Azure SQL, or Cosmos DB
+- **Vector database**: Azure AI Search, Qdrant, or Pinecone for scalable KB queries
+- **Authentication**: Azure AD integration for multi-user access
+- **Monitoring**: Application Insights, logging, and alerting
 
-### WAF Integration Improvements
-- ✅ **Real-Time Progress Updates**: Server-Sent Events for live proposal generation tracking (completed)
-- ✅ **Sequential WAF Querying**: Reliable pillar-by-pillar processing (completed)
-- **Smart Context Detection**: ML-based question classification (not just keywords)
-- **Improved Answer Quality**: Fine-tune retrieval parameters, re-ranking, chunk size optimization
-- **Parallel Optimization**: Optimize Python service to handle concurrent WAF queries safely
-- **Answer Confidence Scores**: Display reliability indicators for WAF-sourced information
-- **User Feedback Loop**: Rate answers to improve retrieval quality
-- **Contextual Follow-ups**: Suggest related WAF topics based on conversation
+### Features
+- **Advanced document parsing**: PDF, DOCX, Excel support
+- **Architecture diagrams**: Auto-generate visual representations
+- **Export capabilities**: Word, PDF, PowerPoint output
+- **Version history**: Track changes to architecture state over time
+- **Collaborative editing**: Multiple users working on same project
+- **Azure validation**: Integration with Azure APIs to validate proposals
 
-### WAF Query System
-- **Production Vector Database**: Migrate to Azure AI Search, Chroma, or Qdrant for instant queries
-- **Multi-KB Support**: Support 40+ knowledge bases with parallel query services
-- **Incremental Updates**: Delta updates for changed documentation
-- **Advanced Caching**: Redis/Memcached for query result caching
-- **Streaming Responses**: Real-time answer generation for better UX
-- **Conversation Memory**: Multi-turn dialogue with context retention
-- **Monitoring & Analytics**: Query logs, popular questions, answer quality metrics
-- **Multilingual Support**: Query and retrieve in multiple languages
-- **Hybrid Search**: Combine semantic and keyword search for better recall
+### Knowledge Base Improvements
+- **Multi-KB support**: Query 40+ knowledge bases in parallel
+- **Incremental updates**: Delta sync for documentation changes
+- **Improved retrieval**: Re-ranking, hybrid search, query expansion
+- **Conversation memory**: Multi-turn dialogue with context retention
+- **Answer confidence**: Display reliability scores
+- **User feedback**: Rate answers to improve quality
+- **Multilingual**: Support for multiple languages
 
 ## Troubleshooting
 
-### WAF Ingestion Issues
+### Backend Issues
 
 **Problem**: Python dependencies not found
-```bash
-# Solution: Ensure Python packages are installed
-pip install -r requirements.txt
-
-# Or use a virtual environment (recommended)
+```powershell
+# Solution: Install in virtual environment
 python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# Linux/Mac
-source .venv/bin/activate
-pip install -r requirements.txt
+.venv\Scripts\activate  # Windows
+pip install -r backend/requirements.txt
 ```
 
-**Problem**: OPENAI_API_KEY not found
-```bash
-# Solution: Create .env file in project root with:
+**Problem**: `OPENAI_API_KEY` not found
+```powershell
+# Solution: Create .env file in project root
 OPENAI_API_KEY=your-key-here
+OPENAI_MODEL=gpt-4o-mini
 ```
 
-**Problem**: Ingestion timeout or failure
-```bash
-# Solution: Run phases individually to identify the issue
-python scripts/ingest/waf_phase1.py   # Crawl and clean
-python scripts/utils/approve_documents.py  # Auto-approve
-python scripts/ingest/waf_phase2.py   # Chunk and index
+**Problem**: Port 8000 already in use
+```powershell
+# Solution: Stop other process or change port
+# Check what's using the port
+netstat -ano | findstr :8000
+# Kill the process or change PYTHON_PORT in .env
 ```
 
-**Problem**: Server not starting long-running service
-```bash
-# Check logs for "[WAFService] Starting long-running query service"
-# Ensure query_service.py exists in backend/src/rag/
-# Verify Python path is correct in backend/.env
+### Frontend Issues
+
+**Problem**: `npm install` fails
+```powershell
+# Solution: Clear cache and reinstall
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
 ```
 
-### Query Issues
+**Problem**: Vite dev server won't start
+```powershell
+# Solution: Check port 5173 is available
+# Or change port in vite.config.ts
+```
 
-**Problem**: "Index not found" error
-- **Solution**: Run the two-phase ingestion pipeline first (see "Initial Setup" section)
+### Knowledge Base Issues
 
-**Problem**: Low-quality answers
-- **Solution**: Adjust similarity threshold (currently 0.5) in `query.py`
-- **Alternative**: Review and reject low-quality documents in Phase 1
+**Problem**: "KB not ready" error
+- **Solution**: KB indices need to be ingested first
+- Check `data/knowledge_bases/*/index/` exists
+- Run ingestion scripts if needed
 
-**Problem**: First query takes 35 seconds
-- **Solution**: This is expected - index loads into memory on first query
-- **Subsequent queries take ~6 seconds**
+**Problem**: Slow query responses
+- **Solution**: First query after server start is slower (loads indices)
+- Subsequent queries should be ~2-3 seconds
+- Check OpenAI API status if consistently slow
 
-**Problem**: Slow query response after restart
-- **Solution**: The long-running service pre-loads index on server startup
-- Wait for "[WAFService] Query service ready" log message (~35s)
-
-**Problem**: Query service crashes or becomes unresponsive
-```bash
-# Restart the backend server to restart the service
-# Check stderr logs for Python errors
-# Verify sufficient RAM available (~100MB per KB)
+**Problem**: KB health check fails
+```powershell
+# Solution: Check KB index files exist
+ls data/knowledge_bases/waf/index/
+# Should see default__vector_store.json and docstore.json
 ```
 
 ### General Issues
 
-**Problem**: Port already in use
-```bash
-# Solution: Change port in backend/.env
-PORT=3001
+**Problem**: Database errors
+```powershell
+# Solution: Delete and recreate database
+rm data/projects.db
+# Restart backend to auto-create fresh database
 ```
 
-**Problem**: CORS errors
-- **Solution**: Ensure both frontend and backend are running on expected ports
-- Frontend: http://localhost:5173
-- Backend: http://localhost:3000
+**Problem**: CORS errors in browser
+- **Solution**: Ensure both services are running
+  - Backend: http://localhost:8000
+  - Frontend: http://localhost:5173
+- Check Vite proxy configuration in `vite.config.ts`
 
 ## Project Structure
 
 ```
 Azure-Architect-Assistant/
-├── backend/                    # Express TypeScript API (port 3000)
-│   ├── src/
-│   │   ├── api/               # REST API routes
-│   │   │   ├── projects.ts    # Project + KB management endpoints
-│   │   │   └── waf.ts         # Legacy WAF proxy endpoints
-│   │   ├── services/          # Business logic (NEW ARCHITECTURE)
-│   │   │   ├── index.ts            # Unified service exports
-│   │   │   ├── LLMService.ts       # OpenAI orchestration (chat & proposals)
-│   │   │   ├── RAGService.ts       # High-level RAG operations (NEW)
-│   │   │   ├── KBService.ts        # Generic KB HTTP client (NEW)
-│   │   │   ├── StorageService.ts   # SQLite persistence
-│   │   │   └── WAFService.ts       # DEPRECATED (use KBService)
-│   │   ├── db/                # Database utilities
-│   │   ├── models/            # TypeScript models (Project, Message, WAFSource)
-│   │   ├── logger.ts          # Logging configuration
-│   │   └── index.ts           # Express server entry point
-│   ├── package.json
-│   └── tsconfig.json
-├── python-service/            # FastAPI Python Service (port 8000)
+├── backend/                      # Python FastAPI Backend (Port 8000)
 │   ├── app/
-│   │   ├── main.py           # FastAPI application & endpoints
-│   │   ├── kb/               # Multi-source KB infrastructure (NEW)
-│   │   │   ├── __init__.py
-│   │   │   ├── manager.py         # KB configuration & selection
-│   │   │   ├── service.py         # Generic KB query service
-│   │   │   └── multi_query.py     # Profile-based multi-KB querying
-│   │   └── rag/              # Legacy WAF-specific modules
-│   │       ├── __init__.py
-│   │       ├── crawler.py         # Web crawler for WAF docs
-│   │       ├── cleaner.py         # HTML cleaning & markdown conversion
-│   │       ├── indexer.py         # Vector index builder
-│   │       ├── query.py           # RAG query engine (LlamaIndex)
-│   │       └── query_service.py   # DEPRECATED stdin/stdout service
-│   ├── requirements.txt      # Python dependencies (FastAPI, LlamaIndex, etc.)
-│   └── README.md
-├── frontend/                  # React + Vite frontend (port 5173)
+│   │   ├── main.py              # FastAPI application entry
+│   │   ├── database.py          # SQLAlchemy async setup
+│   │   ├── db/
+│   │   │   └── index.ts         # Database utilities
+│   │   ├── models/              # SQLAlchemy ORM models
+│   │   │   ├── Project.ts       # Project model
+│   │   │   ├── Message.ts       # Message model
+│   │   │   └── State.ts         # State model
+│   │   ├── routers/             # API route handlers
+│   │   │   ├── projects.py      # Project CRUD
+│   │   │   ├── chat.py          # Chat endpoints
+│   │   │   ├── kb.py            # KB health & management
+│   │   │   ├── query.py         # KB query endpoints
+│   │   │   └── ingest.py        # Ingestion endpoints
+│   │   ├── services/            # Business logic
+│   │   │   └── llm_service.py   # LLM operations
+│   │   ├── kb/                  # Knowledge base system
+│   │   │   ├── manager.py       # KB configuration
+│   │   │   ├── service.py       # KB query service
+│   │   │   └── multi_query.py   # Multi-KB orchestration
+│   │   └── rag/                 # Legacy RAG modules
+│   └── requirements.txt         # Python dependencies
+│
+├── frontend/                     # React Frontend (Port 5173)
 │   ├── src/
-│   │   ├── App.tsx                # Main app with routing
-│   │   ├── WAFQueryInterface.tsx  # Standalone WAF query UI
-│   │   ├── main.tsx               # React entry point
-│   │   └── index.css              # Tailwind styles
+│   │   ├── App.tsx              # Main application (view routing)
+│   │   ├── main.tsx             # React entry point
+│   │   ├── index.css            # Tailwind styles
+│   │   ├── components/          # UI components
+│   │   │   ├── common/          # Reusable components
+│   │   │   │   ├── index.ts          # Barrel export
+│   │   │   │   ├── Navigation.tsx    # Top nav bar
+│   │   │   │   └── TabNavigation.tsx # Tab component
+│   │   │   ├── projects/        # Project workspace
+│   │   │   │   ├── index.ts          # Barrel export
+│   │   │   │   ├── ProjectWorkspace.tsx  # Main container
+│   │   │   │   ├── ProjectList.tsx       # Sidebar
+│   │   │   │   ├── DocumentsPanel.tsx    # Documents tab
+│   │   │   │   ├── ChatPanel.tsx         # Chat tab
+│   │   │   │   ├── StatePanel.tsx        # State tab
+│   │   │   │   └── ProposalPanel.tsx     # Proposal tab
+│   │   │   └── kb/              # Knowledge base feature
+│   │   │       ├── index.ts          # Barrel export
+│   │   │       ├── KBWorkspace.tsx   # Main container
+│   │   │       ├── KBHeader.tsx      # Header component
+│   │   │       ├── KBLoadingScreen.tsx
+│   │   │       ├── KBStatusNotReady.tsx
+│   │   │       ├── KBQueryForm.tsx
+│   │   │       └── KBQueryResults.tsx
+│   │   ├── hooks/               # Custom React hooks
+│   │   │   ├── useProjectWorkspace.ts  # Projects orchestration
+│   │   │   ├── useProjects.ts          # Project CRUD
+│   │   │   ├── useProjectState.ts      # State management
+│   │   │   ├── useChat.ts              # Chat logic
+│   │   │   ├── useProposal.ts          # Proposal generation
+│   │   │   ├── useKBWorkspace.ts       # KB orchestration
+│   │   │   ├── useKBHealth.ts          # KB health checks
+│   │   │   └── useKBQuery.ts           # KB query logic
+│   │   └── services/            # API layer
+│   │       └── apiService.ts    # Centralized API calls
 │   ├── package.json
-│   ├── vite.config.ts
-│   └── tsconfig.json
-├── scripts/
-│   ├── ingest/
-│   │   ├── waf_phase1.py     # Phase 1: Crawl & clean orchestration
-│   │   └── waf_phase2.py     # Phase 2: Index & embed orchestration
-│   ├── utils/
-│   │   └── approve_documents.py   # Auto-approve manifest docs
-│   └── run-python-service.ps1     # PowerShell script to start Python service
-├── data/
-│   ├── projects.db           # SQLite database (auto-created)
-│   └── knowledge_bases/
-│       ├── config.json       # Knowledge base registry
-│       └── waf/
-│           ├── urls.txt      # Crawled URLs (~275)
-│           ├── documents/    # Cleaned markdown files
-│           ├── manifest.json # Document validation manifest
-│           └── index/        # Vector index (~60MB)
-├── docs/
-│   ├── guides/               # Implementation documentation
-│   │   └── WAF_GUIDE.md     # Comprehensive WAF system guide
-│   ├── RAG-ARCHITECTURE.md   # NEW: Multi-source RAG architecture
-│   ├── ARCHITECTURE.md       # System architecture overview
-│   ├── QUICKSTART.md         # Quick start guide
-│   └── REFACTORING_COMPLETE.md  # Refactoring summary
-├── .venv/                    # Python virtual environment
-├── .env                      # Shared environment variables (root)
-├── .env.example              # Environment template
-├── package.json              # Workspace configuration & scripts
-└── README.md
+│   ├── vite.config.ts           # Vite configuration
+│   └── tsconfig.json            # TypeScript config
+│
+├── data/                         # Application data
+│   ├── projects.db              # SQLite database (auto-created)
+│   └── knowledge_bases/         # KB storage
+│       ├── config.json          # KB registry
+│       └── waf/                 # WAF knowledge base
+│           ├── documents/       # Source documents
+│           └── index/           # Vector index (~60MB)
+│
+├── archive/                      # Historical reference files
+│   └── migrations/              # v3.0 → v4.0 migration scripts
+│       ├── README.md            # Migration documentation
+│       ├── migrate_data.py      # Data migration script
+│       ├── check_schema.py      # Schema verification
+│       └── verify_migrated_data.py  # Data validation
+│
+├── docs/                         # Documentation
+│   ├── ARCHITECTURE.md          # System architecture
+│   ├── REFACTORING_SUMMARY.md   # v4.0 refactoring
+│   └── COMPONENTS_STRUCTURE.md  # Frontend organization
+│
+├── .env                          # Environment variables
+├── .env.example                 # Environment template
+├── package.json                 # Workspace scripts
+└── README.md                    # This file
 ```
 
-## Quick Reference
+## Quick Start
 
-### New RAG Service Usage
+1. **Install dependencies**
+   ```powershell
+   # Python backend
+   python -m venv .venv
+   .venv\Scripts\activate
+   pip install -r backend/requirements.txt
+   
+   # Frontend
+   cd frontend
+   npm install
+   cd ..
+   ```
 
-**TypeScript (Recommended)**
-```typescript
-import { ragService } from "./services/RAGService.js";
+2. **Configure environment**
+   ```powershell
+   # Create .env in project root
+   OPENAI_API_KEY=your-key-here
+   OPENAI_MODEL=gpt-4o-mini
+   ```
 
-// Chat context (fast)
-const chatResult = await ragService.queryForChat("What is Azure reliability?");
+3. **Start services**
+   ```powershell
+   # Terminal 1 - Python backend
+   cd backend
+   python -m uvicorn app.main:app --reload --port 8000
+   
+   # Terminal 2 - Frontend
+   cd frontend
+   npm run dev
+   ```
 
-// Proposal context (comprehensive)
-const proposalResult = await ragService.queryForProposal([
-  "What are security best practices?",
-  "What are reliability patterns?"
-]);
-```
+4. **Access application**
+   - Open http://localhost:5173
+   - Create a project and start building!
 
-**Python Endpoints**
-```bash
-# Chat profile (fast, 3 results/KB)
-curl -X POST http://localhost:8000/query/chat \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is reliability?", "profile": "chat"}'
+## Documentation
 
-# List knowledge bases
-curl http://localhost:8000/kb/list
-```
+- **[Architecture Overview](docs/ARCHITECTURE.md)** - System design and patterns
+- **[Refactoring Summary](docs/REFACTORING_SUMMARY.md)** - v4.0 changes
+- **[Component Structure](frontend/COMPONENTS_STRUCTURE.md)** - Frontend organization
 
-### Documentation
+## Contributing
 
-- **[RAG Architecture](docs/RAG-ARCHITECTURE.md)** - Multi-source RAG guide (NEW)
-- **[WAF Guide](docs/guides/WAF_GUIDE.md)** - Legacy WAF documentation
-- **[Architecture Overview](docs/ARCHITECTURE.md)** - System design
+This is a proof-of-concept project. Contributions, ideas, and feedback are welcome!
 
 ## License
 
