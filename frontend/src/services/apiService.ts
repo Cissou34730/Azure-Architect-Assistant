@@ -1,9 +1,10 @@
 /**
  * API Service - Centralized API calls
- * Handles all HTTP communication with backend
+ * Now points directly to Python backend (port 8000)
  */
 
-const API_BASE = "/api";
+// Point to Python backend directly (no TypeScript proxy layer)
+const API_BASE = "http://localhost:8000/api";
 
 export interface Project {
   id: string;
@@ -60,6 +61,59 @@ export interface KBSource {
   kb_id?: string;
   kb_name?: string;
 }
+
+export interface KBQueryResponse {
+  answer: string;
+  sources: KBSource[];
+  hasResults: boolean;
+  suggestedFollowUps?: string[];
+}
+
+export interface KBHealthInfo {
+  kb_id: string;
+  kb_name: string;
+  status: string;
+  index_ready: boolean;
+  error?: string;
+}
+
+export interface KBHealthResponse {
+  overall_status: string;
+  knowledge_bases: KBHealthInfo[];
+}
+
+/**
+ * Knowledge Base API
+ */
+export const kbApi = {
+  async checkHealth(): Promise<KBHealthResponse> {
+    const response = await fetch(`${API_BASE}/kb/health`);
+    if (!response.ok) {
+      throw new Error(`KB health check failed: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  async query(
+    question: string,
+    topKPerKB: number = 3
+  ): Promise<KBQueryResponse> {
+    const response = await fetch(`${API_BASE}/query/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question,
+        topKPerKB,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to query knowledge bases");
+    }
+
+    return response.json();
+  },
+};
 
 /**
  * Project API

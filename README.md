@@ -1,5 +1,7 @@
 # Azure Architecture Assistant - POC
 
+**SIMPLIFIED ARCHITECTURE (v3.0)** - Unified Python Backend
+
 This is a proof-of-concept application that helps Azure Solution Architects analyze project documents, clarify requirements through interactive chat, generate high-level Azure architecture proposals, and query the Azure Well-Architected Framework (WAF) documentation.
 
 ## Features
@@ -13,7 +15,7 @@ This is a proof-of-concept application that helps Azure Solution Architects anal
 6. **Architecture Proposal with KB Guidance**: Generate comprehensive Azure architecture proposals grounded in knowledge base documentation with cited sources
 7. **Real-Time Progress Updates**: Server-Sent Events (SSE) provide live progress tracking during proposal generation
 
-### Multi-Source RAG System (NEW)
+### Multi-Source RAG System
 8. **Profile-Based Querying**: Automatic query optimization based on context (chat vs proposal)
 9. **Multiple Knowledge Bases**: Support for WAF, Azure Services, and custom documentation sources
 10. **Parallel Multi-KB Queries**: Query multiple knowledge bases simultaneously for comprehensive results
@@ -24,38 +26,42 @@ This is a proof-of-concept application that helps Azure Solution Architects anal
     - **CHAT**: Fast, targeted (3 results/KB) for interactive conversations
     - **PROPOSAL**: Comprehensive (5 results/KB) for architecture proposals
 
-### Legacy WAF Support
-15. **Standalone WAF Query**: Dedicated interface to query Azure Well-Architected Framework documentation
+### Standalone KB Query
+15. **Knowledge Base Query Tab**: Dedicated interface to query multiple knowledge bases directly
 16. **Two-Phase Ingestion Pipeline**: Separate crawling/cleaning and indexing phases with document validation workflow
 17. **Source Citations**: All responses include clickable links to Microsoft Learn documentation
 
 ## Architecture
 
-### Microservices Architecture
+### **Simplified Single-Backend Architecture (NEW in v3.0)**
 
-- **Express Backend** (TypeScript): Main API gateway on port 3000
-  - REST API endpoints for projects, documents, chat
-  - OpenAI integration for document analysis and proposal generation
-  - HTTP client for Python RAG service
-  - KB management endpoints (`/kb/list`, `/kb/health`)
-  
-- **Python FastAPI Service**: Multi-source RAG service on port 8000
-  - **Startup Preloading**: Indices load into memory at startup for instant first queries
-  - Profile-based query endpoints (`/query/chat`, `/query/proposal`)
-  - KB management endpoints (`/kb/list`, `/kb/health`)
-  - LlamaIndex 0.12.x for vector search and RAG
-  - Singleton service pattern with in-memory index caching
-  - Parallel multi-KB query support
-  - **Routers**: Clean separation (query, kb, ingest)
+**Migration Complete**: Consolidated from TypeScript + Python split to unified Python backend for simplicity and maintainability.
+
+```
+Frontend (React + Vite) → Python Backend (FastAPI) → LlamaIndex + OpenAI
+       Port 5173            Port 8000
+```
+
+#### Components:
+
+- **Python FastAPI Backend** (Single Server): Port 8000
+  - **Project Management**: SQLAlchemy + async SQLite for project CRUD
+  - **Document Analysis**: OpenAI GPT-4o-mini for requirements extraction
+  - **Chat Orchestration**: Context-aware chat with automatic KB integration
+  - **Proposal Generation**: Multi-step architecture proposal with SSE progress
+  - **Multi-KB RAG**: LlamaIndex 0.12.x for semantic search across knowledge bases
+  - **Startup Preloading**: Indices load into RAM at startup for instant queries
   
 - **Frontend**: React + Vite with Tailwind CSS on port 5173
-  - **Refactored Components**: ProjectList, ChatPanel, StatePanel, ProposalPanel, DocumentsPanel
+  - **Components**: ProjectList, ChatPanel, StatePanel, ProposalPanel, DocumentsPanel, KnowledgeBaseQuery
   - **Custom Hooks**: useProjects, useProjectState, useChat, useProposal
-  - **API Service Layer**: Centralized HTTP client
+  - **API Service**: Direct calls to Python backend (`http://localhost:8000/api`)
   
-- **Storage**: SQLite database with automatic persistence (`data/projects.db`)
+- **Storage**: 
+  - SQLite database: `data/projects.db` (project data, conversations, state)
+  - Vector indices: `data/knowledge_bases/*/index/` (LlamaIndex)
 
-### New Service Architecture (TypeScript)
+### Service Architecture
 
 ```
 Frontend (React)
@@ -64,40 +70,53 @@ Frontend (React)
     │   ├── ChatPanel.tsx
     │   ├── StatePanel.tsx
     │   ├── ProposalPanel.tsx
-    │   └── DocumentsPanel.tsx
+    │   ├── DocumentsPanel.tsx
+    │   └── KnowledgeBaseQuery.tsx
     ├── Hooks (State Management)
     │   ├── useProjects.ts
     │   ├── useProjectState.ts
     │   ├── useChat.ts
     │   └── useProposal.ts
     └── Services (API Layer)
-        └── apiService.ts
+        └── apiService.ts → http://localhost:8000/api
              ↓
-Express Backend (TypeScript)
-    ├── Routes: projects.ts
-    ├── Services
-    │   ├── LLMService (Orchestration)
-    │   ├── RAGService (High-level RAG)
-    │   └── KBService (HTTP Client)
-    ↓
-Python FastAPI Service
-    ├── @startup event → Preloads services
+Python FastAPI Backend (Port 8000)
+    ├── @startup event → Init DB + Preload RAG
+    ├── Database Layer
+    │   ├── database.py (SQLAlchemy + async SQLite)
+    │   └── models/project.py (ORM models)
     ├── Routers
-    │   ├── query.py (chat, proposal, legacy)
-    │   ├── kb.py (list, health)
-    │   └── ingest.py (phase1, phase2)
-    ├── Services (services.py)
-    │   ├── get_query_service() → WAFQueryService
-    │   ├── get_kb_manager() → KBManager
-    │   └── get_multi_query_service() → MultiSourceQueryService
+    │   ├── projects.py (Project workflow endpoints)
+    │   ├── query.py (KB query: chat, proposal)
+    │   ├── kb.py (KB management: list, health)
+    │   └── ingest.py (KB ingestion pipelines)
+    ├── Services
+    │   ├── llm_service.py (Document analysis, chat, proposals)
+    │   └── services.py (RAG service singletons)
     └── RAG Modules
-        ├── kb_query.py → KnowledgeBaseQueryService (Generic)
-        └── kb/ → Multi-source management
+        ├── kb/ (Multi-KB management)
+        │   ├── manager.py → KBManager
+        │   ├── service.py → KnowledgeBaseService
+        │   └── multi_query.py → MultiSourceQueryService
+        └── rag/kb_query.py → Base query service
              ↓
-LlamaIndex + OpenAI
+LlamaIndex + OpenAI (Embeddings + LLM)
 ```
 
-### Legacy Support
+### Migration Benefits
+
+**Before (v2.0)**: TypeScript Backend (port 3000) + Python Backend (port 8000)
+- ❌ Two servers to run and monitor
+- ❌ Proxy layer adds latency and complexity
+- ❌ Duplicate error handling and logging
+- ❌ More deployment complexity
+
+**After (v3.0)**: Python Backend Only (port 8000)
+- ✅ One server to run (`uvicorn app.main:app --reload --port 8000`)
+- ✅ Direct Python-to-LlamaIndex integration (no HTTP overhead)
+- ✅ Simpler deployment (Python + React build)
+- ✅ SQLAlchemy provides type safety like TypeScript
+- ✅ Python is the natural fit for LLM/AI workflows
 - `WAFService.ts` functionality migrated to `KBService.ts`
 - Backward compatibility via export alias: `wafService = kbService`
 - Old `/query` endpoint redirects to `/query/chat`
@@ -137,97 +156,78 @@ LlamaIndex + OpenAI
 
 ## Prerequisites
 
-- Node.js 18+ and npm
-- Python 3.10+ (for WAF functionality)
-- OpenAI API key or Azure OpenAI credentials
+- **Python 3.10+** (for unified backend)
+- **Node.js 18+** and npm (for frontend only)
+- **OpenAI API key** or Azure OpenAI credentials
 
 ## Setup
 
 ### 1. Clone and Install Dependencies
 
 ```bash
-# Install all dependencies (backend + frontend + Python)
-npm run install:all
+# Install Python dependencies in virtual environment
+python -m venv .venv
+.venv\Scripts\Activate.ps1  # Windows
+# source .venv/bin/activate  # Linux/Mac
 
-# OR install individually
-
-# Install workspace dependencies
-npm install
-
-# Install backend dependencies
-cd backend
-npm install
+cd python-service
+pip install -r requirements.txt
+cd ..
 
 # Install frontend dependencies
 cd frontend
 npm install
-
-# Install Python dependencies in virtual environment
 cd ..
-python -m venv .venv
-.venv\Scripts\Activate.ps1  # Windows
-# source .venv/bin/activate  # Linux/Mac
-cd python-service
-pip install -r requirements.txt
 ```
 
 ### 2. Configure Environment Variables
 
-Create a `.env` file in the **project root** (shared by all services):
+Create a `.env` file in the **project root**:
 
 ```bash
 # OpenAI Configuration
 OPENAI_API_KEY=your-openai-api-key
 OPENAI_MODEL=gpt-4o-mini
 
-# Service Ports
-EXPRESS_PORT=3000
+# Service Port
 PYTHON_PORT=8000
-PYTHON_SERVICE_URL=http://localhost:8000
 
 # Logging
 LOG_LEVEL=info
 
 # OR for Azure OpenAI
 AZURE_OPENAI_API_KEY=your-azure-openai-key
-OPENAI_API_ENDPOINT=https://your-resource.openai.azure.com/openai/deployments/your-deployment/chat/completions?api-version=2024-02-15-preview
+OPENAI_API_ENDPOINT=https://your-resource.openai.azure.com/
 ```
 
 ### 3. Run the Application
 
-**Option 1 - Run All Services (Recommended):**
+**Option 1 - Development Mode (Recommended):**
 
 ```bash
+# Terminal 1 - Start Python backend
+cd python-service
+python -m uvicorn app.main:app --reload --port 8000
+
+# Terminal 2 - Start React frontend
+cd frontend
 npm run dev
 ```
 
-This starts all three services concurrently:
-- Python FastAPI service on `http://localhost:8000`
-- Express backend on `http://localhost:3000`
-- React frontend on `http://localhost:5173`
+- Python backend runs on `http://localhost:8000`
+- React frontend runs on `http://localhost:5173`
 
-**Option 2 - Run Services Individually:**
-
-**Terminal 1 - Python Service:**
+**Option 2 - Single Terminal (Background Mode):**
 
 ```bash
-npm run dev:python
-```
+# Start Python backend in background
+cd python-service
+python -m uvicorn app.main:app --reload --port 8000 &
 
-Python FastAPI service runs on `http://localhost:8000`
-
-**Terminal 2 - Express Backend:**
-
-```bash
-npm run dev:backend
-# OR
-cd backend
+# Start frontend
+cd frontend
 npm run dev
 ```
-
-Backend runs on `http://localhost:3000`
-
-**Terminal 3 - React Frontend:**
 
 ```bash
 npm run dev:frontend

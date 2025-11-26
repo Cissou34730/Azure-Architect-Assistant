@@ -1,6 +1,7 @@
 """
-FastAPI Backend for RAG (LlamaIndex + OpenAI)
-Provides multi-source knowledge base query and ingestion endpoints with profile-based selection.
+FastAPI Backend - Full Application Server
+Provides multi-source KB query, project management, and architecture workflow.
+Migrated from split TypeScript/Python architecture to unified Python backend.
 """
 
 from fastapi import FastAPI
@@ -12,9 +13,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Import routers
-from app.routers import query, kb, ingest
+from app.routers import query, kb, ingest, projects
+from app.database import init_database, close_database
 
-# Load environment variables from root .env (shared with Express backend)
+# Load environment variables from root .env
 root_dir = Path(__file__).parent.parent.parent
 env_path = root_dir / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -30,9 +32,9 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Azure Architect Assistant - RAG Service",
-    description="Multi-source RAG service for architecture guidance using LlamaIndex",
-    version="2.0.0"
+    title="Azure Architect Assistant - Full Stack Backend",
+    description="Unified Python backend for project management, RAG queries, and architecture generation",
+    version="3.0.0"
 )
 
 # Configure CORS
@@ -45,18 +47,23 @@ app.add_middleware(
 )
 
 
-# Startup event - preload services and indices
+# Startup event - preload services and initialize database
 @app.on_event("startup")
 async def startup_event():
     """
-    Preload services and indices at startup for fast first queries.
-    This ensures that LlamaIndex loads into memory before any API requests.
+    Initialize database and preload services/indices at startup.
+    This ensures fast first queries and proper database setup.
     """
     logger.info("=" * 60)
-    logger.info("STARTUP: Preloading services and indices...")
+    logger.info("STARTUP: Initializing database and preloading services...")
     logger.info("=" * 60)
     
     try:
+        # Initialize database
+        logger.info("Initializing database...")
+        await init_database()
+        logger.info("✓ Database initialized")
+        
         from app.services import get_query_service, get_kb_manager, get_multi_query_service
         
         # Preload WAF query service (loads index into memory)
@@ -75,18 +82,27 @@ async def startup_event():
         logger.info("✓ Multi-Source Query Service ready")
         
         logger.info("=" * 60)
-        logger.info("STARTUP COMPLETE: All services preloaded and ready!")
+        logger.info("STARTUP COMPLETE: Database and services ready!")
         logger.info("=" * 60)
         
     except Exception as e:
-        logger.error(f"Error during startup preload: {e}")
-        logger.warning("Services will be lazy-loaded on first request")
+        logger.error(f"Error during startup: {e}")
+        logger.warning("Some services may be lazy-loaded on first request")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    logger.info("Shutting down...")
+    await close_database()
+    logger.info("Shutdown complete")
 
 
 # Include routers
-app.include_router(query.router)
-app.include_router(kb.router)
-app.include_router(ingest.router)
+app.include_router(projects.router)  # Project management endpoints
+app.include_router(query.router)     # KB query endpoints
+app.include_router(kb.router)        # KB health/list endpoints
+app.include_router(ingest.router)    # KB ingestion endpoints
 
 
 # Health check
@@ -101,8 +117,8 @@ async def health_check():
     """Service health check endpoint."""
     return HealthResponse(
         status="healthy",
-        service="Azure Architect Assistant - RAG Service",
-        version="2.0.0"
+        service="Azure Architect Assistant - Full Stack Backend",
+        version="3.0.0"
     )
 
 

@@ -17,7 +17,7 @@ from app.services import invalidate_query_service
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/ingest", tags=["ingestion"])
+router = APIRouter(prefix="/api/ingest", tags=["ingestion"])
 
 
 # Response Model

@@ -34,20 +34,27 @@ class KnowledgeBaseService:
         self.kb_name = kb_config.name
         self.storage_dir = kb_config.index_path
         self.similarity_threshold = similarity_threshold
-        
-        # Configure LlamaIndex settings for this KB
-        Settings.embed_model = OpenAIEmbedding(model=kb_config.embedding_model)
-        Settings.llm = OpenAI(
-            model=kb_config.generation_model,
-            temperature=0.1,
-            max_tokens=1000,
-            timeout=90.0
-        )
+        self._settings_configured = False
         
         logger.info(f"[{self.kb_id}] Service initialized - Storage: {self.storage_dir}")
     
+    def _ensure_settings(self):
+        """Lazy configuration of LlamaIndex settings."""
+        if not self._settings_configured:
+            # Configure LlamaIndex settings for this KB
+            Settings.embed_model = OpenAIEmbedding(model=self.kb_config.embedding_model)
+            Settings.llm = OpenAI(
+                model=self.kb_config.generation_model,
+                temperature=0.1,
+                max_tokens=1000,
+                timeout=90.0
+            )
+            self._settings_configured = True
+    
     def _load_index(self) -> VectorStoreIndex:
         """Load index from storage with global caching."""
+        self._ensure_settings()  # Configure settings before loading index
+        
         cache_key = self.storage_dir
         
         if cache_key in _INDEX_CACHE:

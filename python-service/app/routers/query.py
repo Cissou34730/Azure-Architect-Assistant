@@ -13,7 +13,7 @@ from app.kb import QueryProfile
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/query", tags=["query"])
+router = APIRouter(prefix="/api/query", tags=["query"])
 
 
 # Request/Response Models

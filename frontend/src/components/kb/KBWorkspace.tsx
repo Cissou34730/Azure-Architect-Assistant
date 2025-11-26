@@ -1,16 +1,25 @@
-import { useKBHealth } from './hooks/useKBHealth'
-import { useKBQuery } from './hooks/useKBQuery'
 import { 
   KBLoadingScreen, 
   KBStatusNotReady, 
   KBHeader, 
   KBQueryForm, 
   KBQueryResults 
-} from './components/kb'
+} from '.'
+import { useKBWorkspace } from '../../hooks/useKBWorkspace'
 
-export function KnowledgeBaseQuery() {
-  const { healthStatus, isReady, isChecking, refreshHealth } = useKBHealth()
-  const { question, setQuestion, response, isLoading, submitQuery, askFollowUp } = useKBQuery()
+export function KBWorkspace() {
+  const {
+    healthStatus,
+    isReady,
+    isChecking,
+    refreshHealth,
+    question,
+    setQuestion,
+    response,
+    isLoading,
+    submitQuery,
+    askFollowUp,
+  } = useKBWorkspace()
 
   if (isChecking) {
     return <KBLoadingScreen />

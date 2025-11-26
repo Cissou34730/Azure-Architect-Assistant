@@ -12,7 +12,7 @@ from app.services import get_kb_manager, get_multi_query_service
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/kb", tags=["knowledge-bases"])
+router = APIRouter(prefix="/api/kb", tags=["knowledge-bases"])
 
 
 # Response Models
@@ -77,8 +77,11 @@ async def check_kb_health():
     Returns per-KB status including index readiness.
     """
     try:
+        logger.info("Starting KB health check...")
         service = get_multi_query_service()
+        logger.info("Got multi_query_service, calling get_kb_health()...")
         health_dict = service.get_kb_health()
+        logger.info(f"Got health_dict: {health_dict}")
         
         # Convert dict to list format
         kb_health = []
