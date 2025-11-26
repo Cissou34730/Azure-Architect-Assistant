@@ -17,11 +17,14 @@ A proof-of-concept application that helps Azure Solution Architects analyze proj
 
 ### Multi-Source Knowledge Base System
 8. **Multiple Knowledge Bases**: WAF (Well-Architected Framework), Azure Services, and custom sources
-9. **Parallel Querying**: Query multiple KBs simultaneously for comprehensive results
-10. **Source Attribution**: All results tagged with source KB and relevance scores
-11. **Health Monitoring**: KB status checks and readiness indicators
-12. **Vector Search**: Fast semantic search using OpenAI embeddings with preloaded indices
-13. **Dedicated KB Interface**: Standalone query interface with status monitoring
+9. **KB Management UI**: Create, configure, and manage knowledge bases with wizard interface
+10. **Real-Time Ingestion**: Live progress tracking with phase-by-phase updates (crawling, indexing, embedding)
+11. **Flexible Sources**: Support for web crawling (URLs, sitemaps) and local files
+12. **Parallel Querying**: Query multiple KBs simultaneously for comprehensive results
+13. **Source Attribution**: All results tagged with source KB and relevance scores
+14. **Health Monitoring**: KB status checks and readiness indicators
+15. **Vector Search**: Fast semantic search using OpenAI embeddings with preloaded indices
+16. **KB Operations**: Delete, cancel ingestion, and manage KB lifecycle
 
 ### Modern React Architecture
 14. **Component Organization**: Feature-based structure (common/, projects/, kb/)
@@ -87,7 +90,21 @@ App.tsx (Composition Root)
 │       ├── ChatPanel
 │       ├── StatePanel
 │       └── ProposalPanel
-└── KBWorkspace (Knowledge Base Feature)
+├── KBIngestionWorkspace (KB Management Feature)
+│   ├── useKBIngestion (Orchestration Hook)
+│   │   ├── useKBList (KB list & polling)
+│   │   └── useKBStatus (Status monitoring)
+│   └── UI Components
+│       ├── KBList (KB list with status)
+│       ├── KBListItem (Individual KB card)
+│       ├── CreateKBWizard (4-step wizard)
+│       │   ├── BasicInfoStep
+│       │   ├── SourceTypeStep
+│       │   ├── ConfigurationStep
+│       │   └── ReviewStep
+│       ├── IngestionProgress (Real-time progress)
+│       └── KBDetail (Detail view)
+└── KBWorkspace (Knowledge Base Query Feature)
     ├── useKBWorkspace (Orchestration Hook)
     │   ├── useKBHealth (health monitoring)
     │   └── useKBQuery (query execution)
@@ -106,18 +123,26 @@ Python FastAPI Backend (Port 8000)
 ├── Startup Initialization
 │   ├── Initialize database (SQLAlchemy async)
 │   └── Preload KB indices (LlamaIndex)
-├── API Routers
-│   ├── /api/projects (Project CRUD)
-│   ├── /api/chat (Conversation handling)
-│   ├── /api/state (Architecture state)
-│   ├── /api/proposal (Proposal generation with SSE)
+├── API Routers (Modular)
+│   ├── /api/projects/* (Project management - modular)
+│   │   ├── models.py (Pydantic models)
+│   │   ├── operations.py (Business logic)
+│   │   └── router.py (FastAPI endpoints)
+│   ├── /api/ingestion/* (KB ingestion - modular)
+│   │   ├── models.py (Request/response models)
+│   │   ├── operations.py (Ingestion service)
+│   │   └── router.py (Ingestion endpoints)
 │   ├── /api/kb (KB health & management)
-│   ├── /api/query (KB queries)
-│   └── /api/ingest (Document ingestion)
+│   └── /api/query (KB queries)
 ├── Services Layer
+│   ├── ProjectService (CRUD, documents, chat, proposals)
+│   ├── KBIngestionService (Create, ingest, monitor)
 │   ├── LLMService (Document analysis, chat, proposals)
 │   ├── KnowledgeBaseService (Generic KB queries)
 │   └── MultiSourceQueryService (Multi-KB orchestration)
+├── Job Management
+│   ├── JobManager (Singleton ingestion orchestrator)
+│   └── IngestionJob (State machine: PENDING→RUNNING→COMPLETED)
 └── Data Layer
     ├── SQLAlchemy models (Project, Message, State)
     └── LlamaIndex (Vector indices, embeddings)
@@ -289,6 +314,32 @@ npm run dev:frontend
    - Watch real-time progress updates
    - Review comprehensive architecture document
 
+### Knowledge Base Management Tab
+
+1. **Create a Knowledge Base**
+   - Navigate to "KB Management" tab
+   - Click "Create New KB" button
+   - Follow 4-step wizard:
+     - **Basic Info**: Enter name, ID, description
+     - **Source Type**: Choose web (URLs/sitemap) or file upload
+     - **Configuration**: Add URLs or configure source
+     - **Review**: Confirm and create
+
+2. **Start Ingestion**
+   - Select your KB from the list
+   - Click "Start Ingestion" button
+   - Watch real-time progress:
+     - Crawling phase (fetching documents)
+     - Processing phase (cleaning, filtering)
+     - Indexing phase (chunking, embedding)
+     - Completed (ready for queries)
+
+3. **Manage Knowledge Bases**
+   - View all KBs with status indicators
+   - Cancel running jobs (Stop button)
+   - Delete KBs (three-dot menu → Delete)
+   - Monitor progress with phase timeline
+
 ### Knowledge Base Query Tab
 
 1. **Check KB Status**
@@ -312,46 +363,40 @@ npm run dev:frontend
 
 ## API Endpoints
 
-### Projects
+### Projects (Modular)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/projects` | List all projects |
 | POST | `/api/projects` | Create new project |
-| GET | `/api/projects/{id}` | Get project details |
-| PUT | `/api/projects/{id}` | Update project |
-| DELETE | `/api/projects/{id}` | Delete project |
-
-### Documents & Analysis
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/projects/{id}/documents` | Upload documents |
-| POST | `/api/projects/{id}/text-requirements` | Save text requirements |
-| POST | `/api/projects/{id}/analyze` | Analyze documents and extract state |
-
-### Chat & State
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/projects/{id}/messages` | Get conversation history |
+| PUT | `/api/projects/{id}/requirements` | Update project requirements |
+| POST | `/api/projects/{id}/documents` | Upload & extract documents |
+| POST | `/api/projects/{id}/analyze-docs` | Analyze documents & extract state |
 | POST | `/api/projects/{id}/chat` | Send chat message |
 | GET | `/api/projects/{id}/state` | Get architecture state |
+| GET | `/api/projects/{id}/messages` | Get conversation history |
+| GET | `/api/projects/{id}/architecture/proposal` | Generate proposal (SSE) |
 
-### Proposals
+### KB Ingestion (Modular)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/projects/{id}/proposal/stream` | Generate proposal with SSE progress |
+| POST | `/api/ingestion/kb/create` | Create new knowledge base |
+| GET | `/api/ingestion/kb/list` | List all knowledge bases |
+| GET | `/api/ingestion/kb/{id}` | Get KB details |
+| DELETE | `/api/ingestion/kb/{id}` | Delete knowledge base |
+| POST | `/api/ingestion/kb/{id}/start` | Start ingestion job |
+| GET | `/api/ingestion/kb/{id}/status` | Get ingestion status |
+| POST | `/api/ingestion/kb/{id}/cancel` | Cancel ingestion job |
+| GET | `/api/ingestion/jobs` | List all jobs |
 
-### Knowledge Base
+### Knowledge Base Query
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/kb/health` | Check KB health status |
 | GET | `/api/kb/list` | List available knowledge bases |
 | POST | `/api/query/chat` | Query KBs (returns answer + sources) |
-| POST | `/api/ingest/start` | Start KB ingestion (if supported) |
 
 #### KB Query Request
 
@@ -574,25 +619,31 @@ Azure-Architect-Assistant/
 │   ├── app/
 │   │   ├── main.py              # FastAPI application entry
 │   │   ├── database.py          # SQLAlchemy async setup
-│   │   ├── db/
-│   │   │   └── index.ts         # Database utilities
-│   │   ├── models/              # SQLAlchemy ORM models
-│   │   │   ├── Project.ts       # Project model
-│   │   │   ├── Message.ts       # Message model
-│   │   │   └── State.ts         # State model
-│   │   ├── routers/             # API route handlers
-│   │   │   ├── projects.py      # Project CRUD
-│   │   │   ├── chat.py          # Chat endpoints
-│   │   │   ├── kb.py            # KB health & management
-│   │   │   ├── query.py         # KB query endpoints
-│   │   │   └── ingest.py        # Ingestion endpoints
+│   │   ├── routers/             # Modular API routers
+│   │   │   ├── project_management/   # Project module
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── models.py        # Pydantic models
+│   │   │   │   ├── operations.py    # ProjectService
+│   │   │   │   └── router.py        # FastAPI endpoints
+│   │   │   ├── kb_ingestion/        # KB ingestion module
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── models.py        # Request/response models
+│   │   │   │   ├── operations.py    # KBIngestionService
+│   │   │   │   └── router.py        # Ingestion endpoints
+│   │   │   ├── kb.py            # KB health endpoints
+│   │   │   └── query.py         # KB query endpoints
 │   │   ├── services/            # Business logic
-│   │   │   └── llm_service.py   # LLM operations
+│   │   │   ├── llm_service.py   # LLM operations
+│   │   │   └── storage_service.py  # Document storage
 │   │   ├── kb/                  # Knowledge base system
-│   │   │   ├── manager.py       # KB configuration
+│   │   │   ├── manager.py       # KB configuration & jobs
 │   │   │   ├── service.py       # KB query service
 │   │   │   └── multi_query.py   # Multi-KB orchestration
-│   │   └── rag/                 # Legacy RAG modules
+│   │   ├── ingestion/           # Ingestion pipeline
+│   │   │   ├── crawlers.py      # Web crawling
+│   │   │   ├── processors.py    # Document processing
+│   │   │   └── indexers.py      # Vector indexing
+│   │   └── models/              # SQLAlchemy ORM models
 │   └── requirements.txt         # Python dependencies
 │
 ├── frontend/                     # React Frontend (Port 5173)
@@ -613,7 +664,23 @@ Azure-Architect-Assistant/
 │   │   │   │   ├── ChatPanel.tsx         # Chat tab
 │   │   │   │   ├── StatePanel.tsx        # State tab
 │   │   │   │   └── ProposalPanel.tsx     # Proposal tab
-│   │   │   └── kb/              # Knowledge base feature
+│   │   │   ├── ingestion/       # KB management feature
+│   │   │   │   ├── index.ts          # Barrel export
+│   │   │   │   ├── KBIngestionWorkspace.tsx  # Main container
+│   │   │   │   ├── KBList.tsx            # KB list
+│   │   │   │   ├── KBListItem.tsx        # KB card with actions
+│   │   │   │   ├── CreateKBWizard.tsx    # Creation wizard
+│   │   │   │   ├── wizard/               # Wizard steps
+│   │   │   │   │   ├── BasicInfoStep.tsx
+│   │   │   │   │   ├── SourceTypeStep.tsx
+│   │   │   │   │   ├── ConfigurationStep.tsx
+│   │   │   │   │   ├── ReviewStep.tsx
+│   │   │   │   │   ├── StepIndicator.tsx
+│   │   │   │   │   ├── ArrayInput.tsx
+│   │   │   │   │   └── useKBWizardForm.ts
+│   │   │   │   ├── IngestionProgress.tsx # Real-time progress
+│   │   │   │   └── KBDetail.tsx          # Detail view
+│   │   │   └── kb/              # Knowledge base query
 │   │   │       ├── index.ts          # Barrel export
 │   │   │       ├── KBWorkspace.tsx   # Main container
 │   │   │       ├── KBHeader.tsx      # Header component
@@ -627,11 +694,17 @@ Azure-Architect-Assistant/
 │   │   │   ├── useProjectState.ts      # State management
 │   │   │   ├── useChat.ts              # Chat logic
 │   │   │   ├── useProposal.ts          # Proposal generation
-│   │   │   ├── useKBWorkspace.ts       # KB orchestration
+│   │   │   ├── useKBIngestion.ts       # KB ingestion orchestration
+│   │   │   ├── useKBList.ts            # KB list with polling
+│   │   │   ├── useKBStatus.ts          # KB status monitoring
+│   │   │   ├── useKBWorkspace.ts       # KB query orchestration
 │   │   │   ├── useKBHealth.ts          # KB health checks
 │   │   │   └── useKBQuery.ts           # KB query logic
 │   │   └── services/            # API layer
-│   │       └── apiService.ts    # Centralized API calls
+│   │       ├── apiService.ts    # Centralized API calls
+│   │       ├── ingestionApi.ts  # KB ingestion API
+│   │       ├── projectApi.ts    # Project API
+│   │       └── kbApi.ts         # KB query API
 │   ├── package.json
 │   ├── vite.config.ts           # Vite configuration
 │   └── tsconfig.json            # TypeScript config
