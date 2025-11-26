@@ -6,7 +6,7 @@ export function useKBQuery() {
   const [response, setResponse] = useState<KBQueryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const submitQuery = async (e?: React.FormEvent) => {
+  const submitQuery = async (e?: React.FormEvent, kbIds?: string[]) => {
     if (e) e.preventDefault();
     if (!question.trim()) return;
 
@@ -14,7 +14,16 @@ export function useKBQuery() {
     setResponse(null);
 
     try {
-      const data = await kbApi.query(question.trim(), 3);
+      let data: KBQueryResponse;
+      
+      if (kbIds && kbIds.length > 0) {
+        // Manual KB selection
+        data = await kbApi.queryKBs(question.trim(), kbIds, 5);
+      } else {
+        // Legacy query (fallback)
+        data = await kbApi.query(question.trim(), 3);
+      }
+      
       setResponse(data);
     } catch (error) {
       console.error("Error querying knowledge bases:", error);

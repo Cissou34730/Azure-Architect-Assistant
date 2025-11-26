@@ -51,11 +51,11 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """
-    Initialize database and preload services/indices at startup.
-    This ensures fast first queries and proper database setup.
+    Initialize database and preload high-priority KB indices at startup.
+    Uses parallel loading for hot-preload KBs (priority <= 5).
     """
     logger.info("=" * 60)
-    logger.info("STARTUP: Initializing database and preloading services...")
+    logger.info("STARTUP: Initializing database and hot-preloading KBs...")
     logger.info("=" * 60)
     
     try:
@@ -64,25 +64,63 @@ async def startup_event():
         await init_database()
         logger.info("✓ Database initialized")
         
-        from app.services import get_query_service, get_kb_manager, get_multi_query_service
-        
-        # Preload WAF query service (loads index into memory)
-        logger.info("Preloading WAF Query Service...")
-        waf_service = get_query_service()
-        logger.info("✓ WAF Query Service ready")
+        from app.services import get_kb_manager, get_multi_query_service
+        from app.kb.service import KnowledgeBaseService
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
         
         # Preload KB manager
-        logger.info("Preloading KB Manager...")
+        logger.info("Loading KB Manager...")
         kb_mgr = get_kb_manager()
         logger.info(f"✓ KB Manager ready ({len(kb_mgr.list_kbs())} knowledge bases)")
         
-        # Preload multi-source query service
-        logger.info("Preloading Multi-Source Query Service...")
+        # Get high-priority KBs for hot preload (priority <= 5)
+        all_kbs = kb_mgr.get_active_kbs()
+        hot_preload_kbs = [kb for kb in all_kbs if kb.priority <= 5]
+        lazy_load_kbs = [kb for kb in all_kbs if kb.priority > 5]
+        
+        logger.info(f"Hot preload: {len(hot_preload_kbs)} KBs (priority <= 5)")
+        logger.info(f"Lazy load: {len(lazy_load_kbs)} KBs (priority > 5)")
+        
+        # Parallel preload high-priority KBs
+        if hot_preload_kbs:
+            logger.info(f"Preloading {len(hot_preload_kbs)} high-priority KBs in parallel...")
+            
+            def load_kb_index(kb_config):
+                """Load a single KB index (blocking operation)."""
+                try:
+                    logger.info(f"[{kb_config.id}] Loading index...")
+                    kb_service = KnowledgeBaseService(kb_config)
+                    # Trigger index load by calling _load_index
+                    kb_service._load_index()
+                    logger.info(f"✓ [{kb_config.id}] Index loaded ({kb_config.name})")
+                    return kb_config.id, True
+                except Exception as e:
+                    logger.error(f"✗ [{kb_config.id}] Failed to load: {e}")
+                    return kb_config.id, False
+            
+            # Use ThreadPoolExecutor for parallel I/O-bound loading
+            with ThreadPoolExecutor(max_workers=min(len(hot_preload_kbs), 5)) as executor:
+                loop = asyncio.get_event_loop()
+                tasks = [
+                    loop.run_in_executor(executor, load_kb_index, kb)
+                    for kb in hot_preload_kbs
+                ]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Log results
+                success_count = sum(1 for _, success in results if isinstance(success, bool) and success)
+                logger.info(f"✓ Preloaded {success_count}/{len(hot_preload_kbs)} high-priority KBs")
+        
+        # Initialize multi-source query service (will use cached indexes)
+        logger.info("Initializing Multi-Source Query Service...")
         multi_service = get_multi_query_service()
         logger.info("✓ Multi-Source Query Service ready")
         
         logger.info("=" * 60)
-        logger.info("STARTUP COMPLETE: Database and services ready!")
+        logger.info("STARTUP COMPLETE: Database and hot-preload KBs ready!")
+        if lazy_load_kbs:
+            logger.info(f"Note: {len(lazy_load_kbs)} KBs will be lazy-loaded on first use")
         logger.info("=" * 60)
         
     except Exception as e:

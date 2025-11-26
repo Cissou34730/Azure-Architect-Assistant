@@ -113,6 +113,28 @@ export const kbApi = {
 
     return response.json();
   },
+
+  async queryKBs(
+    question: string,
+    kbIds: string[],
+    topKPerKB: number = 5
+  ): Promise<KBQueryResponse> {
+    const response = await fetch(`${API_BASE}/query/kb-query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question,
+        kb_ids: kbIds,
+        topKPerKB,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to query selected knowledge bases");
+    }
+
+    return response.json();
+  },
 };
 
 /**

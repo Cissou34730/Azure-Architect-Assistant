@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useKBHealth } from "./useKBHealth";
 import { useKBQuery } from "./useKBQuery";
+import { useKBList } from "./useKBList";
 
 export function useKBWorkspace() {
   const healthHook = useKBHealth();
   const queryHook = useKBQuery();
+  const kbListHook = useKBList();
 
   // Optionally log actions here like in useProjectWorkspace
   useEffect(() => {
@@ -15,6 +17,11 @@ export function useKBWorkspace() {
       console.log(`[KB Workspace] ${readyCount} knowledge bases ready`);
     }
   }, [healthHook.healthStatus]);
+
+  // Handler for submitting query with selected KBs
+  const handleSubmitQuery = (e?: React.FormEvent) => {
+    queryHook.submitQuery(e, kbListHook.selectedKBs);
+  };
 
   return {
     // Health status
@@ -28,7 +35,13 @@ export function useKBWorkspace() {
     setQuestion: queryHook.setQuestion,
     response: queryHook.response,
     isLoading: queryHook.isLoading,
-    submitQuery: queryHook.submitQuery,
+    submitQuery: handleSubmitQuery,
     askFollowUp: queryHook.askFollowUp,
+
+    // KB selection
+    availableKBs: kbListHook.availableKBs,
+    selectedKBs: kbListHook.selectedKBs,
+    setSelectedKBs: kbListHook.setSelectedKBs,
+    isLoadingKBs: kbListHook.isLoadingKBs,
   };
 }

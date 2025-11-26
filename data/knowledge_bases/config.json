@@ -6,7 +6,7 @@
       "description": "Microsoft Azure Well-Architected Framework documentation covering reliability, security, cost optimization, operational excellence, and performance efficiency",
       "version": "1.0.0",
       "status": "active",
-      "profiles": ["chat", "proposal"],
+      "profiles": ["chat", "proposal", "kb-query"],
       "priority": 1,
       "storage_type": "file",
       "embedding_model": "text-embedding-3-small",

@@ -206,6 +206,24 @@ class MultiSourceQueryService:
         # Use chat profile strategy for specific queries
         return self._merge_results(all_results, question, QueryProfile.CHAT)
     
+    def query_kbs(
+        self,
+        question: str,
+        kb_ids: List[str],
+        top_k_per_kb: int = 5,
+        metadata_filters: Optional[Dict] = None
+    ) -> Dict:
+        """
+        Alias for query_specific_kbs with consistent naming.
+        Used by KB Query endpoint for manual KB selection.
+        """
+        return self.query_specific_kbs(
+            question=question,
+            kb_ids=kb_ids,
+            top_k=top_k_per_kb,
+            metadata_filters=metadata_filters
+        )
+    
     def get_kb_health(self) -> Dict:
         """Get health status of all KBs."""
         kbs = self.kb_manager.get_active_kbs()

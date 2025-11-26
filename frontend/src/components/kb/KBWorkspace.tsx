@@ -3,7 +3,8 @@ import {
   KBStatusNotReady, 
   KBHeader, 
   KBQueryForm, 
-  KBQueryResults 
+  KBQueryResults,
+  KBSelector
 } from '.'
 import { useKBWorkspace } from '../../hooks/useKBWorkspace'
 
@@ -19,6 +20,10 @@ export function KBWorkspace() {
     isLoading,
     submitQuery,
     askFollowUp,
+    availableKBs,
+    selectedKBs,
+    setSelectedKBs,
+    isLoadingKBs,
   } = useKBWorkspace()
 
   if (isChecking) {
@@ -32,6 +37,13 @@ export function KBWorkspace() {
   return (
     <div className="max-w-6xl mx-auto p-8">
       <KBHeader healthStatus={healthStatus} onRefresh={refreshHealth} />
+      
+      <KBSelector
+        availableKBs={availableKBs}
+        selectedKBs={selectedKBs}
+        onSelectionChange={setSelectedKBs}
+        disabled={isLoading || isLoadingKBs}
+      />
       
       <KBQueryForm
         question={question}
