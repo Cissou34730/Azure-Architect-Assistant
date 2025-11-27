@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 import logging
 import asyncio
 
-from app.kb.manager import KBManager
+from app.service_registry import get_kb_manager, invalidate_kb_manager
 from app.kb.ingestion.job_manager import get_job_manager, JobStatus
 from app.kb.service import clear_index_cache
 
@@ -37,6 +37,10 @@ async def create_kb(request: CreateKBRequest):
     try:
         service = get_ingestion_service()
         result = service.create_knowledge_base(request)
+        
+        # Invalidate KB manager cache to reload config
+        invalidate_kb_manager()
+        
         return CreateKBResponse(**result)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -49,7 +53,7 @@ async def create_kb(request: CreateKBRequest):
 async def list_kbs():
     """List all knowledge bases"""
     try:
-        kb_manager = KBManager()
+        kb_manager = get_kb_manager()
         kbs = kb_manager.list_kbs()
         return KBListResponse(knowledge_bases=kbs)
     except Exception as e:
@@ -69,7 +73,7 @@ async def delete_kb(kb_id: str):
     - Delete all KB data (index, documents, etc.)
     """
     try:
-        kb_manager = KBManager()
+        kb_manager = get_kb_manager()
         job_manager = get_job_manager()
         
         # Check if KB exists
@@ -98,6 +102,9 @@ async def delete_kb(kb_id: str):
         
         # Delete the KB
         kb_manager.delete_kb(kb_id)
+        
+        # Invalidate KB manager cache to reload config
+        invalidate_kb_manager()
         
         logger.info(f"Deleted KB: {kb_id}")
         
@@ -131,7 +138,7 @@ async def start_ingestion(kb_id: str, background_tasks: BackgroundTasks):
         job_manager = get_job_manager()
         job = job_manager.get_job(result['job_id'])
         
-        kb_manager = KBManager()
+        kb_manager = get_kb_manager()
         kb_config = kb_manager.get_kb_config(kb_id)
         
         # Start ingestion in background

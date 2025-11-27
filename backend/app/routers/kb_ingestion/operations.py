@@ -8,7 +8,7 @@ from typing import Dict, Any
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from app.kb.manager import KBManager
+from app.service_registry import get_kb_manager
 from app.kb.ingestion.job_manager import get_job_manager, IngestionJob, IngestionPhase
 from app.kb.ingestion.sources.web_documentation import WebDocumentationCrawler
 from app.kb.ingestion.sources.web_generic import GenericWebCrawler
@@ -25,7 +25,7 @@ class KBIngestionService:
     """Service layer for KB ingestion operations"""
     
     def __init__(self):
-        self.kb_manager = KBManager()
+        self.kb_manager = get_kb_manager()
         self.job_manager = get_job_manager()
     
     def create_knowledge_base(self, request: CreateKBRequest) -> Dict[str, str]:

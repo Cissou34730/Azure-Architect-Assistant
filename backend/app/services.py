@@ -83,17 +83,3 @@ def invalidate_query_service():
     global _waf_kb_service
     logger.info("Invalidating WAF KB service cache")
     _waf_kb_service = None
-
-
-def invalidate_kb_manager():
-    """
-    Invalidate cached KB manager to reload configuration.
-    Called after KB create/update/delete operations.
-    
-    NOTE: Forces reload of config.json on next access.
-    """
-    global _kb_manager, _multi_query_service
-    logger.info("Invalidating KB Manager cache")
-    _kb_manager = None
-    # Also invalidate multi_query_service since it depends on KB manager
-    _multi_query_service = None
