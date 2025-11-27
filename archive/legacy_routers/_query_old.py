@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 import logging
 
-from app.services import get_query_service, get_multi_query_service
+from app.service_registry import get_query_service, get_multi_query_service
 from app.kb import QueryProfile
 
 logger = logging.getLogger(__name__)

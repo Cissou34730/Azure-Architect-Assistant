@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 import logging
 
-from app.services import get_kb_manager, get_multi_query_service
+from app.service_registry import get_kb_manager, get_multi_query_service
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,19 @@
 """
 Ingestion Router - Document ingestion endpoints
-Handles WAF documentation crawling and indexing (legacy)
+Handles WAF documentation crawling and indexing (LEGACY - DEPRECATED)
+
+WARNING: This module is deprecated and kept for reference only.
+Use the new KB ingestion system at /api/ingestion/* endpoints instead.
+
+Legacy code references modules in archive/legacy_rag/.
 """
+
+import sys
+from pathlib import Path
+
+# Add legacy_rag to path for backward compatibility
+archive_path = Path(__file__).parent.parent.parent.parent / "archive"
+sys.path.insert(0, str(archive_path))
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -10,10 +22,10 @@ import logging
 import asyncio
 from datetime import datetime
 
-from app.rag.crawler import WAFCrawler
-from app.rag.cleaner import WAFIngestionPipeline
-from app.rag.indexer import WAFIndexBuilder
-from app.services import invalidate_query_service
+from legacy_rag.crawler import WAFCrawler
+from legacy_rag.cleaner import WAFIngestionPipeline
+from legacy_rag.indexer import WAFIndexBuilder
+from app.service_registry import invalidate_query_service
 
 logger = logging.getLogger(__name__)
 

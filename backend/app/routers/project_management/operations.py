@@ -12,9 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 
 from app.models import Project, ProjectDocument, ProjectState, ConversationMessage
-from app.llm_service import get_llm_service
+from app.services.llm_service import get_llm_service
 from app.kb.multi_query import QueryProfile
-from app.services import get_multi_query_service
+from app.service_registry import get_multi_query_service
 
 from .models import CreateProjectRequest, UpdateRequirementsRequest, ChatMessageRequest
 
