@@ -123,26 +123,38 @@ Python FastAPI Backend (Port 8000)
 ├── Startup Initialization
 │   ├── Initialize database (SQLAlchemy async)
 │   └── Preload KB indices (LlamaIndex)
-├── API Routers (Modular)
-│   ├── /api/projects/* (Project management - modular)
-│   │   ├── models.py (Pydantic models)
-│   │   ├── operations.py (Business logic)
+├── API Routers (Fully Modular - 3-Layer Pattern)
+│   ├── /api/projects/* (Project management)
+│   │   ├── models.py (Pydantic request/response models)
+│   │   ├── operations.py (ProjectService - business logic)
 │   │   └── router.py (FastAPI endpoints)
-│   ├── /api/ingestion/* (KB ingestion - modular)
+│   ├── /api/ingestion/* (KB ingestion)
 │   │   ├── models.py (Request/response models)
-│   │   ├── operations.py (Ingestion service)
+│   │   ├── operations.py (KBIngestionService)
 │   │   └── router.py (Ingestion endpoints)
-│   ├── /api/kb (KB health & management)
-│   └── /api/query (KB queries)
-├── Services Layer
+│   ├── /api/kb/* (KB management - NEW modular structure)
+│   │   ├── models.py (KBInfo, KBHealthInfo models)
+│   │   ├── operations.py (KBManagementService)
+│   │   └── router.py (Health & list endpoints)
+│   └── /api/query/* (KB queries - NEW modular structure)
+│       ├── models.py (Query request/response models)
+│       ├── operations.py (KBQueryService)
+│       └── router.py (Query endpoints: /chat, /proposal, /kb-query)
+├── Services Layer (Singleton Pattern)
+│   ├── service_registry.py (Singleton factory functions)
+│   │   ├── get_kb_manager() (Global KB manager)
+│   │   ├── invalidate_kb_manager() (Cache invalidation)
+│   │   ├── get_query_service() (WAF query service)
+│   │   └── get_multi_query_service() (Multi-KB orchestrator)
+│   ├── services/
+│   │   └── llm_service.py (Document analysis, chat, proposals)
 │   ├── ProjectService (CRUD, documents, chat, proposals)
 │   ├── KBIngestionService (Create, ingest, monitor)
-│   ├── LLMService (Document analysis, chat, proposals)
-│   ├── KnowledgeBaseService (Generic KB queries)
-│   └── MultiSourceQueryService (Multi-KB orchestration)
-├── Job Management
-│   ├── JobManager (Singleton ingestion orchestrator)
-│   └── IngestionJob (State machine: PENDING→RUNNING→COMPLETED)
+│   ├── KBManagementService (List KBs, health checks)
+│   └── KBQueryService (Query operations with context)
+├── KB System (Singleton with Cache Management)
+│   ├── kb/manager.py (KBManager - configuration & CRUD)
+│   └── kb/ingestion/ (Pipeline, job manager, crawlers)
 └── Data Layer
     ├── SQLAlchemy models (Project, Message, State)
     └── LlamaIndex (Vector indices, embeddings)
@@ -159,8 +171,12 @@ Python FastAPI Backend (Port 8000)
 
 **Backend Architecture:**
 - **Async-first** - FastAPI with async/await throughout
+- **3-layer modular pattern** - All routers follow models/operations/router structure
 - **Service layer** - Business logic separated from routes
 - **Singleton services** - KB services initialized once, reused across requests
+  - Global singleton with factory functions (get_kb_manager())
+  - Cache invalidation after mutations (invalidate_kb_manager())
+  - Ensures consistency between config.json and in-memory state
 - **Lazy initialization** - Defer expensive operations until needed
 - **Streaming responses** - SSE for real-time progress updates
 
@@ -171,6 +187,8 @@ Python FastAPI Backend (Port 8000)
 - ✅ Better type safety (SQLAlchemy models + TypeScript)
 - ✅ Natural fit for AI/LLM workflows
 - ✅ Modular, testable component structure
+- ✅ 100% modular routers (models/operations/router pattern)
+- ✅ Singleton pattern with cache invalidation for data consistency
 
 ### AI & Knowledge Base Pipeline
 
@@ -390,13 +408,21 @@ npm run dev:frontend
 | POST | `/api/ingestion/kb/{id}/cancel` | Cancel ingestion job |
 | GET | `/api/ingestion/jobs` | List all jobs |
 
-### Knowledge Base Query
+### KB Management (Modular - NEW)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/kb/health` | Check KB health status |
 | GET | `/api/kb/list` | List available knowledge bases |
-| POST | `/api/query/chat` | Query KBs (returns answer + sources) |
+| GET | `/api/kb/health` | Check KB health status (ready/not ready) |
+
+### KB Query (Modular - NEW)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/query` | Legacy WAF query (backward compatible) |
+| POST | `/api/query/chat` | Query KBs with chat-style interface |
+| POST | `/api/query/proposal` | Query with architecture proposal context |
+| POST | `/api/query/kb-query` | Query specific KBs (returns answer + sources) |
 
 #### KB Query Request
 
@@ -619,7 +645,8 @@ Azure-Architect-Assistant/
 │   ├── app/
 │   │   ├── main.py              # FastAPI application entry
 │   │   ├── database.py          # SQLAlchemy async setup
-│   │   ├── routers/             # Modular API routers
+│   │   ├── service_registry.py  # Singleton factory functions
+│   │   ├── routers/             # Modular API routers (3-layer pattern)
 │   │   │   ├── project_management/   # Project module
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── models.py        # Pydantic models
@@ -630,19 +657,27 @@ Azure-Architect-Assistant/
 │   │   │   │   ├── models.py        # Request/response models
 │   │   │   │   ├── operations.py    # KBIngestionService
 │   │   │   │   └── router.py        # Ingestion endpoints
-│   │   │   ├── kb.py            # KB health endpoints
-│   │   │   └── query.py         # KB query endpoints
+│   │   │   ├── kb_management/       # KB management module (NEW)
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── models.py        # KBInfo, KBHealth models
+│   │   │   │   ├── operations.py    # KBManagementService
+│   │   │   │   └── router.py        # List & health endpoints
+│   │   │   └── kb_query/            # KB query module (NEW)
+│   │   │       ├── __init__.py
+│   │   │       ├── models.py        # Query request/response
+│   │   │       ├── operations.py    # KBQueryService
+│   │   │       └── router.py        # Query endpoints
 │   │   ├── services/            # Business logic
-│   │   │   ├── llm_service.py   # LLM operations
-│   │   │   └── storage_service.py  # Document storage
+│   │   │   ├── __init__.py      # Service exports
+│   │   │   └── llm_service.py   # LLM operations
 │   │   ├── kb/                  # Knowledge base system
-│   │   │   ├── manager.py       # KB configuration & jobs
+│   │   │   ├── manager.py       # KBManager (singleton)
 │   │   │   ├── service.py       # KB query service
-│   │   │   └── multi_query.py   # Multi-KB orchestration
-│   │   ├── ingestion/           # Ingestion pipeline
-│   │   │   ├── crawlers.py      # Web crawling
-│   │   │   ├── processors.py    # Document processing
-│   │   │   └── indexers.py      # Vector indexing
+│   │   │   ├── multi_query.py   # Multi-KB orchestration
+│   │   │   └── ingestion/       # Ingestion pipeline
+│   │   │       ├── job_manager.py   # Job orchestration
+│   │   │       ├── base.py          # Pipeline base
+│   │   │       └── sources/         # Crawlers & indexers
 │   │   └── models/              # SQLAlchemy ORM models
 │   └── requirements.txt         # Python dependencies
 │
@@ -718,6 +753,8 @@ Azure-Architect-Assistant/
 │           └── index/           # Vector index (~60MB)
 │
 ├── archive/                      # Historical reference files
+│   ├── legacy_rag/              # Archived duplicate RAG code (v4.0 cleanup)
+│   ├── legacy_routers/          # Archived old router files (v4.0 refactoring)
 │   └── migrations/              # v3.0 → v4.0 migration scripts
 │       ├── README.md            # Migration documentation
 │       ├── migrate_data.py      # Data migration script
@@ -775,8 +812,29 @@ Azure-Architect-Assistant/
 ## Documentation
 
 - **[Architecture Overview](docs/ARCHITECTURE.md)** - System design and patterns
+- **[Backend Refactoring Analysis](docs/BACKEND_REFACTORING_ANALYSIS.md)** - Comprehensive code review and improvements (Nov 2024)
 - **[Refactoring Summary](docs/REFACTORING_SUMMARY.md)** - v4.0 changes
 - **[Component Structure](frontend/COMPONENTS_STRUCTURE.md)** - Frontend organization
+
+## Recent Updates (v4.0.1 - November 2024)
+
+### Backend Refactoring & Bug Fixes
+- **100% Modular Router Architecture**: All routers now follow the 3-layer pattern (models/operations/router)
+  - `kb_management/` - KB health checks and listing
+  - `kb_query/` - Multi-endpoint query service (/chat, /proposal, /kb-query)
+  - `kb_ingestion/` - KB creation and ingestion management
+  - `project_management/` - Project CRUD and architecture workflows
+- **Singleton Pattern with Cache Invalidation**: Ensures data consistency
+  - `service_registry.py` manages global singletons
+  - `get_kb_manager()` returns cached instance
+  - `invalidate_kb_manager()` clears cache after mutations (create/delete)
+  - Fixes bug where deleted KBs still appeared in UI
+- **Services Directory**: Organized business logic layer
+  - `llm_service.py` - Centralized LLM operations
+  - Service factory functions for dependency injection
+- **Code Cleanup**: Archived 2,000+ lines of legacy/duplicate code
+  - `archive/legacy_rag/` - Duplicate RAG implementations
+  - `archive/legacy_routers/` - Pre-refactoring router files
 
 ## Contributing
 
