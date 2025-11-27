@@ -24,8 +24,8 @@ try {
     Push-Location backend
     
     Write-Host "Starting uvicorn server on port 8000..." -ForegroundColor Cyan
-    # Start uvicorn
-    python -m uvicorn app.main:app --reload --reload-dir app --port 8000
+    # Start uvicorn without reload for stability
+    python -m uvicorn app.main:app --port 8000
 }
 catch {
     Write-Host "Error: $_" -ForegroundColor Red

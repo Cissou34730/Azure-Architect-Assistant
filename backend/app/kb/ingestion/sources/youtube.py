@@ -102,8 +102,8 @@ class YouTubeSourceHandler(BaseSourceHandler):
     Converts raw transcripts into structured knowledge (concepts + Q&A).
     """
     
-    def __init__(self, kb_id: str):
-        super().__init__(kb_id)
+    def __init__(self, kb_id: str, job=None):
+        super().__init__(kb_id, job=job)
         self.reader = YoutubeTranscriptReader()
         self.llm = OpenAI(model="gpt-4o-mini", temperature=0.1)
         logger.info(f"YouTubeSourceHandler initialized for KB: {kb_id}")

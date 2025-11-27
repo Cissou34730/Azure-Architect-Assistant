@@ -4,6 +4,7 @@ Separated from routing layer for better maintainability
 """
 
 import logging
+import asyncio
 from typing import Dict, Any, List
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -206,6 +207,12 @@ class KBIngestionService:
                         logger.info(f"Indexed {total_chunks_indexed} chunks from {len(all_documents)} documents before cancellation")
                         return
                     
+                    # Check pause
+                    if job.status.value == 'paused':
+                        logger.info(f"Job {job.job_id} was paused at batch {batch_num}")
+                        logger.info(f"Indexed {total_chunks_indexed} chunks from {len(all_documents)} documents before pause")
+                        return
+                    
                     # Save batch documents to disk
                     self._save_documents_to_disk(kb_id, document_batch)
                     all_documents.extend(document_batch)
@@ -259,6 +266,10 @@ class KBIngestionService:
                     
             except GeneratorExit:
                 logger.info(f"Generator closed - processing stopped at batch {batch_num}")
+            except asyncio.CancelledError:
+                logger.info(f"Job {job.job_id} was cancelled by system shutdown")
+                job.cancel()
+                raise
             except Exception as e:
                 logger.error(f"Error processing batch {batch_num}: {e}", exc_info=True)
                 raise

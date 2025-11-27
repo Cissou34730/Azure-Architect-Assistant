@@ -5,6 +5,7 @@
 export type JobStatus =
   | "PENDING"
   | "RUNNING"
+  | "PAUSED"
   | "COMPLETED"
   | "FAILED"
   | "CANCELLED";

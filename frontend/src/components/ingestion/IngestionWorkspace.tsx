@@ -151,6 +151,9 @@ export function IngestionWorkspace() {
                 onCancel={() => {
                   void refetch();
                 }}
+                onRefresh={() => {
+                  void refetch();
+                }}
               />
             ) : (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">

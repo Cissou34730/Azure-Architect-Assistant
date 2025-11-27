@@ -30,8 +30,8 @@ class WebsiteSourceHandler(BaseSourceHandler):
     Replaces BeautifulSoup + html2text + Readability.
     """
     
-    def __init__(self, kb_id: str):
-        super().__init__(kb_id)
+    def __init__(self, kb_id: str, job=None):
+        super().__init__(kb_id, job=job)
         logger.info(f"WebsiteSourceHandler initialized for KB: {kb_id}")
     
     def ingest(self, config: Dict[str, Any]) -> List[Document]:
@@ -137,6 +137,11 @@ class WebsiteSourceHandler(BaseSourceHandler):
         logger.info(f"Ingesting {len(filtered_urls)} URLs (filtered from {len(urls)} total)")
         
         for url in filtered_urls:
+            # Check for cancellation or pause
+            if self.job and self.job.status.value in ['cancelled', 'paused']:
+                logger.info(f"Ingestion {self.job.status.value} during URL fetch loop")
+                break
+            
             try:
                 logger.info(f"Fetching URL: {url}")
                 
@@ -278,6 +283,11 @@ class WebsiteSourceHandler(BaseSourceHandler):
         logger.info("="*70)
         
         while to_visit and len(visited) < max_pages:
+            # Check for cancellation or pause at the start of each iteration
+            if self.job and self.job.status.value in ['cancelled', 'paused']:
+                logger.info(f"Crawling {self.job.status.value} at {len(visited)} pages")
+                break
+            
             url = to_visit.pop(0)
             
             # Skip if already visited or doesn't match prefix

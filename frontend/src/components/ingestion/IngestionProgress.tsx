@@ -5,11 +5,12 @@
 
 import React from 'react';
 import { IngestionJob, IngestionPhase } from '../../types/ingestion';
-import { cancelJob } from '../../services/ingestionApi';
+import { cancelJob, pauseJob, resumeJob } from '../../services/ingestionApi';
 
 interface IngestionProgressProps {
   job: IngestionJob;
   onCancel?: () => void;
+  onRefresh?: () => void;
 }
 
 const PHASE_LABELS: Record<IngestionPhase, string> = {
@@ -39,8 +40,10 @@ const PHASE_ORDER: IngestionPhase[] = [
   'COMPLETED',
 ];
 
-export function IngestionProgress({ job, onCancel }: IngestionProgressProps) {
+export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgressProps) {
   const [cancelling, setCancelling] = React.useState(false);
+  const [pausing, setPausing] = React.useState(false);
+  const [resuming, setResuming] = React.useState(false);
 
   const handleCancel = async () => {
     if (!window.confirm('Are you sure you want to cancel this ingestion job?')) {
@@ -59,7 +62,34 @@ export function IngestionProgress({ job, onCancel }: IngestionProgressProps) {
     }
   };
 
+  const handlePause = async () => {
+    setPausing(true);
+    try {
+      await pauseJob(job.kb_id);
+      onRefresh?.();
+    } catch (error) {
+      console.error('Failed to pause job:', error);
+      alert(`Failed to pause job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setPausing(false);
+    }
+  };
+
+  const handleResume = async () => {
+    setResuming(true);
+    try {
+      await resumeJob(job.kb_id);
+      onRefresh?.();
+    } catch (error) {
+      console.error('Failed to resume job:', error);
+      alert(`Failed to resume job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setResuming(false);
+    }
+  };
+
   const isRunning = job.status === 'RUNNING' || job.status === 'PENDING';
+  const isPaused = job.status === 'PAUSED';
   const progressPercent = Math.min(Math.max(job.progress, 0), 100);
   
   // Determine which phases are completed
@@ -83,6 +113,7 @@ export function IngestionProgress({ job, onCancel }: IngestionProgressProps) {
           job.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
           job.status === 'FAILED' ? 'bg-red-100 text-red-800' :
           job.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
+          job.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-800' :
           'bg-blue-100 text-blue-800'
         }`}>
           {job.status}
@@ -213,8 +244,26 @@ export function IngestionProgress({ job, onCancel }: IngestionProgressProps) {
       </div>
 
       {/* Actions */}
-      {isRunning && (
-        <div className="flex justify-end pt-2">
+      {(isRunning || isPaused) && (
+        <div className="flex justify-end gap-3 pt-2">
+          {isPaused && (
+            <button
+              onClick={handleResume}
+              disabled={resuming}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              {resuming ? 'Resuming...' : 'Resume Job'}
+            </button>
+          )}
+          {isRunning && (
+            <button
+              onClick={handlePause}
+              disabled={pausing}
+              className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              {pausing ? 'Pausing...' : 'Pause Job'}
+            </button>
+          )}
           <button
             onClick={handleCancel}
             disabled={cancelling}

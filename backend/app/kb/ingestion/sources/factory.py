@@ -55,11 +55,8 @@ class SourceHandlerFactory:
         
         logger.info(f"Creating {handler_class.__name__} for KB: {kb_id}")
         
-        # Pass job if handler supports it (currently only website)
-        if source_type == 'website':
-            return handler_class(kb_id, job=job)
-        else:
-            return handler_class(kb_id)
+        # Pass job to all handlers for cancellation support
+        return handler_class(kb_id, job=job)
     
     @classmethod
     def register_handler(cls, source_type: str, handler_class: type):

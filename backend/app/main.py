@@ -144,24 +144,45 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown - cancel running ingestion jobs."""
-    logger.info("Shutting down...")
+    logger.info("=" * 60)
+    logger.info("SHUTDOWN: Cancelling running ingestion jobs...")
+    logger.info("=" * 60)
     
     # Cancel any running ingestion jobs
     try:
         from app.kb.ingestion.job_manager import get_job_manager
+        import asyncio
+        
         job_manager = get_job_manager()
-        running_jobs = [job for job in job_manager.get_all_jobs() if job.status.value == 'running']
+        running_jobs = [job for job in job_manager.get_all_jobs() 
+                       if job.status.value in ['running', 'pending']]
         
         if running_jobs:
-            logger.info(f"Cancelling {len(running_jobs)} running ingestion jobs...")
+            logger.info(f"Found {len(running_jobs)} active ingestion jobs")
             for job in running_jobs:
+                logger.info(f"  Cancelling job {job.job_id} for KB {job.kb_id}...")
                 job.cancel()
-                logger.info(f"  Cancelled job {job.job_id} for KB {job.kb_id}")
+                
+                # If the job has an asyncio task, cancel it
+                if job._task and not job._task.done():
+                    job._task.cancel()
+                    try:
+                        await asyncio.wait_for(job._task, timeout=2.0)
+                    except (asyncio.CancelledError, asyncio.TimeoutError):
+                        pass
+                
+                logger.info(f"  ✓ Cancelled job {job.job_id}")
+            
+            logger.info(f"✓ All {len(running_jobs)} jobs cancelled")
+        else:
+            logger.info("No active jobs to cancel")
     except Exception as e:
         logger.warning(f"Error cancelling jobs during shutdown: {e}")
     
     await close_database()
-    logger.info("Shutdown complete")
+    logger.info("=" * 60)
+    logger.info("SHUTDOWN COMPLETE")
+    logger.info("=" * 60)
 
 
 # Include routers

@@ -22,8 +22,8 @@ class MarkdownSourceHandler(BaseSourceHandler):
     Preserves markdown structure and hierarchy.
     """
     
-    def __init__(self, kb_id: str):
-        super().__init__(kb_id)
+    def __init__(self, kb_id: str, job=None):
+        super().__init__(kb_id, job=job)
         logger.info(f"MarkdownSourceHandler initialized for KB: {kb_id}")
     
     def ingest(self, config: Dict[str, Any]) -> List[Document]:

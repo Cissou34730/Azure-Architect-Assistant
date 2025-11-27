@@ -201,10 +201,10 @@ async def cancel_ingestion(kb_id: str):
                 detail=f"No ingestion job found for KB '{kb_id}'"
             )
         
-        if job.status != JobStatus.RUNNING:
+        if job.status not in [JobStatus.RUNNING, JobStatus.PAUSED]:
             raise HTTPException(
                 status_code=400,
-                detail=f"Job {job.job_id} is not running (status: {job.status})"
+                detail=f"Job {job.job_id} is not running or paused (status: {job.status})"
             )
         
         # Cancel job
@@ -223,6 +223,97 @@ async def cancel_ingestion(kb_id: str):
     except Exception as e:
         logger.error(f"Failed to cancel ingestion: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to cancel ingestion: {str(e)}")
+
+
+@router.post("/kb/{kb_id}/pause")
+async def pause_ingestion(kb_id: str):
+    """Pause the running ingestion job for a knowledge base"""
+    try:
+        job_manager = get_job_manager()
+        
+        # Get latest job for this KB
+        job = job_manager.get_latest_job_for_kb(kb_id)
+        
+        if not job:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No ingestion job found for KB '{kb_id}'"
+            )
+        
+        if job.status != JobStatus.RUNNING:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Job {job.job_id} is not running (status: {job.status})"
+            )
+        
+        # Pause job
+        success = job.pause()
+        
+        if not success:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to pause job {job.job_id}"
+            )
+        
+        logger.info(f"Paused job {job.job_id} for KB: {kb_id}")
+        
+        return {
+            "message": f"Ingestion job {job.job_id} paused",
+            "job_id": job.job_id,
+            "kb_id": kb_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to pause ingestion: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to pause ingestion: {str(e)}")
+
+
+@router.post("/kb/{kb_id}/resume")
+async def resume_ingestion(kb_id: str):
+    """Resume a paused ingestion job for a knowledge base"""
+    try:
+        job_manager = get_job_manager()
+        
+        # Get latest job for this KB
+        job = job_manager.get_latest_job_for_kb(kb_id)
+        
+        if not job:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No ingestion job found for KB '{kb_id}'"
+            )
+        
+        if job.status != JobStatus.PAUSED:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Job {job.job_id} is not paused (status: {job.status})"
+            )
+        
+        # Resume job
+        success = job.resume()
+        
+        if not success:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to resume job {job.job_id}"
+            )
+        
+        logger.info(f"Resumed job {job.job_id} for KB: {kb_id}")
+        
+        return {
+            "message": f"Ingestion job {job.job_id} resumed",
+            "job_id": job.job_id,
+            "kb_id": kb_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to resume ingestion: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to resume ingestion: {str(e)}")
+
 
 
 @router.get("/jobs", response_model=JobListResponse)

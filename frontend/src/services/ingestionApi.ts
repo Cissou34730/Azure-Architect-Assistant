@@ -90,6 +90,38 @@ export async function cancelJob(kbId: string): Promise<void> {
 }
 
 /**
+ * Pause a running job
+ */
+export async function pauseJob(kbId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/pause`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Failed to pause job" }));
+    throw new Error(error.detail || "Failed to pause job");
+  }
+}
+
+/**
+ * Resume a paused job
+ */
+export async function resumeJob(kbId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/resume`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ detail: "Failed to resume job" }));
+    throw new Error(error.detail || "Failed to resume job");
+  }
+}
+
+/**
  * Delete a knowledge base and all its data
  */
 export async function deleteKB(kbId: string): Promise<void> {

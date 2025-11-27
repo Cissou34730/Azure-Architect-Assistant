@@ -18,6 +18,7 @@ class JobStatus(str, Enum):
     """Job execution status."""
     PENDING = "pending"
     RUNNING = "running"
+    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -129,6 +130,28 @@ class IngestionJob:
             self._task.cancel()
         
         logger.info(f"[{self.job_id}] Job cancelled")
+    
+    def pause(self):
+        """Pause the job."""
+        if self.status != JobStatus.RUNNING:
+            logger.warning(f"[{self.job_id}] Cannot pause job in status {self.status}")
+            return False
+        
+        self.status = JobStatus.PAUSED
+        self.message = "Job paused by user"
+        logger.info(f"[{self.job_id}] Job paused")
+        return True
+    
+    def resume(self):
+        """Resume a paused job."""
+        if self.status != JobStatus.PAUSED:
+            logger.warning(f"[{self.job_id}] Cannot resume job in status {self.status}")
+            return False
+        
+        self.status = JobStatus.RUNNING
+        self.message = "Job resumed"
+        logger.info(f"[{self.job_id}] Job resumed")
+        return True
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert job to dictionary for API responses."""

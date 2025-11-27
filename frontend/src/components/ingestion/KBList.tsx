@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { KnowledgeBase, IngestionJob } from '../../types/ingestion';
 import { KBListItem } from './KBListItem';
-import { listJobs, deleteKB, cancelJob } from '../../services/ingestionApi';
+import { listJobs, deleteKB, cancelJob, pauseJob, resumeJob } from '../../services/ingestionApi';
 
 interface KBListProps {
   kbs: KnowledgeBase[];
@@ -93,6 +93,42 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
     }
   };
 
+  const handlePause = async (kbId: string) => {
+    try {
+      await pauseJob(kbId);
+      // Refresh jobs list
+      const response = await listJobs();
+      const jobsMap = new Map<string, IngestionJob>();
+      response.jobs.forEach(job => {
+        if (!jobsMap.has(job.kb_id)) {
+          jobsMap.set(job.kb_id, job);
+        }
+      });
+      setJobs(jobsMap);
+    } catch (error) {
+      console.error('Failed to pause job:', error);
+      alert(`Failed to pause job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleResume = async (kbId: string) => {
+    try {
+      await resumeJob(kbId);
+      // Refresh jobs list
+      const response = await listJobs();
+      const jobsMap = new Map<string, IngestionJob>();
+      response.jobs.forEach(job => {
+        if (!jobsMap.has(job.kb_id)) {
+          jobsMap.set(job.kb_id, job);
+        }
+      });
+      setJobs(jobsMap);
+    } catch (error) {
+      console.error('Failed to resume job:', error);
+      alert(`Failed to resume job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -141,6 +177,8 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
           onStartIngestion={onStartIngestion}
           onDelete={handleDelete}
           onCancel={handleCancel}
+          onPause={handlePause}
+          onResume={handleResume}
         />
       ))}
     </div>

@@ -14,11 +14,14 @@ interface KBListItemProps {
   onStartIngestion: (kbId: string) => void;
   onDelete: (kbId: string) => void;
   onCancel: (kbId: string) => void;
+  onPause: (kbId: string) => void;
+  onResume: (kbId: string) => void;
 }
 
-export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete, onCancel }: KBListItemProps) {
+export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete, onCancel, onPause, onResume }: KBListItemProps) {
   const [showActions, setShowActions] = useState(false);
   const isIngesting = job?.status === 'RUNNING' || job?.status === 'PENDING';
+  const isPaused = job?.status === 'PAUSED';
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -64,12 +67,13 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${
                   job.status === 'RUNNING' ? 'bg-blue-500 animate-pulse' :
+                  job.status === 'PAUSED' ? 'bg-yellow-500' :
                   job.status === 'COMPLETED' ? 'bg-green-500' :
                   job.status === 'FAILED' ? 'bg-red-500' :
                   'bg-gray-500'
                 }`} />
                 <span className="text-sm font-medium text-gray-700">
-                  {job.phase} - {job.progress.toFixed(0)}%
+                  {job.status === 'PAUSED' ? 'PAUSED' : `${job.phase} - ${job.progress.toFixed(0)}%`}
                 </span>
               </div>
               <span className="text-xs text-gray-500">
@@ -81,13 +85,37 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
 
         {/* Actions */}
         <div className="flex gap-2 ml-4 relative">
-          {isIngesting ? (
+          {isPaused ? (
+            <>
+              <button
+                onClick={() => onResume(kb.id)}
+                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700"
+                title="Resume ingestion"
+              >
+                Resume
+              </button>
+              <button
+                onClick={() => onCancel(kb.id)}
+                className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+                title="Cancel ingestion"
+              >
+                Cancel
+              </button>
+            </>
+          ) : isIngesting ? (
             <>
               <button
                 onClick={() => onViewProgress(kb.id)}
                 className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 View Progress
+              </button>
+              <button
+                onClick={() => onPause(kb.id)}
+                className="px-3 py-1.5 text-sm bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+                title="Pause ingestion"
+              >
+                Pause
               </button>
               <button
                 onClick={() => onCancel(kb.id)}

@@ -23,8 +23,8 @@ class PDFSourceHandler(BaseSourceHandler):
     Supports local files and online PDFs.
     """
     
-    def __init__(self, kb_id: str):
-        super().__init__(kb_id)
+    def __init__(self, kb_id: str, job=None):
+        super().__init__(kb_id, job=job)
         self.reader = PyMuPDFReader()
         logger.info(f"PDFSourceHandler initialized for KB: {kb_id}")
     
