@@ -12,26 +12,35 @@ from app.kb.ingestion.job_manager import JobStatus, IngestionPhase
 
 class SourceType(str, Enum):
     """Document source types"""
-    WEB_DOCUMENTATION = "web_documentation"
-    WEB_GENERIC = "web_generic"
-    LOCAL_FILES = "local_files"
+    WEBSITE = "website"           # URLs/sitemaps → TrafilaturaWebReader
+    YOUTUBE = "youtube"           # Video URLs → YoutubeTranscriptReader + LLM distillation
+    PDF = "pdf"                   # PDF files (local/online) → PyMuPDFReader
+    MARKDOWN = "markdown"         # Markdown files → SimpleDirectoryReader
 
 
-class WebDocumentationConfig(BaseModel):
-    """Configuration for structured documentation crawler"""
-    start_urls: List[HttpUrl]
-    allowed_domains: Optional[List[str]] = None
-    path_prefix: Optional[str] = None
-    follow_links: bool = True
-    max_pages: int = 1000
+class WebsiteConfig(BaseModel):
+    """Configuration for website ingestion (Trafilatura)"""
+    urls: Optional[List[HttpUrl]] = Field(None, description="List of URLs to crawl")
+    sitemap_url: Optional[HttpUrl] = Field(None, description="Sitemap URL")
 
 
-class WebGenericConfig(BaseModel):
-    """Configuration for generic web crawler"""
-    urls: List[HttpUrl]
-    follow_links: bool = False
-    max_depth: int = 1
-    same_domain_only: bool = True
+class YouTubeConfig(BaseModel):
+    """Configuration for YouTube video ingestion"""
+    video_urls: List[HttpUrl] = Field(..., description="List of YouTube video URLs")
+    playlist_url: Optional[HttpUrl] = Field(None, description="YouTube playlist URL")
+
+
+class PDFConfig(BaseModel):
+    """Configuration for PDF ingestion"""
+    local_paths: Optional[List[str]] = Field(None, description="Local PDF file paths")
+    pdf_urls: Optional[List[HttpUrl]] = Field(None, description="Online PDF URLs")
+    folder_path: Optional[str] = Field(None, description="Folder containing PDFs")
+
+
+class MarkdownConfig(BaseModel):
+    """Configuration for Markdown file ingestion"""
+    folder_path: str = Field(..., description="Folder containing .md files")
+    recursive: bool = Field(default=True, description="Recursively scan subfolders")
 
 
 class CreateKBRequest(BaseModel):

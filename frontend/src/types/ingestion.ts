@@ -16,7 +16,7 @@ export type IngestionPhase =
   | "INDEXING"
   | "COMPLETED"
   | "FAILED";
-export type SourceType = "web_documentation" | "web_generic" | "local_files";
+export type SourceType = "website" | "youtube" | "pdf" | "markdown";
 
 export interface JobMetrics {
   pages_crawled?: number;

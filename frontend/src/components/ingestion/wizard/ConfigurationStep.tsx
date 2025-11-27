@@ -7,126 +7,161 @@ import { ArrayInput } from './ArrayInput';
 
 interface ConfigurationStepProps {
   sourceType: SourceType;
-  startUrls: string[];
-  setStartUrls: (urls: string[]) => void;
-  allowedDomains: string[];
-  setAllowedDomains: (domains: string[]) => void;
-  pathPrefix: string;
-  setPathPrefix: (prefix: string) => void;
-  followLinks: boolean;
-  setFollowLinks: (follow: boolean) => void;
-  maxPages: number;
-  setMaxPages: (max: number) => void;
+  // Website
   urls: string[];
   setUrls: (urls: string[]) => void;
+  sitemapUrl: string;
+  setSitemapUrl: (url: string) => void;
+  // YouTube
+  videoUrls: string[];
+  setVideoUrls: (urls: string[]) => void;
+  // PDF
+  pdfLocalPaths: string[];
+  setPdfLocalPaths: (paths: string[]) => void;
+  pdfUrls: string[];
+  setPdfUrls: (urls: string[]) => void;
+  pdfFolderPath: string;
+  setPdfFolderPath: (path: string) => void;
+  // Markdown
+  markdownFolderPath: string;
+  setMarkdownFolderPath: (path: string) => void;
 }
 
 export function ConfigurationStep({
   sourceType,
-  startUrls,
-  setStartUrls,
-  allowedDomains,
-  setAllowedDomains,
-  pathPrefix,
-  setPathPrefix,
-  followLinks,
-  setFollowLinks,
-  maxPages,
-  setMaxPages,
   urls,
   setUrls,
+  sitemapUrl,
+  setSitemapUrl,
+  videoUrls,
+  setVideoUrls,
+  pdfLocalPaths,
+  setPdfLocalPaths,
+  pdfUrls,
+  setPdfUrls,
+  pdfFolderPath,
+  setPdfFolderPath,
+  markdownFolderPath,
+  setMarkdownFolderPath,
 }: ConfigurationStepProps) {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-900">Source Configuration</h3>
 
-      {sourceType === 'web_documentation' ? (
+      {sourceType === 'website' && (
         <>
-          <ArrayInput
-            label="Start URLs *"
-            values={startUrls}
-            onChange={setStartUrls}
-            placeholder="https://docs.example.com"
-            helpText="Entry points for the crawler to begin from"
-          />
-
-          <ArrayInput
-            label="Allowed Domains"
-            values={allowedDomains}
-            onChange={setAllowedDomains}
-            placeholder="docs.example.com"
-            helpText="Restrict crawling to these domains (optional)"
-          />
-
           <div>
-            <label htmlFor="path-prefix" className="block text-sm font-medium text-gray-700 mb-1">
-              Path Prefix
+            <label htmlFor="sitemap-url" className="block text-sm font-medium text-gray-700 mb-1">
+              Sitemap URL (Optional)
             </label>
             <input
-              id="path-prefix"
+              id="sitemap-url"
               type="text"
-              value={pathPrefix}
-              onChange={(e) => setPathPrefix(e.target.value)}
+              value={sitemapUrl}
+              onChange={(e) => setSitemapUrl(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="/docs"
+              placeholder="https://example.com/sitemap.xml"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Only crawl URLs starting with this path (optional)
+              Provide sitemap URL to automatically crawl all pages, or specify individual URLs below
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              id="follow-links-docs"
-              type="checkbox"
-              checked={followLinks}
-              onChange={(e) => setFollowLinks(e.target.checked)}
-              className="rounded border-gray-300"
+          {!sitemapUrl && (
+            <ArrayInput
+              label="URLs *"
+              values={urls}
+              onChange={setUrls}
+              placeholder="https://example.com/page"
+              helpText="Specific web pages to crawl (required if no sitemap provided)"
             />
-            <label htmlFor="follow-links-docs" className="text-sm text-gray-700">
-              Follow links to discover more pages
-            </label>
-          </div>
+          )}
+        </>
+      )}
 
-          <div>
-            <label htmlFor="max-pages" className="block text-sm font-medium text-gray-700 mb-1">
-              Max Pages
-            </label>
-            <input
-              id="max-pages"
-              type="number"
-              value={maxPages}
-              onChange={(e) => setMaxPages(parseInt(e.target.value))}
-              min={1}
-              max={10000}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Maximum number of pages to crawl
+      {sourceType === 'youtube' && (
+        <>
+          <ArrayInput
+            label="Video URLs *"
+            values={videoUrls}
+            onChange={setVideoUrls}
+            placeholder="https://www.youtube.com/watch?v=..."
+            helpText="YouTube video URLs to extract and distill transcripts from"
+          />
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm text-blue-800">
+              💡 Transcripts will be automatically distilled using LLM to extract key concepts and technical Q&A
             </p>
           </div>
         </>
-      ) : (
+      )}
+
+      {sourceType === 'pdf' && (
         <>
           <ArrayInput
-            label="URLs *"
-            values={urls}
-            onChange={setUrls}
-            placeholder="https://example.com/article"
-            helpText="Specific web pages to include"
+            label="Local PDF Paths"
+            values={pdfLocalPaths}
+            onChange={setPdfLocalPaths}
+            placeholder="C:\Documents\file.pdf"
+            helpText="Absolute paths to PDF files on your computer"
           />
 
-          <div className="flex items-center gap-2">
-            <input
-              id="follow-links-generic"
-              type="checkbox"
-              checked={followLinks}
-              onChange={(e) => setFollowLinks(e.target.checked)}
-              className="rounded border-gray-300"
-            />
-            <label htmlFor="follow-links-generic" className="text-sm text-gray-700">
-              Follow links to discover related pages
+          <ArrayInput
+            label="Online PDF URLs"
+            values={pdfUrls}
+            onChange={setPdfUrls}
+            placeholder="https://example.com/document.pdf"
+            helpText="Direct URLs to PDF files"
+          />
+
+          <div>
+            <label htmlFor="pdf-folder" className="block text-sm font-medium text-gray-700 mb-1">
+              PDF Folder Path
             </label>
+            <input
+              id="pdf-folder"
+              type="text"
+              value={pdfFolderPath}
+              onChange={(e) => setPdfFolderPath(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="C:\Documents\PDFs"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Process all PDF files in this folder
+            </p>
+          </div>
+
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+            <p className="text-sm text-amber-800">
+              ⚠️ At least one PDF source (local path, URL, or folder) is required
+            </p>
+          </div>
+        </>
+      )}
+
+      {sourceType === 'markdown' && (
+        <>
+          <div>
+            <label htmlFor="markdown-folder" className="block text-sm font-medium text-gray-700 mb-1">
+              Markdown Folder Path *
+            </label>
+            <input
+              id="markdown-folder"
+              type="text"
+              value={markdownFolderPath}
+              onChange={(e) => setMarkdownFolderPath(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="C:\Documentation\markdown"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Path to folder containing .md files (will recursively process subfolders)
+            </p>
+          </div>
+
+          <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-sm text-green-800">
+              ✅ Markdown structure and hierarchy will be preserved in metadata
+            </p>
           </div>
         </>
       )}

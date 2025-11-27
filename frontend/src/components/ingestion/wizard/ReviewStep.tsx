@@ -9,25 +9,38 @@ interface ReviewStepProps {
   kbId: string;
   description: string;
   sourceType: SourceType;
-  startUrls: string[];
-  allowedDomains: string[];
-  pathPrefix: string;
-  followLinks: boolean;
-  maxPages: number;
-  urls: string[];
+  // Website
+  urls?: string[];
+  sitemapUrl?: string;
+  // YouTube
+  videoUrls?: string[];
+  // PDF
+  pdfLocalPaths?: string[];
+  pdfUrls?: string[];
+  pdfFolderPath?: string;
+  // Markdown
+  markdownFolderPath?: string;
 }
+
+const sourceTypeLabels: Record<SourceType, string> = {
+  website: '🌐 Website',
+  youtube: '🎥 YouTube',
+  pdf: '📄 PDF Files',
+  markdown: '📝 Markdown',
+};
 
 export function ReviewStep({
   name,
   kbId,
   description,
   sourceType,
-  startUrls,
-  allowedDomains,
-  pathPrefix,
-  followLinks,
-  maxPages,
   urls,
+  sitemapUrl,
+  videoUrls,
+  pdfLocalPaths,
+  pdfUrls,
+  pdfFolderPath,
+  markdownFolderPath,
 }: ReviewStepProps) {
   return (
     <div className="space-y-4">
@@ -53,67 +66,85 @@ export function ReviewStep({
 
         <div>
           <div className="text-sm font-medium text-gray-700">Source Type</div>
-          <div className="text-sm text-gray-900">
-            {sourceType === 'web_documentation' ? 'Web Documentation' : 'Generic Web'}
-          </div>
+          <div className="text-sm text-gray-900">{sourceTypeLabels[sourceType]}</div>
         </div>
 
-        {sourceType === 'web_documentation' ? (
+        {sourceType === 'website' && (
           <>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Start URLs</div>
-              <ul className="text-sm text-gray-900 list-disc list-inside">
-                {startUrls.filter(url => url.trim()).map((url, i) => (
-                  <li key={i} className="truncate">{url}</li>
-                ))}
-              </ul>
-            </div>
-
-            {allowedDomains.some(d => d.trim()) && (
+            {sitemapUrl ? (
               <div>
-                <div className="text-sm font-medium text-gray-700">Allowed Domains</div>
+                <div className="text-sm font-medium text-gray-700">Sitemap URL</div>
+                <div className="text-sm text-gray-900 font-mono truncate">{sitemapUrl}</div>
+              </div>
+            ) : (
+              <div>
+                <div className="text-sm font-medium text-gray-700">URLs</div>
                 <ul className="text-sm text-gray-900 list-disc list-inside">
-                  {allowedDomains.filter(d => d.trim()).map((domain, i) => (
-                    <li key={i}>{domain}</li>
+                  {urls?.filter(url => url.trim()).map((url, i) => (
+                    <li key={i} className="truncate">{url}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {sourceType === 'youtube' && (
+          <div>
+            <div className="text-sm font-medium text-gray-700">Video URLs</div>
+            <ul className="text-sm text-gray-900 list-disc list-inside">
+              {videoUrls?.filter(url => url.trim()).map((url, i) => (
+                <li key={i} className="truncate">{url}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {sourceType === 'pdf' && (
+          <>
+            {pdfLocalPaths && pdfLocalPaths.some(p => p.trim()) && (
+              <div>
+                <div className="text-sm font-medium text-gray-700">Local PDF Paths</div>
+                <ul className="text-sm text-gray-900 list-disc list-inside">
+                  {pdfLocalPaths.filter(p => p.trim()).map((path, i) => (
+                    <li key={i} className="truncate font-mono">{path}</li>
                   ))}
                 </ul>
               </div>
             )}
 
-            {pathPrefix && (
+            {pdfUrls && pdfUrls.some(url => url.trim()) && (
               <div>
-                <div className="text-sm font-medium text-gray-700">Path Prefix</div>
-                <div className="text-sm text-gray-900 font-mono">{pathPrefix}</div>
+                <div className="text-sm font-medium text-gray-700">Online PDF URLs</div>
+                <ul className="text-sm text-gray-900 list-disc list-inside">
+                  {pdfUrls.filter(url => url.trim()).map((url, i) => (
+                    <li key={i} className="truncate">{url}</li>
+                  ))}
+                </ul>
               </div>
             )}
 
-            <div>
-              <div className="text-sm font-medium text-gray-700">Settings</div>
-              <ul className="text-sm text-gray-900 list-disc list-inside">
-                <li>Follow links: {followLinks ? 'Yes' : 'No'}</li>
-                <li>Max pages: {maxPages}</li>
-              </ul>
-            </div>
-          </>
-        ) : (
-          <>
-            <div>
-              <div className="text-sm font-medium text-gray-700">URLs</div>
-              <ul className="text-sm text-gray-900 list-disc list-inside">
-                {urls.filter(url => url.trim()).map((url, i) => (
-                  <li key={i} className="truncate">{url}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <div className="text-sm font-medium text-gray-700">Settings</div>
-              <ul className="text-sm text-gray-900 list-disc list-inside">
-                <li>Follow links: {followLinks ? 'Yes' : 'No'}</li>
-              </ul>
-            </div>
+            {pdfFolderPath && (
+              <div>
+                <div className="text-sm font-medium text-gray-700">PDF Folder</div>
+                <div className="text-sm text-gray-900 font-mono">{pdfFolderPath}</div>
+              </div>
+            )}
           </>
         )}
+
+        {sourceType === 'markdown' && (
+          <div>
+            <div className="text-sm font-medium text-gray-700">Markdown Folder</div>
+            <div className="text-sm text-gray-900 font-mono">{markdownFolderPath}</div>
+          </div>
+        )}
+      </div>
+
+      <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+        <p className="text-sm text-blue-800">
+          ✓ Click "Create KB" to start the ingestion process
+        </p>
       </div>
     </div>
   );

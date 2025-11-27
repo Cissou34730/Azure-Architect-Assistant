@@ -37,18 +37,24 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
     setDescription,
     sourceType,
     setSourceType,
-    startUrls,
-    setStartUrls,
-    allowedDomains,
-    setAllowedDomains,
-    pathPrefix,
-    setPathPrefix,
-    followLinks,
-    setFollowLinks,
-    maxPages,
-    setMaxPages,
+    // Website
     urls,
     setUrls,
+    sitemapUrl,
+    setSitemapUrl,
+    // YouTube
+    videoUrls,
+    setVideoUrls,
+    // PDF
+    pdfLocalPaths,
+    setPdfLocalPaths,
+    pdfUrls,
+    setPdfUrls,
+    pdfFolderPath,
+    setPdfFolderPath,
+    // Markdown
+    markdownFolderPath,
+    setMarkdownFolderPath,
     handleSubmit,
     canProceed,
   } = form;
@@ -108,18 +114,20 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
         {step === 'config' && (
           <ConfigurationStep
             sourceType={sourceType}
-            startUrls={startUrls}
-            setStartUrls={setStartUrls}
-            allowedDomains={allowedDomains}
-            setAllowedDomains={setAllowedDomains}
-            pathPrefix={pathPrefix}
-            setPathPrefix={setPathPrefix}
-            followLinks={followLinks}
-            setFollowLinks={setFollowLinks}
-            maxPages={maxPages}
-            setMaxPages={setMaxPages}
             urls={urls}
             setUrls={setUrls}
+            sitemapUrl={sitemapUrl}
+            setSitemapUrl={setSitemapUrl}
+            videoUrls={videoUrls}
+            setVideoUrls={setVideoUrls}
+            pdfLocalPaths={pdfLocalPaths}
+            setPdfLocalPaths={setPdfLocalPaths}
+            pdfUrls={pdfUrls}
+            setPdfUrls={setPdfUrls}
+            pdfFolderPath={pdfFolderPath}
+            setPdfFolderPath={setPdfFolderPath}
+            markdownFolderPath={markdownFolderPath}
+            setMarkdownFolderPath={setMarkdownFolderPath}
           />
         )}
 
@@ -129,12 +137,13 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
             kbId={kbId}
             description={description}
             sourceType={sourceType}
-            startUrls={startUrls}
-            allowedDomains={allowedDomains}
-            pathPrefix={pathPrefix}
-            followLinks={followLinks}
-            maxPages={maxPages}
             urls={urls}
+            sitemapUrl={sitemapUrl}
+            videoUrls={videoUrls}
+            pdfLocalPaths={pdfLocalPaths}
+            pdfUrls={pdfUrls}
+            pdfFolderPath={pdfFolderPath}
+            markdownFolderPath={markdownFolderPath}
           />
         )}
       </div>

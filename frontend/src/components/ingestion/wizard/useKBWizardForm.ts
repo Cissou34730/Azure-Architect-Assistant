@@ -6,8 +6,6 @@ import { useState } from "react";
 import {
   SourceType,
   CreateKBRequest,
-  WebDocumentationConfig,
-  WebGenericConfig,
 } from "../../../types/ingestion";
 import { createKB, startIngestion } from "../../../services/ingestionApi";
 
@@ -22,13 +20,29 @@ export function useKBWizardForm() {
   const [kbId, setKbId] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [sourceType, setSourceType] = useState<SourceType>("web_documentation");
+  const [sourceType, setSourceType] = useState<SourceType>("website");
+  
+  // Website config
+  const [urls, setUrls] = useState<string[]>([""]);
+  const [sitemapUrl, setSitemapUrl] = useState("");
+  
+  // YouTube config
+  const [videoUrls, setVideoUrls] = useState<string[]>([""]);
+  
+  // PDF config
+  const [pdfLocalPaths, setPdfLocalPaths] = useState<string[]>([""]);
+  const [pdfUrls, setPdfUrls] = useState<string[]>([""]);
+  const [pdfFolderPath, setPdfFolderPath] = useState("");
+  
+  // Markdown config
+  const [markdownFolderPath, setMarkdownFolderPath] = useState("");
+  
+  // Legacy fields (kept for backwards compatibility during transition)
   const [startUrls, setStartUrls] = useState<string[]>([""]);
   const [allowedDomains, setAllowedDomains] = useState<string[]>([""]);
   const [pathPrefix, setPathPrefix] = useState("");
   const [followLinks, setFollowLinks] = useState(true);
   const [maxPages, setMaxPages] = useState(1000);
-  const [urls, setUrls] = useState<string[]>([""]);
 
   const generateKbId = (name: string) => {
     return name
@@ -50,22 +64,28 @@ export function useKBWizardForm() {
 
     try {
       // Build source config based on type
-      let sourceConfig: WebDocumentationConfig | WebGenericConfig;
+      let sourceConfig: any;
 
-      if (sourceType === "web_documentation") {
+      if (sourceType === "website") {
+        sourceConfig = sitemapUrl
+          ? { sitemap_url: sitemapUrl }
+          : { urls: urls.filter((url) => url.trim()) };
+      } else if (sourceType === "youtube") {
         sourceConfig = {
-          start_urls: startUrls.filter((url) => url.trim()),
-          allowed_domains: allowedDomains.filter((d) => d.trim()),
-          path_prefix: pathPrefix || undefined,
-          follow_links: followLinks,
-          max_pages: maxPages,
+          video_urls: videoUrls.filter((url) => url.trim()),
         };
-      } else {
+      } else if (sourceType === "pdf") {
         sourceConfig = {
-          urls: urls.filter((url) => url.trim()),
-          follow_links: followLinks,
-          max_depth: 1,
-          same_domain_only: true,
+          local_paths: pdfLocalPaths.filter((p) => p.trim()),
+          pdf_urls: pdfUrls.filter((url) => url.trim()),
+          folder_path: pdfFolderPath || undefined,
+        };
+        // Remove empty arrays
+        if (!sourceConfig.local_paths.length) delete sourceConfig.local_paths;
+        if (!sourceConfig.pdf_urls.length) delete sourceConfig.pdf_urls;
+      } else if (sourceType === "markdown") {
+        sourceConfig = {
+          folder_path: markdownFolderPath,
         };
       }
 
@@ -77,8 +97,8 @@ export function useKBWizardForm() {
         source_type: sourceType,
         source_config: sourceConfig,
         embedding_model: "text-embedding-3-small",
-        chunk_size: 800,
-        chunk_overlap: 120,
+        chunk_size: 1024,
+        chunk_overlap: 200,
         profiles: ["chat", "kb-query"],
         priority: 2,
       };
@@ -103,10 +123,20 @@ export function useKBWizardForm() {
       case "source":
         return sourceType;
       case "config":
-        if (sourceType === "web_documentation") {
-          return startUrls.some((url) => url.trim());
+        if (sourceType === "website") {
+          return sitemapUrl || urls.some((url) => url.trim());
+        } else if (sourceType === "youtube") {
+          return videoUrls.some((url) => url.trim());
+        } else if (sourceType === "pdf") {
+          return (
+            pdfLocalPaths.some((p) => p.trim()) ||
+            pdfUrls.some((url) => url.trim()) ||
+            pdfFolderPath.trim()
+          );
+        } else if (sourceType === "markdown") {
+          return markdownFolderPath.trim();
         }
-        return urls.some((url) => url.trim());
+        return false;
       case "review":
         return true;
       default:
@@ -128,6 +158,25 @@ export function useKBWizardForm() {
     setDescription,
     sourceType,
     setSourceType,
+    // Website
+    urls,
+    setUrls,
+    sitemapUrl,
+    setSitemapUrl,
+    // YouTube
+    videoUrls,
+    setVideoUrls,
+    // PDF
+    pdfLocalPaths,
+    setPdfLocalPaths,
+    pdfUrls,
+    setPdfUrls,
+    pdfFolderPath,
+    setPdfFolderPath,
+    // Markdown
+    markdownFolderPath,
+    setMarkdownFolderPath,
+    // Legacy (kept for backwards compatibility)
     startUrls,
     setStartUrls,
     allowedDomains,
@@ -138,8 +187,6 @@ export function useKBWizardForm() {
     setFollowLinks,
     maxPages,
     setMaxPages,
-    urls,
-    setUrls,
     handleSubmit,
     canProceed,
   };

@@ -27,6 +27,31 @@
         "manifest": "data/knowledge_bases/waf/manifest.json",
         "urls": "data/knowledge_bases/waf/urls.txt"
       }
+    },
+    {
+      "id": "nist-sp",
+      "name": "NIST SP 800-207 \u2013 Zero Trust Architecture",
+      "description": "Zero Trust framework principles: verify explicitly, use least privilege access, and assume breach",
+      "status": "active",
+      "source_type": "pdf",
+      "source_config": {
+        "local_paths": [
+          "C:\\Users\\cyril.beurier\\OneDrive - Avanade\\Documents 1\\Azure-Architect-Assistant\\docs\\References\\NIST.SP.800-207.pdf"
+        ]
+      },
+      "embedding_model": "text-embedding-3-small",
+      "chunk_size": 1024,
+      "chunk_overlap": 200,
+      "profiles": [
+        "chat",
+        "kb-query"
+      ],
+      "priority": 2,
+      "indexed": false,
+      "paths": {
+        "index": "data/knowledge_bases/nist-sp/index",
+        "documents": "data/knowledge_bases/nist-sp/documents"
+      }
     }
   ]
 }
