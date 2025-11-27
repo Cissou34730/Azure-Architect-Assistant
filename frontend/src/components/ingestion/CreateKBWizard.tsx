@@ -42,6 +42,8 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
     setUrls,
     sitemapUrl,
     setSitemapUrl,
+    urlPrefix,
+    setUrlPrefix,
     // YouTube
     videoUrls,
     setVideoUrls,
@@ -118,6 +120,8 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
             setUrls={setUrls}
             sitemapUrl={sitemapUrl}
             setSitemapUrl={setSitemapUrl}
+            urlPrefix={urlPrefix}
+            setUrlPrefix={setUrlPrefix}
             videoUrls={videoUrls}
             setVideoUrls={setVideoUrls}
             pdfLocalPaths={pdfLocalPaths}

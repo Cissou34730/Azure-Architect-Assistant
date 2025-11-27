@@ -1,0 +1,8 @@
+{
+  "kb_id": "caf",
+  "documents": 190,
+  "indexed_documents": 190,
+  "embedding_model": "text-embedding-3-small",
+  "generation_model": "gpt-4o-mini",
+  "index_type": "vector"
+}

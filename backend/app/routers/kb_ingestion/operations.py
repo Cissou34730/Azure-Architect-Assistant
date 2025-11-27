@@ -131,6 +131,11 @@ class KBIngestionService:
             logger.info(f"=== Starting ingestion for KB: {kb_id} ===")
             logger.info(f"  Source type: {source_type}")
             
+            # Check if job was cancelled before starting
+            if job.status.value == 'cancelled':
+                logger.info(f"Job {job.job_id} was cancelled before starting")
+                return
+            
             # Progress callback
             def progress_callback(phase: IngestionPhase, progress: int, message: str, metrics: Dict[str, Any] = None):
                 job.update_progress(phase, progress, message, metrics or {})
@@ -138,48 +143,31 @@ class KBIngestionService:
             # Phase 1: Load documents using appropriate source handler
             progress_callback(IngestionPhase.CRAWLING, 0, "Loading documents from source...", {})
             
-            handler = SourceHandlerFactory.create_handler(source_type, kb_id)
-            documents = self._load_documents_from_source(handler, source_type, source_config)
+            # Check cancellation before expensive operation
+            if job.status.value == 'cancelled':
+                logger.info(f"Job {job.job_id} was cancelled during document loading")
+                return
             
-            logger.info(f"✓ Loaded {len(documents)} documents from source")
-            progress_callback(
-                IngestionPhase.CLEANING, 
-                50, 
-                f"Loaded {len(documents)} documents", 
-                {"documents_loaded": len(documents)}
-            )
+            handler = SourceHandlerFactory.create_handler(source_type, kb_id, job=job)
             
-            if not documents:
-                raise ValueError(f"No documents loaded from source")
+            # Process documents in batches with incremental indexing
+            all_documents = []
+            total_chunks_indexed = 0
+            batch_num = 0
             
-            # Save documents to disk
-            self._save_documents_to_disk(kb_id, documents)
-            
-            # Phase 2: Chunk documents
-            progress_callback(IngestionPhase.CLEANING, 55, "Chunking documents...", {})
-            
-            # Convert LlamaIndex Documents to dict format for chunking
-            documents_dict = self._convert_documents_to_dict(documents)
-            
-            # Get chunking configuration
+            # Get configuration once
             chunk_size = kb_config.get('chunk_size', 1024)
             chunk_overlap = kb_config.get('chunk_overlap', 200)
             chunking_strategy = kb_config.get('chunking_strategy', 'semantic')
             
-            # Create chunker and chunk documents
+            # Create chunker once
             chunker = ChunkerFactory.create_chunker(
                 strategy=chunking_strategy,
                 chunk_size=chunk_size,
                 chunk_overlap=chunk_overlap
             )
-            chunks = chunker.chunk_documents(documents_dict)
             
-            logger.info(f"✓ Created {len(chunks)} chunks from {len(documents)} documents")
-            
-            # Phase 3: Build index
-            progress_callback(IngestionPhase.INDEXING, 60, f"Building index from {len(chunks)} chunks...", {})
-            
-            # Get storage directory
+            # Setup index builder once (for incremental updates)
             backend_root = Path(__file__).parent.parent.parent.parent
             if 'paths' in kb_config and 'index' in kb_config['paths']:
                 index_path = kb_config['paths']['index']
@@ -190,12 +178,10 @@ class KBIngestionService:
             else:
                 storage_dir = str(backend_root / "data" / "knowledge_bases" / kb_id / "index")
             
-            # Get embedding and generation models
             embedding_model = kb_config.get('embedding_model', 'text-embedding-3-small')
             generation_model = kb_config.get('generation_model', 'gpt-4o-mini')
             index_type = kb_config.get('index_type', 'vector')
             
-            # Create index builder and build index
             index_builder = IndexBuilderFactory.create_builder(
                 index_type=index_type,
                 kb_id=kb_id,
@@ -203,19 +189,105 @@ class KBIngestionService:
                 embedding_model=embedding_model,
                 generation_model=generation_model
             )
-            index_path = index_builder.build_index(documents_dict, progress_callback)
             
-            logger.info(f"✓ Index built at: {index_path}")
+            logger.info("Starting batch processing with incremental indexing...")
+            
+            # Process each batch as it's yielded from the source
+            try:
+                for document_batch in self._load_documents_from_source(handler, source_type, source_config):
+                    batch_num += 1
+                    batch_size = len(document_batch)
+                    
+                    logger.info(f"\n=== Processing Batch {batch_num} ({batch_size} documents) ===")
+                    
+                    # Check cancellation
+                    if job.status.value == 'cancelled':
+                        logger.info(f"Job {job.job_id} was cancelled during batch {batch_num}")
+                        logger.info(f"Indexed {total_chunks_indexed} chunks from {len(all_documents)} documents before cancellation")
+                        return
+                    
+                    # Save batch documents to disk
+                    self._save_documents_to_disk(kb_id, document_batch)
+                    all_documents.extend(document_batch)
+                    
+                    # Update progress - Phase 1: Loading
+                    progress_callback(
+                        IngestionPhase.CRAWLING,
+                        min(30, 10 + batch_num),
+                        f"Loaded batch {batch_num} ({len(all_documents)} documents total)",
+                        {"documents_loaded": len(all_documents), "batch_num": batch_num}
+                    )
+                    
+                    # Phase 2: Chunk this batch
+                    logger.info(f"Chunking batch {batch_num}...")
+                    progress_callback(
+                        IngestionPhase.CLEANING,
+                        min(50, 30 + batch_num),
+                        f"Chunking batch {batch_num}...",
+                        {}
+                    )
+                    
+                    documents_dict = self._convert_documents_to_dict(document_batch)
+                    batch_chunks = chunker.chunk_documents(documents_dict)
+                    
+                    logger.info(f"✓ Batch {batch_num}: Created {len(batch_chunks)} chunks")
+                    
+                    # Phase 3: Index this batch immediately
+                    logger.info(f"Indexing batch {batch_num} ({len(batch_chunks)} chunks)...")
+                    progress_callback(
+                        IngestionPhase.INDEXING,
+                        min(90, 50 + batch_num),
+                        f"Indexing batch {batch_num}...",
+                        {"chunks_indexed": total_chunks_indexed}
+                    )
+                    
+                    # Index this batch (incremental update)
+                    if batch_num == 1:
+                        # First batch: create new index
+                        index_path = index_builder.build_index(documents_dict, progress_callback)
+                        logger.info(f"✓ Created index with batch 1")
+                    else:
+                        # Subsequent batches: add to existing index
+                        # Note: LlamaIndex doesn't support incremental updates well, so we rebuild
+                        # For production, consider using a database-backed vector store
+                        all_docs_dict = self._convert_documents_to_dict(all_documents)
+                        index_path = index_builder.build_index(all_docs_dict, progress_callback)
+                        logger.info(f"✓ Updated index (now contains {len(all_documents)} documents)")
+                    
+                    total_chunks_indexed += len(batch_chunks)
+                    logger.info(f"✓ Total: {len(all_documents)} docs, {total_chunks_indexed} chunks indexed")
+                    
+            except GeneratorExit:
+                logger.info(f"Generator closed - processing stopped at batch {batch_num}")
+            except Exception as e:
+                logger.error(f"Error processing batch {batch_num}: {e}", exc_info=True)
+                raise
+            
+            # Verify we got documents
+            if not all_documents:
+                raise ValueError(f"No documents loaded from source")
+            
+            logger.info(f"\n=== Batch Processing Complete ===")
+            logger.info(f"Total batches processed: {batch_num}")
+            logger.info(f"Total documents: {len(all_documents)}")
+            logger.info(f"Total chunks indexed: {total_chunks_indexed}")
+            logger.info(f"Index location: {storage_dir}")
+            
+            if all_documents:
+                logger.info(f"First doc metadata: {all_documents[0].metadata}")
+                logger.info(f"First doc text preview: {all_documents[0].text[:200]}")
             
             # Mark job as complete
             logger.info(f"=== Ingestion completed for KB: {kb_id} ===")
-            logger.info(f"  Documents processed: {len(documents)}")
-            logger.info(f"  Chunks created: {len(chunks)}")
+            logger.info(f"  Documents processed: {len(all_documents)}")
+            logger.info(f"  Chunks indexed: {total_chunks_indexed}")
+            logger.info(f"  Index path: {storage_dir}")
             
             job.complete(metrics={
-                'documents_processed': len(documents),
-                'chunks_created': len(chunks),
-                'source_count': len(documents)
+                'documents_processed': len(all_documents),
+                'chunks_created': total_chunks_indexed,
+                'source_count': len(all_documents),
+                'batches_processed': batch_num
             })
             
         except Exception as e:
@@ -228,16 +300,26 @@ class KBIngestionService:
         handler, 
         source_type: str, 
         source_config: Dict[str, Any]
-    ) -> List[Document]:
-        """Load documents from source based on type"""
+    ):
+        """Load documents from source based on type (returns generator for batch processing)"""
         
         logger.info(f"Loading documents from {source_type} with config: {source_config}")
         
         try:
             # Use the handler's unified ingest() method
-            documents = handler.ingest(source_config)
-            logger.info(f"Handler returned {len(documents)} documents")
-            return documents
+            result = handler.ingest(source_config)
+            
+            # If result is a generator/iterator (batch mode), yield batches
+            if hasattr(result, '__iter__') and not isinstance(result, (list, tuple)):
+                logger.info(f"Handler returned generator for batch processing")
+                for batch in result:
+                    logger.info(f"Yielding batch of {len(batch)} documents")
+                    yield batch
+            else:
+                # Legacy mode: handler returned list of all documents
+                # Wrap in single batch
+                logger.info(f"Handler returned {len(result)} documents (converting to single batch)")
+                yield result
         except Exception as e:
             logger.error(f"Failed to load documents from {source_type}: {e}", exc_info=True)
             raise

@@ -7,25 +7,22 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:python\" \"npm run dev --workspace=frontend\"",
-    "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --reload-dir app --port 8000",
-    "dev:frontend": "npm run dev --workspace=frontend",
-    "build": "npm run build --workspaces",
-    "lint": "npm run lint --workspaces",
-    "lint:fix": "npm run lint:fix --workspaces",
+    "backend": "powershell -File start-backend.ps1",
     "frontend": "npm run dev --workspace=frontend",
-    "install:all": "npm install && npm install --workspaces && cd backend && pip install -r requirements.txt && cd .."
+    "build": "npm run build --workspace=frontend",
+    "lint": "npm run lint --workspace=frontend",
+    "lint:fix": "npm run lint:fix --workspace=frontend",
+    "install": "npm install --workspace=frontend && cd backend && pip install -r requirements.txt && cd ..",
+    "kill": "powershell -File kill-backend.ps1"
   },
   "keywords": [
-    "typescript",
-    "express",
+    "azure",
+    "architecture",
+    "assistant",
+    "fastapi",
     "react",
-    "vite",
-    "sqlite"
+    "vite"
   ],
   "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "concurrently": "^9.2.1"
-  }
+  "license": "ISC"
 }

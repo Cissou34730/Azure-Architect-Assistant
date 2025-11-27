@@ -63,22 +63,35 @@ export function useIngestionJob(
       return;
     }
 
-    // Initial fetch
-    void fetchStatus();
+    let intervalId: NodeJS.Timeout | null = null;
 
-    // Only poll if job is running
-    const shouldPoll =
-      job?.status === "RUNNING" || job?.status === "PENDING" || !job;
+    const startPolling = async () => {
+      // Initial fetch
+      await fetchStatus();
 
-    if (!shouldPoll) {
-      return;
-    }
+      // Set up polling only if job is running or pending
+      intervalId = setInterval(async () => {
+        const data = await getKBStatus(kbId);
+        setJob(data);
 
-    // Set up polling
-    const intervalId = setInterval(() => void fetchStatus(), pollInterval);
+        // Stop polling if job is completed or failed
+        if (data.status === "COMPLETED" || data.status === "FAILED") {
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
+      }, pollInterval);
+    };
 
-    return () => clearInterval(intervalId);
-  }, [kbId, enabled, job?.status, pollInterval, fetchStatus]);
+    void startPolling();
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [kbId, enabled, pollInterval]);
 
   return {
     job,

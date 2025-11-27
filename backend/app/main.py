@@ -32,21 +32,13 @@ logging.basicConfig(
 )
 
 # Set uvicorn loggers to use our format
-for logger_name in ['uvicorn', 'uvicorn.error', 'uvicorn.access']:
+for logger_name in ['uvicorn', 'uvicorn.error']:
     uvicorn_logger = logging.getLogger(logger_name)
     uvicorn_logger.setLevel(logging.INFO)
-    # Remove default handlers
-    uvicorn_logger.handlers.clear()
-    # Add our handler with timestamp
-    handler = logging.StreamHandler()
-    handler.setFormatter(
-        logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(name)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-    )
-    uvicorn_logger.addHandler(handler)
-    uvicorn_logger.propagate = False
+
+# Keep uvicorn.access with default handler for HTTP request logs
+access_logger = logging.getLogger('uvicorn.access')
+access_logger.setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
 logger.info(f"Loading environment from: {env_path}")
@@ -151,8 +143,23 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Cleanup on shutdown."""
+    """Cleanup on shutdown - cancel running ingestion jobs."""
     logger.info("Shutting down...")
+    
+    # Cancel any running ingestion jobs
+    try:
+        from app.kb.ingestion.job_manager import get_job_manager
+        job_manager = get_job_manager()
+        running_jobs = [job for job in job_manager.get_all_jobs() if job.status.value == 'running']
+        
+        if running_jobs:
+            logger.info(f"Cancelling {len(running_jobs)} running ingestion jobs...")
+            for job in running_jobs:
+                job.cancel()
+                logger.info(f"  Cancelled job {job.job_id} for KB {job.kb_id}")
+    except Exception as e:
+        logger.warning(f"Error cancelling jobs during shutdown: {e}")
+    
     await close_database()
     logger.info("Shutdown complete")
 

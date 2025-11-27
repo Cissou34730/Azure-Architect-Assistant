@@ -3,10 +3,7 @@
  */
 
 import { useState } from "react";
-import {
-  SourceType,
-  CreateKBRequest,
-} from "../../../types/ingestion";
+import { SourceType, CreateKBRequest } from "../../../types/ingestion";
 import { createKB, startIngestion } from "../../../services/ingestionApi";
 
 export type WizardStep = "basic" | "source" | "config" | "review";
@@ -21,22 +18,23 @@ export function useKBWizardForm() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [sourceType, setSourceType] = useState<SourceType>("website");
-  
+
   // Website config
   const [urls, setUrls] = useState<string[]>([""]);
   const [sitemapUrl, setSitemapUrl] = useState("");
-  
+  const [urlPrefix, setUrlPrefix] = useState("");
+
   // YouTube config
   const [videoUrls, setVideoUrls] = useState<string[]>([""]);
-  
+
   // PDF config
   const [pdfLocalPaths, setPdfLocalPaths] = useState<string[]>([""]);
   const [pdfUrls, setPdfUrls] = useState<string[]>([""]);
   const [pdfFolderPath, setPdfFolderPath] = useState("");
-  
+
   // Markdown config
   const [markdownFolderPath, setMarkdownFolderPath] = useState("");
-  
+
   // Legacy fields (kept for backwards compatibility during transition)
   const [startUrls, setStartUrls] = useState<string[]>([""]);
   const [allowedDomains, setAllowedDomains] = useState<string[]>([""]);
@@ -68,8 +66,15 @@ export function useKBWizardForm() {
 
       if (sourceType === "website") {
         sourceConfig = sitemapUrl
-          ? { sitemap_url: sitemapUrl }
-          : { urls: urls.filter((url) => url.trim()) };
+          ? {
+              sitemap_url: sitemapUrl,
+              url_prefix: urlPrefix || undefined,
+            }
+          : {
+              start_url: urls[0]?.trim(),
+              url_prefix: urlPrefix || undefined,
+              max_pages: maxPages || 1000,
+            };
       } else if (sourceType === "youtube") {
         sourceConfig = {
           video_urls: videoUrls.filter((url) => url.trim()),
@@ -163,6 +168,8 @@ export function useKBWizardForm() {
     setUrls,
     sitemapUrl,
     setSitemapUrl,
+    urlPrefix,
+    setUrlPrefix,
     // YouTube
     videoUrls,
     setVideoUrls,

@@ -1,16 +1,13 @@
 """
 Source Handler Factory
 Creates appropriate source handler based on type.
+Uses lazy imports to avoid loading all handlers at startup.
 """
 
 import logging
 from typing import Union
 
 from .base import BaseSourceHandler
-from .website import WebsiteSourceHandler
-from .youtube import YouTubeSourceHandler
-from .pdf import PDFSourceHandler
-from .markdown import MarkdownSourceHandler
 
 logger = logging.getLogger(__name__)
 
@@ -18,22 +15,16 @@ logger = logging.getLogger(__name__)
 class SourceHandlerFactory:
     """Factory to create appropriate source handler based on type"""
     
-    # Handler registry
-    HANDLERS = {
-        'website': WebsiteSourceHandler,
-        'youtube': YouTubeSourceHandler,
-        'pdf': PDFSourceHandler,
-        'markdown': MarkdownSourceHandler
-    }
-    
     @classmethod
-    def create_handler(cls, source_type: str, kb_id: str) -> BaseSourceHandler:
+    def create_handler(cls, source_type: str, kb_id: str, job=None) -> BaseSourceHandler:
         """
         Create source handler based on type.
+        Uses lazy imports to avoid loading all handlers at startup.
         
         Args:
             source_type: Type of source (website, youtube, pdf, markdown)
             kb_id: Knowledge base ID
+            job: Optional ingestion job (for cancellation support)
             
         Returns:
             Appropriate source handler instance
@@ -41,17 +32,34 @@ class SourceHandlerFactory:
         Raises:
             ValueError: If source_type is unknown
         """
-        handler_class = cls.HANDLERS.get(source_type.lower())
+        source_type = source_type.lower()
         
-        if not handler_class:
-            available = ', '.join(cls.HANDLERS.keys())
+        # Lazy import handlers only when needed
+        if source_type == 'website':
+            from .website import WebsiteSourceHandler
+            handler_class = WebsiteSourceHandler
+        elif source_type == 'youtube':
+            from .youtube import YouTubeSourceHandler
+            handler_class = YouTubeSourceHandler
+        elif source_type == 'pdf':
+            from .pdf import PDFSourceHandler
+            handler_class = PDFSourceHandler
+        elif source_type == 'markdown':
+            from .markdown import MarkdownSourceHandler
+            handler_class = MarkdownSourceHandler
+        else:
             raise ValueError(
                 f"Unknown source type: '{source_type}'. "
-                f"Available types: {available}"
+                f"Available types: website, youtube, pdf, markdown"
             )
         
         logger.info(f"Creating {handler_class.__name__} for KB: {kb_id}")
-        return handler_class(kb_id)
+        
+        # Pass job if handler supports it (currently only website)
+        if source_type == 'website':
+            return handler_class(kb_id, job=job)
+        else:
+            return handler_class(kb_id)
     
     @classmethod
     def register_handler(cls, source_type: str, handler_class: type):
