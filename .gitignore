@@ -142,12 +142,14 @@ dmypy.json
 
 # Knowledge Base Data (generated files, can be regenerated)
 data/knowledge_bases/*/documents/
-#data/knowledge_bases/*/index/
+data/knowledge_bases/*/index/
 data/knowledge_bases/*/urls.txt
 data/knowledge_bases/*/manifest.json
 data/knowledge_bases/**/raw/
+backend/data/ingestion/jobs/*.json
+backend/data/ingestion/index.json
 backend/data/knowledge_bases/*/documents/
-#backend/data/knowledge_bases/*/index/
+backend/data/knowledge_bases/*/index/
 backend/data/knowledge_bases/*/urls.txt
 backend/data/knowledge_bases/*/manifest.json
 backend/data/knowledge_bases/**/raw/

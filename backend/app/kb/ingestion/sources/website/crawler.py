@@ -65,7 +65,9 @@ class WebsiteCrawler:
         logger.info(f"Semantic path extracted: {self.semantic_path}")
         logger.info(f"Base domain: {self.base_domain}")
         
-        # Initialize state
+        # Initialize state with ID tracking
+        url_id_map: Dict[str, int] = {}  # url -> sequential ID
+        last_id = 0
         visited: Set[str] = set()
         to_visit: List[str] = [start_url]
         current_batch: List[Document] = []
@@ -73,6 +75,19 @@ class WebsiteCrawler:
         pages_since_checkpoint = 0
         
         checkpoint_path = self._get_checkpoint_path()
+        
+        # Try to load existing checkpoint
+        if checkpoint_path.exists():
+            try:
+                with open(checkpoint_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    url_id_map = data.get('url_id_map', {})
+                    last_id = data.get('last_id', 0)
+                    visited = set(data.get('visited', []))
+                    to_visit = data.get('to_visit', [start_url])
+                    logger.info(f"Resuming from checkpoint: ID={last_id}, visited={len(visited)}, queued={len(to_visit)}")
+            except Exception as e:
+                logger.warning(f"Could not load checkpoint: {e}, starting fresh")
         
         logger.info("="*70)
         logger.info("CRAWLER STARTING")
@@ -84,12 +99,27 @@ class WebsiteCrawler:
         logger.info("="*70)
         
         while to_visit and len(visited) < max_pages:
-            # Check for cancellation
+            # Check for cancellation or pause
+            if self.job:
+                logger.debug(f"CRAWLER CHECK: job.status = {self.job.status}, job.status.value = {self.job.status.value}")
+            
             if self.job and self.job.status.value == 'cancelled':
                 logger.info(f"Crawl cancelled by user at {len(visited)} pages")
+                # Save checkpoint before exiting
+                self._save_checkpoint(checkpoint_path, visited, to_visit, url_id_map, last_id)
                 # Yield any remaining documents
                 if current_batch:
                     logger.info(f"Yielding final batch of {len(current_batch)} documents before cancellation")
+                    yield current_batch
+                return
+            
+            if self.job and self.job.status.value == 'paused':
+                logger.info(f"Crawl paused by user at {len(visited)} pages")
+                # Save checkpoint before pausing
+                self._save_checkpoint(checkpoint_path, visited, to_visit, url_id_map, last_id)
+                # Yield any remaining documents
+                if current_batch:
+                    logger.info(f"Yielding final batch of {len(current_batch)} documents before pause")
                     yield current_batch
                 return
             
@@ -99,8 +129,14 @@ class WebsiteCrawler:
             if url in visited or not self._is_valid_url(url):
                 continue
             
+            # Assign sequential ID if not already assigned
+            if url not in url_id_map:
+                last_id += 1
+                url_id_map[url] = last_id
+            
+            url_id = url_id_map[url]
             visited.add(url)
-            logger.info(f"[{len(visited)}/{max_pages}] Crawling: {url}")
+            logger.info(f"[{len(visited)}/{max_pages}] ID={url_id}: {url}")
             
             # Fetch page once and extract both content and links
             html_content, final_url = self._fetch_html_with_redirect(url)
@@ -110,7 +146,7 @@ class WebsiteCrawler:
                 # Still increment checkpoint counter but skip processing
                 pages_since_checkpoint += 1
                 if pages_since_checkpoint >= checkpoint_interval:
-                    self._save_checkpoint(checkpoint_path, visited, to_visit)
+                    self._save_checkpoint(checkpoint_path, visited, to_visit, url_id_map, last_id)
                     pages_since_checkpoint = 0
                 time.sleep(0.5)
                 continue
@@ -126,6 +162,7 @@ class WebsiteCrawler:
                 doc = Document(
                     text=content,
                     metadata={
+                        'doc_id': url_id,
                         'source_type': 'website',
                         'url': final_url or url,  # Use final URL after redirect
                         'original_url': url if final_url and final_url != url else None,
@@ -167,7 +204,7 @@ class WebsiteCrawler:
             # Checkpoint
             pages_since_checkpoint += 1
             if pages_since_checkpoint >= checkpoint_interval:
-                self._save_checkpoint(checkpoint_path, visited, to_visit)
+                self._save_checkpoint(checkpoint_path, visited, to_visit, url_id_map, last_id)
                 pages_since_checkpoint = 0
             
             # Rate limiting
@@ -179,7 +216,7 @@ class WebsiteCrawler:
             yield current_batch
         
         # Final checkpoint
-        self._save_checkpoint(checkpoint_path, visited, to_visit)
+        self._save_checkpoint(checkpoint_path, visited, to_visit, url_id_map, last_id)
         
         logger.info("="*70)
         logger.info("CRAWLER COMPLETE")
@@ -330,14 +367,18 @@ class WebsiteCrawler:
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         return checkpoint_dir / "crawl_checkpoint.json"
     
-    def _save_checkpoint(self, checkpoint_path: Path, visited: Set[str], to_visit: List[str]):
-        """Save crawl state to checkpoint file."""
+    def _save_checkpoint(self, checkpoint_path: Path, visited: Set[str], to_visit: List[str], url_id_map: Dict[str, int], last_id: int):
+        """Save crawl state to checkpoint file with ID tracking."""
         try:
             data = {
                 'kb_id': self.kb_id,
                 'timestamp': datetime.now().isoformat(),
+                'last_id': last_id,
+                'pages_total': len(url_id_map),
+                'pages_crawled': len(visited),
                 'visited_count': len(visited),
                 'queued_count': len(to_visit),
+                'url_id_map': url_id_map,
                 'visited': list(visited),
                 'to_visit': to_visit
             }
@@ -345,6 +386,6 @@ class WebsiteCrawler:
             with open(checkpoint_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
             
-            logger.info(f"✓ Checkpoint saved: {len(visited)} visited, {len(to_visit)} queued")
+            logger.info(f"✓ Checkpoint saved: ID={last_id}, {len(visited)} visited, {len(to_visit)} queued")
         except Exception as e:
             logger.error(f"Failed to save checkpoint: {e}")

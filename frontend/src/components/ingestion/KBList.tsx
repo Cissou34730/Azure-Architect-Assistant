@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { KnowledgeBase, IngestionJob } from '../../types/ingestion';
 import { KBListItem } from './KBListItem';
-import { listJobs, deleteKB, cancelJob, pauseJob, resumeJob } from '../../services/ingestionApi';
+import { getKBStatus, deleteKB, cancelJob, pauseJob, resumeJob } from '../../services/ingestionApi';
 
 interface KBListProps {
   kbs: KnowledgeBase[];
@@ -19,27 +19,26 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
   const [jobs, setJobs] = useState<Map<string, IngestionJob>>(new Map());
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        const response = await listJobs();
-        const jobsMap = new Map<string, IngestionJob>();
-        
-        // Get latest job for each KB
-        response.jobs.forEach(job => {
-          if (!jobsMap.has(job.kb_id)) {
-            jobsMap.set(job.kb_id, job);
-          }
-        });
-        
-        setJobs(jobsMap);
-      } catch (error) {
-        console.error('Failed to fetch jobs:', error);
-      } finally {
-        setLoading(false);
+  const fetchJobs = async () => {
+    try {
+      const jobsMap = new Map<string, IngestionJob>();
+      for (const kb of kbs) {
+        try {
+          const status = await getKBStatus(kb.id);
+          jobsMap.set(kb.id, status);
+        } catch (e) {
+          // No status yet for this KB; ignore
+        }
       }
-    };
+      setJobs(jobsMap);
+    } catch (error) {
+      console.error('Failed to fetch KB statuses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     void fetchJobs();
 
     // Refresh jobs every 5 seconds
@@ -79,14 +78,7 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
     try {
       await cancelJob(kbId);
       // Refresh jobs list
-      const response = await listJobs();
-      const jobsMap = new Map<string, IngestionJob>();
-      response.jobs.forEach(job => {
-        if (!jobsMap.has(job.kb_id)) {
-          jobsMap.set(job.kb_id, job);
-        }
-      });
-      setJobs(jobsMap);
+      await fetchJobs();
     } catch (error) {
       console.error('Failed to cancel job:', error);
       alert(`Failed to cancel job: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -97,14 +89,7 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
     try {
       await pauseJob(kbId);
       // Refresh jobs list
-      const response = await listJobs();
-      const jobsMap = new Map<string, IngestionJob>();
-      response.jobs.forEach(job => {
-        if (!jobsMap.has(job.kb_id)) {
-          jobsMap.set(job.kb_id, job);
-        }
-      });
-      setJobs(jobsMap);
+      await fetchJobs();
     } catch (error) {
       console.error('Failed to pause job:', error);
       alert(`Failed to pause job: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -115,14 +100,7 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
     try {
       await resumeJob(kbId);
       // Refresh jobs list
-      const response = await listJobs();
-      const jobsMap = new Map<string, IngestionJob>();
-      response.jobs.forEach(job => {
-        if (!jobsMap.has(job.kb_id)) {
-          jobsMap.set(job.kb_id, job);
-        }
-      });
-      setJobs(jobsMap);
+      await fetchJobs();
     } catch (error) {
       console.error('Failed to resume job:', error);
       alert(`Failed to resume job: ${error instanceof Error ? error.message : 'Unknown error'}`);

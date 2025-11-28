@@ -3,7 +3,7 @@ FastAPI Router for KB Ingestion Endpoints
 Clean routing layer - business logic delegated to operations.py
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 import logging
 import asyncio
 
@@ -128,7 +128,7 @@ async def delete_kb(kb_id: str):
 # ============================================================================
 
 @router.post("/kb/{kb_id}/start", response_model=StartIngestionResponse)
-async def start_ingestion(kb_id: str, background_tasks: BackgroundTasks):
+async def start_ingestion(kb_id: str):
     """Start ingestion for a knowledge base"""
     try:
         service = get_ingestion_service()
@@ -141,8 +141,11 @@ async def start_ingestion(kb_id: str, background_tasks: BackgroundTasks):
         kb_manager = get_kb_manager()
         kb_config = kb_manager.get_kb_config(kb_id)
         
-        # Start ingestion in background
-        background_tasks.add_task(service.run_ingestion_pipeline, job, kb_config)
+        # Start ingestion using asyncio-based service (KB-centric)
+        from app.ingestion.service import IngestionService
+        ingest_service = IngestionService.instance()
+        # Run the existing pipeline in a worker task (to_thread inside service)
+        await ingest_service.start(kb_id, service.run_ingestion_pipeline, job, kb_config)
         
         return StartIngestionResponse(**result)
         
@@ -157,26 +160,57 @@ async def start_ingestion(kb_id: str, background_tasks: BackgroundTasks):
 async def get_kb_status(kb_id: str):
     """Get ingestion status for a KB"""
     try:
+        # Check if KB exists
+        kb_manager = get_kb_manager()
+        if not kb_manager.kb_exists(kb_id):
+            raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+        
+        # Prefer KB-centric state from IngestionService snapshots
+        from app.ingestion.service import IngestionService
+        ingest_service = IngestionService.instance()
+        state = ingest_service.status(kb_id)
+        if state:
+            return JobStatusResponse(
+                job_id=f"{kb_id}-job",  # placeholder, UI ignores job_id
+                kb_id=kb_id,
+                status=state.status,
+                phase=state.phase,
+                progress=state.progress,
+                message=state.message,
+                error=state.error,
+                metrics=state.metrics,
+                started_at=None,
+                completed_at=None,
+            )
+        # Fallback to latest job manager entry if snapshot missing
         job_manager = get_job_manager()
         job = job_manager.get_latest_job_for_kb(kb_id)
-        
-        if not job:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No ingestion job found for KB '{kb_id}'"
+        if job:
+            return JobStatusResponse(
+                job_id=job.job_id,
+                kb_id=job.kb_id,
+                status=job.status,
+                phase=job.phase,
+                progress=job.progress,
+                message=job.message,
+                error=job.error,
+                metrics=job.metrics,
+                started_at=job.started_at,
+                completed_at=job.completed_at,
             )
         
+        # No state or job found - return default "not started" state
         return JobStatusResponse(
-            job_id=job.job_id,
-            kb_id=job.kb_id,
-            status=job.status,
-            phase=job.phase,
-            progress=job.progress,
-            message=job.message,
-            error=job.error,
-            metrics=job.metrics,
-            started_at=job.started_at,
-            completed_at=job.completed_at
+            job_id=f"{kb_id}-pending",
+            kb_id=kb_id,
+            status="pending",
+            phase="crawling",
+            progress=0,
+            message="No ingestion started",
+            error=None,
+            metrics={},
+            started_at=None,
+            completed_at=None,
         )
         
     except HTTPException:
@@ -190,33 +224,20 @@ async def get_kb_status(kb_id: str):
 async def cancel_ingestion(kb_id: str):
     """Cancel the running ingestion job for a knowledge base"""
     try:
+        # Cancel via KB-centric ingestion service
+        from app.ingestion.service import IngestionService
+        ingest_service = IngestionService.instance()
+        success = await ingest_service.cancel(kb_id)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"No active ingestion for KB '{kb_id}'")
+        
+        # Also update the job manager job status so the pipeline sees it
         job_manager = get_job_manager()
-        
-        # Get latest job for this KB
         job = job_manager.get_latest_job_for_kb(kb_id)
+        if job:
+            job.cancel()
         
-        if not job:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No ingestion job found for KB '{kb_id}'"
-            )
-        
-        if job.status not in [JobStatus.RUNNING, JobStatus.PAUSED]:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Job {job.job_id} is not running or paused (status: {job.status})"
-            )
-        
-        # Cancel job
-        job_manager.cancel_job(job.job_id)
-        
-        logger.info(f"Cancelled job {job.job_id} for KB: {kb_id}")
-        
-        return {
-            "message": f"Ingestion job {job.job_id} cancelled",
-            "job_id": job.job_id,
-            "kb_id": kb_id
-        }
+        return {"message": f"Ingestion cancelled for KB '{kb_id}'", "kb_id": kb_id}
         
     except HTTPException:
         raise
@@ -229,39 +250,23 @@ async def cancel_ingestion(kb_id: str):
 async def pause_ingestion(kb_id: str):
     """Pause the running ingestion job for a knowledge base"""
     try:
-        job_manager = get_job_manager()
-        
-        # Get latest job for this KB
-        job = job_manager.get_latest_job_for_kb(kb_id)
-        
-        if not job:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No ingestion job found for KB '{kb_id}'"
-            )
-        
-        if job.status != JobStatus.RUNNING:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Job {job.job_id} is not running (status: {job.status})"
-            )
-        
-        # Pause job
-        success = job.pause()
-        
+        from app.ingestion.service import IngestionService
+        ingest_service = IngestionService.instance()
+        success = await ingest_service.pause(kb_id)
         if not success:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Failed to pause job {job.job_id}"
-            )
+            raise HTTPException(status_code=404, detail=f"No running ingestion for KB '{kb_id}'")
         
-        logger.info(f"Paused job {job.job_id} for KB: {kb_id}")
+        # Also update the job manager job status so the pipeline sees it
+        job_manager = get_job_manager()
+        job = job_manager.get_latest_job_for_kb(kb_id)
+        if job:
+            logger.info(f"PAUSE: Job status before pause: {job.status}")
+            job.pause()
+            logger.info(f"PAUSE: Job status after pause: {job.status}")
+        else:
+            logger.warning(f"PAUSE: No job found for KB '{kb_id}'")
         
-        return {
-            "message": f"Ingestion job {job.job_id} paused",
-            "job_id": job.job_id,
-            "kb_id": kb_id
-        }
+        return {"message": f"Ingestion paused for KB '{kb_id}'", "kb_id": kb_id}
         
     except HTTPException:
         raise
@@ -274,39 +279,23 @@ async def pause_ingestion(kb_id: str):
 async def resume_ingestion(kb_id: str):
     """Resume a paused ingestion job for a knowledge base"""
     try:
+        from app.ingestion.service import IngestionService
+        ingest_service = IngestionService.instance()
+        
+        # First update the job manager job status
         job_manager = get_job_manager()
-        
-        # Get latest job for this KB
         job = job_manager.get_latest_job_for_kb(kb_id)
+        if job:
+            job.resume()
         
-        if not job:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No ingestion job found for KB '{kb_id}'"
-            )
-        
-        if job.status != JobStatus.PAUSED:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Job {job.job_id} is not paused (status: {job.status})"
-            )
-        
-        # Resume job
-        success = job.resume()
-        
+        # If no task exists (e.g., after restart), rehydrate by starting a worker with checkpoint-aware pipeline
+        service = get_ingestion_service()
+        kb_manager = get_kb_manager()
+        kb_config = kb_manager.get_kb_config(kb_id)
+        success = await ingest_service.resume_or_start(kb_id, service.run_ingestion_pipeline, job, kb_config)
         if not success:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Failed to resume job {job.job_id}"
-            )
-        
-        logger.info(f"Resumed job {job.job_id} for KB: {kb_id}")
-        
-        return {
-            "message": f"Ingestion job {job.job_id} resumed",
-            "job_id": job.job_id,
-            "kb_id": kb_id
-        }
+            raise HTTPException(status_code=404, detail=f"Unable to resume/start ingestion for KB '{kb_id}'")
+        return {"message": f"Ingestion resumed for KB '{kb_id}'", "kb_id": kb_id}
         
     except HTTPException:
         raise

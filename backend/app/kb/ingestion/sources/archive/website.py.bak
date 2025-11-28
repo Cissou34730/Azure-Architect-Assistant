@@ -248,7 +248,7 @@ class WebsiteSourceHandler(BaseSourceHandler):
         """
         Crawl website using BeautifulSoup4 for link extraction.
         Checkpoints every 50 pages to track progress.
-        Ingests content as it crawls (not after).
+        Assigns sequential IDs to each URL for tracking.
         
         Args:
             start_url: Starting URL to begin crawling
@@ -262,15 +262,34 @@ class WebsiteSourceHandler(BaseSourceHandler):
         if not url_prefix:
             url_prefix = start_url.rstrip('/')
         
-        # Initialize crawl state
+        # Setup checkpoint file
+        checkpoint_path = self._get_checkpoint_path()
+        
+        # Try to load existing checkpoint
+        url_id_map = {}  # url -> id
+        last_id = 0
         visited: Set[str] = set()
-        to_visit: List[str] = [start_url]
+        to_visit: List[str] = []
+        
+        if checkpoint_path.exists():
+            try:
+                with open(checkpoint_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    url_id_map = data.get('url_id_map', {})
+                    last_id = data.get('last_id', 0)
+                    visited = set(u for u, s in data.get('urls', {}).items() if data['urls'][s].get('status') == 'fetched')
+                    to_visit = data.get('to_visit', [])
+                    logger.info(f"Resuming from checkpoint: ID={last_id}, visited={len(visited)}, queued={len(to_visit)}")
+            except Exception as e:
+                logger.warning(f"Could not load checkpoint: {e}, starting fresh")
+        
+        # Initialize queue if empty
+        if not to_visit:
+            to_visit = [start_url]
+        
         checkpoint_interval = 50
         pages_since_checkpoint = 0
         all_documents = []
-        
-        # Setup checkpoint file
-        checkpoint_path = self._get_checkpoint_path()
         
         logger.info("="*70)
         logger.info("BS4 CRAWLER STARTING")
@@ -294,8 +313,14 @@ class WebsiteSourceHandler(BaseSourceHandler):
             if url in visited or not url.startswith(url_prefix):
                 continue
             
+            # Assign ID if not already assigned
+            if url not in url_id_map:
+                last_id += 1
+                url_id_map[url] = last_id
+            
+            url_id = url_id_map[url]
             visited.add(url)
-            logger.info(f"Crawling [{len(visited)}/{max_pages}]: {url}")
+            logger.info(f"Crawling [{len(visited)}/{max_pages}] ID={url_id}: {url}")
             
             # Ingest this URL immediately using requests + trafilatura
             max_retries = 3
@@ -317,13 +342,15 @@ class WebsiteSourceHandler(BaseSourceHandler):
                         logger.warning(f"  → Failed to extract content from {url}")
                         break
                     
-                    # Create LlamaIndex Document
+                    # Create LlamaIndex Document with ID
                     doc = Document(
                         text=text,
                         metadata={
                             'source_type': 'website',
                             'url': url,
+                            'original_url': url,
                             'kb_id': self.kb_id,
+                            'doc_id': url_id,
                             'date_ingested': datetime.now().isoformat()
                         }
                     )
@@ -369,18 +396,19 @@ class WebsiteSourceHandler(BaseSourceHandler):
             # Checkpoint every 50 pages
             pages_since_checkpoint += 1
             if pages_since_checkpoint >= checkpoint_interval:
-                self._save_checkpoint(checkpoint_path, visited, to_visit)
+                self._save_checkpoint(checkpoint_path, visited, to_visit, url_id_map, last_id)
                 pages_since_checkpoint = 0
             
             # Rate limiting
             time.sleep(0.5)
         
         # Final checkpoint
-        self._save_checkpoint(checkpoint_path, visited, to_visit)
+        self._save_checkpoint(checkpoint_path, visited, to_visit, url_id_map, last_id)
         
         logger.info("="*70)
         logger.info("BS4 CRAWLER COMPLETE")
         logger.info("="*70)
+        logger.info(f"Total URLs assigned: {last_id}")
         logger.info(f"Total URLs visited: {len(visited)}")
         logger.info(f"Total documents ingested: {len(all_documents)}")
         logger.info(f"Documents sample: {[doc.metadata.get('url', 'unknown')[:50] for doc in all_documents[:3]]}")
@@ -487,28 +515,61 @@ class WebsiteSourceHandler(BaseSourceHandler):
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         return checkpoint_dir / "crawl_checkpoint.json"
     
-    def _save_checkpoint(self, checkpoint_path: Path, visited: Set[str], to_visit: List[str]):
+    def _save_checkpoint(self, checkpoint_path: Path, visited: Set[str], to_visit: List[str], url_id_map: Dict[str, int] = None, last_id: int = 0):
         """
-        Save crawl state to checkpoint file.
+        Save crawl state to checkpoint file with sequential IDs.
         
         Args:
             checkpoint_path: Path to checkpoint file
             visited: Set of visited URLs
             to_visit: List of URLs queued for crawling
+            url_id_map: Mapping of URL to sequential ID
+            last_id: Last assigned ID
         """
         try:
+            # Load existing checkpoint to preserve IDs
+            existing_data = {}
+            if checkpoint_path.exists():
+                try:
+                    with open(checkpoint_path, 'r', encoding='utf-8') as f:
+                        existing_data = json.load(f)
+                except Exception:
+                    pass
+            
+            # Merge with existing or create new
+            if url_id_map is None:
+                url_id_map = existing_data.get('url_id_map', {})
+            if last_id == 0:
+                last_id = existing_data.get('last_id', 0)
+            
+            # Build URL status map
+            urls_data = {}
+            for url_str, url_id in url_id_map.items():
+                status = 'fetched' if url_str in visited else 'pending'
+                urls_data[str(url_id)] = {
+                    'url': url_str,
+                    'status': status,
+                    'timestamp': datetime.now().isoformat()
+                }
+            
             data = {
                 'kb_id': self.kb_id,
+                'last_id': last_id,
+                'pages_total': len(url_id_map),
+                'pages_crawled': len(visited),
                 'timestamp': datetime.now().isoformat(),
-                'visited_count': len(visited),
-                'queued_count': len(to_visit),
-                'visited': list(visited),
+                'url_id_map': url_id_map,
+                'urls': urls_data,
                 'to_visit': to_visit
             }
             
-            with open(checkpoint_path, 'w', encoding='utf-8') as f:
+            # Atomic write
+            import tempfile
+            tmp_fd, tmp_name = tempfile.mkstemp(dir=str(checkpoint_path.parent), suffix='.tmp')
+            with os.fdopen(tmp_fd, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
+            os.replace(tmp_name, str(checkpoint_path))
             
-            logger.info(f"✓ Checkpoint saved: {len(visited)} visited, {len(to_visit)} queued")
+            logger.info(f"✓ Checkpoint saved: ID={last_id}, {len(visited)} fetched, {len(to_visit)} queued")
         except Exception as e:
             logger.error(f"Failed to save checkpoint: {e}")

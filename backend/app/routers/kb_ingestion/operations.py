@@ -202,6 +202,7 @@ class KBIngestionService:
                     logger.info(f"\n=== Processing Batch {batch_num} ({batch_size} documents) ===")
                     
                     # Check cancellation
+                    logger.debug(f"CHECK: job.status = {job.status}, job.status.value = {job.status.value}")
                     if job.status.value == 'cancelled':
                         logger.info(f"Job {job.job_id} was cancelled during batch {batch_num}")
                         logger.info(f"Indexed {total_chunks_indexed} chunks from {len(all_documents)} documents before cancellation")
@@ -225,6 +226,14 @@ class KBIngestionService:
                         {"documents_loaded": len(all_documents), "batch_num": batch_num}
                     )
                     
+                    # Check pause/cancel after saving documents
+                    if job.status.value == 'cancelled':
+                        logger.info(f"Job {job.job_id} cancelled after saving batch {batch_num}")
+                        return
+                    if job.status.value == 'paused':
+                        logger.info(f"Job {job.job_id} paused after saving batch {batch_num}")
+                        return
+                    
                     # Phase 2: Chunk this batch
                     logger.info(f"Chunking batch {batch_num}...")
                     progress_callback(
@@ -239,27 +248,34 @@ class KBIngestionService:
                     
                     logger.info(f"✓ Batch {batch_num}: Created {len(batch_chunks)} chunks")
                     
-                    # Phase 3: Index this batch immediately
+                    # Check pause/cancel after chunking
+                    if job.status.value == 'cancelled':
+                        logger.info(f"Job {job.job_id} cancelled after chunking batch {batch_num}")
+                        return
+                    if job.status.value == 'paused':
+                        logger.info(f"Job {job.job_id} paused after chunking batch {batch_num}")
+                        return
+                    
+                    # Phase 3: Index this batch immediately (incremental)
                     logger.info(f"Indexing batch {batch_num} ({len(batch_chunks)} chunks)...")
                     progress_callback(
+                        IngestionPhase.EMBEDDING,
+                        min(70, 50 + batch_num * 2),
+                        f"Embedding batch {batch_num}...",
+                        {"chunks_indexed": total_chunks_indexed}
+                    )
+                    
+                    progress_callback(
                         IngestionPhase.INDEXING,
-                        min(90, 50 + batch_num),
+                        min(90, 60 + batch_num * 2),
                         f"Indexing batch {batch_num}...",
                         {"chunks_indexed": total_chunks_indexed}
                     )
                     
-                    # Index this batch (incremental update)
-                    if batch_num == 1:
-                        # First batch: create new index
-                        index_path = index_builder.build_index(documents_dict, progress_callback)
-                        logger.info(f"✓ Created index with batch 1")
-                    else:
-                        # Subsequent batches: add to existing index
-                        # Note: LlamaIndex doesn't support incremental updates well, so we rebuild
-                        # For production, consider using a database-backed vector store
-                        all_docs_dict = self._convert_documents_to_dict(all_documents)
-                        index_path = index_builder.build_index(all_docs_dict, progress_callback)
-                        logger.info(f"✓ Updated index (now contains {len(all_documents)} documents)")
+                    # Pass only NEW documents from this batch to index builder
+                    # The builder will check checkpoint and append incrementally
+                    index_path = index_builder.build_index(documents_dict, progress_callback)
+                    logger.info(f"✓ Indexed batch {batch_num} incrementally")
                     
                     total_chunks_indexed += len(batch_chunks)
                     logger.info(f"✓ Total: {len(all_documents)} docs, {total_chunks_indexed} chunks indexed")
@@ -336,45 +352,52 @@ class KBIngestionService:
             raise
     
     def _save_documents_to_disk(self, kb_id: str, documents: List[Document]):
-        """Save documents to disk for reference"""
+        """Persist documents to disk with ID-based naming: {id:04d}_{page-name}.md"""
+        import re
+        from urllib.parse import urlparse
+        
         backend_root = Path(__file__).parent.parent.parent.parent
         doc_dir = backend_root / "data" / "knowledge_bases" / kb_id / "documents"
         doc_dir.mkdir(parents=True, exist_ok=True)
         
-        for i, doc in enumerate(documents):
-            # Create safe filename
-            source_type = doc.metadata.get('source_type', 'unknown')
-            content_type = doc.metadata.get('content_type', 'main')
+        for doc in documents:
+            meta = doc.metadata or {}
+            doc_id = meta.get('doc_id', 0)
+            url = meta.get('url', '')
             
-            if source_type == 'website':
-                url = doc.metadata.get('url', f'doc_{i}')
-                safe_name = url.replace('https://', '').replace('http://', '').replace('/', '_')
-            elif source_type == 'youtube':
-                video_id = doc.metadata.get('video_id', f'video_{i}')
-                safe_name = f"youtube_{video_id}_{content_type}"
-            elif source_type in ['pdf', 'pdf_online']:
-                file_name = doc.metadata.get('file_name', f'pdf_{i}')
-                page_num = doc.metadata.get('page_label', i)
-                safe_name = f"pdf_{file_name}_page{page_num}".replace('.pdf', '')
-            elif source_type == 'markdown':
-                file_name = doc.metadata.get('file_name', f'md_{i}')
-                safe_name = f"md_{file_name}".replace('.md', '')
+            # Extract page name from URL
+            if url:
+                parsed = urlparse(url)
+                path = parsed.path.rstrip('/')
+                page_name = path.split('/')[-1] if path else 'index'
+                # Remove file extensions
+                page_name = re.sub(r'\.(html?|php|asp)$', '', page_name)
             else:
-                safe_name = f"doc_{i}"
+                page_name = 'document'
             
-            # Truncate if too long
-            if len(safe_name) > 200:
-                safe_name = safe_name[:200]
+            # Sanitize for Windows: remove invalid chars
+            page_name = re.sub(r'[<>:"/\\|?*]', '_', page_name)
+            page_name = re.sub(r'\s+', '_', page_name)
+            page_name = page_name.strip('._')
             
-            doc_path = doc_dir / f"{safe_name}.txt"
+            if not page_name or page_name == '_':
+                page_name = 'document'
             
-            with open(doc_path, 'w', encoding='utf-8') as f:
-                f.write(f"Source Type: {source_type}\n")
-                f.write(f"Content Type: {content_type}\n")
-                for key, value in doc.metadata.items():
-                    f.write(f"{key}: {value}\n")
-                f.write("=" * 80 + "\n\n")
-                f.write(doc.get_content())
+            # Limit length
+            if len(page_name) > 100:
+                page_name = page_name[:100]
+            
+            # Format: {id:04d}_{page-name}.md
+            filename = f"{doc_id:04d}_{page_name}.md"
+            doc_path = doc_dir / filename
+            
+            try:
+                with open(doc_path, 'w', encoding='utf-8') as f:
+                    f.write(f"# Doc ID: {doc_id}\n")
+                    f.write(f"# URL: {url}\n\n")
+                    f.write(doc.text or "")
+            except Exception as e:
+                logger.error(f"Failed to save document {doc_id}: {e}")
     
     def _convert_documents_to_dict(self, documents: List[Document]) -> List[Dict[str, Any]]:
         """Convert LlamaIndex Documents to dict format for indexer"""

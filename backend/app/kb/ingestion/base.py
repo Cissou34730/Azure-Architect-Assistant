@@ -292,20 +292,31 @@ class IngestionPipeline:
                         self.logger.info(f"  ✓ Cleaned successfully ({content_length} chars)")
                         documents.append(cleaned_doc)
                         
-                        # Save document to file
+                        # Save document to file with ID-based naming
                         from pathlib import Path
+                        import re
                         backend_root = Path(__file__).parent.parent.parent.parent
                         kb_dir = backend_root / "data" / "knowledge_bases" / self.crawler.kb_id
                         doc_dir = kb_dir / "documents"
                         doc_dir.mkdir(parents=True, exist_ok=True)
                         
-                        # Create safe filename from URL
-                        safe_name = url.replace('https://', '').replace('http://', '').replace('/', '_')
-                        if len(safe_name) > 200:
-                            safe_name = safe_name[:200]
-                        doc_path = doc_dir / f"{safe_name}.txt"
+                        # Get doc_id from metadata (assigned during crawl)
+                        doc_id = cleaned_doc.get('metadata', {}).get('doc_id', i + 1)
+                        
+                        # Extract page name from URL
+                        page_name = url.split('/')[-1] or 'index'
+                        # Remove file extension if present
+                        page_name = re.sub(r'\.(html?|php|asp)$', '', page_name)
+                        # Sanitize: keep only alphanumeric, dash, underscore
+                        page_name = re.sub(r'[^a-zA-Z0-9_-]', '_', page_name)
+                        if len(page_name) > 100:
+                            page_name = page_name[:100]
+                        
+                        # Format: {id:04d}_{page-name}.txt
+                        doc_path = doc_dir / f"{doc_id:04d}_{page_name}.txt"
                         
                         with open(doc_path, 'w', encoding='utf-8') as f:
+                            f.write(f"Doc ID: {doc_id}\n")
                             f.write(f"URL: {url}\n")
                             f.write(f"Title: {cleaned_doc.get('metadata', {}).get('title', 'N/A')}\n")
                             f.write(f"Content Length: {content_length}\n")

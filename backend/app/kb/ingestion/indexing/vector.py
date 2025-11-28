@@ -51,13 +51,52 @@ class VectorIndexBuilder(BaseIndexBuilder):
         self.logger.info(f"  Embedding model: {embedding_model}")
         self.logger.info(f"  Generation model: {generation_model}")
     
+    def _get_index_checkpoint_path(self) -> str:
+        """Get path to index checkpoint file."""
+        kb_dir = Path(self.storage_dir).parent
+        return str(kb_dir / "index_checkpoint.json")
+    
+    def _load_index_checkpoint(self) -> Dict[str, Any]:
+        """Load index checkpoint if it exists."""
+        checkpoint_path = self._get_index_checkpoint_path()
+        if os.path.exists(checkpoint_path):
+            try:
+                with open(checkpoint_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                self.logger.warning(f"Could not load index checkpoint: {e}")
+        return {
+            'last_chunked_id': 0,
+            'last_indexed_id': 0,
+            'total_chunks': 0,
+            'chunks_per_doc': {}
+        }
+    
+    def _save_index_checkpoint(self, checkpoint: Dict[str, Any]):
+        """Save index checkpoint atomically."""
+        checkpoint_path = self._get_index_checkpoint_path()
+        try:
+            import tempfile
+            checkpoint_dir = os.path.dirname(checkpoint_path)
+            os.makedirs(checkpoint_dir, exist_ok=True)
+            
+            tmp_fd, tmp_name = tempfile.mkstemp(dir=checkpoint_dir, suffix='.tmp')
+            with os.fdopen(tmp_fd, 'w', encoding='utf-8') as f:
+                json.dump(checkpoint, f, indent=2)
+            os.replace(tmp_name, checkpoint_path)
+            
+            self.logger.info(f"Index checkpoint saved: chunked={checkpoint['last_chunked_id']}, indexed={checkpoint['last_indexed_id']}")
+        except Exception as e:
+            self.logger.error(f"Failed to save index checkpoint: {e}")
+    
     def build_index(
         self,
         documents: List[Dict[str, Any]],
         progress_callback: Optional[Callable] = None
     ) -> str:
         """
-        Build vector index from documents.
+        Build vector index from documents with incremental support.
+        Resumes from last indexed doc_id if checkpoint exists.
         
         Args:
             documents: List of documents with 'content' and 'metadata' keys
@@ -67,6 +106,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
             Path to the created index
         """
         from ..base import IngestionPhase
+        from llama_index.core import StorageContext, load_index_from_storage
         
         self.logger.info("=" * 70)
         self.logger.info(f"Building vector index for KB: {self.kb_id}")
@@ -76,19 +116,49 @@ class VectorIndexBuilder(BaseIndexBuilder):
         if not self.validate_documents(documents):
             raise ValueError("Document validation failed")
         
+        # Load checkpoint to see if we're resuming
+        checkpoint = self._load_index_checkpoint()
+        last_indexed_id = checkpoint.get('last_indexed_id', 0)
+        
+        # Try to load existing index
+        index = None
+        if os.path.exists(os.path.join(self.storage_dir, 'docstore.json')):
+            try:
+                self.logger.info(f"Loading existing index from {self.storage_dir}")
+                storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
+                index = load_index_from_storage(storage_context)
+                self.logger.info(f"Existing index loaded, resuming from doc_id {last_indexed_id + 1}")
+            except Exception as e:
+                self.logger.warning(f"Could not load existing index: {e}, building from scratch")
+                index = None
+        
+        # Filter documents to only process new ones
+        if last_indexed_id > 0:
+            new_docs = [d for d in documents if d.get('metadata', {}).get('doc_id', 0) > last_indexed_id]
+            self.logger.info(f"Resuming: {len(new_docs)} new documents to index (skipping first {last_indexed_id})")
+            documents_to_process = new_docs
+        else:
+            documents_to_process = documents
+            self.logger.info(f"Starting fresh: {len(documents_to_process)} documents to index")
+        
+        if not documents_to_process:
+            self.logger.info("No new documents to index, index is up to date")
+            return self.storage_dir
+        
         if progress_callback:
             progress_callback(
                 IngestionPhase.EMBEDDING,
                 0,
                 "Converting documents...",
-                {'documents': len(documents)}
+                {'documents': len(documents_to_process)}
             )
         
         # Convert to LlamaIndex documents
-        llama_docs = self._build_llama_documents(documents)
+        llama_docs = self._build_llama_documents(documents_to_process)
         
         if not llama_docs:
-            raise ValueError("No valid documents to index")
+            self.logger.warning("No valid documents to index")
+            return self.storage_dir
         
         self.logger.info(f"Converted {len(llama_docs)} documents")
         
@@ -100,7 +170,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
                 {'documents': len(llama_docs)}
             )
         
-        # Build index
+        # Build or update index
         self.logger.info("Generating embeddings and building index...")
         if progress_callback:
             progress_callback(
@@ -110,10 +180,17 @@ class VectorIndexBuilder(BaseIndexBuilder):
                 {}
             )
         
-        index = VectorStoreIndex.from_documents(
-            llama_docs,
-            show_progress=True
-        )
+        if index is None:
+            # Build new index
+            index = VectorStoreIndex.from_documents(
+                llama_docs,
+                show_progress=True
+            )
+        else:
+            # Append to existing index
+            for doc in llama_docs:
+                index.insert(doc)
+            self.logger.info(f"Appended {len(llama_docs)} documents to existing index")
         
         if progress_callback:
             progress_callback(
@@ -128,6 +205,19 @@ class VectorIndexBuilder(BaseIndexBuilder):
         index.storage_context.persist(persist_dir=self.storage_dir)
         
         self.logger.info(f"Index persisted to {self.storage_dir}")
+        
+        # Update checkpoint with newly indexed doc_ids
+        if documents_to_process:
+            max_doc_id = max(d.get('metadata', {}).get('doc_id', 0) for d in documents_to_process)
+            checkpoint['last_chunked_id'] = max_doc_id
+            checkpoint['last_indexed_id'] = max_doc_id
+            # Count chunks per doc (approximate)
+            for doc in llama_docs:
+                doc_id = doc.metadata.get('doc_id', 0)
+                if doc_id:
+                    checkpoint['chunks_per_doc'][str(doc_id)] = checkpoint['chunks_per_doc'].get(str(doc_id), 0) + 1
+            checkpoint['total_chunks'] = sum(checkpoint['chunks_per_doc'].values())
+            self._save_index_checkpoint(checkpoint)
         
         # Save metadata
         self._save_index_metadata(len(documents), len(llama_docs))

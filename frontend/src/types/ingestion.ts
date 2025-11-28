@@ -3,21 +3,22 @@
  */
 
 export type JobStatus =
-  | "PENDING"
-  | "RUNNING"
-  | "PAUSED"
-  | "COMPLETED"
-  | "FAILED"
-  | "CANCELLED";
+  | "pending"
+  | "running"
+  | "paused"
+  | "completed"
+  | "failed"
+  | "cancelled";
 export type IngestionPhase =
-  | "PENDING"
-  | "CRAWLING"
-  | "CLEANING"
-  | "EMBEDDING"
-  | "INDEXING"
-  | "COMPLETED"
-  | "FAILED";
-export type SourceType = "website" | "youtube" | "pdf" | "markdown";
+  | "pending"
+  | "crawling"
+  | "cleaning"
+  | "embedding"
+  | "indexing"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "paused";
 
 export interface JobMetrics {
   pages_crawled?: number;

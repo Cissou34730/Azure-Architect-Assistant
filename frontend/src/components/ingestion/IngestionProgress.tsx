@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { IngestionJob, IngestionPhase } from '../../types/ingestion';
+import { IngestionJob } from '../../types/ingestion';
 import { cancelJob, pauseJob, resumeJob } from '../../services/ingestionApi';
 
 interface IngestionProgressProps {
@@ -13,32 +13,26 @@ interface IngestionProgressProps {
   onRefresh?: () => void;
 }
 
-const PHASE_LABELS: Record<IngestionPhase, string> = {
-  PENDING: 'Pending',
-  CRAWLING: 'Crawling Documents',
-  CLEANING: 'Cleaning Content',
-  EMBEDDING: 'Creating Embeddings',
-  INDEXING: 'Building Index',
-  COMPLETED: 'Completed',
-  FAILED: 'Failed',
+// Align with backend phases (lowercase)
+const PHASE_LABELS: Record<string, string> = {
+  crawling: 'Crawling Documents',
+  cleaning: 'Cleaning Content',
+  embedding: 'Generating Embeddings',
+  indexing: 'Building Index',
+  completed: 'Completed',
+  failed: 'Failed',
 };
 
-const PHASE_COLORS: Record<IngestionPhase, string> = {
-  PENDING: 'bg-gray-500',
-  CRAWLING: 'bg-blue-500',
-  CLEANING: 'bg-indigo-500',
-  EMBEDDING: 'bg-purple-500',
-  INDEXING: 'bg-pink-500',
-  COMPLETED: 'bg-green-500',
-  FAILED: 'bg-red-500',
+const PHASE_COLORS: Record<string, string> = {
+  crawling: 'bg-blue-500',
+  cleaning: 'bg-indigo-500',
+  embedding: 'bg-purple-500',
+  indexing: 'bg-pink-500',
+  completed: 'bg-green-500',
+  failed: 'bg-red-500',
 };
 
-const PHASE_ORDER: IngestionPhase[] = [
-  'CRAWLING',
-  'CLEANING',
-  'INDEXING',
-  'COMPLETED',
-];
+const PHASE_ORDER: string[] = ['crawling', 'cleaning', 'embedding', 'indexing', 'completed'];
 
 export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgressProps) {
   const [cancelling, setCancelling] = React.useState(false);
@@ -88,19 +82,19 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
     }
   };
 
-  const isRunning = job.status === 'RUNNING' || job.status === 'PENDING';
-  const isPaused = job.status === 'PAUSED';
+  const isRunning = job.status === 'running' || job.status === 'pending';
+  const isPaused = job.status === 'paused';
   const progressPercent = Math.min(Math.max(job.progress, 0), 100);
   
   // Determine which phases are completed
   const currentPhaseIndex = PHASE_ORDER.indexOf(job.phase);
-  const isPhaseComplete = (phase: IngestionPhase) => {
-    if (job.status === 'COMPLETED') return true;
-    if (job.status === 'FAILED') return false;
+  const isPhaseComplete = (phase: string) => {
+    if (job.status === 'completed') return true;
+    if (job.status === 'failed') return false;
     const phaseIndex = PHASE_ORDER.indexOf(phase);
     return phaseIndex < currentPhaseIndex;
   };
-  const isPhaseActive = (phase: IngestionPhase) => phase === job.phase && isRunning;
+  const isPhaseActive = (phase: string) => phase === job.phase && isRunning;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
@@ -110,13 +104,13 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
           Ingestion Progress
         </h3>
         <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-          job.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-          job.status === 'FAILED' ? 'bg-red-100 text-red-800' :
-          job.status === 'CANCELLED' ? 'bg-gray-100 text-gray-800' :
-          job.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-800' :
+          job.status === 'completed' ? 'bg-green-100 text-green-800' :
+          job.status === 'failed' ? 'bg-red-100 text-red-800' :
+          job.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+          job.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
           'bg-blue-100 text-blue-800'
         }`}>
-          {job.status}
+          {job.status.toUpperCase()}
         </span>
       </div>
 
@@ -168,6 +162,7 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
                     <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div
                         className={`h-full transition-all duration-300 ${PHASE_COLORS[phase]}`}
+                        /* Dynamic width requires inline style */
                         style={{ width: `${progressPercent}%` }}
                       />
                     </div>
@@ -175,7 +170,7 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
                 )}
                 
                 {/* Show completion checkmark */}
-                {isComplete && phase !== 'COMPLETED' && (
+                {isComplete && phase !== 'completed' && (
                   <div className="text-xs text-gray-500 mt-1">✓ Complete</div>
                 )}
               </div>

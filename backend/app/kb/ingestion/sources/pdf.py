@@ -44,12 +44,30 @@ class PDFSourceHandler(BaseSourceHandler):
         # Local PDFs
         if 'local_paths' in config:
             for path in config['local_paths']:
+                # Check for pause/cancel
+                if self.job:
+                    if self.job.status.value == 'cancelled':
+                        logger.info(f"PDF ingestion cancelled at {len(all_docs)} documents")
+                        return all_docs
+                    if self.job.status.value == 'paused':
+                        logger.info(f"PDF ingestion paused at {len(all_docs)} documents")
+                        return all_docs
+                
                 docs = self.ingest_local_pdf(path, metadata)
                 all_docs.extend(docs)
         
         # Online PDFs
         if 'pdf_urls' in config:
             for url in config['pdf_urls']:
+                # Check for pause/cancel
+                if self.job:
+                    if self.job.status.value == 'cancelled':
+                        logger.info(f"PDF ingestion cancelled at {len(all_docs)} documents")
+                        return all_docs
+                    if self.job.status.value == 'paused':
+                        logger.info(f"PDF ingestion paused at {len(all_docs)} documents")
+                        return all_docs
+                
                 docs = self.ingest_online_pdf(url, metadata)
                 all_docs.extend(docs)
         

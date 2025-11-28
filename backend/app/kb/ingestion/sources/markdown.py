@@ -64,6 +64,15 @@ class MarkdownSourceHandler(BaseSourceHandler):
             )
             docs = reader.load_data()
             
+            # Check for pause/cancel before processing
+            if self.job:
+                if self.job.status.value == 'cancelled':
+                    logger.info(f"Markdown ingestion cancelled after loading {len(docs)} files")
+                    return []
+                if self.job.status.value == 'paused':
+                    logger.info(f"Markdown ingestion paused after loading {len(docs)} files")
+                    return []
+            
             # Enrich metadata
             for doc in docs:
                 file_path = doc.metadata.get('file_path', '')

@@ -20,8 +20,8 @@ interface KBListItemProps {
 
 export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete, onCancel, onPause, onResume }: KBListItemProps) {
   const [showActions, setShowActions] = useState(false);
-  const isIngesting = job?.status === 'RUNNING' || job?.status === 'PENDING';
-  const isPaused = job?.status === 'PAUSED';
+  const isIngesting = job?.status === 'running' || job?.status === 'pending';
+  const isPaused = job?.status === 'paused';
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -66,14 +66,14 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
             <div className="mt-2 flex items-center gap-2">
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${
-                  job.status === 'RUNNING' ? 'bg-blue-500 animate-pulse' :
-                  job.status === 'PAUSED' ? 'bg-yellow-500' :
-                  job.status === 'COMPLETED' ? 'bg-green-500' :
-                  job.status === 'FAILED' ? 'bg-red-500' :
+                  job.status === 'running' ? 'bg-blue-500 animate-pulse' :
+                  job.status === 'paused' ? 'bg-yellow-500' :
+                  job.status === 'completed' ? 'bg-green-500' :
+                  job.status === 'failed' ? 'bg-red-500' :
                   'bg-gray-500'
                 }`} />
                 <span className="text-sm font-medium text-gray-700">
-                  {job.status === 'PAUSED' ? 'PAUSED' : `${job.phase} - ${job.progress.toFixed(0)}%`}
+                  {job.status === 'paused' ? 'PAUSED' : `${job.phase.toUpperCase()} - ${job.progress.toFixed(0)}%`}
                 </span>
               </div>
               <span className="text-xs text-gray-500">

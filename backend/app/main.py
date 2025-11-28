@@ -129,6 +129,18 @@ async def startup_event():
         logger.info("Initializing Multi-Source Query Service...")
         multi_service = get_multi_query_service()
         logger.info("✓ Multi-Source Query Service ready")
+
+        # Load persisted ingestion states
+        try:
+            from app.ingestion.service import IngestionService
+            ingest_service = IngestionService.instance()
+            ingest_service.load_all_states()
+            logger.info("✓ Loaded persisted ingestion job states")
+            # Backfill snapshots from current JobManager if any jobs exist
+            ingest_service.backfill_from_job_manager()
+            logger.info("✓ Backfilled snapshots from JobManager")
+        except Exception as e:
+            logger.warning(f"Failed to load ingestion states: {e}")
         
         logger.info("=" * 60)
         logger.info("STARTUP COMPLETE: Database and hot-preload KBs ready!")
@@ -179,6 +191,14 @@ async def shutdown_event():
     except Exception as e:
         logger.warning(f"Error cancelling jobs during shutdown: {e}")
     
+    # Cancel asyncio-based ingestion tasks
+    try:
+        from app.ingestion.service import IngestionService
+        ingest_service = IngestionService.instance()
+        await ingest_service.cancel_all()
+    except Exception as e:
+        logger.warning(f"Error cancelling asyncio ingestion tasks: {e}")
+
     await close_database()
     logger.info("=" * 60)
     logger.info("SHUTDOWN COMPLETE")
