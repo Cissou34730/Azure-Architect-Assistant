@@ -1,8 +1,0 @@
-{
-  "kb_id": "nist-sp",
-  "documents": 59,
-  "indexed_documents": 59,
-  "embedding_model": "text-embedding-3-small",
-  "generation_model": "gpt-4o-mini",
-  "index_type": "vector"
-}
