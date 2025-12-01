@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 import logging
 import asyncio
 
+from app.ingestion.service_components.manager import IngestionService
 from app.service_registry import get_kb_manager, get_multi_query_service, invalidate_kb_manager
 from app.kb.service import clear_index_cache
 from .models import (
@@ -68,7 +69,6 @@ async def delete_kb(kb_id: str):
         storage_dir = kb_config.index_path if kb_config else None
         
         # Cancel any running ingestion via IngestionService
-        from app.ingestion.service import IngestionService
         ingest_service = IngestionService.instance()
         await ingest_service.cancel(kb_id)
         logger.info(f"Cancelled ingestion for KB before deletion: {kb_id}")

@@ -11,6 +11,7 @@ from pathlib import Path
 
 from llama_index.core import Document
 
+from app.ingestion.service_components.storage import persist_state
 from app.service_registry import get_kb_manager
 from app.kb.ingestion.base import IngestionPhase
 from app.kb.ingestion.sources import SourceHandlerFactory
@@ -96,9 +97,7 @@ class KBIngestionService:
                         state.metrics.update(metrics)
                     
                     # Persist state immediately for live updates
-                    from app.ingestion.service import IngestionService
-                    ingest_service = IngestionService.instance()
-                    ingest_service._persist_state(state)
+                    persist_state(state)
             
             # Phase 1: Load documents using appropriate source handler
             progress_callback(IngestionPhase.CRAWLING, 0, "Loading documents from source...", {})
@@ -128,17 +127,13 @@ class KBIngestionService:
                 while state.paused:
                     logger.info(f"KB {kb_id} paused at {checkpoint_name}")
                     # Persist state during pause
-                    from app.ingestion.service import IngestionService
-                    ingest_service = IngestionService.instance()
-                    ingest_service._persist_state(state)
+                    persist_state(state)
                     await asyncio.sleep(0.5)
                 
                 if state.cancel_requested:
                     logger.info(f"KB {kb_id} cancelled at {checkpoint_name}")
                     # Persist state before exiting
-                    from app.ingestion.service import IngestionService
-                    ingest_service = IngestionService.instance()
-                    ingest_service._persist_state(state)
+                    persist_state(state)
                     return True
                 return False
             
@@ -269,9 +264,7 @@ class KBIngestionService:
                         state.metrics['chunks_total'] = total_chunks_indexed
                         state.metrics['documents_processed'] = len(all_documents)
                         
-                        from app.ingestion.service import IngestionService
-                        ingest_service = IngestionService.instance()
-                        ingest_service._persist_state(state)
+                        persist_state(state)
                     
             except GeneratorExit:
                 logger.info(f"Generator closed - processing stopped at batch {batch_num}")

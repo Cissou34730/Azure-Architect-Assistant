@@ -7,6 +7,7 @@ import logging
 import asyncio
 from app.database import init_database, close_database
 from app.ingestion.db import init_ingestion_database
+from app.ingestion.service_components.manager import IngestionService
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,6 @@ async def startup():
         
         # Load persisted ingestion states
         try:
-            from app.ingestion.service import IngestionService
             ingest_service = IngestionService.instance()
             ingest_service.load_all_states()
             logger.info("✓ Loaded persisted ingestion job states")
@@ -66,8 +66,6 @@ async def shutdown():
     
     # Cancel asyncio-based ingestion tasks
     try:
-        from app.ingestion.service import IngestionService
-        
         ingest_service = IngestionService.instance()
         
         try:

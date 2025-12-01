@@ -6,6 +6,7 @@ Clean routing layer - business logic delegated to operations.py
 from fastapi import APIRouter, HTTPException
 import logging
 
+from app.ingestion.service_components.manager import IngestionService
 from app.service_registry import get_kb_manager
 
 from .models import (
@@ -36,7 +37,6 @@ async def start_ingestion(kb_id: str):
         kb_config = kb_manager.get_kb_config(kb_id)
         
         # Start ingestion using asyncio-based service (KB-centric)
-        from app.ingestion.service import IngestionService
         ingest_service = IngestionService.instance()
         # Pass only kb_config to pipeline
         await ingest_service.start(kb_id, service.run_ingestion_pipeline, kb_config)
@@ -60,7 +60,6 @@ async def get_kb_status(kb_id: str):
             raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
         
         # Get state from IngestionService
-        from app.ingestion.service import IngestionService
         ingest_service = IngestionService.instance()
         state = ingest_service.status(kb_id)
         
@@ -104,7 +103,6 @@ async def cancel_ingestion(kb_id: str):
     """Cancel the running ingestion job for a knowledge base"""
     try:
         # Cancel via KB-centric ingestion service
-        from app.ingestion.service import IngestionService
         ingest_service = IngestionService.instance()
         success = await ingest_service.cancel(kb_id)
         if not success:
@@ -123,7 +121,6 @@ async def cancel_ingestion(kb_id: str):
 async def pause_ingestion(kb_id: str):
     """Pause the running ingestion job for a knowledge base"""
     try:
-        from app.ingestion.service import IngestionService
         ingest_service = IngestionService.instance()
         success = await ingest_service.pause(kb_id)
         if not success:
@@ -142,7 +139,6 @@ async def pause_ingestion(kb_id: str):
 async def resume_ingestion(kb_id: str):
     """Resume a paused ingestion job for a knowledge base"""
     try:
-        from app.ingestion.service import IngestionService
         ingest_service = IngestionService.instance()
         
         service = get_ingestion_service()
@@ -167,7 +163,6 @@ async def resume_ingestion(kb_id: str):
 async def list_jobs(kb_id: str = None, limit: int = 50):
     """List all ingestion jobs, optionally filtered by KB"""
     try:
-        from app.ingestion.service import IngestionService
         ingest_service = IngestionService.instance()
         states = ingest_service.list_kb_states()
         
