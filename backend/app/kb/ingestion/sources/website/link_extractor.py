@@ -47,7 +47,6 @@ class LinkExtractor:
                 
                 # Debug: count all anchors
                 all_anchors = soup.find_all('a', href=True)
-                logger.info(f"  → Found {len(all_anchors)} total <a> tags with href")
                 
                 # Debug counters
                 skipped_fragment = 0
@@ -78,22 +77,18 @@ class LinkExtractor:
                         skipped_prefix += 1
                         # Show first few filtered links for debugging
                         if skipped_prefix <= 3:
-                            logger.info(f"  → Filtered out (wrong prefix): {normalized_url[:80]}")
+                            # Filtered prefix detail suppressed
+                            pass
                 
                 # Debug: show why links were filtered
-                logger.info(f"  → Skipped {skipped_fragment} fragment links (#)")
-                logger.info(f"  → Skipped {skipped_js_mailto} javascript:/mailto: links")
-                logger.info(f"  → Skipped {skipped_prefix} links (wrong prefix)")
+                # Skip counters suppressed
                 
                 # Deduplicate
                 unique_links = list(set(links))
-                logger.info(f"  → Matched prefix: {len(links)} links ({len(unique_links)} unique)")
+                logger.info(f"Matched links: {len(unique_links)} unique")
                 
                 # Show sample of matched links
-                if unique_links:
-                    logger.info(f"  → Sample matched links:")
-                    for link in unique_links[:3]:
-                        logger.info(f"     • {link}")
+                # Sample matched links suppressed
                 
                 logger.debug(f"Extracted {len(unique_links)} unique links from {url} (before dedup: {len(links)})")
                 

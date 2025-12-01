@@ -90,7 +90,8 @@ class WebsiteCrawler:
                     visited = set(crawl_state.get('visited_urls', []))  # Restore visited URLs
                     failed_count = crawl_state.get('pages_failed', 0)
                     to_visit = crawl_state.get('pending_urls', [start_url])
-                        logger.info(f"Resuming crawl: visited={len(visited)}, queued={len(to_visit)}")
+                    # Resume summary only (verbosity reduced)
+                    logger.info(f"Resuming crawl: visited={len(visited)}, queued={len(to_visit)}")
             except Exception as e:
                 logger.warning(f"Could not load state: {e}, starting fresh")
         
@@ -174,9 +175,8 @@ class WebsiteCrawler:
                 logger.warning(f"  ✗ Failed to extract content")
             
             # Extract links from same HTML
-            logger.info(f"  → Extracting links...")
-            links = self._extract_links(html_content, final_url or url)  # Use final URL for relative links
-            logger.info(f"  → Found {len(links)} valid links")
+            # Link extraction (details suppressed)
+            links = self._extract_links(html_content, final_url or url)
             
             if links:
                 new_count = 0
@@ -185,12 +185,9 @@ class WebsiteCrawler:
                         to_visit.append(link)
                         new_count += 1
                 
-                logger.info(f"  → Added {new_count} new links to queue")
-                if new_count > 0 and len(links) <= 5:
-                    for link in links[:5]:
-                        logger.info(f"     • {link}")
+                # Queue growth summary omitted for verbosity reduction
             
-            logger.info(f"  → Queue: {len(to_visit)} to visit, {len(visited)} visited")
+            # Per-iteration queue status suppressed
             
             # Save state periodically
             pages_since_checkpoint += 1
@@ -203,7 +200,6 @@ class WebsiteCrawler:
         
         # Yield any remaining documents in final batch
         if current_batch:
-            logger.info(f"✓ Yielding final batch of {len(current_batch)} documents")
             yield current_batch
         
         # Final state save

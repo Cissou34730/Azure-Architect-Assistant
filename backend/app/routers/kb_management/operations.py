@@ -54,7 +54,7 @@ class KBManagementService:
         # Create KB
         manager.create_kb(request.kb_id, kb_config)
         
-        logger.info(f"Created KB: {request.kb_id} ({request.name})")
+        logger.info(f"KB created id={request.kb_id} name='{request.name}'")
         
         return {
             "message": f"Knowledge base '{request.name}' created successfully",
@@ -74,8 +74,7 @@ class KBManagementService:
             List of KB information dictionaries
         """
         kbs_info = manager.list_kbs()
-        logger.info(f"Listed {len(kbs_info)} knowledge bases")
-        return kbs_info
+        return kbs_info  # Listing log suppressed
     
     @staticmethod
     def check_health(service: MultiSourceQueryService) -> Dict[str, Any]:
@@ -88,9 +87,7 @@ class KBManagementService:
         Returns:
             Dictionary with overall status and per-KB health info
         """
-        logger.info("Starting KB health check...")
         health_dict = service.get_kb_health()
-        logger.info(f"Got health_dict with {len(health_dict)} KBs")
         
         # Process health information
         kb_health = []
@@ -115,7 +112,7 @@ class KBManagementService:
             else 'unavailable'
         )
         
-        logger.info(f"Health check complete: {overall_status}")
+        logger.info(f"KB health status={overall_status}")
         return {
             'overall_status': overall_status,
             'knowledge_bases': kb_health

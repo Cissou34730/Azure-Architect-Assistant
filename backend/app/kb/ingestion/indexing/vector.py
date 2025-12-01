@@ -46,7 +46,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
         Settings.embed_model = OpenAIEmbedding(model=embedding_model)
         Settings.llm = OpenAI(model=generation_model, temperature=0.1)
         
-        self.logger.info(f"VectorIndexBuilder init KB='{kb_id}' storage={storage_dir}")
+        self.logger.info(f"VectorIndexBuilder ready KB={kb_id} storage={storage_dir}")
     
     def _get_state_path(self) -> str:
         """Get path to unified state file."""
@@ -147,10 +147,9 @@ class VectorIndexBuilder(BaseIndexBuilder):
         index = None
         if os.path.exists(os.path.join(self.storage_dir, 'docstore.json')):
             try:
-                self.logger.info(f"Loading existing index")
                 storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
                 index = load_index_from_storage(storage_context)
-                self.logger.info(f"Resume from doc_id {last_indexed_id + 1}")
+                self.logger.info(f"Resuming index from doc_id {last_indexed_id + 1}")
             except Exception as e:
                 self.logger.warning(f"Could not load existing index: {e}, building from scratch")
                 index = None
@@ -158,14 +157,13 @@ class VectorIndexBuilder(BaseIndexBuilder):
         # Filter documents to only process new ones
         if last_indexed_id > 0:
             new_docs = [d for d in documents if d.get('metadata', {}).get('doc_id', 0) > last_indexed_id]
-            self.logger.info(f"Resuming: {len(new_docs)} new documents to index (skipping first {last_indexed_id})")
+            # Resuming document count log suppressed
             documents_to_process = new_docs
         else:
             documents_to_process = documents
-            self.logger.info(f"Starting fresh: {len(documents_to_process)} documents to index")
         
         if not documents_to_process:
-            self.logger.info("No new documents to index, index is up to date")
+            self.logger.info("Index up to date (no new documents)")
             return self.storage_dir
         
         if progress_callback:
@@ -183,7 +181,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
             self.logger.warning("No valid documents to index")
             return self.storage_dir
         
-        self.logger.info(f"Converted {len(llama_docs)} documents")
+        # Conversion summary suppressed
         
         if progress_callback:
             progress_callback(
@@ -194,7 +192,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
             )
         
         # Build or update index
-        self.logger.info("Generating embeddings and building index...")
+        # Embedding generation log suppressed
         if progress_callback:
             progress_callback(
                 IngestionPhase.EMBEDDING,
@@ -213,7 +211,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
             # Append to existing index - pause/cancel handled at pipeline level
             for doc in llama_docs:
                 index.insert(doc)
-            self.logger.info(f"Appended {len(llama_docs)} documents to existing index")
+            # Append summary suppressed
         
         if progress_callback:
             progress_callback(
@@ -227,7 +225,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
         os.makedirs(self.storage_dir, exist_ok=True)
         index.storage_context.persist(persist_dir=self.storage_dir)
         
-        self.logger.info(f"Index persisted to {self.storage_dir}")
+        # Persist log suppressed
         
         # Update state with newly indexed doc_ids
         if documents_to_process:
@@ -287,7 +285,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
             
             llama_docs.append(llama_doc)
         
-        self.logger.info(f"Created {len(llama_docs)} LlamaIndex documents")
+        # Detailed creation count suppressed
         return llama_docs
     
     def _save_index_metadata(self, doc_count: int, indexed_count: int):
@@ -306,4 +304,4 @@ class VectorIndexBuilder(BaseIndexBuilder):
         with open(metadata_file, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, indent=2)
         
-        self.logger.info(f"Metadata saved to {metadata_file}")
+        # Metadata save log suppressed

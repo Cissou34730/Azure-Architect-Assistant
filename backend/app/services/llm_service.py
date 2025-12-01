@@ -32,7 +32,7 @@ class LLMService:
     
     def __init__(self):
         self.model = "gpt-4o-mini"
-        logger.info("LLMService initialized")
+        logger.info("LLMService ready")
     
     async def analyze_documents(self, document_texts: List[str]) -> Dict[str, Any]:
         """
@@ -44,7 +44,7 @@ class LLMService:
         Returns:
             Dictionary representing ProjectState
         """
-        logger.info(f"Analyzing {len(document_texts)} documents")
+        # Analysis document count log suppressed
         
         combined_text = "\n\n---\n\n".join(document_texts)
         
@@ -87,7 +87,7 @@ Extract as much information as possible from the documents. For missing informat
         response = await self._complete(system_prompt, user_prompt)
         project_state = self._parse_project_state(response)
         
-        logger.info("Document analysis completed")
+        # Analysis completion log suppressed
         return project_state
     
     async def process_chat_message(
@@ -109,7 +109,7 @@ Extract as much information as possible from the documents. For missing informat
         Returns:
             Dictionary with assistantMessage, projectState, sources
         """
-        logger.info(f"Processing chat message: {user_message[:100]}...")
+        # Chat message processing log suppressed
         
         # Build conversation history
         conversation_history = "\n".join([
@@ -134,7 +134,7 @@ Extract as much information as possible from the documents. For missing informat
         if kb_sources:
             result['sources'] = kb_sources
         
-        logger.info("Chat message processed")
+        # Chat processed log suppressed
         return result
     
     async def generate_architecture_proposal(
@@ -152,7 +152,7 @@ Extract as much information as possible from the documents. For missing informat
         Returns:
             Markdown-formatted proposal
         """
-        logger.info("Generating architecture proposal")
+        # Proposal generation start log suppressed
         
         if on_progress:
             on_progress("analyzing", "Analyzing project requirements")
@@ -185,7 +185,7 @@ Use clear headings, bullet points, and technical details. Reference Azure Well-A
         if on_progress:
             on_progress("completed", "Proposal generated successfully")
         
-        logger.info("Architecture proposal generated")
+        # Proposal generated log suppressed
         return proposal
     
     async def _complete(self, system_prompt: str, user_prompt: str, max_tokens: int = 2000) -> str:

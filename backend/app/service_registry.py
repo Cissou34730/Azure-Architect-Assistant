@@ -28,9 +28,8 @@ def get_kb_manager() -> KBManager:
     """
     global _kb_manager
     if _kb_manager is None:
-        logger.info("Initializing KBManager")
         _kb_manager = KBManager()
-        logger.info(f"KBManager initialized with {len(_kb_manager.list_kbs())} knowledge bases")
+        logger.info(f"KBManager ready ({len(_kb_manager.list_kbs())} KBs)")
     return _kb_manager
 
 
@@ -41,10 +40,9 @@ def get_multi_query_service() -> MultiSourceQueryService:
     """
     global _multi_query_service
     if _multi_query_service is None:
-        logger.info("Initializing MultiSourceQueryService")
         manager = get_kb_manager()
         _multi_query_service = MultiSourceQueryService(manager)
-        logger.info("MultiSourceQueryService initialized")
+        logger.info("MultiSourceQueryService ready")
     return _multi_query_service
 
 
@@ -56,7 +54,7 @@ def invalidate_kb_manager():
     NOTE: Forces reload of config.json on next access.
     """
     global _kb_manager, _multi_query_service
-    logger.info("Invalidating KB Manager cache")
+    # Cache invalidation (log suppressed)
     _kb_manager = None
     # Also invalidate multi_query_service since it depends on KB manager
     _multi_query_service = None

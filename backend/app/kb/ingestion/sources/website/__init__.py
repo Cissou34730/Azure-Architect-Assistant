@@ -39,7 +39,7 @@ class WebsiteSourceHandler(BaseSourceHandler):
         self.crawler = WebsiteCrawler(kb_id, job=job, state=state)
         self.content_fetcher = ContentFetcher()
         self.sitemap_parser = SitemapParser()
-        logger.info(f"WebsiteSourceHandler initialized for KB: {kb_id}")
+        logger.info(f"WebsiteSourceHandler ready KB={kb_id}")
     
     def ingest(self, config: Dict[str, Any]) -> List[Document]:
         """
@@ -57,7 +57,7 @@ class WebsiteSourceHandler(BaseSourceHandler):
         Returns:
             List of Documents
         """
-        logger.info("Website ingestion started")
+        logger.info("Website ingestion start")
         
         url_prefix = config.get('url_prefix')
         max_pages = config.get('max_pages', 1000)
@@ -74,7 +74,7 @@ class WebsiteSourceHandler(BaseSourceHandler):
             # Check if domain has massive sitemaps
             domain = urlparse(start_url).netloc.lower()
             if any(prob in domain for prob in self.PROBLEMATIC_DOMAINS):
-                logger.info(f"Large domain detected '{domain}', using crawler")
+                # Large domain heuristic (log suppressed for brevity)
                 return self.crawler.crawl(start_url, url_prefix, max_pages)
             
             # Try sitemap discovery
@@ -82,11 +82,11 @@ class WebsiteSourceHandler(BaseSourceHandler):
                 sitemap_urls = sitemap_search(start_url, target_lang=None)
                 
                 if sitemap_urls:
-                    logger.info(f"Sitemap discovered: {len(sitemap_urls)} URLs")
+                    # Sitemap discovery summary suppressed
                     urls_list = list(sitemap_urls)
                     return self._ingest_urls(urls_list, url_prefix)
                 else:
-                    logger.info("No sitemap found - using crawler")
+                    # No sitemap fallback (log suppressed)
                     return self.crawler.crawl(start_url, url_prefix, max_pages, batch_size=10)
                     
             except Exception as e:
@@ -103,7 +103,7 @@ class WebsiteSourceHandler(BaseSourceHandler):
     def _ingest_from_sitemap(self, sitemap_url: str, url_prefix: str = None) -> List[Document]:
         """Parse sitemap and ingest URLs."""
         urls = self.sitemap_parser.parse_sitemap(sitemap_url)
-        logger.info(f"Sitemap URLs: {len(urls)}")
+        # Sitemap URL count log suppressed
         
         # Deduplicate
         urls = list(set(urls))
@@ -116,11 +116,10 @@ class WebsiteSourceHandler(BaseSourceHandler):
         # Filter by prefix
         if url_prefix:
             filtered = [url for url in urls if url.startswith(url_prefix)]
-            logger.info(f"Prefix filter applied '{url_prefix}' kept {len(filtered)}/{len(urls)}")
-            urls = filtered
+            urls = filtered  # Prefix filter summary suppressed
         
         documents = []
-        logger.info(f"Fetching {len(urls)} URLs")
+        # Fetch count log suppressed
         
         for url in urls:
             
