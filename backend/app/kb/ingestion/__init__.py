@@ -1,15 +1,7 @@
 """Generic ingestion module for knowledge base document processing."""
 
-from .base import (
-    DocumentCrawler,
-    DocumentCleaner,
-    IndexBuilder,
-    IngestionPhase
-)
+from .base import IngestionPhase
 
 __all__ = [
-    'DocumentCrawler',
-    'DocumentCleaner',
-    'IndexBuilder',
     'IngestionPhase',
 ]
