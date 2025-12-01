@@ -1,6 +1,6 @@
 """Generic ingestion module for knowledge base document processing."""
 
-from .base import IngestionPhase
+from .phases import IngestionPhase
 
 __all__ = [
     'IngestionPhase',

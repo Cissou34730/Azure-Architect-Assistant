@@ -6,6 +6,7 @@ Handles startup and shutdown events for the FastAPI application.
 import logging
 import asyncio
 from app.database import init_database, close_database
+from app.ingestion.db import init_ingestion_database
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,11 @@ async def startup():
         await init_database()
         logger.info("✓ Database initialized")
         
+        # Initialize ingestion database (producer/consumer pipeline)
+        logger.info("Initializing ingestion persistence...")
+        await asyncio.to_thread(init_ingestion_database)
+        logger.info("✓ Ingestion persistence ready")
+
         # Load KB manager (configs only, no index preload)
         from app.service_registry import get_kb_manager
         logger.info("Loading KB Manager...")
