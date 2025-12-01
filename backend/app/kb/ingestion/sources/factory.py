@@ -16,7 +16,7 @@ class SourceHandlerFactory:
     """Factory to create appropriate source handler based on type"""
     
     @classmethod
-    def create_handler(cls, source_type: str, kb_id: str, job=None) -> BaseSourceHandler:
+    def create_handler(cls, source_type: str, kb_id: str, job=None, state=None) -> BaseSourceHandler:
         """
         Create source handler based on type.
         Uses lazy imports to avoid loading all handlers at startup.
@@ -25,6 +25,7 @@ class SourceHandlerFactory:
             source_type: Type of source (website, youtube, pdf, markdown)
             kb_id: Knowledge base ID
             job: Optional ingestion job (for cancellation support)
+            state: Optional IngestionState for thread-safe pause/cancel checking
             
         Returns:
             Appropriate source handler instance
@@ -55,8 +56,8 @@ class SourceHandlerFactory:
         
         logger.info(f"Creating {handler_class.__name__} for KB: {kb_id}")
         
-        # Pass job to all handlers for cancellation support
-        return handler_class(kb_id, job=job)
+        # Pass both job and state to all handlers
+        return handler_class(kb_id, job=job, state=state)
     
     @classmethod
     def register_handler(cls, source_type: str, handler_class: type):

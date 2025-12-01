@@ -23,8 +23,8 @@ class PDFSourceHandler(BaseSourceHandler):
     Supports local files and online PDFs.
     """
     
-    def __init__(self, kb_id: str, job=None):
-        super().__init__(kb_id, job=job)
+    def __init__(self, kb_id: str, job=None, state=None):
+        super().__init__(kb_id, job=job, state=state)
         self.reader = PyMuPDFReader()
         logger.info(f"PDFSourceHandler initialized for KB: {kb_id}")
     
@@ -44,12 +44,12 @@ class PDFSourceHandler(BaseSourceHandler):
         # Local PDFs
         if 'local_paths' in config:
             for path in config['local_paths']:
-                # Check for pause/cancel
-                if self.job:
-                    if self.job.status.value == 'cancelled':
+                # Cooperative pause/cancel check
+                if self.state:
+                    if self.state.cancel_requested:
                         logger.info(f"PDF ingestion cancelled at {len(all_docs)} documents")
                         return all_docs
-                    if self.job.status.value == 'paused':
+                    if self.state.paused:
                         logger.info(f"PDF ingestion paused at {len(all_docs)} documents")
                         return all_docs
                 
@@ -59,12 +59,12 @@ class PDFSourceHandler(BaseSourceHandler):
         # Online PDFs
         if 'pdf_urls' in config:
             for url in config['pdf_urls']:
-                # Check for pause/cancel
-                if self.job:
-                    if self.job.status.value == 'cancelled':
+                # Cooperative pause/cancel check
+                if self.state:
+                    if self.state.cancel_requested:
                         logger.info(f"PDF ingestion cancelled at {len(all_docs)} documents")
                         return all_docs
-                    if self.job.status.value == 'paused':
+                    if self.state.paused:
                         logger.info(f"PDF ingestion paused at {len(all_docs)} documents")
                         return all_docs
                 

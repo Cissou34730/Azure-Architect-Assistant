@@ -102,8 +102,8 @@ class YouTubeSourceHandler(BaseSourceHandler):
     Converts raw transcripts into structured knowledge (concepts + Q&A).
     """
     
-    def __init__(self, kb_id: str, job=None):
-        super().__init__(kb_id, job=job)
+    def __init__(self, kb_id: str, job=None, state=None):
+        super().__init__(kb_id, job=job, state=state)
         self.reader = YoutubeTranscriptReader()
         self.llm = OpenAI(model="gpt-4o-mini", temperature=0.1)
         logger.info(f"YouTubeSourceHandler initialized for KB: {kb_id}")
@@ -123,12 +123,12 @@ class YouTubeSourceHandler(BaseSourceHandler):
         
         all_docs = []
         for url in video_urls:
-            # Check for pause/cancel
-            if self.job:
-                if self.job.status.value == 'cancelled':
+            # Cooperative pause/cancel check
+            if self.state:
+                if self.state.cancel_requested:
                     logger.info(f"YouTube ingestion cancelled at {len(all_docs)} videos")
                     return all_docs
-                if self.job.status.value == 'paused':
+                if self.state.paused:
                     logger.info(f"YouTube ingestion paused at {len(all_docs)} videos")
                     return all_docs
             

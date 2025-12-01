@@ -8,7 +8,6 @@ import logging
 import asyncio
 
 from app.service_registry import get_kb_manager, invalidate_kb_manager
-from app.kb.ingestion.job_manager import get_job_manager, JobStatus
 from app.kb.service import clear_index_cache
 
 from .models import (
@@ -74,7 +73,6 @@ async def delete_kb(kb_id: str):
     """
     try:
         kb_manager = get_kb_manager()
-        job_manager = get_job_manager()
         
         # Check if KB exists
         if not kb_manager.kb_exists(kb_id):
@@ -87,12 +85,12 @@ async def delete_kb(kb_id: str):
         kb_config = kb_manager.get_kb(kb_id)
         storage_dir = kb_config.index_path if kb_config else None
         
-        # Cancel any running jobs
-        job = job_manager.get_latest_job_for_kb(kb_id)
-        if job and job.status == JobStatus.RUNNING:
-            job_manager.cancel_job(job.job_id)
-            logger.info(f"Cancelled running job {job.job_id} before deleting KB: {kb_id}")
-            await asyncio.sleep(1.0)
+        # Cancel any running ingestion via IngestionService
+        from app.ingestion.service import IngestionService
+        ingest_service = IngestionService.instance()
+        await ingest_service.cancel(kb_id)
+        logger.info(f"Cancelled ingestion for KB before deletion: {kb_id}")
+        await asyncio.sleep(1.0)
         
         # Clear index from memory cache
         if storage_dir:
@@ -134,18 +132,14 @@ async def start_ingestion(kb_id: str):
         service = get_ingestion_service()
         result = service.start_ingestion(kb_id)
         
-        # Get job and KB config
-        job_manager = get_job_manager()
-        job = job_manager.get_job(result['job_id'])
-        
         kb_manager = get_kb_manager()
         kb_config = kb_manager.get_kb_config(kb_id)
         
         # Start ingestion using asyncio-based service (KB-centric)
         from app.ingestion.service import IngestionService
         ingest_service = IngestionService.instance()
-        # Run the existing pipeline in a worker task (to_thread inside service)
-        await ingest_service.start(kb_id, service.run_ingestion_pipeline, job, kb_config)
+        # Pass only kb_config to pipeline
+        await ingest_service.start(kb_id, service.run_ingestion_pipeline, kb_config)
         
         return StartIngestionResponse(**result)
         
@@ -165,13 +159,14 @@ async def get_kb_status(kb_id: str):
         if not kb_manager.kb_exists(kb_id):
             raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
         
-        # Prefer KB-centric state from IngestionService snapshots
+        # Get state from IngestionService
         from app.ingestion.service import IngestionService
         ingest_service = IngestionService.instance()
         state = ingest_service.status(kb_id)
+        
         if state:
             return JobStatusResponse(
-                job_id=f"{kb_id}-job",  # placeholder, UI ignores job_id
+                job_id=f"{kb_id}-job",
                 kb_id=kb_id,
                 status=state.status,
                 phase=state.phase,
@@ -179,27 +174,11 @@ async def get_kb_status(kb_id: str):
                 message=state.message,
                 error=state.error,
                 metrics=state.metrics,
-                started_at=None,
-                completed_at=None,
-            )
-        # Fallback to latest job manager entry if snapshot missing
-        job_manager = get_job_manager()
-        job = job_manager.get_latest_job_for_kb(kb_id)
-        if job:
-            return JobStatusResponse(
-                job_id=job.job_id,
-                kb_id=job.kb_id,
-                status=job.status,
-                phase=job.phase,
-                progress=job.progress,
-                message=job.message,
-                error=job.error,
-                metrics=job.metrics,
-                started_at=job.started_at,
-                completed_at=job.completed_at,
+                started_at=state.started_at,
+                completed_at=state.completed_at,
             )
         
-        # No state or job found - return default "not started" state
+        # No state found - return default "not started" state
         return JobStatusResponse(
             job_id=f"{kb_id}-pending",
             kb_id=kb_id,
@@ -231,12 +210,6 @@ async def cancel_ingestion(kb_id: str):
         if not success:
             raise HTTPException(status_code=404, detail=f"No active ingestion for KB '{kb_id}'")
         
-        # Also update the job manager job status so the pipeline sees it
-        job_manager = get_job_manager()
-        job = job_manager.get_latest_job_for_kb(kb_id)
-        if job:
-            job.cancel()
-        
         return {"message": f"Ingestion cancelled for KB '{kb_id}'", "kb_id": kb_id}
         
     except HTTPException:
@@ -256,16 +229,6 @@ async def pause_ingestion(kb_id: str):
         if not success:
             raise HTTPException(status_code=404, detail=f"No running ingestion for KB '{kb_id}'")
         
-        # Also update the job manager job status so the pipeline sees it
-        job_manager = get_job_manager()
-        job = job_manager.get_latest_job_for_kb(kb_id)
-        if job:
-            logger.info(f"PAUSE: Job status before pause: {job.status}")
-            job.pause()
-            logger.info(f"PAUSE: Job status after pause: {job.status}")
-        else:
-            logger.warning(f"PAUSE: No job found for KB '{kb_id}'")
-        
         return {"message": f"Ingestion paused for KB '{kb_id}'", "kb_id": kb_id}
         
     except HTTPException:
@@ -282,17 +245,12 @@ async def resume_ingestion(kb_id: str):
         from app.ingestion.service import IngestionService
         ingest_service = IngestionService.instance()
         
-        # First update the job manager job status
-        job_manager = get_job_manager()
-        job = job_manager.get_latest_job_for_kb(kb_id)
-        if job:
-            job.resume()
-        
-        # If no task exists (e.g., after restart), rehydrate by starting a worker with checkpoint-aware pipeline
         service = get_ingestion_service()
         kb_manager = get_kb_manager()
         kb_config = kb_manager.get_kb_config(kb_id)
-        success = await ingest_service.resume_or_start(kb_id, service.run_ingestion_pipeline, job, kb_config)
+        
+        # Pass only kb_config to resume_or_start
+        success = await ingest_service.resume_or_start(kb_id, service.run_ingestion_pipeline, kb_config)
         if not success:
             raise HTTPException(status_code=404, detail=f"Unable to resume/start ingestion for KB '{kb_id}'")
         return {"message": f"Ingestion resumed for KB '{kb_id}'", "kb_id": kb_id}
@@ -309,28 +267,32 @@ async def resume_ingestion(kb_id: str):
 async def list_jobs(kb_id: str = None, limit: int = 50):
     """List all ingestion jobs, optionally filtered by KB"""
     try:
-        job_manager = get_job_manager()
+        from app.ingestion.service import IngestionService
+        ingest_service = IngestionService.instance()
+        states = ingest_service.list_kb_states()
         
+        # Filter by kb_id if specified
         if kb_id:
-            jobs = job_manager.get_jobs_for_kb(kb_id, limit=limit)
-        else:
-            jobs = job_manager.get_all_jobs(limit=limit)
+            states = {k: v for k, v in states.items() if k == kb_id}
+        
+        # Convert to list and limit
+        state_list = list(states.values())[:limit]
         
         return JobListResponse(
             jobs=[
                 JobStatusResponse(
-                    job_id=job.job_id,
-                    kb_id=job.kb_id,
-                    status=job.status,
-                    phase=job.phase,
-                    progress=job.progress,
-                    message=job.message,
-                    error=job.error,
-                    metrics=job.metrics,
-                    started_at=job.started_at,
-                    completed_at=job.completed_at
+                    job_id=f"{state.kb_id}-job",
+                    kb_id=state.kb_id,
+                    status=state.status,
+                    phase=state.phase,
+                    progress=state.progress,
+                    message=state.message,
+                    error=state.error,
+                    metrics=state.metrics,
+                    started_at=state.started_at,
+                    completed_at=state.completed_at
                 )
-                for job in jobs
+                for state in state_list
             ]
         )
         

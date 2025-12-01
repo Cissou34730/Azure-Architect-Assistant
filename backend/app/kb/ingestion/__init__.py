@@ -7,12 +7,6 @@ from .base import (
     IngestionPipeline,
     IngestionPhase
 )
-from .job_manager import (
-    JobManager,
-    IngestionJob,
-    JobStatus,
-    get_job_manager
-)
 
 __all__ = [
     'DocumentCrawler',
@@ -20,8 +14,4 @@ __all__ = [
     'IndexBuilder',
     'IngestionPipeline',
     'IngestionPhase',
-    'JobManager',
-    'IngestionJob',
-    'JobStatus',
-    'get_job_manager'
 ]

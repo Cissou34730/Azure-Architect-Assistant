@@ -51,48 +51,73 @@ class VectorIndexBuilder(BaseIndexBuilder):
         self.logger.info(f"  Embedding model: {embedding_model}")
         self.logger.info(f"  Generation model: {generation_model}")
     
-    def _get_index_checkpoint_path(self) -> str:
-        """Get path to index checkpoint file."""
+    def _get_state_path(self) -> str:
+        """Get path to unified state file."""
         kb_dir = Path(self.storage_dir).parent
-        return str(kb_dir / "index_checkpoint.json")
+        return str(kb_dir / "state.json")
     
-    def _load_index_checkpoint(self) -> Dict[str, Any]:
-        """Load index checkpoint if it exists."""
-        checkpoint_path = self._get_index_checkpoint_path()
-        if os.path.exists(checkpoint_path):
+    def _load_state(self) -> Dict[str, Any]:
+        """Load processing state from unified state.json."""
+        state_path = self._get_state_path()
+        if os.path.exists(state_path):
             try:
-                with open(checkpoint_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                with open(state_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    return data.get('processing', {
+                        'last_indexed_id': 0,
+                        'chunks_total': 0,
+                        'batches_processed': 0
+                    })
             except Exception as e:
-                self.logger.warning(f"Could not load index checkpoint: {e}")
+                self.logger.warning(f"Could not load state: {e}")
         return {
-            'last_chunked_id': 0,
             'last_indexed_id': 0,
-            'total_chunks': 0,
-            'chunks_per_doc': {}
+            'chunks_total': 0,
+            'batches_processed': 0
         }
     
-    def _save_index_checkpoint(self, checkpoint: Dict[str, Any]):
-        """Save index checkpoint atomically."""
-        checkpoint_path = self._get_index_checkpoint_path()
+    def _save_state(self, last_indexed_id: int, chunks_total: int, batches_processed: int = 0):
+        """Save processing state to unified state.json."""
+        state_path = self._get_state_path()
         try:
-            import tempfile
-            checkpoint_dir = os.path.dirname(checkpoint_path)
-            os.makedirs(checkpoint_dir, exist_ok=True)
+            # Load existing state (preserve other sections like job, crawl)
+            state = {}
+            if os.path.exists(state_path):
+                try:
+                    with open(state_path, 'r', encoding='utf-8') as f:
+                        state = json.load(f)
+                except Exception:
+                    state = {}
             
-            tmp_fd, tmp_name = tempfile.mkstemp(dir=checkpoint_dir, suffix='.tmp')
+            # Update only processing section
+            from datetime import datetime
+            state['kb_id'] = self.kb_id
+            state['version'] = 1
+            state['updated_at'] = datetime.now().isoformat()
+            state['processing'] = {
+                'last_indexed_id': last_indexed_id,
+                'chunks_total': chunks_total,
+                'batches_processed': batches_processed
+            }
+            
+            # Atomic write using tempfile
+            state_dir = os.path.dirname(state_path)
+            os.makedirs(state_dir, exist_ok=True)
+            
+            tmp_fd, tmp_name = tempfile.mkstemp(dir=state_dir, suffix='.tmp')
             with os.fdopen(tmp_fd, 'w', encoding='utf-8') as f:
-                json.dump(checkpoint, f, indent=2)
-            os.replace(tmp_name, checkpoint_path)
+                json.dump(state, f, indent=2)
+            os.replace(tmp_name, state_path)
             
-            self.logger.info(f"Index checkpoint saved: chunked={checkpoint['last_chunked_id']}, indexed={checkpoint['last_indexed_id']}")
+            self.logger.info(f"State saved: indexed up to doc_id {last_indexed_id}, {chunks_total} chunks total")
         except Exception as e:
-            self.logger.error(f"Failed to save index checkpoint: {e}")
+            self.logger.error(f"Failed to save state: {e}")
     
     def build_index(
         self,
         documents: List[Dict[str, Any]],
-        progress_callback: Optional[Callable] = None
+        progress_callback: Optional[Callable] = None,
+        state = None
     ) -> str:
         """
         Build vector index from documents with incremental support.
@@ -101,6 +126,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
         Args:
             documents: List of documents with 'content' and 'metadata' keys
             progress_callback: Optional callback(phase, progress, message, metrics)
+            state: Optional IngestionState for cooperative pause/cancel checking
             
         Returns:
             Path to the created index
@@ -116,9 +142,11 @@ class VectorIndexBuilder(BaseIndexBuilder):
         if not self.validate_documents(documents):
             raise ValueError("Document validation failed")
         
-        # Load checkpoint to see if we're resuming
-        checkpoint = self._load_index_checkpoint()
-        last_indexed_id = checkpoint.get('last_indexed_id', 0)
+        # Load state to see if we're resuming
+        processing_state = self._load_state()
+        last_indexed_id = processing_state.get('last_indexed_id', 0)
+        chunks_total = processing_state.get('chunks_total', 0)
+        batches_processed = processing_state.get('batches_processed', 0)
         
         # Try to load existing index
         index = None
@@ -181,13 +209,13 @@ class VectorIndexBuilder(BaseIndexBuilder):
             )
         
         if index is None:
-            # Build new index
+            # Build new index - pause/cancel handled at pipeline level (batch boundaries)
             index = VectorStoreIndex.from_documents(
                 llama_docs,
                 show_progress=True
             )
         else:
-            # Append to existing index
+            # Append to existing index - pause/cancel handled at pipeline level
             for doc in llama_docs:
                 index.insert(doc)
             self.logger.info(f"Appended {len(llama_docs)} documents to existing index")
@@ -206,18 +234,11 @@ class VectorIndexBuilder(BaseIndexBuilder):
         
         self.logger.info(f"Index persisted to {self.storage_dir}")
         
-        # Update checkpoint with newly indexed doc_ids
+        # Update state with newly indexed doc_ids
         if documents_to_process:
             max_doc_id = max(d.get('metadata', {}).get('doc_id', 0) for d in documents_to_process)
-            checkpoint['last_chunked_id'] = max_doc_id
-            checkpoint['last_indexed_id'] = max_doc_id
-            # Count chunks per doc (approximate)
-            for doc in llama_docs:
-                doc_id = doc.metadata.get('doc_id', 0)
-                if doc_id:
-                    checkpoint['chunks_per_doc'][str(doc_id)] = checkpoint['chunks_per_doc'].get(str(doc_id), 0) + 1
-            checkpoint['total_chunks'] = sum(checkpoint['chunks_per_doc'].values())
-            self._save_index_checkpoint(checkpoint)
+            new_chunks_total = chunks_total + len(llama_docs)
+            self._save_state(max_doc_id, new_chunks_total, batches_processed + 1)
         
         # Save metadata
         self._save_index_metadata(len(documents), len(llama_docs))

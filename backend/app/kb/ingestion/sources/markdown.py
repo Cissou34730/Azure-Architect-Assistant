@@ -22,8 +22,8 @@ class MarkdownSourceHandler(BaseSourceHandler):
     Preserves markdown structure and hierarchy.
     """
     
-    def __init__(self, kb_id: str, job=None):
-        super().__init__(kb_id, job=job)
+    def __init__(self, kb_id: str, job=None, state=None):
+        super().__init__(kb_id, job=job, state=state)
         logger.info(f"MarkdownSourceHandler initialized for KB: {kb_id}")
     
     def ingest(self, config: Dict[str, Any]) -> List[Document]:
@@ -64,12 +64,12 @@ class MarkdownSourceHandler(BaseSourceHandler):
             )
             docs = reader.load_data()
             
-            # Check for pause/cancel before processing
-            if self.job:
-                if self.job.status.value == 'cancelled':
+            # Cooperative pause/cancel check
+            if self.state:
+                if self.state.cancel_requested:
                     logger.info(f"Markdown ingestion cancelled after loading {len(docs)} files")
                     return []
-                if self.job.status.value == 'paused':
+                if self.state.paused:
                     logger.info(f"Markdown ingestion paused after loading {len(docs)} files")
                     return []
             

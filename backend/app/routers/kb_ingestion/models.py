@@ -7,7 +7,17 @@ from typing import List, Optional, Dict, Any
 from enum import Enum
 from datetime import datetime
 
-from app.kb.ingestion.job_manager import JobStatus, IngestionPhase
+from app.kb.ingestion.base import IngestionPhase
+
+
+class JobStatus(str, Enum):
+    """Job execution status - kept for API compatibility"""
+    PENDING = "pending"
+    RUNNING = "running"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class SourceType(str, Enum):

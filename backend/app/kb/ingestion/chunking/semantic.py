@@ -34,12 +34,13 @@ class SemanticChunker(BaseChunker):
         )
         logger.info(f"SemanticChunker initialized: size={chunk_size}, overlap={chunk_overlap}")
     
-    def chunk_documents(self, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def chunk_documents(self, documents: List[Dict[str, Any]], state=None) -> List[Dict[str, Any]]:
         """
         Chunk documents using sentence-aware splitting.
         
         Args:
             documents: List of documents with 'content' and 'metadata' keys
+            state: Optional IngestionState for cooperative pause/cancel checking
             
         Returns:
             List of chunks with text and enriched metadata
@@ -47,6 +48,7 @@ class SemanticChunker(BaseChunker):
         chunks = []
         
         for doc_idx, doc in enumerate(documents):
+            # Pause/cancel handled at pipeline level (batch boundaries)
             content = doc.get('content', '')
             metadata = doc.get('metadata', {})
             

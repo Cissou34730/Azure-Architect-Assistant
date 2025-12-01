@@ -34,10 +34,9 @@ class WebsiteSourceHandler(BaseSourceHandler):
         'docs.aws.amazon.com'
     ]
     
-    def __init__(self, kb_id: str, job=None):
-        super().__init__(kb_id)
-        self.job = job  # For cancellation support
-        self.crawler = WebsiteCrawler(kb_id, job=job)
+    def __init__(self, kb_id: str, job=None, state=None):
+        super().__init__(kb_id, job=job, state=state)
+        self.crawler = WebsiteCrawler(kb_id, job=job, state=state)
         self.content_fetcher = ContentFetcher()
         self.sitemap_parser = SitemapParser()
         logger.info(f"WebsiteSourceHandler initialized for KB: {kb_id}")
