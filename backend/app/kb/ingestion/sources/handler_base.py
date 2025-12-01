@@ -4,7 +4,7 @@ Abstract base class for all source handlers.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from llama_index.core import Document
 
 

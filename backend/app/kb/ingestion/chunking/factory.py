@@ -6,7 +6,7 @@ Creates appropriate chunker based on strategy.
 import logging
 from typing import Dict, Any
 
-from .base import BaseChunker
+from .chunker_base import BaseChunker
 from .semantic import SemanticChunker
 
 logger = logging.getLogger(__name__)

@@ -3,7 +3,7 @@ Chunking Package
 Document chunking strategies for knowledge base ingestion.
 """
 
-from .base import BaseChunker
+from .chunker_base import BaseChunker
 from .semantic import SemanticChunker
 from .factory import ChunkerFactory
 

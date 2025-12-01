@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 
 from llama_index.core.node_parser import SentenceSplitter
 
-from .base import BaseChunker
+from .chunker_base import BaseChunker
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ Creates appropriate index builder based on type.
 import logging
 from typing import Dict, Any
 
-from .base import BaseIndexBuilder
+from .builder_base import BaseIndexBuilder
 from .vector import VectorIndexBuilder
 
 logger = logging.getLogger(__name__)

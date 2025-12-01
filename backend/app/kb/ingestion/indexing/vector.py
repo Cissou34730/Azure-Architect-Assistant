@@ -13,7 +13,7 @@ from llama_index.core import Document, VectorStoreIndex, Settings
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 
-from .base import BaseIndexBuilder
+from .builder_base import BaseIndexBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
         Returns:
             Path to the created index
         """
-        from ..base import IngestionPhase
+        from ..phases import IngestionPhase
         from llama_index.core import StorageContext, load_index_from_storage
         
         self.logger.info(f"Index build start KB={self.kb_id}")

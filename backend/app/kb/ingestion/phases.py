@@ -1,6 +1,6 @@
 """
-Generic Ingestion Base Classes
-Provides abstract interfaces for ingestion phases.
+Ingestion Phases Enum
+Defines phases of the ingestion process.
 """
 
 from enum import Enum

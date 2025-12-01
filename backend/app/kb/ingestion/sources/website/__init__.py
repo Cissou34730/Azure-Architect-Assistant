@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 from llama_index.core import Document
 from trafilatura.sitemaps import sitemap_search
 
-from ..base import BaseSourceHandler
+from .handler_base import BaseSourceHandler
 from .crawler import WebsiteCrawler
 from .content_fetcher import ContentFetcher
 from .sitemap_parser import SitemapParser
