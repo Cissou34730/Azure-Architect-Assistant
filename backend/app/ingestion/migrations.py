@@ -57,4 +57,3 @@ def run_migrations(engine: Engine) -> None:
             )
 
         Base.metadata.create_all(bind=connection)
-*** End Patch}

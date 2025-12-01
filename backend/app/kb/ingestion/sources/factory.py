@@ -7,7 +7,7 @@ Uses lazy imports to avoid loading all handlers at startup.
 import logging
 from typing import Union
 
-from .base import BaseSourceHandler
+from .handler_base import BaseSourceHandler
 
 logger = logging.getLogger(__name__)
 

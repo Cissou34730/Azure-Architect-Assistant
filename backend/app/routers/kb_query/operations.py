@@ -6,34 +6,13 @@ Service layer handling query orchestration.
 import logging
 from typing import Dict, Any, List, Optional
 
-from app.kb import KnowledgeBaseService, MultiSourceQueryService, QueryProfile
+from app.kb import MultiSourceQueryService, QueryProfile
 
 logger = logging.getLogger(__name__)
 
 
 class KBQueryService:
     """Service layer for KB query operations"""
-    
-    @staticmethod
-    def query_legacy_waf(
-        service: KnowledgeBaseService,
-        question: str,
-        top_k: int = 5
-    ) -> Dict[str, Any]:
-        """
-        Query WAF knowledge base (legacy endpoint).
-        
-        Args:
-            service: Knowledge base service instance
-            question: Question to ask
-            top_k: Number of results
-            
-        Returns:
-            Query result dictionary
-        """
-        logger.info(f"Legacy WAF query: {question[:100]}")
-        result = service.query(question, top_k=top_k)
-        return result
     
     @staticmethod
     def query_with_profile(

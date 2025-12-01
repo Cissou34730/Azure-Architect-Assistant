@@ -13,7 +13,7 @@ from llama_index.core import Document
 
 from app.ingestion.service_components.storage import persist_state
 from app.service_registry import get_kb_manager
-from app.kb.ingestion.base import IngestionPhase
+from app.kb.ingestion import IngestionPhase
 from app.kb.ingestion.sources import SourceHandlerFactory
 from app.kb.ingestion.chunking import ChunkerFactory
 from app.kb.ingestion.indexing import IndexBuilderFactory

@@ -2,7 +2,8 @@
 - [x] Verify that the copilot-instructions.md file in the .github directory is created.
 
 - [x] Clarify Project Requirements
-	<!-- Ask for project type, language, and frameworks if not specified. Skip if already provided. -->
+	Azure Architect assistant. There are 4 main features. Project to describe the project we want to build an architecutre on. Chat with technical documentation. Manage the technical document build a RAG and generate an architecture document and IaC code.
+	The frontend is TypeScript React, backend in Python.
 
 - [x] Scaffold the Project
 	<!--
@@ -15,12 +16,12 @@
 	-->
 
 - [x] Customize the Project
-	<!--
+	
 	Verify that all previous steps have been completed successfully and you have marked the step as completed.
 	Develop a plan to modify codebase according to user requirements.
 	Apply modifications using appropriate tools and user-provided references.
 	Skip this step for "Hello World" projects.
-	-->
+	
 
 - [x] Install Required Extensions
 	<!-- ONLY install extensions provided mentioned in the get_project_setup_info. Skip this step otherwise and mark as completed. -->

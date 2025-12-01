@@ -6,7 +6,7 @@ FastAPI endpoints for knowledge base queries.
 from fastapi import APIRouter, HTTPException
 import logging
 
-from app.service_registry import get_query_service, get_multi_query_service
+from app.service_registry import get_multi_query_service
 from app.kb import QueryProfile
 from .models import (
     QueryRequest,
@@ -26,14 +26,15 @@ router = APIRouter(prefix="/api/query", tags=["query"])
 @router.post("/", response_model=QueryResponse, include_in_schema=False)
 async def query_legacy(request: QueryRequest):
     """
-    Legacy WAF query endpoint (redirects to WAF KB service).
+    Legacy query endpoint - queries all active KBs using CHAT profile.
     Maintained for backward compatibility.
     """
     try:
-        service = get_query_service()
-        result = KBQueryService.query_legacy_waf(
+        service = get_multi_query_service()
+        result = KBQueryService.query_with_profile(
             service,
             request.question,
+            QueryProfile.CHAT,
             request.topK
         )
         
@@ -42,7 +43,9 @@ async def query_legacy(request: QueryRequest):
                 url=source.get('url', ''),
                 title=source.get('title', ''),
                 section=source.get('section', ''),
-                score=source.get('score', 0.0)
+                score=source.get('score', 0.0),
+                kb_id=source.get('kb_id'),
+                kb_name=source.get('kb_name')
             )
             for source in result.get('sources', [])
         ]
@@ -50,7 +53,8 @@ async def query_legacy(request: QueryRequest):
         return QueryResponse(
             answer=result['answer'],
             sources=sources,
-            hasResults=result.get('has_results', True)
+            hasResults=result.get('has_results', True),
+            suggestedFollowUps=result.get('suggested_follow_ups')
         )
         
     except Exception as e:

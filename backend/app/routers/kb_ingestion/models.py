@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 from enum import Enum
 from datetime import datetime
 
-from app.kb.ingestion.base import IngestionPhase
+from app.kb.ingestion import IngestionPhase
 
 
 class JobStatus(str, Enum):

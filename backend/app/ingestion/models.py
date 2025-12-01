@@ -87,7 +87,8 @@ class IngestionQueueItem(Base):
     job_id = Column(String(36), ForeignKey("ingestion_jobs.id", ondelete="CASCADE"), nullable=False)
     doc_hash = Column(String(128), nullable=False)
     content = Column(Text, nullable=False)
-    metadata = Column(JSON, nullable=False, default=dict)
+    # 'metadata' is reserved by SQLAlchemy Declarative; use attribute 'item_metadata'
+    item_metadata = Column('metadata', JSON, nullable=False, default=dict)
     status = Column(String(20), nullable=False, default=QueueStatus.PENDING.value)
     attempts = Column(Integer, nullable=False, default=0)
     error_log = Column(Text, nullable=True)
@@ -110,4 +111,3 @@ class IngestionQueueItem(Base):
         self.error_log = message
         self.attempts += 1
         self.updated_at = datetime.utcnow()
-*** End Patch

@@ -34,7 +34,15 @@ class IngestionService:
         self._states: Dict[str, IngestionState] = {}
         self._lock = threading.RLock()
 
-        recover_inflight_jobs()
+        try:
+            from app.ingestion.db import init_ingestion_database
+            init_ingestion_database()
+        except Exception:
+            pass
+        try:
+            recover_inflight_jobs()
+        except Exception:
+            pass
         self._states.update(load_states_from_disk())
 
     @classmethod
@@ -163,11 +171,41 @@ class IngestionService:
             if state.status != "paused":
                 return False
 
+            # Clear paused state
             state.status = "running"
             state.paused = False
             state.message = "Resumed by user"
             runtime.pause_event.clear()
             update_job_status(runtime.job_id, JobStatus.RUNNING)
+
+            # If the producer thread already exited (e.g., crawler returned on pause),
+            # restart the producer to resume crawling from the saved checkpoint.
+            producer_dead = not runtime.producer_thread or not runtime.producer_thread.is_alive()
+            if producer_dead and runtime.producer_target:
+                try:
+                    producer_thread = threading.Thread(
+                        target=self._run_producer,
+                        args=(runtime,),
+                        name=f"ingest:{kb_id}:producer",
+                        daemon=True,
+                    )
+                    runtime.producer_thread = producer_thread
+                    producer_thread.start()
+                    # Ensure consumer exists too
+                    if not runtime.consumer_thread or not runtime.consumer_thread.is_alive():
+                        consumer_thread = threading.Thread(
+                            target=self._run_consumer,
+                            args=(runtime,),
+                            name=f"ingest:{kb_id}:consumer",
+                            daemon=True,
+                        )
+                        runtime.consumer_thread = consumer_thread
+                        consumer_thread.start()
+                    state.message = "Resumed: crawling restarted from checkpoint"
+                except Exception as exc:
+                    logger.error("Failed to restart producer for KB %s: %s", kb_id, exc, exc_info=True)
+                    state.message = "Resume failed to restart producer"
+
             persist_state(state)
             return True
 
@@ -216,6 +254,18 @@ class IngestionService:
             runtimes = list(self._runtimes_by_kb.values())
         for runtime in runtimes:
             self._cancel_sync(runtime.kb_id)
+
+    async def pause_all(self) -> None:
+        await asyncio.to_thread(self._pause_all_sync)
+
+    def _pause_all_sync(self) -> None:
+        with self._lock:
+            runtimes = list(self._runtimes_by_kb.values())
+        for runtime in runtimes:
+            try:
+                self._pause_sync(runtime.kb_id)
+            except Exception:
+                pass
 
     async def resume_or_start(
         self,
