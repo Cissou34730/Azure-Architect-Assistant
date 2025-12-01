@@ -11,39 +11,14 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from app.kb import KBManager, MultiSourceQueryService, KnowledgeBaseService
+from app.kb import KBManager, MultiSourceQueryService
 
 logger = logging.getLogger(__name__)
 
 # Global service instances (initialized at startup)
 # Singletons maintain in-memory index cache for performance
-_waf_kb_service: Optional[KnowledgeBaseService] = None
 _kb_manager: Optional[KBManager] = None
 _multi_query_service: Optional[MultiSourceQueryService] = None
-
-
-def get_query_service() -> KnowledgeBaseService:
-    """
-    Get or create WAF KnowledgeBaseService instance (singleton pattern).
-    Legacy endpoint for backward compatibility.
-    
-    NOTE: Singleton keeps index in memory for fast queries.
-    """
-    global _waf_kb_service
-    if _waf_kb_service is None:
-        logger.info("Initializing WAF KnowledgeBaseService")
-        
-        manager = get_kb_manager()
-        waf_config = manager.get_kb('waf')
-        
-        if not waf_config:
-            raise ValueError("WAF knowledge base not found in configuration")
-        
-        # KnowledgeBaseService automatically loads and caches index
-        _waf_kb_service = KnowledgeBaseService(waf_config)
-        logger.info("WAF KnowledgeBaseService initialized with cached index")
-    
-    return _waf_kb_service
 
 
 def get_kb_manager() -> KBManager:
@@ -71,18 +46,6 @@ def get_multi_query_service() -> MultiSourceQueryService:
         _multi_query_service = MultiSourceQueryService(manager)
         logger.info("MultiSourceQueryService initialized")
     return _multi_query_service
-
-
-def invalidate_query_service():
-    """
-    Invalidate cached query service to reload index.
-    Called after index rebuild.
-    
-    NOTE: Clears in-memory index cache.
-    """
-    global _waf_kb_service
-    logger.info("Invalidating WAF KB service cache")
-    _waf_kb_service = None
 
 
 def invalidate_kb_manager():

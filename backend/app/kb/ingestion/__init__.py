@@ -4,7 +4,6 @@ from .base import (
     DocumentCrawler,
     DocumentCleaner,
     IndexBuilder,
-    IngestionPipeline,
     IngestionPhase
 )
 
@@ -12,6 +11,5 @@ __all__ = [
     'DocumentCrawler',
     'DocumentCleaner',
     'IndexBuilder',
-    'IngestionPipeline',
     'IngestionPhase',
 ]
