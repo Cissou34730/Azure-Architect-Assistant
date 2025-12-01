@@ -57,52 +57,45 @@ class WebsiteSourceHandler(BaseSourceHandler):
         Returns:
             List of Documents
         """
-        logger.info("="*70)
-        logger.info("WebsiteSourceHandler.ingest() called")
-        logger.info(f"Config: {config}")
-        logger.info("="*70)
+        logger.info("Website ingestion started")
         
         url_prefix = config.get('url_prefix')
         max_pages = config.get('max_pages', 1000)
         
         # Mode 1: Explicit sitemap
         if 'sitemap_url' in config:
-            logger.info("MODE 1: Explicit sitemap_url")
+            # Mode selection logging reduced
             return self._ingest_from_sitemap(config['sitemap_url'], url_prefix)
         
         # Mode 2: start_url (try sitemap → fallback to crawl)
         if 'start_url' in config:
-            logger.info("MODE 2: start_url (sitemap discovery → crawl fallback)")
             start_url = config['start_url']
             
             # Check if domain has massive sitemaps
             domain = urlparse(start_url).netloc.lower()
             if any(prob in domain for prob in self.PROBLEMATIC_DOMAINS):
-                logger.info(f"⚠ Domain '{domain}' has massive sitemaps - skipping discovery")
-                logger.info("Using crawler directly")
+                logger.info(f"Large domain detected '{domain}', using crawler")
                 return self.crawler.crawl(start_url, url_prefix, max_pages)
             
             # Try sitemap discovery
-            logger.info(f"Attempting sitemap discovery for: {start_url}")
             try:
                 sitemap_urls = sitemap_search(start_url, target_lang=None)
                 
                 if sitemap_urls:
-                    logger.info(f"✓ Found sitemap with {len(sitemap_urls)} URLs")
+                    logger.info(f"Sitemap discovered: {len(sitemap_urls)} URLs")
                     urls_list = list(sitemap_urls)
                     return self._ingest_urls(urls_list, url_prefix)
                 else:
-                    logger.info("✗ No sitemap found - using crawler")
+                    logger.info("No sitemap found - using crawler")
                     return self.crawler.crawl(start_url, url_prefix, max_pages, batch_size=10)
                     
             except Exception as e:
                 logger.warning(f"Sitemap discovery failed: {e}")
-                logger.info("Falling back to crawler")
                 return self.crawler.crawl(start_url, url_prefix, max_pages, batch_size=10)
         
         # Mode 3: Direct URLs
         if 'urls' in config:
-            logger.info("MODE 3: Direct URLs list")
+            # Direct URLs mode
             return self._ingest_urls(config['urls'], url_prefix)
         
         raise ValueError("Config must have 'sitemap_url', 'start_url', or 'urls'")
@@ -110,11 +103,11 @@ class WebsiteSourceHandler(BaseSourceHandler):
     def _ingest_from_sitemap(self, sitemap_url: str, url_prefix: str = None) -> List[Document]:
         """Parse sitemap and ingest URLs."""
         urls = self.sitemap_parser.parse_sitemap(sitemap_url)
-        logger.info(f"Sitemap contains {len(urls)} URLs")
+        logger.info(f"Sitemap URLs: {len(urls)}")
         
         # Deduplicate
         urls = list(set(urls))
-        logger.info(f"After deduplication: {len(urls)} unique URLs")
+        # Deduplication summary only
         
         return self._ingest_urls(urls, url_prefix)
     
@@ -123,15 +116,13 @@ class WebsiteSourceHandler(BaseSourceHandler):
         # Filter by prefix
         if url_prefix:
             filtered = [url for url in urls if url.startswith(url_prefix)]
-            logger.info(f"URL prefix filter: '{url_prefix}'")
-            logger.info(f"  Kept {len(filtered)}/{len(urls)} URLs")
+            logger.info(f"Prefix filter applied '{url_prefix}' kept {len(filtered)}/{len(urls)}")
             urls = filtered
         
         documents = []
-        logger.info(f"Ingesting {len(urls)} URLs...")
+        logger.info(f"Fetching {len(urls)} URLs")
         
-        for i, url in enumerate(urls, 1):
-            logger.info(f"[{i}/{len(urls)}] Fetching: {url}")
+        for url in urls:
             
             content = self.content_fetcher.fetch_content(url)
             if content:
@@ -146,9 +137,9 @@ class WebsiteSourceHandler(BaseSourceHandler):
                     }
                 )
                 documents.append(doc)
-                logger.info(f"  ✓ Ingested ({len(content)} chars)")
+                # Suppress per-URL ingestion detail
             else:
                 logger.warning(f"  ✗ Failed to fetch content")
         
-        logger.info(f"Ingestion complete: {len(documents)}/{len(urls)} successful")
+        logger.info(f"Website ingestion complete: {len(documents)}/{len(urls)} successful")
         return documents

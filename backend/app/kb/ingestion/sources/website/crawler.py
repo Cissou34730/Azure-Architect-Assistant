@@ -63,8 +63,7 @@ class WebsiteCrawler:
         self.semantic_path = self._extract_semantic_path(url_prefix)
         self.base_domain = urlparse(url_prefix).netloc
         
-        logger.info(f"Semantic path extracted: {self.semantic_path}")
-        logger.info(f"Base domain: {self.base_domain}")
+        # Reduced verbose logging: keep only high-level start/end and cancellations
         
         # Store start_url and url_prefix for state saving
         self.start_url = start_url
@@ -91,38 +90,29 @@ class WebsiteCrawler:
                     visited = set(crawl_state.get('visited_urls', []))  # Restore visited URLs
                     failed_count = crawl_state.get('pages_failed', 0)
                     to_visit = crawl_state.get('pending_urls', [start_url])
-                    logger.info(f"Resuming from state: ID={last_id}, visited={len(visited)}, queued={len(to_visit)}")
+                        logger.info(f"Resuming crawl: visited={len(visited)}, queued={len(to_visit)}")
             except Exception as e:
                 logger.warning(f"Could not load state: {e}, starting fresh")
         
-        logger.info("="*70)
-        logger.info("CRAWLER STARTING")
-        logger.info("="*70)
-        logger.info(f"Start URL: {start_url}")
-        logger.info(f"URL prefix: {url_prefix}")
-        logger.info(f"Max pages: {max_pages}")
-        logger.info(f"State: every {checkpoint_interval} pages at {state_path}")
-        logger.info("="*70)
+        logger.info(f"Crawler start: {start_url} (limit={max_pages})")
         
         while to_visit and len(visited) < max_pages:
             # Cooperative pause/cancel check using shared state
             if self.state:
                 if self.state.cancel_requested:
-                    logger.info(f"Crawl cancelled by user at {len(visited)} pages")
+                    logger.info(f"Crawler cancelled at {len(visited)} pages")
                     # Save state before exiting
                     self._save_state(visited, failed_count, to_visit, last_id)
                     if current_batch:
-                        logger.info(f"Yielding final batch of {len(current_batch)} documents before cancellation")
                         yield current_batch
                     return
                 
                 # Return immediately on pause - pipeline will handle resume from state
                 if self.state.paused:
-                    logger.info(f"Crawl paused by user at {len(visited)} pages")
+                    logger.info(f"Crawler paused at {len(visited)} pages")
                     # Save state before pausing
                     self._save_state(visited, failed_count, to_visit, last_id)
                     if current_batch:
-                        logger.info(f"Yielding final batch of {len(current_batch)} documents before pause")
                         yield current_batch
                     return
             
@@ -136,7 +126,7 @@ class WebsiteCrawler:
             last_id += 1
             visited.add(url)
             
-            logger.info(f"[{len(visited)}/{max_pages}] ID={last_id}: {url}")
+            # Removed per-URL progress log
             
             # Fetch page once and extract both content and links
             html_content, final_url = self._fetch_html_with_redirect(url)
@@ -154,7 +144,7 @@ class WebsiteCrawler:
             
             # If redirected, mark final URL as visited too
             if final_url and final_url != url:
-                logger.info(f"  → Redirected to: {final_url}")
+                # Suppress redirect detail log
                 visited.add(final_url)
             
             # Extract clean text content using trafilatura
@@ -173,11 +163,11 @@ class WebsiteCrawler:
                 )
                 current_batch.append(doc)
                 total_documents += 1
-                logger.info(f"  ✓ Ingested ({len(content)} chars)")
+                # Suppress per-document ingestion log
                 
                 # Yield batch when it reaches batch_size
                 if len(current_batch) >= batch_size:
-                    logger.info(f"✓ Yielding batch of {len(current_batch)} documents")
+                    # Batch yield (log removed for verbosity reduction)
                     yield current_batch
                     current_batch = []
             else:

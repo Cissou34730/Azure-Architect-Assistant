@@ -46,10 +46,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
         Settings.embed_model = OpenAIEmbedding(model=embedding_model)
         Settings.llm = OpenAI(model=generation_model, temperature=0.1)
         
-        self.logger.info(f"VectorIndexBuilder initialized for KB '{kb_id}'")
-        self.logger.info(f"  Storage: {storage_dir}")
-        self.logger.info(f"  Embedding model: {embedding_model}")
-        self.logger.info(f"  Generation model: {generation_model}")
+        self.logger.info(f"VectorIndexBuilder init KB='{kb_id}' storage={storage_dir}")
     
     def _get_state_path(self) -> str:
         """Get path to unified state file."""
@@ -109,7 +106,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
                 json.dump(state, f, indent=2)
             os.replace(tmp_name, state_path)
             
-            self.logger.info(f"State saved: indexed up to doc_id {last_indexed_id}, {chunks_total} chunks total")
+            # State checkpoint saved (verbosity reduced)
         except Exception as e:
             self.logger.error(f"Failed to save state: {e}")
     
@@ -134,9 +131,7 @@ class VectorIndexBuilder(BaseIndexBuilder):
         from ..base import IngestionPhase
         from llama_index.core import StorageContext, load_index_from_storage
         
-        self.logger.info("=" * 70)
-        self.logger.info(f"Building vector index for KB: {self.kb_id}")
-        self.logger.info("=" * 70)
+        self.logger.info(f"Index build start KB={self.kb_id}")
         
         # Validate documents
         if not self.validate_documents(documents):
@@ -152,10 +147,10 @@ class VectorIndexBuilder(BaseIndexBuilder):
         index = None
         if os.path.exists(os.path.join(self.storage_dir, 'docstore.json')):
             try:
-                self.logger.info(f"Loading existing index from {self.storage_dir}")
+                self.logger.info(f"Loading existing index")
                 storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
                 index = load_index_from_storage(storage_context)
-                self.logger.info(f"Existing index loaded, resuming from doc_id {last_indexed_id + 1}")
+                self.logger.info(f"Resume from doc_id {last_indexed_id + 1}")
             except Exception as e:
                 self.logger.warning(f"Could not load existing index: {e}, building from scratch")
                 index = None
