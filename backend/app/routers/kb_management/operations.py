@@ -1,18 +1,66 @@
 """
 Business Logic for KB Management Operations
-Service layer handling KB listing and health checks.
+Service layer handling KB listing, health checks, and KB CRUD.
 """
 
 import logging
 from typing import List, Dict, Any
+from pathlib import Path
 
 from app.kb import KBManager, MultiSourceQueryService
+from .models import CreateKBRequest
 
 logger = logging.getLogger(__name__)
 
 
 class KBManagementService:
     """Service layer for KB management operations"""
+    
+    @staticmethod
+    def create_knowledge_base(request: CreateKBRequest, manager: KBManager) -> Dict[str, str]:
+        """
+        Create a new knowledge base.
+        
+        Args:
+            request: KB creation request
+            manager: KB manager instance
+            
+        Returns:
+            Dict with kb_id, kb_name, message
+            
+        Raises:
+            ValueError: If KB already exists or validation fails
+        """
+        # Check if KB already exists
+        if manager.kb_exists(request.kb_id):
+            raise ValueError(f"Knowledge base '{request.kb_id}' already exists")
+        
+        # Build KB configuration
+        kb_config = {
+            'id': request.kb_id,
+            'name': request.name,
+            'description': request.description or '',
+            'status': 'active',
+            'source_type': request.source_type.value,
+            'source_config': request.source_config,
+            'embedding_model': request.embedding_model,
+            'chunk_size': request.chunk_size,
+            'chunk_overlap': request.chunk_overlap,
+            'profiles': request.profiles or ['chat', 'kb-query'],
+            'priority': request.priority,
+            'indexed': False
+        }
+        
+        # Create KB
+        manager.create_kb(request.kb_id, kb_config)
+        
+        logger.info(f"Created KB: {request.kb_id} ({request.name})")
+        
+        return {
+            "message": f"Knowledge base '{request.name}' created successfully",
+            "kb_id": request.kb_id,
+            "kb_name": request.name
+        }
     
     @staticmethod
     def list_knowledge_bases(manager: KBManager) -> List[Dict[str, Any]]:

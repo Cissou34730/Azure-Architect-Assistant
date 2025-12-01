@@ -5,120 +5,20 @@ Clean routing layer - business logic delegated to operations.py
 
 from fastapi import APIRouter, HTTPException
 import logging
-import asyncio
 
-from app.service_registry import get_kb_manager, invalidate_kb_manager
-from app.kb.service import clear_index_cache
+from app.service_registry import get_kb_manager
 
 from .models import (
-    CreateKBRequest,
-    CreateKBResponse,
     StartIngestionRequest,
     StartIngestionResponse,
     JobStatusResponse,
-    JobListResponse,
-    KBListResponse
+    JobListResponse
 )
 from .operations import get_ingestion_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/ingestion", tags=["kb-ingestion"])
-
-
-# ============================================================================
-# KB Management Endpoints
-# ============================================================================
-
-@router.post("/kb/create", response_model=CreateKBResponse)
-async def create_kb(request: CreateKBRequest):
-    """Create a new knowledge base"""
-    try:
-        service = get_ingestion_service()
-        result = service.create_knowledge_base(request)
-        
-        # Invalidate KB manager cache to reload config
-        invalidate_kb_manager()
-        
-        return CreateKBResponse(**result)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to create KB: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to create KB: {str(e)}")
-
-
-@router.get("/kb/list", response_model=KBListResponse)
-async def list_kbs():
-    """List all knowledge bases"""
-    try:
-        kb_manager = get_kb_manager()
-        kbs = kb_manager.list_kbs()
-        return KBListResponse(knowledge_bases=kbs)
-    except Exception as e:
-        logger.error(f"Failed to list KBs: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to list KBs: {str(e)}")
-
-
-@router.delete("/kb/{kb_id}")
-async def delete_kb(kb_id: str):
-    """
-    Delete a knowledge base and all its data.
-    
-    This will:
-    - Cancel any running ingestion jobs
-    - Unload the index from memory
-    - Remove the KB from configuration
-    - Delete all KB data (index, documents, etc.)
-    """
-    try:
-        kb_manager = get_kb_manager()
-        
-        # Check if KB exists
-        if not kb_manager.kb_exists(kb_id):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Knowledge base '{kb_id}' not found"
-            )
-        
-        # Get KB config before deletion
-        kb_config = kb_manager.get_kb(kb_id)
-        storage_dir = kb_config.index_path if kb_config else None
-        
-        # Cancel any running ingestion via IngestionService
-        from app.ingestion.service import IngestionService
-        ingest_service = IngestionService.instance()
-        await ingest_service.cancel(kb_id)
-        logger.info(f"Cancelled ingestion for KB before deletion: {kb_id}")
-        await asyncio.sleep(1.0)
-        
-        # Clear index from memory cache
-        if storage_dir:
-            clear_index_cache(kb_id=kb_id, storage_dir=storage_dir)
-            logger.info(f"Cleared index cache for KB: {kb_id}")
-            await asyncio.sleep(0.5)
-        
-        # Delete the KB
-        kb_manager.delete_kb(kb_id)
-        
-        # Invalidate KB manager cache to reload config
-        invalidate_kb_manager()
-        
-        logger.info(f"Deleted KB: {kb_id}")
-        
-        return {
-            "message": f"Knowledge base '{kb_id}' deleted successfully",
-            "kb_id": kb_id
-        }
-        
-    except HTTPException:
-        raise
-    except ValueError as e:
-        logger.error(f"Failed to delete KB: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to delete KB: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to delete KB: {str(e)}")
 
 
 # ============================================================================

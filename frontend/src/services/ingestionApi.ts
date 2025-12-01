@@ -19,7 +19,7 @@ const API_BASE = "http://localhost:8000/api";
 export async function createKB(
   request: CreateKBRequest
 ): Promise<CreateKBResponse> {
-  const response = await fetch(`${API_BASE}/ingestion/kb/create`, {
+  const response = await fetch(`${API_BASE}/kb/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -125,7 +125,7 @@ export async function resumeJob(kbId: string): Promise<void> {
  * Delete a knowledge base and all its data
  */
 export async function deleteKB(kbId: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}`, {
+  const response = await fetch(`${API_BASE}/kb/${kbId}`, {
     method: "DELETE",
   });
 

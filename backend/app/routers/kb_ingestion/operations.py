@@ -17,7 +17,7 @@ from app.kb.ingestion.sources import SourceHandlerFactory
 from app.kb.ingestion.chunking import ChunkerFactory
 from app.kb.ingestion.indexing import IndexBuilderFactory
 
-from .models import SourceType, CreateKBRequest
+from .models import SourceType
 
 logger = logging.getLogger(__name__)
 
@@ -27,53 +27,6 @@ class KBIngestionService:
     
     def __init__(self):
         pass
-    
-    def create_knowledge_base(self, request: CreateKBRequest) -> Dict[str, str]:
-        """
-        Create a new knowledge base.
-        
-        Args:
-            request: KB creation request
-            
-        Returns:
-            Dict with kb_id, kb_name, message
-            
-        Raises:
-            ValueError: If KB already exists or validation fails
-        """
-        # Get fresh KB manager instance
-        kb_manager = get_kb_manager()
-        
-        # Check if KB already exists
-        if kb_manager.kb_exists(request.kb_id):
-            raise ValueError(f"Knowledge base '{request.kb_id}' already exists")
-        
-        # Build KB configuration
-        kb_config = {
-            'id': request.kb_id,
-            'name': request.name,
-            'description': request.description or '',
-            'status': 'active',
-            'source_type': request.source_type.value,
-            'source_config': request.source_config,
-            'embedding_model': request.embedding_model,
-            'chunk_size': request.chunk_size,
-            'chunk_overlap': request.chunk_overlap,
-            'profiles': request.profiles or ['chat', 'kb-query'],
-            'priority': request.priority,
-            'indexed': False
-        }
-        
-        # Create KB
-        kb_manager.create_kb(request.kb_id, kb_config)
-        
-        logger.info(f"Created KB: {request.kb_id} ({request.name})")
-        
-        return {
-            "message": f"Knowledge base '{request.name}' created successfully",
-            "kb_id": request.kb_id,
-            "kb_name": request.name
-        }
     
     def start_ingestion(self, kb_id: str) -> Dict[str, str]:
         """
