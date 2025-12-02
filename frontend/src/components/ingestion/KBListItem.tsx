@@ -63,7 +63,7 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
 
           {/* Job Status */}
           {job && (
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-3 space-y-2">
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${
                   job.status === 'running' ? 'bg-blue-500 animate-pulse' :
@@ -75,10 +75,51 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
                 <span className="text-sm font-medium text-gray-700">
                   {job.status === 'paused' ? 'PAUSED' : `${job.phase.toUpperCase()} - ${job.progress.toFixed(0)}%`}
                 </span>
+                <span className="text-xs text-gray-500">
+                  {job.message}
+                </span>
               </div>
-              <span className="text-xs text-gray-500">
-                {job.message}
-              </span>
+
+              {/* Inline Metrics */}
+              {job.metrics && Object.keys(job.metrics).length > 0 && (
+                <div className="flex items-center gap-4 text-xs">
+                  {job.metrics.documents_crawled !== undefined && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-500">Docs:</span>
+                      <span className="font-semibold text-gray-700">{job.metrics.documents_crawled}</span>
+                    </div>
+                  )}
+                  {job.metrics.chunks_queued !== undefined && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-500">Chunks:</span>
+                      <span className="font-semibold text-gray-700">{job.metrics.chunks_queued}</span>
+                    </div>
+                  )}
+                  {job.metrics.chunks_embedded !== undefined && job.metrics.chunks_queued !== undefined && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-500">Indexed:</span>
+                      <span className="font-semibold text-gray-700">
+                        {job.metrics.chunks_embedded} / {job.metrics.chunks_queued}
+                      </span>
+                      <span className="text-gray-500">
+                        ({((job.metrics.chunks_embedded / job.metrics.chunks_queued) * 100).toFixed(0)}%)
+                      </span>
+                    </div>
+                  )}
+                  {job.metrics.chunks_pending !== undefined && job.metrics.chunks_pending > 0 && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-500">Pending:</span>
+                      <span className="font-semibold text-yellow-600">{job.metrics.chunks_pending}</span>
+                    </div>
+                  )}
+                  {job.metrics.chunks_failed !== undefined && job.metrics.chunks_failed > 0 && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-500">Failed:</span>
+                      <span className="font-semibold text-red-600">{job.metrics.chunks_failed}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
