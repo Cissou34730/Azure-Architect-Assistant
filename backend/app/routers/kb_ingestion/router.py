@@ -6,7 +6,7 @@ Clean routing layer - business logic delegated to operations.py
 from fastapi import APIRouter, HTTPException
 import logging
 
-from app.ingestion.service_components.manager import IngestionService
+from app.ingestion.application.ingestion_service import IngestionService
 from app.service_registry import get_kb_manager
 
 from .models import (
@@ -67,8 +67,9 @@ async def get_kb_status(kb_id: str):
             # Enrich with live queue stats
             if state.job_id:
                 try:
-                    from app.ingestion.service_components.repository import get_queue_stats
-                    queue_stats = get_queue_stats(state.job_id)
+                    from app.ingestion.infrastructure.repository import create_database_repository
+                    repo = create_database_repository()
+                    queue_stats = repo.get_queue_stats(state.job_id)
                     state.metrics.update({
                         'chunks_pending': queue_stats['pending'],
                         'chunks_processing': queue_stats['processing'],

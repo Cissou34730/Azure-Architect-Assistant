@@ -11,7 +11,7 @@ from pathlib import Path
 
 from llama_index.core import Document
 
-from app.ingestion.service_components.storage import persist_state
+from app.ingestion.infrastructure.persistence import create_local_disk_persistence_store
 from app.service_registry import get_kb_manager
 from app.kb.ingestion import IngestionPhase
 from app.kb.ingestion.sources import SourceHandlerFactory
@@ -93,13 +93,12 @@ class KBIngestionService:
                     state.phase = phase.value if hasattr(phase, 'value') else str(phase)
                     state.progress = progress
                     state.message = message
-                    if metrics:
-                        state.metrics.update(metrics)
-                    
-                    # Persist state immediately for live updates
-                    persist_state(state)
-            
-            # Phase 1: Load documents using appropriate source handler
+                if metrics:
+                    state.metrics.update(metrics)
+                
+                # Persist state immediately for live updates
+                persistence = create_local_disk_persistence_store()
+                persistence.save(state)            # Phase 1: Load documents using appropriate source handler
             progress_callback(IngestionPhase.CRAWLING, 0, "Loading documents from source...", {})
             
             # Check cancellation before starting
@@ -220,7 +219,7 @@ class KBIngestionService:
                     
                     # Compute doc_hash per chunk and enqueue
                     from hashlib import sha256
-                    from app.ingestion.service_components.repository import enqueue_chunks
+                    from app.ingestion.infrastructure.repository import create_database_repository
                     chunk_rows = []
                     for ch in batch_chunks:
                         text = ch.get('content', '')
@@ -242,7 +241,8 @@ class KBIngestionService:
                             'metadata': meta,
                         })
                     if state and getattr(state, 'job_id', None):
-                        inserted = enqueue_chunks(state.job_id, chunk_rows)
+                        repo = create_database_repository()
+                        inserted = repo.enqueue_chunks(state.job_id, chunk_rows)
                         logger.info(f"✓ Enqueued {inserted}/{len(chunk_rows)} chunks for job {state.job_id}")
                         # Track total chunks queued
                         state.metrics['chunks_queued'] = state.metrics.get('chunks_queued', 0) + inserted
@@ -260,7 +260,8 @@ class KBIngestionService:
                         state.metrics['chunks_total'] = total_chunks_indexed
                         state.metrics['documents_processed'] = len(all_documents)
                         
-                        persist_state(state)
+                        persistence = create_local_disk_persistence_store()
+                        persistence.save(state)
                     
             except GeneratorExit:
                 logger.info(f"Generator closed - processing stopped at batch {batch_num}")

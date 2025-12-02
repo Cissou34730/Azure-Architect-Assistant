@@ -13,6 +13,7 @@ Apply the [general coding guidelines](./general-coding.instructions.md) to all c
 - Always include type hints using modern built-in generics (`list[str]`, `dict[str, int]`, etc.).
 - Use docstrings following **PEP 257** conventions.
 - Follow **PEP 8** for formatting and naming.
+- Don't use environment variable unless expressvely mention
 
 ---
 

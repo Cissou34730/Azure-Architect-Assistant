@@ -25,7 +25,7 @@ try {
     
     Write-Host "Starting uvicorn server on port 8000..." -ForegroundColor Cyan
     # Start uvicorn without reload for stability
-    python -m uvicorn app.main:app --port 8000
+    python -m uvicorn app.main:app --port 8000 --reload --reload-dir app
 }
 catch {
     Write-Host "Error: $_" -ForegroundColor Red

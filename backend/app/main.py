@@ -42,6 +42,10 @@ for logger_name in ['uvicorn', 'uvicorn.error']:
 access_logger = logging.getLogger('uvicorn.access')
 access_logger.setLevel(logging.INFO)
 
+# Suppress verbose HTTP client logs (OpenAI, httpx, urllib3)
+for noisy_logger in ['httpx', 'openai', 'urllib3', 'httpcore']:
+    logging.getLogger(noisy_logger).setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 logger.info(f"Loading environment from: {env_path}")
 

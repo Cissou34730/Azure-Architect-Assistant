@@ -7,7 +7,7 @@ import logging
 import asyncio
 from app.database import init_database, close_database
 from app.ingestion.db import init_ingestion_database
-from app.ingestion.service_components.manager import IngestionService
+from app.ingestion.application.ingestion_service import IngestionService
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +39,12 @@ async def startup():
         logger.info(f"✓ KB Manager ready ({len(kb_mgr.list_kbs())} knowledge bases)")
         logger.info("  Note: KB indices will be loaded lazily on first query")
         
-        # Load persisted ingestion states
+        # Initialize ingestion service (loads persisted states automatically)
         try:
             ingest_service = IngestionService.instance()
-            ingest_service.load_all_states()
-            logger.info("✓ Loaded persisted ingestion job states")
+            logger.info("✓ Ingestion service initialized")
         except Exception as e:
-            logger.warning(f"Failed to load ingestion states: {e}")
+            logger.warning(f"Failed to initialize ingestion service: {e}")
         
         logger.info("=" * 60)
         logger.info("STARTUP COMPLETE: Ready to accept requests")

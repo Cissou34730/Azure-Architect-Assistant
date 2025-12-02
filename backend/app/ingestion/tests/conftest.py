@@ -1,0 +1,52 @@
+"""Test fixtures for ingestion tests."""
+
+import pytest
+import tempfile
+from pathlib import Path
+from typing import Generator
+
+from app.ingestion.config import IngestionSettings, set_settings
+from app.ingestion.infrastructure.repository import DatabaseRepository
+from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
+from app.ingestion.application.lifecycle import LifecycleManager
+
+
+@pytest.fixture
+def temp_data_dir() -> Generator[Path, None, None]:
+    """Provide temporary directory for test data."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield Path(tmpdir)
+
+
+@pytest.fixture
+def test_settings(temp_data_dir: Path) -> IngestionSettings:
+    """Provide test settings with temp directory."""
+    settings = IngestionSettings(
+        data_root=temp_data_dir,
+        batch_size=10,
+        dequeue_timeout=0.01,
+        consumer_poll_interval=0.01,
+        thread_join_timeout=2.0,
+        enable_correlation_ids=True,
+        enable_metrics=True,
+    )
+    set_settings(settings)
+    return settings
+
+
+@pytest.fixture
+def repository() -> DatabaseRepository:
+    """Provide database repository for tests."""
+    return DatabaseRepository()
+
+
+@pytest.fixture
+def persistence_store(temp_data_dir: Path) -> LocalDiskPersistenceStore:
+    """Provide local disk persistence store for tests."""
+    return LocalDiskPersistenceStore(base_path=temp_data_dir)
+
+
+@pytest.fixture
+def lifecycle_manager() -> LifecycleManager:
+    """Provide lifecycle manager for tests."""
+    return LifecycleManager()

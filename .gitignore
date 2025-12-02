@@ -138,7 +138,7 @@ dmypy.json
 
 # Database
 *.sqlite
-#*.db
+*.db
 
 # Knowledge Base Data (generated files, can be regenerated)
 data/knowledge_bases/*/documents/
@@ -180,3 +180,5 @@ Thumbs.db
 # Misc
 *.orig
 .cache/
+
+*.tmp

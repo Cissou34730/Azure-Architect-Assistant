@@ -1,0 +1,17 @@
+{
+  "data_root": "data/knowledge_bases",
+  "batch_size": 50,
+  "dequeue_timeout": 0.1,
+  "consumer_poll_interval": 0.1,
+  "thread_join_timeout": 5.0,
+  "shutdown_grace_period": 30.0,
+  "max_retries": 3,
+  "retry_delay": 1.0,
+  "persistence_backend": "local_disk",
+  "state_file_name": "state.json",
+  "log_level": "INFO",
+  "enable_correlation_ids": true,
+  "enable_metrics": true,
+  "metrics_backend": "prometheus",
+  "metrics_port": 9090
+}

@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 import logging
 import asyncio
 
-from app.ingestion.service_components.manager import IngestionService
+from app.ingestion.application.ingestion_service import IngestionService
 from app.service_registry import get_kb_manager, get_multi_query_service, invalidate_kb_manager
 from app.kb.service import clear_index_cache
 from .models import (
