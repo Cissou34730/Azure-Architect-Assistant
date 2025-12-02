@@ -43,7 +43,22 @@ class ConsumerWorker:
         index_builder = ConsumerWorker._create_index_builder(runtime)
         
         # Main processing loop
-        while not stop_event.is_set():
+        consecutive_empty_batches = 0
+        max_empty_batches = 10  # Exit after 10 consecutive empty polls when producer stopped
+        
+        while True:
+            # Priority 1: Check for immediate cancellation (user stop/close)
+            if runtime.state.cancel_requested:
+                logger.info(f"{log_prefix} Cancellation requested - exiting immediately")
+                break
+            
+            # Priority 2: Check if producer finished normally
+            producer_stopped = stop_event.is_set()
+            if producer_stopped:
+                # Producer finished - we must drain remaining queue before exiting
+                if consecutive_empty_batches == 0:
+                    logger.info(f"{log_prefix} Producer finished - draining remaining queue")
+            
             # Dequeue next batch
             try:
                 batch = repository.dequeue_batch(job_id, limit=settings.batch_size)
@@ -53,9 +68,23 @@ class ConsumerWorker:
                 continue
 
             if not batch:
-                # No work; sleep briefly
-                stop_event.wait(timeout=settings.consumer_poll_interval)
+                # No work available
+                if producer_stopped:
+                    # Producer stopped and queue is empty - verify it's truly drained
+                    consecutive_empty_batches += 1
+                    if consecutive_empty_batches >= max_empty_batches:
+                        logger.info(f"{log_prefix} Queue fully drained - exiting consumer")
+                        break
+                    # Brief wait before rechecking (in case producer is still writing final items)
+                    stop_event.wait(timeout=settings.consumer_poll_interval)
+                else:
+                    # Producer still running - normal wait for work
+                    consecutive_empty_batches = 0
+                    stop_event.wait(timeout=settings.consumer_poll_interval)
                 continue
+            
+            # Reset empty counter - we have work to do
+            consecutive_empty_batches = 0
 
             # Prepare documents for indexing
             docs = []
@@ -113,6 +142,24 @@ class ConsumerWorker:
                     except Exception:
                         pass
 
+        # Mark job as completed after draining queue (only if not cancelled/failed)
+        if not runtime.state.cancel_requested and runtime.state.status not in {"failed", "cancelled"}:
+            logger.info(f"{log_prefix} All queue items processed - marking job as completed")
+            runtime.state.status = "completed"
+            runtime.state.phase = "completed"
+            runtime.state.progress = 100
+            runtime.state.message = "Ingestion completed successfully"
+            runtime.state.completed_at = datetime.utcnow()
+            
+            # Update repository
+            try:
+                from app.ingestion.domain.enums import JobStatus
+                repository.update_job_status(job_id, JobStatus.COMPLETED.value)
+                persistence.save_state(runtime.state)
+                logger.info(f"{log_prefix} Job marked as completed in DB")
+            except Exception as e:
+                logger.error(f"{log_prefix} Failed to update job status: {e}")
+        
         logger.info(f"{log_prefix} Consumer thread exiting")
 
     @staticmethod

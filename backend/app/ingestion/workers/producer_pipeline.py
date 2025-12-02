@@ -1,0 +1,345 @@
+"""
+Producer Pipeline - Crawl, Chunk, and Enqueue
+Handles the producer phase of ingestion: document crawling, chunking, and enqueueing for the consumer.
+"""
+
+import logging
+import asyncio
+from typing import Dict, Any, List
+from pathlib import Path
+from hashlib import sha256
+import json
+import re
+from urllib.parse import urlparse
+
+from llama_index.core import Document
+
+from app.kb.ingestion import IngestionPhase
+from app.kb.ingestion.sources import SourceHandlerFactory
+from app.kb.ingestion.chunking import ChunkerFactory
+from app.ingestion.infrastructure.persistence import create_local_disk_persistence_store
+from app.ingestion.infrastructure.repository import create_database_repository
+
+logger = logging.getLogger(__name__)
+
+
+class ProducerPipeline:
+    """
+    Producer pipeline: Crawl → Save → Chunk → Enqueue
+    Runs in producer thread, feeds work to consumer via DB queue.
+    """
+    
+    def __init__(self, kb_config: Dict[str, Any], state=None):
+        """
+        Initialize producer pipeline.
+        
+        Args:
+            kb_config: Knowledge base configuration
+            state: IngestionState for progress tracking and cancellation
+        """
+        self.kb_config = kb_config
+        self.state = state
+        self.kb_id = kb_config.get('id', kb_config.get('kb_id'))
+        self.source_type = kb_config.get('source_type', 'website')
+        self.source_config = kb_config.get('source_config', {})
+        
+        # Configuration
+        self.chunk_size = kb_config.get('chunk_size', 1024)
+        self.chunk_overlap = kb_config.get('chunk_overlap', 200)
+        self.chunking_strategy = kb_config.get('chunking_strategy', 'semantic')
+        
+        # Metrics
+        self.all_documents = []
+        self.total_chunks_enqueued = 0
+        self.batch_num = 0
+        
+    async def run(self):
+        """
+        Execute the producer pipeline.
+        Crawls documents, chunks them, and enqueues for consumer.
+        """
+        logger.info(f"=== Producer Pipeline Start: KB {self.kb_id} ===")
+        logger.info(f"  Source type: {self.source_type}")
+        
+        try:
+            # Check if cancelled before starting
+            if await self._check_cancel("pipeline start"):
+                return
+            
+            # Initialize components
+            handler = SourceHandlerFactory.create_handler(
+                self.source_type,
+                self.kb_id,
+                state=self.state
+            )
+            
+            chunker = ChunkerFactory.create_chunker(
+                strategy=self.chunking_strategy,
+                chunk_size=self.chunk_size,
+                chunk_overlap=self.chunk_overlap
+            )
+            
+            # Process batches
+            await self._process_batches(handler, chunker)
+            
+            # Verify we got work done
+            await self._verify_completion()
+            
+            logger.info(f"=== Producer Pipeline Complete: KB {self.kb_id} ===")
+            logger.info(f"  Documents: {len(self.all_documents)}")
+            logger.info(f"  Chunks enqueued: {self.total_chunks_enqueued}")
+            
+        except Exception as e:
+            logger.error(f"Producer pipeline failed for KB {self.kb_id}: {e}", exc_info=True)
+            if self.state:
+                self.state.status = "failed"
+                self.state.error = str(e)
+            raise
+    
+    async def _process_batches(self, handler, chunker):
+        """Process document batches from source."""
+        self._update_progress(IngestionPhase.CRAWLING, 0, "Loading documents from source...")
+        
+        try:
+            for document_batch in self._load_documents_from_source(handler):
+                self.batch_num += 1
+                batch_size = len(document_batch)
+                
+                logger.info(f"\n=== Processing Batch {self.batch_num} ({batch_size} documents) ===")
+                
+                # Check cancellation
+                if await self._check_cancel(f"batch {self.batch_num} start"):
+                    logger.info(f"Stopped at batch {self.batch_num}: {len(self.all_documents)} docs, {self.total_chunks_enqueued} chunks")
+                    return
+                
+                # Save documents to disk
+                self._save_documents_to_disk(document_batch)
+                self.all_documents.extend(document_batch)
+                
+                # Update metrics
+                if self.state:
+                    self.state.metrics['documents_crawled'] = len(self.all_documents)
+                
+                await asyncio.sleep(0)  # Yield control
+                
+                # Update progress
+                self._update_progress(
+                    IngestionPhase.CRAWLING,
+                    min(30, 10 + self.batch_num),
+                    f"Loaded batch {self.batch_num} ({len(self.all_documents)} documents)",
+                    {"documents_loaded": len(self.all_documents), "batch_num": self.batch_num}
+                )
+                
+                # Check cancellation after save
+                if await self._check_cancel(f"batch {self.batch_num} after save"):
+                    return
+                
+                # Chunk this batch
+                logger.info(f"Chunking batch {self.batch_num}...")
+                self._update_progress(
+                    IngestionPhase.CLEANING,
+                    min(50, 30 + self.batch_num),
+                    f"Chunking batch {self.batch_num}..."
+                )
+                
+                documents_dict = self._convert_documents_to_dict(document_batch)
+                batch_chunks = chunker.chunk_documents(documents_dict, state=self.state)
+                
+                await asyncio.sleep(0)  # Yield control
+                
+                logger.info(f"✓ Batch {self.batch_num}: Created {len(batch_chunks)} chunks")
+                
+                # Check cancellation after chunking
+                if await self._check_cancel(f"batch {self.batch_num} after chunk"):
+                    return
+                
+                # Enqueue chunks for consumer
+                logger.info(f"Enqueuing batch {self.batch_num} chunks...")
+                self._update_progress(
+                    IngestionPhase.EMBEDDING,
+                    min(70, 50 + self.batch_num * 2),
+                    f"Queued batch {self.batch_num} for embedding"
+                )
+                
+                enqueued = self._enqueue_chunks(batch_chunks)
+                self.total_chunks_enqueued += enqueued
+                
+                await asyncio.sleep(0)  # Yield control
+                
+                logger.info(f"✓ Total: {len(self.all_documents)} docs, {self.total_chunks_enqueued} chunks queued")
+                
+                # Persist state
+                if self.state:
+                    self.state.metrics['batches_processed'] = self.batch_num
+                    self.state.metrics['chunks_queued'] = self.total_chunks_enqueued
+                    self.state.metrics['documents_processed'] = len(self.all_documents)
+                    
+                    persistence = create_local_disk_persistence_store()
+                    persistence.save(self.state)
+                    
+        except GeneratorExit:
+            logger.info(f"Generator closed at batch {self.batch_num}")
+        except asyncio.CancelledError:
+            logger.info(f"KB {self.kb_id} cancelled by system")
+            if self.state:
+                self.state.status = "cancelled"
+            raise
+    
+    async def _verify_completion(self):
+        """Verify work was done or handle resume scenario."""
+        if not self.all_documents:
+            # Check if this is a resume with existing chunks in queue
+            logger.info("No new documents from source - checking for resume scenario")
+            
+            if self.state and self.state.job_id:
+                try:
+                    repo = create_database_repository()
+                    queue_stats = repo.get_queue_stats(self.state.job_id)
+                    total_in_queue = queue_stats['pending'] + queue_stats['processing']
+                    
+                    if total_in_queue > 0:
+                        logger.info(f"Resume scenario: {total_in_queue} chunks in queue, producer work complete")
+                        logger.info("Consumer will continue processing existing chunks")
+                        return
+                except Exception as e:
+                    logger.warning(f"Could not check queue stats: {e}")
+            
+            raise ValueError("No documents loaded from source and no chunks in queue")
+    
+    def _load_documents_from_source(self, handler):
+        """Load documents from source handler (generator)."""
+        logger.info(f"Loading documents from {self.source_type}")
+        
+        try:
+            result = handler.ingest(self.source_config)
+            
+            # If generator, yield batches
+            if hasattr(result, '__iter__') and not isinstance(result, (list, tuple)):
+                logger.info("Handler returned generator for batch processing")
+                for batch in result:
+                    logger.info(f"Yielding batch of {len(batch)} documents")
+                    yield batch
+            else:
+                # Legacy: handler returned list
+                logger.info(f"Handler returned {len(result)} documents")
+                yield result
+        except Exception as e:
+            logger.error(f"Failed to load documents: {e}", exc_info=True)
+            raise
+    
+    def _save_documents_to_disk(self, documents: List[Document]):
+        """Save documents to disk with ID-based naming."""
+        backend_root = Path(__file__).parent.parent.parent.parent
+        doc_dir = backend_root / "data" / "knowledge_bases" / self.kb_id / "documents"
+        doc_dir.mkdir(parents=True, exist_ok=True)
+        
+        for doc in documents:
+            meta = doc.metadata or {}
+            doc_id = meta.get('doc_id', 0)
+            url = meta.get('url', '')
+            
+            # Extract page name from URL
+            if url:
+                parsed = urlparse(url)
+                path = parsed.path.rstrip('/')
+                page_name = path.split('/')[-1] if path else 'index'
+                page_name = re.sub(r'\.(html?|php|asp)$', '', page_name)
+            else:
+                page_name = 'document'
+            
+            # Sanitize for Windows
+            page_name = re.sub(r'[<>:"/\\|?*]', '_', page_name)
+            page_name = re.sub(r'\s+', '_', page_name)
+            page_name = page_name.strip('._')
+            
+            if not page_name or page_name == '_':
+                page_name = 'document'
+            
+            if len(page_name) > 100:
+                page_name = page_name[:100]
+            
+            # Format: {id:04d}_{page-name}.md
+            filename = f"{doc_id:04d}_{page_name}.md"
+            doc_path = doc_dir / filename
+            
+            try:
+                with open(doc_path, 'w', encoding='utf-8') as f:
+                    f.write(f"# Doc ID: {doc_id}\n")
+                    f.write(f"# URL: {url}\n\n")
+                    f.write(doc.text or "")
+            except Exception as e:
+                logger.error(f"Failed to save document {doc_id}: {e}")
+    
+    def _convert_documents_to_dict(self, documents: List[Document]) -> List[Dict[str, Any]]:
+        """Convert Documents to dict format for chunker."""
+        return [
+            {
+                'content': doc.get_content(),
+                'metadata': doc.metadata
+            }
+            for doc in documents
+        ]
+    
+    def _enqueue_chunks(self, chunks: List[Dict[str, Any]]) -> int:
+        """Enqueue chunks to DB queue for consumer."""
+        chunk_rows = []
+        
+        for ch in chunks:
+            text = ch.get('content', '')
+            meta = ch.get('metadata', {})
+            
+            # Warn if empty content
+            if not text or not text.strip():
+                logger.warning(f"Empty content in chunk: metadata={meta}")
+            
+            # Compute hash
+            try:
+                meta_s = json.dumps(meta, sort_keys=True, ensure_ascii=False)
+            except Exception:
+                meta_s = str(meta)
+            
+            h = sha256((text + meta_s).encode('utf-8')).hexdigest()
+            
+            chunk_rows.append({
+                'doc_hash': h,
+                'content': text,
+                'metadata': meta,
+            })
+        
+        # Enqueue to DB
+        if self.state and self.state.job_id:
+            repo = create_database_repository()
+            inserted = repo.enqueue_chunks(self.state.job_id, chunk_rows)
+            logger.info(f"✓ Enqueued {inserted}/{len(chunk_rows)} chunks for job {self.state.job_id}")
+            return inserted
+        
+        return 0
+    
+    def _update_progress(self, phase: IngestionPhase, progress: int, message: str, metrics: Dict[str, Any] = None):
+        """Update state with progress."""
+        if not self.state:
+            return
+        
+        self.state.phase = phase.value if hasattr(phase, 'value') else str(phase)
+        self.state.progress = progress
+        self.state.message = message
+        
+        if metrics:
+            self.state.metrics.update(metrics)
+        
+        # Persist state
+        persistence = create_local_disk_persistence_store()
+        persistence.save(self.state)
+    
+    async def _check_cancel(self, checkpoint_name: str) -> bool:
+        """Check if cancelled."""
+        if not self.state:
+            return False
+        
+        if self.state.cancel_requested:
+            logger.info(f"KB {self.kb_id} cancelled at {checkpoint_name}")
+            persistence = create_local_disk_persistence_store()
+            persistence.save(self.state)
+            return True
+        
+        return False

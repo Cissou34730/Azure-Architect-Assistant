@@ -121,6 +121,15 @@ class WebsiteCrawler:
             
             # Skip if already visited or doesn't match semantic path
             if url in visited or not self._is_valid_url(url):
+                # DEBUG: Log why URL was skipped (first few times)
+                if url in visited:
+                    pass  # Already visited is expected
+                else:
+                    if not hasattr(self, '_invalid_url_count'):
+                        self._invalid_url_count = 0
+                    self._invalid_url_count += 1
+                    if self._invalid_url_count <= 5:
+                        logger.info(f"Skipping invalid URL: {url}")
                 continue
             
             # Assign sequential ID and mark as visited
@@ -185,6 +194,10 @@ class WebsiteCrawler:
                         to_visit.append(link)
                         new_count += 1
                 
+                # DEBUG: Log link extraction stats
+                if len(visited) <= 5 or len(visited) % 20 == 0:
+                    logger.info(f"  → Found {len(links)} links, {new_count} new, queue size: {len(to_visit)}")
+                
                 # Queue growth summary omitted for verbosity reduction
             
             # Per-iteration queue status suppressed
@@ -201,6 +214,15 @@ class WebsiteCrawler:
         # Yield any remaining documents in final batch
         if current_batch:
             yield current_batch
+        
+        # DEBUG: Log why crawl stopped
+        logger.info("="*70)
+        logger.info("CRAWLER STOPPED")
+        logger.info(f"  Visited: {len(visited)} pages")
+        logger.info(f"  Max pages: {max_pages}")
+        logger.info(f"  Queue empty: {len(to_visit) == 0}")
+        logger.info(f"  Hit max pages: {len(visited) >= max_pages}")
+        logger.info("="*70)
         
         # Final state save
         self._save_state(visited, failed_count, to_visit, last_id)
@@ -247,6 +269,14 @@ class WebsiteCrawler:
         
         # Check if it starts with our target semantic path
         if not url_semantic_path.startswith(self.semantic_path):
+            # DEBUG: Log rejected URLs (first few times only)
+            if not hasattr(self, '_rejected_count'):
+                self._rejected_count = 0
+            self._rejected_count += 1
+            if self._rejected_count <= 10:
+                logger.debug(f"Rejected URL (path mismatch): {url}")
+                logger.debug(f"  URL path: {url_semantic_path}")
+                logger.debug(f"  Required: {self.semantic_path}")
             return False
         
         # Exclude media files

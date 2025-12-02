@@ -65,6 +65,7 @@ async def get_kb_status(kb_id: str):
         
         if state:
             # Enrich with live queue stats
+            queue_has_work = False
             if state.job_id:
                 try:
                     from app.ingestion.infrastructure.repository import create_database_repository
@@ -77,17 +78,27 @@ async def get_kb_status(kb_id: str):
                         'chunks_failed': queue_stats['error'],
                         'chunks_queued': sum(queue_stats.values()),
                     })
+                    # Check if there's pending work (can resume)
+                    queue_has_work = queue_stats['pending'] > 0 or queue_stats['processing'] > 0
                 except Exception as e:
                     logger.warning(f"Failed to get queue stats: {e}")
+            
+            # Override status if job failed but work remains (should show as paused/resumable)
+            adjusted_status = state.status
+            adjusted_message = state.message
+            if state.status == "failed" and queue_has_work:
+                adjusted_status = "paused"
+                adjusted_message = f"Ingestion incomplete: {queue_stats['pending']} chunks pending. Click Resume to continue."
+                logger.info(f"KB {kb_id}: Failed job has {queue_stats['pending']} pending chunks - treating as paused/resumable")
             
             return JobStatusResponse(
                 job_id=f"{kb_id}-job",
                 kb_id=kb_id,
-                status=state.status,
+                status=adjusted_status,
                 phase=state.phase,
                 progress=state.progress,
-                message=state.message,
-                error=state.error,
+                message=adjusted_message,
+                error=state.error if adjusted_status == "failed" else None,
                 metrics=state.metrics,
                 started_at=state.started_at,
                 completed_at=state.completed_at,

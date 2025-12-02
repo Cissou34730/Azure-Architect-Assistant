@@ -30,6 +30,9 @@ class IngestionState:
     created_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    
+    # Phase-level tracking (optional, populated from phase_tracker if available)
+    phase_status: Optional[Dict[str, Any]] = None
 
 
 if PYDANTIC_AVAILABLE:
@@ -49,6 +52,7 @@ if PYDANTIC_AVAILABLE:
         created_at: Optional[datetime] = None
         started_at: Optional[datetime] = None
         completed_at: Optional[datetime] = None
+        phase_status: Optional[Dict[str, Any]] = None
 
         class Config:
             from_attributes = True
@@ -70,6 +74,7 @@ if PYDANTIC_AVAILABLE:
                 created_at=state.created_at,
                 started_at=state.started_at,
                 completed_at=state.completed_at,
+                phase_status=state.phase_status,
             )
 else:
     # Fallback if pydantic not available

@@ -24,6 +24,8 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
   const dropdownRef = useRef<HTMLDivElement>(null);
   const isIngesting = job?.status === 'running' || job?.status === 'pending';
   const isPaused = job?.status === 'paused';
+  const isCompleted = job?.status === 'completed';
+  const canStartIngestion = !isIngesting && !isPaused && !isCompleted; // Only show Start for pending/failed/cancelled or no job
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -203,7 +205,7 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
                 Cancel
               </Button>
             </>
-          ) : (
+          ) : canStartIngestion ? (
             <Button
               variant="success"
               size="sm"
@@ -211,7 +213,7 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
             >
               Start Ingestion
             </Button>
-          )}
+          ) : null}
           
           {/* More Actions Menu */}
           <div className="relative" ref={dropdownRef}>
