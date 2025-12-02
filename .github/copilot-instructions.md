@@ -24,6 +24,7 @@
 	- Use a monorepo structure to manage both frontend and backend codebases.
 	- Place new file in appropriate directories based on their functionality.
 	- Prefer composable and small modules functions
+	- All documents and md file except README.md must go to /docs in the relevant folders
 
 	[x] What to avoid
 	- Indroduce any new frameworks or libraries unless absolutely necessary and without consent
