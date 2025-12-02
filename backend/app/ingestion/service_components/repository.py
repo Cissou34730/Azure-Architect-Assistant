@@ -156,7 +156,10 @@ def enqueue_chunks(job_id: str, chunks: list[Dict[str, Any]]) -> int:
 
 
 def dequeue_batch(job_id: str, limit: int = 10) -> list[IngestionQueueItem]:
-    """Atomically select next PENDING items for a job and mark them PROCESSING."""
+    """Atomically select next PENDING items for a job and mark them PROCESSING.
+    
+    Returns list of queue items with eagerly loaded attributes to avoid detached instance errors.
+    """
     with get_session() as session:
         items = (
             session.execute(
@@ -171,10 +174,19 @@ def dequeue_batch(job_id: str, limit: int = 10) -> list[IngestionQueueItem]:
             .scalars()
             .all()
         )
+        # Eagerly access all attributes before leaving session context
+        result = []
         for it in items:
             it.mark_processing()
+            # Force load all attributes into dict
+            result.append({
+                'id': it.id,
+                'content': it.content,
+                'item_metadata': it.item_metadata,
+                'doc_hash': it.doc_hash,
+            })
         session.flush()
-        return items
+        return result
 
 
 def commit_batch_success(job_id: str, item_ids: list[int]) -> None:

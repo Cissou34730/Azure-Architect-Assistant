@@ -61,7 +61,7 @@ class SemanticChunker(BaseChunker):
             
             for chunk_idx, chunk_text in enumerate(text_chunks):
                 chunks.append({
-                    'text': chunk_text,
+                    'content': chunk_text,  # Fixed: use 'content' not 'text'
                     'metadata': {
                         **metadata,
                         'chunk_index': chunk_idx,

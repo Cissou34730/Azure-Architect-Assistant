@@ -19,6 +19,8 @@ from .repository import (
 from .runtime import JobRuntime
 from .state import IngestionState
 from .storage import load_states_from_disk, persist_state
+from .producer import ProducerWorker
+from .consumer import ConsumerWorker
 
 logger = logging.getLogger(__name__)
 
@@ -56,18 +58,15 @@ class IngestionService:
         kb_id: str,
         run_callable: Callable[..., Any],
         *args: Any,
-        state_override: Optional[IngestionState] = None,
         **kwargs: Any,
     ) -> IngestionState:
-        """Start threaded ingestion for a knowledge base."""
-
+        """Start fresh ingestion for a knowledge base (first run)."""
         return await asyncio.to_thread(
             self._start_sync,
             kb_id,
             run_callable,
             args,
             kwargs,
-            state_override,
         )
 
     def _start_sync(
@@ -76,19 +75,31 @@ class IngestionService:
         run_callable: Callable[..., Any],
         args: Tuple[Any, ...],
         kwargs: Dict[str, Any],
-        state_override: Optional[IngestionState],
     ) -> IngestionState:
+        """Start fresh ingestion (first run)."""
+        logger.info(f"[_start_sync] KB {kb_id}: Starting fresh ingestion")
         with self._lock:
             runtime = self._runtimes_by_kb.get(kb_id)
-            if runtime and runtime.producer_thread and runtime.producer_thread.is_alive():
-                return runtime.state
+            if runtime:
+                producer_alive = runtime.producer_thread and runtime.producer_thread.is_alive()
+                if producer_alive:
+                    logger.info(f"[_start_sync] KB {kb_id}: Already running")
+                    return runtime.state
+                
+                # Clean up stale runtime
+                logger.warning(f"[_start_sync] KB {kb_id}: Cleaning up stale runtime")
+                del self._runtimes_by_kb[kb_id]
+                if runtime.job_id in self._runtimes_by_job:
+                    del self._runtimes_by_job[runtime.job_id]
 
             kb_config = self._extract_kb_config(args)
             source_type = kb_config.get("source_type", "website") if kb_config else "website"
             source_config = kb_config.get("source_config", {}) if kb_config else {}
             priority = kb_config.get("priority", 0) if kb_config else 0
 
-            state = state_override or IngestionState(kb_id=kb_id, job_id="")
+            # Create fresh state
+            logger.info(f"[_start_sync] KB {kb_id}: Creating fresh state")
+            state = IngestionState(kb_id=kb_id, job_id="")
             state.status = "running"
             state.phase = "crawling"
             state.progress = 0
@@ -96,118 +107,130 @@ class IngestionService:
             state.error = None
             state.paused = False
             state.cancel_requested = False
-            if state.created_at is None:
-                state.created_at = datetime.utcnow()
+            state.created_at = datetime.utcnow()
             state.started_at = datetime.utcnow()
-
+            
+            logger.info(f"[_start_sync] KB {kb_id}: Creating new job record")
             job_id = create_job_record(kb_id, source_type, source_config, priority)
+            logger.info(f"[_start_sync] KB {kb_id}: Created job_id={job_id}")
             state.job_id = job_id
-            runtime = JobRuntime(job_id=job_id, kb_id=kb_id, state=state)
-            runtime.producer_target = run_callable
-            runtime.producer_args = args
-            producer_kwargs = dict(kwargs)
-            producer_kwargs.setdefault("state", state)
-            runtime.producer_kwargs = producer_kwargs
 
-            runtime.consumer_target = self._noop_consumer
+            # Create and start threads
+            return self._create_and_start_threads(kb_id, job_id, state, run_callable, args, kwargs)
 
-            producer_thread = threading.Thread(
-                target=self._run_producer,
-                args=(runtime,),
-                name=f"ingest:{kb_id}:producer",
-                daemon=True,
-            )
-            consumer_thread = threading.Thread(
-                target=self._run_consumer,
-                args=(runtime,),
-                name=f"ingest:{kb_id}:consumer",
-                daemon=True,
-            )
+    async def resume(
+        self,
+        kb_id: str,
+        run_callable: Callable[..., Any],
+        *args: Any,
+        **kwargs: Any,
+    ) -> bool:
+        """Resume paused ingestion from checkpoint."""
+        return await asyncio.to_thread(
+            self._resume_sync,
+            kb_id,
+            run_callable,
+            args,
+            kwargs,
+        )
 
-            runtime.producer_thread = producer_thread
-            runtime.consumer_thread = consumer_thread
-
-            self._runtimes_by_kb[kb_id] = runtime
-            self._runtimes_by_job[job_id] = runtime
-            self._states[kb_id] = state
-
-            producer_thread.start()
-            consumer_thread.start()
-
-            persist_state(state)
-            return state
+    def _resume_sync(
+        self,
+        kb_id: str,
+        run_callable: Callable[..., Any],
+        args: Tuple[Any, ...],
+        kwargs: Dict[str, Any],
+    ) -> bool:
+        """Resume ingestion from checkpoint."""
+        logger.info(f"[_resume_sync] KB {kb_id}: Resuming from checkpoint")
+        
+        # Check if already running
+        with self._lock:
+            runtime = self._runtimes_by_kb.get(kb_id)
+            if runtime:
+                producer_alive = runtime.producer_thread and runtime.producer_thread.is_alive()
+                if producer_alive:
+                    logger.info(f"[_resume_sync] KB {kb_id}: Already running")
+                    return True
+                
+                # Clean up stale runtime
+                logger.warning(f"[_resume_sync] KB {kb_id}: Cleaning up stale runtime")
+                del self._runtimes_by_kb[kb_id]
+                if runtime.job_id in self._runtimes_by_job:
+                    del self._runtimes_by_job[runtime.job_id]
+        
+        # Load checkpoint state
+        state = self.status(kb_id)
+        if not state:
+            logger.error(f"[_resume_sync] KB {kb_id}: No checkpoint found")
+            return False
+        
+        if state.status not in ("paused", "running"):
+            logger.error(f"[_resume_sync] KB {kb_id}: Invalid status for resume: {state.status}")
+            return False
+        
+        with self._lock:
+            # Update state for resume
+            state.status = "running"
+            state.paused = False
+            state.cancel_requested = False
+            state.error = None
+            state.message = "Resumed from checkpoint"
+            
+            # Update job record
+            if state.job_id:
+                update_job_status(state.job_id, JobStatus.RUNNING)
+                job_id = state.job_id
+            else:
+                logger.error(f"[_resume_sync] KB {kb_id}: No job_id in checkpoint")
+                return False
+            
+            # Create and start threads
+            new_state = self._create_and_start_threads(kb_id, job_id, state, run_callable, args, kwargs)
+            return new_state is not None
 
     async def pause(self, kb_id: str) -> bool:
         return await asyncio.to_thread(self._pause_sync, kb_id)
 
     def _pause_sync(self, kb_id: str) -> bool:
+        """Pause = graceful stop. Threads exit after current work, state saved as 'paused'."""
+        logger.info(f"[_pause_sync] KB {kb_id}: Starting pause (graceful stop)")
         with self._lock:
             runtime = self._runtimes_by_kb.get(kb_id)
             if not runtime:
+                logger.warning(f"[_pause_sync] KB {kb_id}: No runtime found")
                 return False
 
             state = runtime.state
             if state.status != "running":
+                logger.warning(f"[_pause_sync] KB {kb_id}: Status is {state.status}, not running")
                 return False
 
-            state.status = "paused"
+            # Signal threads to stop gracefully
+            logger.info(f"[_pause_sync] KB {kb_id}: Setting stop_event")
+            runtime.stop_event.set()
             state.paused = True
-            state.message = "Paused by user"
-            runtime.pause_event.set()
+            state.message = "Pausing - waiting for threads to finish"
+            persist_state(state)
+        
+        # Wait for threads to exit (outside lock)
+        logger.info(f"[_pause_sync] KB {kb_id}: Waiting for threads to exit")
+        self._join_threads(runtime)
+        
+        # Update state after threads exited
+        with self._lock:
+            state.status = "paused"
+            state.message = "Paused - checkpoint saved"
             update_job_status(runtime.job_id, JobStatus.PAUSED)
             persist_state(state)
-            return True
-
-    async def resume(self, kb_id: str) -> bool:
-        return await asyncio.to_thread(self._resume_sync, kb_id)
-
-    def _resume_sync(self, kb_id: str) -> bool:
-        with self._lock:
-            runtime = self._runtimes_by_kb.get(kb_id)
-            if not runtime:
-                return False
-
-            state = runtime.state
-            if state.status != "paused":
-                return False
-
-            # Clear paused state
-            state.status = "running"
-            state.paused = False
-            state.message = "Resumed by user"
-            runtime.pause_event.clear()
-            update_job_status(runtime.job_id, JobStatus.RUNNING)
-
-            # If the producer thread already exited (e.g., crawler returned on pause),
-            # restart the producer to resume crawling from the saved checkpoint.
-            producer_dead = not runtime.producer_thread or not runtime.producer_thread.is_alive()
-            if producer_dead and runtime.producer_target:
-                try:
-                    producer_thread = threading.Thread(
-                        target=self._run_producer,
-                        args=(runtime,),
-                        name=f"ingest:{kb_id}:producer",
-                        daemon=True,
-                    )
-                    runtime.producer_thread = producer_thread
-                    producer_thread.start()
-                    # Ensure consumer exists too
-                    if not runtime.consumer_thread or not runtime.consumer_thread.is_alive():
-                        consumer_thread = threading.Thread(
-                            target=self._run_consumer,
-                            args=(runtime,),
-                            name=f"ingest:{kb_id}:consumer",
-                            daemon=True,
-                        )
-                        runtime.consumer_thread = consumer_thread
-                        consumer_thread.start()
-                    state.message = "Resumed: crawling restarted from checkpoint"
-                except Exception as exc:
-                    logger.error("Failed to restart producer for KB %s: %s", kb_id, exc, exc_info=True)
-                    state.message = "Resume failed to restart producer"
-
-            persist_state(state)
-            return True
+            # Clean up runtime from memory
+            if kb_id in self._runtimes_by_kb:
+                del self._runtimes_by_kb[kb_id]
+            if runtime.job_id in self._runtimes_by_job:
+                del self._runtimes_by_job[runtime.job_id]
+        
+        logger.info(f"[_pause_sync] KB {kb_id}: Pause complete, threads exited, runtime cleaned up")
+        return True
 
     async def cancel(self, kb_id: str) -> bool:
         return await asyncio.to_thread(self._cancel_sync, kb_id)
@@ -224,7 +247,6 @@ class IngestionService:
             state.phase = "cancelled"
             state.message = "Cancellation requested"
             runtime.stop_event.set()
-            runtime.pause_event.clear()
             update_job_status(runtime.job_id, JobStatus.CANCELED)
             persist_state(state)
 
@@ -267,192 +289,65 @@ class IngestionService:
             except Exception:
                 pass
 
-    async def resume_or_start(
+    def _create_and_start_threads(
         self,
         kb_id: str,
+        job_id: str,
+        state: IngestionState,
         run_callable: Callable[..., Any],
-        *args: Any,
-        **kwargs: Any,
-    ) -> bool:
-        state = self.status(kb_id)
-        if state and state.status == "paused":
-            return await self.resume(kb_id)
+        args: Tuple[Any, ...],
+        kwargs: Dict[str, Any],
+    ) -> IngestionState:
+        """Common logic to create runtime and start threads (called by start and resume)."""
+        runtime = JobRuntime(job_id=job_id, kb_id=kb_id, state=state)
+        runtime.producer_target = run_callable
+        runtime.producer_args = args
+        producer_kwargs = dict(kwargs)
+        producer_kwargs.setdefault("state", state)
+        runtime.producer_kwargs = producer_kwargs
 
-        new_state = await self.start(kb_id, run_callable, *args, **kwargs)
-        return new_state is not None
+        # Create threads
+        producer_thread = threading.Thread(
+            target=ProducerWorker.run,
+            args=(runtime,),
+            name=f"ingest:{kb_id}:producer",
+            daemon=True,
+        )
+        consumer_thread = threading.Thread(
+            target=ConsumerWorker.run,
+            args=(runtime,),
+            name=f"ingest:{kb_id}:consumer",
+            daemon=True,
+        )
+
+        runtime.producer_thread = producer_thread
+        runtime.consumer_thread = consumer_thread
+
+        self._runtimes_by_kb[kb_id] = runtime
+        self._runtimes_by_job[job_id] = runtime
+        self._states[kb_id] = state
+
+        logger.info(f"[_create_and_start_threads] KB {kb_id}: Starting threads")
+        producer_thread.start()
+        consumer_thread.start()
+
+        persist_state(state)
+        return state
 
     def load_all_states(self) -> None:
         recover_inflight_jobs()
         with self._lock:
             self._states = load_states_from_disk()
 
-    def _run_producer(self, runtime: JobRuntime) -> None:
-        state = runtime.state
-        try:
-            logger.info("Starting producer thread for KB %s", runtime.kb_id)
-            if runtime.producer_target is None:
-                logger.warning(
-                    "Producer target not assigned for job %s (KB %s)",
-                    runtime.job_id,
-                    runtime.kb_id,
-                )
-                return
-
-            asyncio.run(self._execute_producer(runtime))
-        except Exception as exc:
-            logger.error(
-                "Producer thread failed for KB %s: %s",
-                runtime.kb_id,
-                exc,
-                exc_info=True,
-            )
-            state.status = "failed"
-            state.phase = "failed"
-            state.error = str(exc)
-            state.message = "Ingestion failed"
-            state.completed_at = datetime.utcnow()
-            update_job_status(runtime.job_id, JobStatus.FAILED)
-            persist_state(state)
-        finally:
-            runtime.stop_event.set()
-            if (
-                state.status not in {"failed", "cancelled"}
-                and state.error is None
-                and not state.cancel_requested
-            ):
-                state.status = "completed"
-                state.phase = "completed"
-                state.progress = 100
-                state.message = "Ingestion completed"
-                state.completed_at = datetime.utcnow()
-                update_job_status(runtime.job_id, JobStatus.COMPLETED)
-                persist_state(state)
-            logger.info("Producer thread finished for KB %s", runtime.kb_id)
-
-    async def _execute_producer(self, runtime: JobRuntime) -> None:
-        target = runtime.producer_target
-        args = runtime.producer_args
-        kwargs = runtime.producer_kwargs
-
-        if asyncio.iscoroutinefunction(target):
-            await target(*args, **kwargs)
-        else:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, lambda: target(*args, **kwargs))
-
-    def _run_consumer(self, runtime: JobRuntime) -> None:
-        logger.info("Starting consumer thread for KB %s", runtime.kb_id)
-        stop_event = runtime.stop_event
-        pause_event = runtime.pause_event
-
-        from app.ingestion.service_components.repository import (
-            dequeue_batch,
-            commit_batch_success,
-            commit_batch_error,
-            get_queue_stats,
-        )
-        from app.kb.ingestion.indexing import IndexBuilderFactory
-        from pathlib import Path
-
-        # Build index builder using the same config derivation as producer
-        # Extract kb_config from producer args
-        kb_config = self._extract_kb_config(runtime.producer_args)
-        kb_id = runtime.kb_id
-        backend_root = Path(__file__).parent.parent.parent.parent
-        if 'paths' in kb_config and 'index' in kb_config['paths']:
-            index_path = kb_config['paths']['index']
-            storage_dir = str(index_path) if Path(index_path).is_absolute() else str(backend_root / index_path)
-        else:
-            storage_dir = str(backend_root / "data" / "knowledge_bases" / kb_id / "index")
-        embedding_model = kb_config.get('embedding_model', 'text-embedding-3-small')
-        generation_model = kb_config.get('generation_model', 'gpt-4o-mini')
-        index_type = kb_config.get('index_type', 'vector')
-
-        index_builder = IndexBuilderFactory.create_builder(
-            index_type=index_type,
-            kb_id=kb_id,
-            storage_dir=storage_dir,
-            embedding_model=embedding_model,
-            generation_model=generation_model,
-        )
-
-        while not stop_event.is_set():
-            # Honor pause
-            if pause_event.is_set():
-                stop_event.wait(timeout=0.5)
-                continue
-
-            # Dequeue next batch
-            try:
-                batch = dequeue_batch(runtime.job_id, limit=10)
-            except Exception as exc:
-                logger.error("Consumer dequeue error for KB %s: %s", kb_id, exc)
-                stop_event.wait(timeout=1.0)
-                continue
-
-            if not batch:
-                # No work; sleep briefly
-                stop_event.wait(timeout=0.5)
-                continue
-
-            # Prepare documents for indexing
-            docs = []
-            ids = []
-            for item in batch:
-                try:
-                    docs.append({
-                        'content': item.content,
-                        'metadata': item.item_metadata,
-                        'doc_hash': item.doc_hash,
-                    })
-                    ids.append(item.id)
-                except Exception as exc:
-                    logger.error("Consumer prep error: %s", exc)
-                    commit_batch_error(item.id, f"prep error: {exc}")
-
-            # Index documents
-            try:
-                def progress_cb(_phase, _prog, _msg, _metrics=None):
-                    # Could update runtime.state metrics here if desired
-                    pass
-                index_builder.build_index(docs, progress_cb, state=runtime.state)
-                commit_batch_success(runtime.job_id, ids)
-                
-                # Update metrics with queue stats
-                try:
-                    queue_stats = get_queue_stats(runtime.job_id)
-                    runtime.state.metrics.update({
-                        'chunks_pending': queue_stats['pending'],
-                        'chunks_processing': queue_stats['processing'],
-                        'chunks_embedded': queue_stats['done'],
-                        'chunks_failed': queue_stats['error'],
-                        'chunks_queued': sum(queue_stats.values()),
-                    })
-                    from app.ingestion.service_components.storage import persist_state
-                    persist_state(runtime.state)
-                except Exception as e:
-                    logger.warning(f"Failed to update queue metrics: {e}")
-            except Exception as exc:
-                logger.error("Consumer indexing error for KB %s: %s", kb_id, exc, exc_info=True)
-                for item_id in ids:
-                    try:
-                        commit_batch_error(item_id, str(exc))
-                    except Exception:
-                        pass
-
-        logger.info("Consumer thread exiting for KB %s", runtime.kb_id)
-
-    def _noop_consumer(self, *_args: Any, **_kwargs: Any) -> None:
-        return None
-
     def _join_threads(self, runtime: JobRuntime, timeout: float = 5.0) -> None:
+        """Wait for both producer and consumer threads to exit."""
         if runtime.producer_thread and runtime.producer_thread.is_alive():
             runtime.producer_thread.join(timeout=timeout)
         if runtime.consumer_thread and runtime.consumer_thread.is_alive():
             runtime.consumer_thread.join(timeout=timeout)
 
-    def _extract_kb_config(self, args: Tuple[Any, ...]) -> Dict[str, Any]:
-        for value in args:
-            if isinstance(value, dict) and value.get("id"):
-                return value
-        return {}
+    def _extract_kb_config(self, args: Tuple[Any, ...]) -> Optional[Dict[str, Any]]:
+        """Extract KB config from args (first arg should be kb_config dict)."""
+        if args and isinstance(args[0], dict):
+            return args[0]
+        return None

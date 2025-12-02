@@ -21,7 +21,7 @@ def _backend_root() -> Path:
     """Resolve backend root consistently as the repo's backend folder."""
     # storage.py -> service_components -> ingestion -> app -> backend
     # __file__ is .../backend/app/ingestion/service_components/storage.py
-    return Path(__file__).resolve().parents[4] / "backend"
+    return Path(__file__).resolve().parents[3]
 
 
 def persist_state(state: IngestionState) -> None:

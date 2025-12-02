@@ -75,7 +75,11 @@ export function useIngestionJob(
         setJob(data);
 
         // Stop polling if job is completed, failed, or cancelled
-        if (data.status === "completed" || data.status === "failed" || data.status === "cancelled") {
+        if (
+          data.status === "completed" ||
+          data.status === "failed" ||
+          data.status === "cancelled"
+        ) {
           if (intervalId) {
             clearInterval(intervalId);
             intervalId = null;

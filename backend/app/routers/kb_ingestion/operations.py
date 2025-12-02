@@ -102,37 +102,24 @@ class KBIngestionService:
             # Phase 1: Load documents using appropriate source handler
             progress_callback(IngestionPhase.CRAWLING, 0, "Loading documents from source...", {})
             
-            # Cooperative pause check - await while paused
-            if state:
-                while state.paused:
-                    logger.info(f"KB {kb_id} is paused, waiting...")
-                    await asyncio.sleep(0.5)
-                
-                # Check cancellation after pause
-                if state.cancel_requested:
-                    logger.info(f"KB {kb_id} was cancelled during pause")
-                    return
+            # Check cancellation before starting
+            if state and state.cancel_requested:
+                logger.info(f"KB {kb_id} was cancelled before starting")
+                return
             
             # Pass state to handler for checking in tight loops
             handler = SourceHandlerFactory.create_handler(source_type, kb_id, state=state)
             
             logger.info(f"PIPELINE: Created handler, ready to load documents")
             
-            # Helper for cooperative pause/cancel checking
-            async def check_pause_cancel(checkpoint_name: str):
-                """Cooperative check: await while paused, return True if cancelled"""
+            # Helper for cooperative cancel checking
+            async def check_cancel(checkpoint_name: str):
+                """Check if cancelled, persist state if so"""
                 if not state:
                     return False
                 
-                while state.paused:
-                    logger.info(f"KB {kb_id} paused at {checkpoint_name}")
-                    # Persist state during pause
-                    persist_state(state)
-                    await asyncio.sleep(0.5)
-                
                 if state.cancel_requested:
                     logger.info(f"KB {kb_id} cancelled at {checkpoint_name}")
-                    # Persist state before exiting
                     persist_state(state)
                     return True
                 return False
@@ -173,8 +160,8 @@ class KBIngestionService:
                     
                     logger.info(f"\n=== Processing Batch {batch_num} ({batch_size} documents) ===")
                     
-                    # Cooperative pause/cancel check
-                    if await check_pause_cancel(f"batch {batch_num} start"):
+                    # Cooperative cancel check
+                    if await check_cancel(f"batch {batch_num} start"):
                         logger.info(f"Indexed {total_chunks_indexed} chunks from {len(all_documents)} documents before stop")
                         return
                     
@@ -197,8 +184,8 @@ class KBIngestionService:
                         {"documents_loaded": len(all_documents), "batch_num": batch_num}
                     )
                     
-                    # Cooperative pause/cancel check after saving
-                    if await check_pause_cancel(f"batch {batch_num} after save"):
+                    # Cooperative cancel check after saving
+                    if await check_cancel(f"batch {batch_num} after save"):
                         return
                     
                     # Phase 2: Chunk this batch
@@ -218,8 +205,8 @@ class KBIngestionService:
                     
                     logger.info(f"✓ Batch {batch_num}: Created {len(batch_chunks)} chunks")
                     
-                    # Cooperative pause/cancel check after chunking
-                    if await check_pause_cancel(f"batch {batch_num} after chunk"):
+                    # Cooperative cancel check after chunking
+                    if await check_cancel(f"batch {batch_num} after chunk"):
                         return
                     
                     # Phase 3: Enqueue chunks for consumer (producer-consumer separation)
@@ -238,6 +225,11 @@ class KBIngestionService:
                     for ch in batch_chunks:
                         text = ch.get('content', '')
                         meta = ch.get('metadata', {})
+                        
+                        # Debug: log if content is empty
+                        if not text or not text.strip():
+                            logger.warning(f"Empty content in chunk: metadata={meta}")
+                        
                         try:
                             import json
                             meta_s = json.dumps(meta, sort_keys=True, ensure_ascii=False)

@@ -12,7 +12,8 @@ from sqlalchemy.orm import sessionmaker, Session
 
 from app.ingestion.models import Base
 
-DATA_ROOT = Path(__file__).parent.parent / "data"
+# Point to consolidated data directory at backend/data
+DATA_ROOT = Path(__file__).parent.parent.parent / "data"
 DATA_ROOT.mkdir(exist_ok=True)
 
 INGESTION_DB_PATH = os.getenv(

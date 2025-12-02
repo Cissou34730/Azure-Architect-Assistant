@@ -22,6 +22,11 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
   const [showActions, setShowActions] = useState(false);
   const isIngesting = job?.status === 'running' || job?.status === 'pending';
   const isPaused = job?.status === 'paused';
+  
+  // Debug: Log metrics data
+  if (job && job.metrics) {
+    console.log(`KB ${kb.id} metrics:`, job.metrics);
+  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -81,28 +86,34 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
               </div>
 
               {/* Inline Metrics */}
-              {job.metrics && Object.keys(job.metrics).length > 0 && (
+              {job.metrics && (
                 <div className="flex items-center gap-4 text-xs">
-                  {job.metrics.documents_crawled !== undefined && (
+                  {job.metrics.documents_crawled !== undefined && job.metrics.documents_crawled > 0 && (
                     <div className="flex items-center gap-1">
                       <span className="text-gray-500">Docs:</span>
                       <span className="font-semibold text-gray-700">{job.metrics.documents_crawled}</span>
                     </div>
                   )}
-                  {job.metrics.chunks_queued !== undefined && (
+                  {job.metrics.chunks_queued !== undefined && job.metrics.chunks_queued > 0 && (
                     <div className="flex items-center gap-1">
                       <span className="text-gray-500">Chunks:</span>
                       <span className="font-semibold text-gray-700">{job.metrics.chunks_queued}</span>
                     </div>
                   )}
-                  {job.metrics.chunks_embedded !== undefined && job.metrics.chunks_queued !== undefined && (
+                  {job.metrics.chunks_embedded !== undefined && job.metrics.chunks_embedded > 0 && (
                     <div className="flex items-center gap-1">
                       <span className="text-gray-500">Indexed:</span>
                       <span className="font-semibold text-gray-700">
-                        {job.metrics.chunks_embedded} / {job.metrics.chunks_queued}
-                      </span>
-                      <span className="text-gray-500">
-                        ({((job.metrics.chunks_embedded / job.metrics.chunks_queued) * 100).toFixed(0)}%)
+                        {job.metrics.chunks_embedded}
+                        {job.metrics.chunks_queued && job.metrics.chunks_queued > 0 && (
+                          <>
+                            {' / '}
+                            {job.metrics.chunks_queued}
+                            <span className="text-gray-500 ml-1">
+                              ({((job.metrics.chunks_embedded / job.metrics.chunks_queued) * 100).toFixed(0)}%)
+                            </span>
+                          </>
+                        )}
                       </span>
                     </div>
                   )}

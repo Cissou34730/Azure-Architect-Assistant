@@ -17,7 +17,6 @@ class JobRuntime:
     kb_id: str
     state: IngestionState
     stop_event: threading.Event = field(default_factory=threading.Event)
-    pause_event: threading.Event = field(default_factory=threading.Event)
     lock: threading.Lock = field(default_factory=threading.Lock)
     producer_thread: Optional[threading.Thread] = None
     consumer_thread: Optional[threading.Thread] = None

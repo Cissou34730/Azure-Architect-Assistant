@@ -154,22 +154,27 @@ async def pause_ingestion(kb_id: str):
 async def resume_ingestion(kb_id: str):
     """Resume a paused ingestion job for a knowledge base"""
     try:
+        logger.info(f"[resume_endpoint] KB {kb_id}: Resume endpoint called")
         ingest_service = IngestionService.instance()
         
         service = get_ingestion_service()
         kb_manager = get_kb_manager()
+        logger.info(f"[resume_endpoint] KB {kb_id}: Checking if KB exists")
         kb_config = kb_manager.get_kb_config(kb_id)
+        logger.info(f"[resume_endpoint] KB {kb_id}: KB config retrieved, calling resume")
         
-        # Pass only kb_config to resume_or_start
-        success = await ingest_service.resume_or_start(kb_id, service.run_ingestion_pipeline, kb_config)
+        # Pass only kb_config to resume
+        success = await ingest_service.resume(kb_id, service.run_ingestion_pipeline, kb_config)
+        logger.info(f"[resume_endpoint] KB {kb_id}: resume returned {success}")
         if not success:
-            raise HTTPException(status_code=404, detail=f"Unable to resume/start ingestion for KB '{kb_id}'")
+            logger.error(f"[resume_endpoint] KB {kb_id}: resume returned False")
+            raise HTTPException(status_code=404, detail=f"Unable to resume ingestion for KB '{kb_id}'")
         return {"message": f"Ingestion resumed for KB '{kb_id}'", "kb_id": kb_id}
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to resume ingestion: {str(e)}", exc_info=True)
+        logger.error(f"[resume_endpoint] Failed to resume ingestion: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to resume ingestion: {str(e)}")
 
 

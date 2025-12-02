@@ -140,7 +140,7 @@ class WebsiteCrawler:
                 if pages_since_checkpoint >= checkpoint_interval:
                     self._save_state(visited, failed_count, to_visit, last_id)
                     pages_since_checkpoint = 0
-                time.sleep(0.5)
+                time.sleep(0.2)
                 continue
             
             # If redirected, mark final URL as visited too

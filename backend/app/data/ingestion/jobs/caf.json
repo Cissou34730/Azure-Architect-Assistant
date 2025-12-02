@@ -1,1 +1,0 @@
-{"kb_id": "caf", "status": "cancelled", "phase": "indexing", "progress": 100, "message": "Ingestion cancelled", "error": null, "metrics": {"documents_loaded": 30, "batch_num": 3, "chunks_indexed": 39, "documents": 10}, "created_at": "2025-11-30T20:46:59.217117", "started_at": "2025-11-30T20:46:59.217117", "completed_at": "2025-11-30T20:48:07.071626"}
