@@ -349,6 +349,7 @@ class IngestionService:
             dequeue_batch,
             commit_batch_success,
             commit_batch_error,
+            get_queue_stats,
         )
         from app.kb.ingestion.indexing import IndexBuilderFactory
         from pathlib import Path
@@ -416,6 +417,21 @@ class IngestionService:
                     pass
                 index_builder.build_index(docs, progress_cb, state=runtime.state)
                 commit_batch_success(runtime.job_id, ids)
+                
+                # Update metrics with queue stats
+                try:
+                    queue_stats = get_queue_stats(runtime.job_id)
+                    runtime.state.metrics.update({
+                        'chunks_pending': queue_stats['pending'],
+                        'chunks_processing': queue_stats['processing'],
+                        'chunks_embedded': queue_stats['done'],
+                        'chunks_failed': queue_stats['error'],
+                        'chunks_queued': sum(queue_stats.values()),
+                    })
+                    from app.ingestion.service_components.storage import persist_state
+                    persist_state(runtime.state)
+                except Exception as e:
+                    logger.warning(f"Failed to update queue metrics: {e}")
             except Exception as exc:
                 logger.error("Consumer indexing error for KB %s: %s", kb_id, exc, exc_info=True)
                 for item_id in ids:

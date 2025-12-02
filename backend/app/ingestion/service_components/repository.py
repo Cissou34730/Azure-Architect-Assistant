@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 
 from app.ingestion.db import get_session
 from app.ingestion.models import (
@@ -206,3 +206,20 @@ def commit_batch_error(item_id: int, message: str) -> None:
                 updated_at=datetime.utcnow(),
             )
         )
+
+
+def get_queue_stats(job_id: str) -> Dict[str, int]:
+    """Return count by status for a job's queue items."""
+    with get_session() as session:
+        results = session.execute(
+            select(IngestionQueueItem.status, func.count(IngestionQueueItem.id))
+            .where(IngestionQueueItem.job_id == job_id)
+            .group_by(IngestionQueueItem.status)
+        ).all()
+        stats = {status: count for status, count in results}
+        return {
+            'pending': stats.get(QueueStatus.PENDING.value, 0),
+            'processing': stats.get(QueueStatus.PROCESSING.value, 0),
+            'done': stats.get(QueueStatus.DONE.value, 0),
+            'error': stats.get(QueueStatus.ERROR.value, 0),
+        }

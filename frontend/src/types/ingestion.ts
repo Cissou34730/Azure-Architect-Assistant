@@ -21,11 +21,24 @@ export type IngestionPhase =
   | "paused";
 
 export interface JobMetrics {
+  // Crawling phase
+  documents_crawled?: number;
   pages_crawled?: number;
   pages_total?: number;
+  
+  // Chunking phase
   documents_cleaned?: number;
   chunks_created?: number;
+  chunks_queued?: number;
+  
+  // Queue status
+  chunks_pending?: number;
+  chunks_processing?: number;
   chunks_embedded?: number;
+  chunks_failed?: number;
+  
+  // Legacy
+  batches_processed?: number;
 }
 
 export interface IngestionJob {

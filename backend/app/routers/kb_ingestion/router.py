@@ -64,6 +64,21 @@ async def get_kb_status(kb_id: str):
         state = ingest_service.status(kb_id)
         
         if state:
+            # Enrich with live queue stats
+            if state.job_id:
+                try:
+                    from app.ingestion.service_components.repository import get_queue_stats
+                    queue_stats = get_queue_stats(state.job_id)
+                    state.metrics.update({
+                        'chunks_pending': queue_stats['pending'],
+                        'chunks_processing': queue_stats['processing'],
+                        'chunks_embedded': queue_stats['done'],
+                        'chunks_failed': queue_stats['error'],
+                        'chunks_queued': sum(queue_stats.values()),
+                    })
+                except Exception as e:
+                    logger.warning(f"Failed to get queue stats: {e}")
+            
             return JobStatusResponse(
                 job_id=f"{kb_id}-job",
                 kb_id=kb_id,

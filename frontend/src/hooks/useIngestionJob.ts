@@ -42,9 +42,9 @@ export function useIngestionJob(
       setError(null);
 
       // Check if job completed
-      if (data.status === "COMPLETED" && onComplete) {
+      if (data.status === "completed" && onComplete) {
         onComplete(data);
-      } else if (data.status === "FAILED" && onError && data.error) {
+      } else if (data.status === "failed" && onError && data.error) {
         onError(new Error(data.error));
       }
     } catch (err) {
@@ -74,8 +74,8 @@ export function useIngestionJob(
         const data = await getKBStatus(kbId);
         setJob(data);
 
-        // Stop polling if job is completed or failed
-        if (data.status === "COMPLETED" || data.status === "FAILED") {
+        // Stop polling if job is completed, failed, or cancelled
+        if (data.status === "completed" || data.status === "failed" || data.status === "cancelled") {
           if (intervalId) {
             clearInterval(intervalId);
             intervalId = null;

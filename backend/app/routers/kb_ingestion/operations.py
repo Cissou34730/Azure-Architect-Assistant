@@ -182,6 +182,10 @@ class KBIngestionService:
                     self._save_documents_to_disk(kb_id, document_batch)
                     all_documents.extend(document_batch)
                     
+                    # Update crawl metrics
+                    if state:
+                        state.metrics['documents_crawled'] = len(all_documents)
+                    
                     # Yield control to event loop
                     await asyncio.sleep(0)
                     
@@ -248,6 +252,8 @@ class KBIngestionService:
                     if state and getattr(state, 'job_id', None):
                         inserted = enqueue_chunks(state.job_id, chunk_rows)
                         logger.info(f"✓ Enqueued {inserted}/{len(chunk_rows)} chunks for job {state.job_id}")
+                        # Track total chunks queued
+                        state.metrics['chunks_queued'] = state.metrics.get('chunks_queued', 0) + inserted
                     
                     # Yield control to event loop after expensive operation
                     await asyncio.sleep(0)

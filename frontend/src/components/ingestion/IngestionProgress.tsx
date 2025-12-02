@@ -6,6 +6,7 @@
 import React from 'react';
 import { IngestionJob } from '../../types/ingestion';
 import { cancelJob, pauseJob, resumeJob } from '../../services/ingestionApi';
+import { MetricCard } from './MetricCard';
 
 interface IngestionProgressProps {
   job: IngestionJob;
@@ -181,40 +182,73 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
 
       {/* Metrics */}
       {job.metrics && Object.keys(job.metrics).length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t">
-          {job.metrics.pages_crawled !== undefined && (
-            <div>
-              <div className="text-xs text-gray-500">Pages Crawled</div>
-              <div className="text-lg font-semibold text-gray-900">
-                {job.metrics.pages_crawled}
-                {job.metrics.pages_total && ` / ${job.metrics.pages_total}`}
-              </div>
-            </div>
-          )}
-          {job.metrics.documents_cleaned !== undefined && (
-            <div>
-              <div className="text-xs text-gray-500">Documents Cleaned</div>
-              <div className="text-lg font-semibold text-gray-900">
-                {job.metrics.documents_cleaned}
-              </div>
-            </div>
-          )}
-          {job.metrics.chunks_created !== undefined && (
-            <div>
-              <div className="text-xs text-gray-500">Chunks Created</div>
-              <div className="text-lg font-semibold text-gray-900">
-                {job.metrics.chunks_created}
-              </div>
-            </div>
-          )}
-          {job.metrics.chunks_embedded !== undefined && (
-            <div>
-              <div className="text-xs text-gray-500">Chunks Embedded</div>
-              <div className="text-lg font-semibold text-gray-900">
-                {job.metrics.chunks_embedded}
-              </div>
-            </div>
-          )}
+        <div className="space-y-3 pt-4 border-t">
+          <h4 className="text-sm font-semibold text-gray-700">Pipeline Metrics</h4>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Crawling Phase */}
+            {job.metrics.documents_crawled !== undefined && (
+              <MetricCard
+                label="Documents Crawled"
+                value={job.metrics.documents_crawled}
+                icon="📄"
+                color="blue"
+              />
+            )}
+            
+            {/* Chunking Phase */}
+            {job.metrics.chunks_created !== undefined && (
+              <MetricCard
+                label="Chunks Created"
+                value={job.metrics.chunks_created}
+                icon="✂️"
+                color="indigo"
+              />
+            )}
+            
+            {/* Queue Status */}
+            {job.metrics.chunks_queued !== undefined && (
+              <MetricCard
+                label="Total Queued"
+                value={job.metrics.chunks_queued}
+                subtext={job.metrics.chunks_pending ? `${job.metrics.chunks_pending} pending` : undefined}
+                icon="📋"
+                color="purple"
+              />
+            )}
+            
+            {/* Embedding Progress */}
+            {job.metrics.chunks_embedded !== undefined && job.metrics.chunks_queued !== undefined && (
+              <MetricCard
+                label="Vectors Indexed"
+                value={job.metrics.chunks_embedded}
+                total={job.metrics.chunks_queued}
+                progress={(job.metrics.chunks_embedded / job.metrics.chunks_queued) * 100}
+                icon="🔢"
+                color="pink"
+              />
+            )}
+            
+            {/* Processing Status */}
+            {job.metrics.chunks_processing !== undefined && job.metrics.chunks_processing > 0 && (
+              <MetricCard
+                label="Processing"
+                value={job.metrics.chunks_processing}
+                icon="⚙️"
+                color="yellow"
+              />
+            )}
+            
+            {/* Errors */}
+            {job.metrics.chunks_failed !== undefined && job.metrics.chunks_failed > 0 && (
+              <MetricCard
+                label="Failed Chunks"
+                value={job.metrics.chunks_failed}
+                icon="⚠️"
+                color="red"
+              />
+            )}
+          </div>
         </div>
       )}
 
