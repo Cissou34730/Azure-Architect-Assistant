@@ -3,10 +3,11 @@
  * Displays real-time progress for an ingestion job
  */
 
-import React from 'react';
+import { useTransition } from 'react';
 import { IngestionJob } from '../../types/ingestion';
 import { cancelJob, pauseJob, resumeJob } from '../../services/ingestionApi';
 import { MetricCard } from './MetricCard';
+import { Button, StatusBadge } from '../common';
 
 interface IngestionProgressProps {
   job: IngestionJob;
@@ -36,51 +37,46 @@ const PHASE_COLORS: Record<string, string> = {
 const PHASE_ORDER: string[] = ['crawling', 'cleaning', 'embedding', 'indexing', 'completed'];
 
 export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgressProps) {
-  const [cancelling, setCancelling] = React.useState(false);
-  const [pausing, setPausing] = React.useState(false);
-  const [resuming, setResuming] = React.useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  const handleCancel = async () => {
+  const handleCancel = () => {
     if (!window.confirm('Are you sure you want to cancel this ingestion job?')) {
       return;
     }
 
-    setCancelling(true);
-    try {
-      await cancelJob(job.kb_id);
-      onCancel?.();
-    } catch (error) {
-      console.error('Failed to cancel job:', error);
-      alert(`Failed to cancel job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setCancelling(false);
-    }
+    startTransition(async () => {
+      try {
+        await cancelJob(job.kb_id);
+        onCancel?.();
+      } catch (error) {
+        console.error('Failed to cancel job:', error);
+        alert(`Failed to cancel job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    });
   };
 
-  const handlePause = async () => {
-    setPausing(true);
-    try {
-      await pauseJob(job.kb_id);
-      onRefresh?.();
-    } catch (error) {
-      console.error('Failed to pause job:', error);
-      alert(`Failed to pause job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setPausing(false);
-    }
+  const handlePause = () => {
+    startTransition(async () => {
+      try {
+        await pauseJob(job.kb_id);
+        onRefresh?.();
+      } catch (error) {
+        console.error('Failed to pause job:', error);
+        alert(`Failed to pause job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    });
   };
 
-  const handleResume = async () => {
-    setResuming(true);
-    try {
-      await resumeJob(job.kb_id);
-      onRefresh?.();
-    } catch (error) {
-      console.error('Failed to resume job:', error);
-      alert(`Failed to resume job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setResuming(false);
-    }
+  const handleResume = () => {
+    startTransition(async () => {
+      try {
+        await resumeJob(job.kb_id);
+        onRefresh?.();
+      } catch (error) {
+        console.error('Failed to resume job:', error);
+        alert(`Failed to resume job: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    });
   };
 
   const isRunning = job.status === 'running' || job.status === 'pending';
@@ -98,21 +94,18 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
   const isPhaseActive = (phase: string) => phase === job.phase && isRunning;
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
+    <div className="card space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">
           Ingestion Progress
         </h3>
-        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-          job.status === 'completed' ? 'bg-green-100 text-green-800' :
-          job.status === 'failed' ? 'bg-red-100 text-red-800' :
-          job.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
-          job.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
-          'bg-blue-100 text-blue-800'
-        }`}>
+        <StatusBadge 
+          variant={job.status as 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'}
+          pulse={job.status === 'running'}
+        >
           {job.status.toUpperCase()}
-        </span>
+        </StatusBadge>
       </div>
 
       {/* Phase Timeline */}
@@ -160,10 +153,15 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
                       <span className="text-gray-600">{job.message}</span>
                       <span className="text-gray-500 font-medium">{progressPercent.toFixed(0)}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div className="w-full bg-gray-200 rounded-pill h-2 overflow-hidden">
                       <div
-                        className={`h-full transition-all duration-300 ${PHASE_COLORS[phase]}`}
-                        /* Dynamic width requires inline style */
+                        className={`h-full transition-all duration-300 ${
+                          phase === 'crawling' ? 'bg-phase-crawling' :
+                          phase === 'cleaning' ? 'bg-phase-cleaning' :
+                          phase === 'embedding' ? 'bg-phase-embedding' :
+                          phase === 'indexing' ? 'bg-phase-indexing' :
+                          'bg-accent-success'
+                        }`}
                         style={{ width: `${progressPercent}%` }}
                       />
                     </div>
@@ -276,30 +274,30 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
       {(isRunning || isPaused) && (
         <div className="flex justify-end gap-3 pt-2">
           {isPaused && (
-            <button
+            <Button
+              variant="success"
               onClick={handleResume}
-              disabled={resuming}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              isLoading={isPending}
             >
-              {resuming ? 'Resuming...' : 'Resume Job'}
-            </button>
+              Resume Job
+            </Button>
           )}
           {isRunning && (
-            <button
+            <Button
+              variant="warning"
               onClick={handlePause}
-              disabled={pausing}
-              className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              isLoading={isPending}
             >
-              {pausing ? 'Pausing...' : 'Pause Job'}
-            </button>
+              Pause Job
+            </Button>
           )}
-          <button
+          <Button
+            variant="danger"
             onClick={handleCancel}
-            disabled={cancelling}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            isLoading={isPending}
           >
-            {cancelling ? 'Cancelling...' : 'Cancel Job'}
-          </button>
+            Cancel Job
+          </Button>
         </div>
       )}
     </div>

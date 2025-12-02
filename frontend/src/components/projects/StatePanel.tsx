@@ -1,4 +1,4 @@
-import { ProjectState } from '../services/apiService';
+import { ProjectState } from '../../services/apiService';
 
 interface StatePanelProps {
   projectState: ProjectState | null;
@@ -40,7 +40,7 @@ export function StatePanel({ projectState, onRefreshState, loading }: StatePanel
             <p><strong>Scenario Type:</strong> {projectState.context.scenarioType}</p>
             <p><strong>Objectives:</strong></p>
             <ul className="list-disc list-inside">
-              {projectState.context.objectives.map((obj, i) => (
+              {projectState.context.objectives.map((obj: string, i: number) => (
                 <li key={i}>{obj}</li>
               ))}
             </ul>
@@ -56,13 +56,13 @@ export function StatePanel({ projectState, onRefreshState, loading }: StatePanel
           <Section title="Application Structure">
             <p><strong>Components:</strong></p>
             <ul className="list-disc list-inside">
-              {projectState.applicationStructure.components.map((comp, i) => (
+              {projectState.applicationStructure.components.map((comp: string, i: number) => (
                 <li key={i}>{comp}</li>
               ))}
             </ul>
             <p><strong>Integrations:</strong></p>
             <ul className="list-disc list-inside">
-              {projectState.applicationStructure.integrations.map((int, i) => (
+              {projectState.applicationStructure.integrations.map((int: string, i: number) => (
                 <li key={i}>{int}</li>
               ))}
             </ul>
@@ -77,13 +77,13 @@ export function StatePanel({ projectState, onRefreshState, loading }: StatePanel
           <Section title="Technical Constraints">
             <p><strong>Constraints:</strong></p>
             <ul className="list-disc list-inside">
-              {projectState.technicalConstraints.constraints.map((c, i) => (
+              {projectState.technicalConstraints.constraints.map((c: string, i: number) => (
                 <li key={i}>{c}</li>
               ))}
             </ul>
             <p><strong>Assumptions:</strong></p>
             <ul className="list-disc list-inside">
-              {projectState.technicalConstraints.assumptions.map((a, i) => (
+              {projectState.technicalConstraints.assumptions.map((a: string, i: number) => (
                 <li key={i}>{a}</li>
               ))}
             </ul>
@@ -91,7 +91,7 @@ export function StatePanel({ projectState, onRefreshState, loading }: StatePanel
 
           <Section title="Open Questions">
             <ul className="list-disc list-inside">
-              {projectState.openQuestions.map((q, i) => (
+              {(projectState.openQuestions || []).map((q: string, i: number) => (
                 <li key={i}>{q}</li>
               ))}
             </ul>

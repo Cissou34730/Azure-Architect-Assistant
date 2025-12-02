@@ -1,4 +1,4 @@
-import { Message } from '../services/apiService';
+import { Message } from '../../services/apiService';
 
 interface ChatPanelProps {
   messages: Message[];
@@ -54,7 +54,7 @@ export function ChatPanel({
                 <div className="mt-3 pt-3 border-t border-gray-300">
                   <div className="text-xs font-semibold mb-2">Sources:</div>
                   <div className="space-y-1">
-                    {msg.kbSources.map((source, idx) => (
+                    {msg.kbSources.map((source: { url: string; title: string; section: string }, idx: number) => (
                       <div key={idx} className="text-xs">
                         <a
                           href={source.url}

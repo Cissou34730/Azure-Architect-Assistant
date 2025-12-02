@@ -88,6 +88,7 @@ All UI styling MUST be done with **TailwindCSS** (utility classes + design token
 - Keep components small and focused.
 - Use ES default parameters instead of `defaultProps`.
 - Favor composition from smaller components and helpers.
+- Do not use React.FC for component typing, use an explicit props type instead
 
 ### 6.2 Hooks
 

@@ -11,13 +11,15 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       <Navigation currentView={currentView} onViewChange={setCurrentView} />
       
-      {currentView === 'kb-management' ? (
-        <IngestionWorkspace />
-      ) : currentView === 'kb' ? (
-        <KBWorkspace />
-      ) : (
-        <ProjectWorkspace />
-      )}
+      <main role="main" aria-label={`${currentView} workspace`}>
+        {currentView === 'kb-management' ? (
+          <IngestionWorkspace />
+        ) : currentView === 'kb' ? (
+          <KBWorkspace />
+        ) : (
+          <ProjectWorkspace />
+        )}
+      </main>
     </div>
   )
 }

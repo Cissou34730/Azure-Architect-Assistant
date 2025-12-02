@@ -9,9 +9,47 @@ import {
   IngestionJob,
   JobListResponse,
   KnowledgeBase,
+  APIError,
 } from "../types/ingestion";
 
 const API_BASE = "http://localhost:8000/api";
+
+/**
+ * Custom error class for API errors
+ */
+class IngestionAPIError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly detail?: string
+  ) {
+    super(message);
+    this.name = "IngestionAPIError";
+  }
+}
+
+/**
+ * Handle API response errors consistently
+ */
+async function handleResponse<T>(
+  response: Response,
+  defaultError: string
+): Promise<T> {
+  if (!response.ok) {
+    let errorData: Partial<APIError> = {};
+    try {
+      errorData = await response.json();
+    } catch {
+      errorData = { detail: defaultError };
+    }
+    throw new IngestionAPIError(
+      errorData.detail || errorData.message || defaultError,
+      response.status,
+      errorData.detail
+    );
+  }
+  return response.json();
+}
 
 /**
  * Create a new knowledge base
@@ -25,14 +63,7 @@ export async function createKB(
     body: JSON.stringify(request),
   });
 
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ detail: "Failed to create KB" }));
-    throw new Error(error.detail || "Failed to create KB");
-  }
-
-  return response.json();
+  return handleResponse<CreateKBResponse>(response, "Failed to create KB");
 }
 
 /**
@@ -47,14 +78,10 @@ export async function startIngestion(
     body: JSON.stringify({ kb_id: kbId }),
   });
 
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ detail: "Failed to start ingestion" }));
-    throw new Error(error.detail || "Failed to start ingestion");
-  }
-
-  return response.json();
+  return handleResponse<StartIngestionResponse>(
+    response,
+    "Failed to start ingestion"
+  );
 }
 
 /**
@@ -62,15 +89,7 @@ export async function startIngestion(
  */
 export async function getKBStatus(kbId: string): Promise<IngestionJob> {
   const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/status`);
-
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ detail: "Failed to get status" }));
-    throw new Error(error.detail || "Failed to get status");
-  }
-
-  return response.json();
+  return handleResponse<IngestionJob>(response, "Failed to get status");
 }
 
 /**
@@ -81,12 +100,7 @@ export async function cancelJob(kbId: string): Promise<void> {
     method: "POST",
   });
 
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ detail: "Failed to cancel job" }));
-    throw new Error(error.detail || "Failed to cancel job");
-  }
+  await handleResponse<void>(response, "Failed to cancel job");
 }
 
 /**
@@ -97,12 +111,7 @@ export async function pauseJob(kbId: string): Promise<void> {
     method: "POST",
   });
 
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ detail: "Failed to pause job" }));
-    throw new Error(error.detail || "Failed to pause job");
-  }
+  await handleResponse<void>(response, "Failed to pause job");
 }
 
 /**
@@ -113,12 +122,7 @@ export async function resumeJob(kbId: string): Promise<void> {
     method: "POST",
   });
 
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ detail: "Failed to resume job" }));
-    throw new Error(error.detail || "Failed to resume job");
-  }
+  await handleResponse<void>(response, "Failed to resume job");
 }
 
 /**
@@ -129,12 +133,7 @@ export async function deleteKB(kbId: string): Promise<void> {
     method: "DELETE",
   });
 
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ detail: "Failed to delete KB" }));
-    throw new Error(error.detail || "Failed to delete KB");
-  }
+  await handleResponse<void>(response, "Failed to delete KB");
 }
 
 /**
@@ -153,14 +152,7 @@ export async function listJobs(
   }`;
   const response = await fetch(url);
 
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ detail: "Failed to list jobs" }));
-    throw new Error(error.detail || "Failed to list jobs");
-  }
-
-  return response.json();
+  return handleResponse<JobListResponse>(response, "Failed to list jobs");
 }
 
 /**
@@ -168,14 +160,11 @@ export async function listJobs(
  */
 export async function listKBs(): Promise<KnowledgeBase[]> {
   const response = await fetch(`${API_BASE}/kb/list`);
-
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ detail: "Failed to list KBs" }));
-    throw new Error(error.detail || "Failed to list KBs");
-  }
-
-  const data = await response.json();
+  const data = await handleResponse<{ knowledge_bases: KnowledgeBase[] }>(
+    response,
+    "Failed to list KBs"
+  );
   return data.knowledge_bases || [];
 }
+
+export { IngestionAPIError };

@@ -25,7 +25,7 @@ export function useKnowledgeBases(): UseKnowledgeBasesReturn {
     try {
       setLoading(true);
       const data = await listKBs();
-      setKbs(data);
+      setKbs([...data]);
       setError(null);
     } catch (err) {
       const error =

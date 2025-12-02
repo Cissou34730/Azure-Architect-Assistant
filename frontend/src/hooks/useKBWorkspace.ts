@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useKBHealth } from "./useKBHealth";
 import { useKBQuery } from "./useKBQuery";
 import { useKBList } from "./useKBList";

@@ -24,6 +24,8 @@ interface ReviewStepProps {
 
 const sourceTypeLabels: Record<SourceType, string> = {
   website: '🌐 Website',
+  web_documentation: '📚 Web Documentation',
+  web_generic: '🌐 Generic Web',
   youtube: '🎥 YouTube',
   pdf: '📄 PDF Files',
   markdown: '📝 Markdown',

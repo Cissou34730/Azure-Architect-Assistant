@@ -3,13 +3,14 @@
  * Main workspace for managing knowledge base ingestion
  */
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useKnowledgeBases } from '../../hooks/useKnowledgeBases';
 import { useIngestionJob } from '../../hooks/useIngestionJob';
 import { KBList } from './KBList';
 import { CreateKBWizard } from './CreateKBWizard';
 import { IngestionProgress } from './IngestionProgress';
 import { startIngestion } from '../../services/ingestionApi';
+import { Button, LoadingSpinner } from '../common';
 
 type View = 'list' | 'create' | 'progress';
 
@@ -17,11 +18,14 @@ export function IngestionWorkspace() {
   const { kbs, loading, error, refetch } = useKnowledgeBases();
   const [view, setView] = useState<View>('list');
   const [selectedKbId, setSelectedKbId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const { job, loading: jobLoading } = useIngestionJob(
     view === 'progress' ? selectedKbId : null,
     {
       onComplete: () => {
-        void refetch();
+        startTransition(async () => {
+          await refetch();
+        });
       },
     }
   );
@@ -33,7 +37,9 @@ export function IngestionWorkspace() {
   const handleCreateSuccess = (kbId: string) => {
     setSelectedKbId(kbId);
     setView('progress');
-    void refetch();
+    startTransition(async () => {
+      await refetch();
+    });
   };
 
   const handleCreateCancel = () => {
@@ -45,21 +51,25 @@ export function IngestionWorkspace() {
     setView('progress');
   };
 
-  const handleStartIngestion = async (kbId: string) => {
-    try {
-      await startIngestion(kbId);
-      setSelectedKbId(kbId);
-      setView('progress');
-      void refetch();
-    } catch (error) {
-      alert(`Failed to start ingestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+  const handleStartIngestion = (kbId: string) => {
+    startTransition(async () => {
+      try {
+        await startIngestion(kbId);
+        setSelectedKbId(kbId);
+        setView('progress');
+        await refetch();
+      } catch (error) {
+        alert(`Failed to start ingestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    });
   };
 
   const handleBackToList = () => {
     setView('list');
     setSelectedKbId(null);
-    void refetch();
+    startTransition(async () => {
+      await refetch();
+    });
   };
 
   return (
@@ -75,27 +85,31 @@ export function IngestionWorkspace() {
           </div>
 
           {view === 'list' && (
-            <button
+            <Button
+              variant="primary"
               onClick={handleCreateClick}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+              icon={
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              }
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
               Create Knowledge Base
-            </button>
+            </Button>
           )}
 
           {view !== 'list' && (
-            <button
+            <Button
+              variant="ghost"
               onClick={handleBackToList}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md flex items-center gap-2"
+              icon={
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              }
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
               Back to List
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -104,20 +118,22 @@ export function IngestionWorkspace() {
       <div className="flex-1 overflow-y-auto p-6">
         {view === 'list' && (
           <div className="max-w-6xl mx-auto">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            {loading || isPending ? (
+              <div className="py-12">
+                <LoadingSpinner message="Loading knowledge bases..." />
               </div>
             ) : error ? (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-50 border border-red-200 rounded-card p-4">
                 <div className="text-red-800 font-medium">Error loading knowledge bases</div>
                 <div className="text-red-600 text-sm mt-1">{error.message}</div>
-                <button
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={refetch}
-                  className="mt-3 px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
+                  className="mt-3"
                 >
                   Retry
-                </button>
+                </Button>
               </div>
             ) : (
               <KBList
@@ -142,28 +158,34 @@ export function IngestionWorkspace() {
         {view === 'progress' && (
           <div className="max-w-4xl mx-auto">
             {jobLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <div className="py-12">
+                <LoadingSpinner message="Loading job status..." />
               </div>
             ) : job ? (
               <IngestionProgress
                 job={job}
                 onCancel={() => {
-                  void refetch();
+                  startTransition(async () => {
+                    await refetch();
+                  });
                 }}
                 onRefresh={() => {
-                  void refetch();
+                  startTransition(async () => {
+                    await refetch();
+                  });
                 }}
               />
             ) : (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-card p-4">
                 <div className="text-yellow-800">No job found for this knowledge base.</div>
-                <button
+                <Button
+                  variant="warning"
+                  size="sm"
                   onClick={handleBackToList}
-                  className="mt-3 px-3 py-1.5 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
+                  className="mt-3"
                 >
                   Back to List
-                </button>
+                </Button>
               </div>
             )}
           </div>
