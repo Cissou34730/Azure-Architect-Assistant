@@ -152,28 +152,16 @@ class KBIngestionService:
                 chunk_overlap=chunk_overlap
             )
             
-            # Setup index builder once (for incremental updates)
+            # Prepare indexing config (used by consumer now)
             backend_root = Path(__file__).parent.parent.parent.parent
             if 'paths' in kb_config and 'index' in kb_config['paths']:
                 index_path = kb_config['paths']['index']
-                if Path(index_path).is_absolute():
-                    storage_dir = index_path
-                else:
-                    storage_dir = str(backend_root / index_path)
+                storage_dir = str(index_path) if Path(index_path).is_absolute() else str(backend_root / index_path)
             else:
                 storage_dir = str(backend_root / "data" / "knowledge_bases" / kb_id / "index")
-            
             embedding_model = kb_config.get('embedding_model', 'text-embedding-3-small')
             generation_model = kb_config.get('generation_model', 'gpt-4o-mini')
             index_type = kb_config.get('index_type', 'vector')
-            
-            index_builder = IndexBuilderFactory.create_builder(
-                index_type=index_type,
-                kb_id=kb_id,
-                storage_dir=storage_dir,
-                embedding_model=embedding_model,
-                generation_model=generation_model
-            )
             
             logger.info("Starting batch processing with incremental indexing...")
             
@@ -230,33 +218,43 @@ class KBIngestionService:
                     if await check_pause_cancel(f"batch {batch_num} after chunk"):
                         return
                     
-                    # Phase 3: Index this batch immediately (incremental)
-                    logger.info(f"Indexing batch {batch_num} ({len(batch_chunks)} chunks)...")
+                    # Phase 3: Enqueue chunks for consumer (producer-consumer separation)
+                    logger.info(f"Enqueuing batch {batch_num} chunks for embedding/indexing...")
                     progress_callback(
                         IngestionPhase.EMBEDDING,
                         min(70, 50 + batch_num * 2),
-                        f"Embedding batch {batch_num}...",
+                        f"Queued batch {batch_num} for embedding",
                         {"chunks_indexed": total_chunks_indexed}
                     )
                     
-                    progress_callback(
-                        IngestionPhase.INDEXING,
-                        min(90, 60 + batch_num * 2),
-                        f"Indexing batch {batch_num}...",
-                        {"chunks_indexed": total_chunks_indexed}
-                    )
-                    
-                    # Pass only NEW documents from this batch to index builder
-                    # The builder will check checkpoint and append incrementally
-                    index_path = index_builder.build_index(documents_dict, progress_callback, state=state)
+                    # Compute doc_hash per chunk and enqueue
+                    from hashlib import sha256
+                    from app.ingestion.service_components.repository import enqueue_chunks
+                    chunk_rows = []
+                    for ch in batch_chunks:
+                        text = ch.get('content', '')
+                        meta = ch.get('metadata', {})
+                        try:
+                            import json
+                            meta_s = json.dumps(meta, sort_keys=True, ensure_ascii=False)
+                        except Exception:
+                            meta_s = str(meta)
+                        h = sha256((text + meta_s).encode('utf-8')).hexdigest()
+                        chunk_rows.append({
+                            'doc_hash': h,
+                            'content': text,
+                            'metadata': meta,
+                        })
+                    if state and getattr(state, 'job_id', None):
+                        inserted = enqueue_chunks(state.job_id, chunk_rows)
+                        logger.info(f"✓ Enqueued {inserted}/{len(chunk_rows)} chunks for job {state.job_id}")
                     
                     # Yield control to event loop after expensive operation
                     await asyncio.sleep(0)
                     
-                    logger.info(f"✓ Indexed batch {batch_num} incrementally")
-                    
+                    # Indexing moved to consumer; track totals by enqueued count
                     total_chunks_indexed += len(batch_chunks)
-                    logger.info(f"✓ Total: {len(all_documents)} docs, {total_chunks_indexed} chunks indexed")
+                    logger.info(f"✓ Total: {len(all_documents)} docs, {total_chunks_indexed} chunks queued")
                     
                     # Update metrics and persist state after successful batch completion
                     if state:
@@ -285,7 +283,7 @@ class KBIngestionService:
             logger.info(f"Total batches processed: {batch_num}")
             logger.info(f"Total documents: {len(all_documents)}")
             logger.info(f"Total chunks indexed: {total_chunks_indexed}")
-            logger.info(f"Index location: {storage_dir}")
+            logger.info(f"Index location (configured): {storage_dir}")
             
             if all_documents:
                 logger.info(f"First doc metadata: {all_documents[0].metadata}")

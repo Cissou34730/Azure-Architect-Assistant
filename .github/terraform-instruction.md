@@ -3,6 +3,8 @@ description: 'Create or modify solutions built using Terraform on Azure.'
 applyTo: '**/*.terraform, **/*.tf, **/*.tfvars, **/*.tflint.hcl, **/*.tfstate, **/*.tf.json, **/*.tfvars.json'
 ---
 
+Apply the [general coding guidelines](./general-coding.instructions.md) to all code.
+
 # Azure Terraform Best Practices
 
 ## Integration and Self-Containment

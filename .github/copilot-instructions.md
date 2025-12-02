@@ -4,6 +4,29 @@
 - [x] Clarify Project Requirements
 	Azure Architect assistant. There are 4 main features. Project to describe the project we want to build an architecutre on. Chat with technical documentation. Manage the technical document build a RAG and generate an architecture document and IaC code.
 	The frontend is TypeScript React, backend in Python.
+	
+	
+	[x] Technical Stack Requirements:
+	- React 19+ with TypeScript
+	- Use TypeScript 5+
+	- Use only TailwindCSS 4.1 for Styling
+	- Backend in Python 3.10+
+	- Vite for frontend build tool
+
+	[x] Code Style and Conventions:
+	- Liting: ESLint with recommended settings for TypeScript and React
+	- Formatting: Prettier with default settings
+	- Python: Follow PEP 8 style guide for Python code
+	- Not hardcoding values. Use configuration files where appropriate.
+
+	[X] Project Structure:
+	- Frontend and backend code should be in separate folders at the root level.
+	- Use a monorepo structure to manage both frontend and backend codebases.
+	- Place new file in appropriate directories based on their functionality.
+	- Prefer composable and small modules functions
+
+	[x] What to avoid
+	- Indroduce any new frameworks or libraries unless absolutely necessary and without consent
 
 - [x] Scaffold the Project
 	<!--

@@ -117,3 +117,92 @@ def recover_inflight_jobs() -> None:
             .where(IngestionJob.status == JobStatus.RUNNING.value)
             .values(status=JobStatus.PAUSED.value, updated_at=now)
         )
+
+
+def enqueue_chunks(job_id: str, chunks: list[Dict[str, Any]]) -> int:
+    """Insert chunks into ingestion_queue as PENDING; deduplicate by (job_id, doc_hash).
+
+    Returns number of rows inserted (skips duplicates).
+    """
+    inserted = 0
+    now = datetime.utcnow()
+    with get_session() as session:
+        for ch in chunks:
+            try:
+                item = IngestionQueueItem(
+                    job_id=job_id,
+                    doc_hash=ch["doc_hash"],
+                    content=ch["content"],
+                    item_metadata=ch.get("metadata", {}),
+                    status=QueueStatus.PENDING.value,
+                    created_at=now,
+                    updated_at=now,
+                    available_at=now,
+                )
+                session.add(item)
+                session.flush()
+                inserted += 1
+            except Exception:
+                session.rollback()
+                # Likely duplicate doc_hash for this job; skip
+                continue
+        # Update job totals
+        session.execute(
+            update(IngestionJob)
+            .where(IngestionJob.id == job_id)
+            .values(total_items=IngestionJob.total_items + inserted, updated_at=now)
+        )
+    return inserted
+
+
+def dequeue_batch(job_id: str, limit: int = 10) -> list[IngestionQueueItem]:
+    """Atomically select next PENDING items for a job and mark them PROCESSING."""
+    with get_session() as session:
+        items = (
+            session.execute(
+                select(IngestionQueueItem)
+                .where(
+                    IngestionQueueItem.job_id == job_id,
+                    IngestionQueueItem.status == QueueStatus.PENDING.value,
+                )
+                .order_by(IngestionQueueItem.id.asc())
+                .limit(limit)
+            )
+            .scalars()
+            .all()
+        )
+        for it in items:
+            it.mark_processing()
+        session.flush()
+        return items
+
+
+def commit_batch_success(job_id: str, item_ids: list[int]) -> None:
+    """Mark items DONE and increment processed_items on job."""
+    now = datetime.utcnow()
+    with get_session() as session:
+        session.execute(
+            update(IngestionQueueItem)
+            .where(IngestionQueueItem.id.in_(item_ids))
+            .values(status=QueueStatus.DONE.value, updated_at=now)
+        )
+        session.execute(
+            update(IngestionJob)
+            .where(IngestionJob.id == job_id)
+            .values(processed_items=IngestionJob.processed_items + len(item_ids), updated_at=now)
+        )
+
+
+def commit_batch_error(item_id: int, message: str) -> None:
+    """Mark single item ERROR and increment attempts with error_log."""
+    with get_session() as session:
+        session.execute(
+            update(IngestionQueueItem)
+            .where(IngestionQueueItem.id == item_id)
+            .values(
+                status=QueueStatus.ERROR.value,
+                error_log=message,
+                attempts=IngestionQueueItem.attempts + 1,
+                updated_at=datetime.utcnow(),
+            )
+        )

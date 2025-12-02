@@ -341,17 +341,90 @@ class IngestionService:
             await loop.run_in_executor(None, lambda: target(*args, **kwargs))
 
     def _run_consumer(self, runtime: JobRuntime) -> None:
-        logger.info("Starting consumer placeholder thread for KB %s", runtime.kb_id)
+        logger.info("Starting consumer thread for KB %s", runtime.kb_id)
         stop_event = runtime.stop_event
         pause_event = runtime.pause_event
 
+        from app.ingestion.service_components.repository import (
+            dequeue_batch,
+            commit_batch_success,
+            commit_batch_error,
+        )
+        from app.kb.ingestion.indexing import IndexBuilderFactory
+        from pathlib import Path
+
+        # Build index builder using the same config derivation as producer
+        # Extract kb_config from producer args
+        kb_config = self._extract_kb_config(runtime.producer_args)
+        kb_id = runtime.kb_id
+        backend_root = Path(__file__).parent.parent.parent.parent
+        if 'paths' in kb_config and 'index' in kb_config['paths']:
+            index_path = kb_config['paths']['index']
+            storage_dir = str(index_path) if Path(index_path).is_absolute() else str(backend_root / index_path)
+        else:
+            storage_dir = str(backend_root / "data" / "knowledge_bases" / kb_id / "index")
+        embedding_model = kb_config.get('embedding_model', 'text-embedding-3-small')
+        generation_model = kb_config.get('generation_model', 'gpt-4o-mini')
+        index_type = kb_config.get('index_type', 'vector')
+
+        index_builder = IndexBuilderFactory.create_builder(
+            index_type=index_type,
+            kb_id=kb_id,
+            storage_dir=storage_dir,
+            embedding_model=embedding_model,
+            generation_model=generation_model,
+        )
+
         while not stop_event.is_set():
+            # Honor pause
             if pause_event.is_set():
                 stop_event.wait(timeout=0.5)
-            else:
-                stop_event.wait(timeout=0.5)
+                continue
 
-        logger.info("Consumer placeholder thread exiting for KB %s", runtime.kb_id)
+            # Dequeue next batch
+            try:
+                batch = dequeue_batch(runtime.job_id, limit=10)
+            except Exception as exc:
+                logger.error("Consumer dequeue error for KB %s: %s", kb_id, exc)
+                stop_event.wait(timeout=1.0)
+                continue
+
+            if not batch:
+                # No work; sleep briefly
+                stop_event.wait(timeout=0.5)
+                continue
+
+            # Prepare documents for indexing
+            docs = []
+            ids = []
+            for item in batch:
+                try:
+                    docs.append({
+                        'content': item.content,
+                        'metadata': item.item_metadata,
+                        'doc_hash': item.doc_hash,
+                    })
+                    ids.append(item.id)
+                except Exception as exc:
+                    logger.error("Consumer prep error: %s", exc)
+                    commit_batch_error(item.id, f"prep error: {exc}")
+
+            # Index documents
+            try:
+                def progress_cb(_phase, _prog, _msg, _metrics=None):
+                    # Could update runtime.state metrics here if desired
+                    pass
+                index_builder.build_index(docs, progress_cb, state=runtime.state)
+                commit_batch_success(runtime.job_id, ids)
+            except Exception as exc:
+                logger.error("Consumer indexing error for KB %s: %s", kb_id, exc, exc_info=True)
+                for item_id in ids:
+                    try:
+                        commit_batch_error(item_id, str(exc))
+                    except Exception:
+                        pass
+
+        logger.info("Consumer thread exiting for KB %s", runtime.kb_id)
 
     def _noop_consumer(self, *_args: Any, **_kwargs: Any) -> None:
         return None
