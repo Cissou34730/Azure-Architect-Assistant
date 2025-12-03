@@ -44,14 +44,6 @@ class PhaseTracker:
         IngestionPhase.INDEXING
     ]
     
-    # Progress weights for each phase (total = 100%)
-    PHASE_WEIGHTS = {
-        IngestionPhase.LOADING: 30,    # Loading/crawling documents
-        IngestionPhase.CHUNKING: 10,   # Splitting into chunks
-        IngestionPhase.EMBEDDING: 30,  # Generating embeddings
-        IngestionPhase.INDEXING: 30,   # Building vector index
-    }
-    
     def __init__(self, job_id: str, kb_id: str):
         """Initialize phase tracker."""
         self.job_id = job_id
@@ -232,18 +224,6 @@ class PhaseTracker:
             if phase_data["status"] == PhaseStatus.FAILED.value:
                 return True
         return False
-    
-    def get_overall_progress(self) -> int:
-        """Calculate overall job progress based on phase completion."""
-        total_progress = 0
-        
-        for phase in self.PHASE_ORDER:
-            phase_data = self.phases[phase.value]
-            phase_progress = phase_data["progress"]
-            weight = self.PHASE_WEIGHTS[phase]
-            total_progress += (phase_progress / 100.0) * weight
-        
-        return int(total_progress)
     
     def get_status_summary(self) -> str:
         """Get a human-readable status summary."""
