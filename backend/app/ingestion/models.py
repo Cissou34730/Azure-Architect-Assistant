@@ -61,6 +61,10 @@ class IngestionJob(Base):
     total_items = Column(Integer, nullable=True, default=0)
     processed_items = Column(Integer, nullable=True, default=0)
     priority = Column(Integer, nullable=False, default=0)
+    
+    # Phase-level tracking
+    current_phase = Column(String(50), nullable=True, default="crawling")
+    phase_progress = Column(JSON, nullable=True, default=dict)
 
     queue_items = relationship(
         "IngestionQueueItem",

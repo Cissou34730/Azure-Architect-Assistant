@@ -5,7 +5,7 @@ Handles the producer phase of ingestion: document crawling, chunking, and enqueu
 
 import logging
 import asyncio
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from pathlib import Path
 from hashlib import sha256
 import json
@@ -19,6 +19,7 @@ from app.kb.ingestion.sources import SourceHandlerFactory
 from app.kb.ingestion.chunking import ChunkerFactory
 from app.ingestion.infrastructure.persistence import create_local_disk_persistence_store
 from app.ingestion.infrastructure.repository import create_database_repository
+from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase as TrackerPhase, PhaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,13 @@ class ProducerPipeline:
         self.total_chunks_enqueued = 0
         self.batch_num = 0
         
+        # Phase tracking
+        self.phase_tracker: Optional[PhaseTracker] = None
+        if state and state.job_id:
+            self.phase_tracker = PhaseTracker(state.job_id, self.kb_id)
+            if state.phase_status:
+                self.phase_tracker.load_from_dict(state.phase_status)
+        
     async def run(self):
         """
         Execute the producer pipeline.
@@ -64,11 +72,22 @@ class ProducerPipeline:
         try:
             # Check if cancelled before starting
             if await self._check_cancel("pipeline start"):
+                if self.phase_tracker:
+                    current_phase = self.phase_tracker.get_current_phase()
+                    if current_phase:
+                        self.phase_tracker.cancel_phase(current_phase)
+                    self._persist_phase_tracker()
                 return
             
             # Check if this is a resume with existing work in queue
             if await self._check_resume_scenario():
                 logger.info("Resume scenario detected - skipping document loading, consumer will process existing queue")
+                # Mark crawling/cleaning/chunking as completed if not already
+                if self.phase_tracker:
+                    for phase in [TrackerPhase.CRAWLING, TrackerPhase.CLEANING, TrackerPhase.CHUNKING]:
+                        if not self.phase_tracker.is_phase_completed(phase):
+                            self.phase_tracker.complete_phase(phase)
+                    self._persist_phase_tracker()
                 return
             
             # Initialize components
@@ -84,11 +103,16 @@ class ProducerPipeline:
                 chunk_overlap=self.chunk_overlap
             )
             
-            # Process batches
+            # Process batches with phase tracking
             await self._process_batches(handler, chunker)
             
             # Verify we got work done
             await self._verify_completion()
+            
+            # Mark chunking phase as completed
+            if self.phase_tracker:
+                self.phase_tracker.complete_phase(TrackerPhase.CHUNKING, self.total_chunks_enqueued)
+                self._persist_phase_tracker()
             
             logger.info(f"=== Producer Pipeline Complete: KB {self.kb_id} ===")
             logger.info(f"  Documents: {len(self.all_documents)}")
@@ -99,10 +123,23 @@ class ProducerPipeline:
             if self.state:
                 self.state.status = "failed"
                 self.state.error = str(e)
+            
+            # Mark current phase as failed
+            if self.phase_tracker:
+                current_phase = self.phase_tracker.get_current_phase()
+                if current_phase:
+                    self.phase_tracker.fail_phase(current_phase, str(e))
+                self._persist_phase_tracker()
+            
             raise
     
     async def _process_batches(self, handler, chunker):
         """Process document batches from source."""
+        # Start CRAWLING phase
+        if self.phase_tracker and not self.phase_tracker.is_phase_completed(TrackerPhase.CRAWLING):
+            self.phase_tracker.start_phase(TrackerPhase.CRAWLING)
+            self._persist_phase_tracker()
+        
         self._update_progress(IngestionPhase.CRAWLING, 0, "Loading documents from source...")
         
         try:
@@ -115,15 +152,28 @@ class ProducerPipeline:
                 # Check cancellation
                 if await self._check_cancel(f"batch {self.batch_num} start"):
                     logger.info(f"Stopped at batch {self.batch_num}: {len(self.all_documents)} docs, {self.total_chunks_enqueued} chunks")
+                    if self.phase_tracker:
+                        current_phase = self.phase_tracker.get_current_phase()
+                        if current_phase:
+                            self.phase_tracker.pause_phase(current_phase)
+                        self._persist_phase_tracker()
                     return
                 
                 # Save documents to disk
                 self._save_documents_to_disk(document_batch)
                 self.all_documents.extend(document_batch)
                 
-                # Update metrics
+                # Update metrics and phase progress
                 if self.state:
                     self.state.metrics['documents_crawled'] = len(self.all_documents)
+                
+                if self.phase_tracker:
+                    crawl_progress = min(100, (self.batch_num * 10))
+                    self.phase_tracker.update_phase_progress(
+                        TrackerPhase.CRAWLING, 
+                        crawl_progress,
+                        items_processed=len(self.all_documents)
+                    )
                 
                 await asyncio.sleep(0)  # Yield control
                 
@@ -137,50 +187,76 @@ class ProducerPipeline:
                 
                 # Check cancellation after save
                 if await self._check_cancel(f"batch {self.batch_num} after save"):
+                    if self.phase_tracker:
+                        self.phase_tracker.pause_phase(TrackerPhase.CRAWLING)
+                        self._persist_phase_tracker()
                     return
                 
-                # Chunk this batch
-                logger.info(f"Chunking batch {self.batch_num}...")
-                self._update_progress(
-                    IngestionPhase.CLEANING,
-                    min(50, 30 + self.batch_num),
-                    f"Chunking batch {self.batch_num}..."
-                )
+            # Complete CRAWLING phase
+            if self.phase_tracker:
+                self.phase_tracker.complete_phase(TrackerPhase.CRAWLING, len(self.all_documents))
+                self._persist_phase_tracker()
+            
+            # Start CLEANING phase
+            if self.phase_tracker:
+                self.phase_tracker.start_phase(TrackerPhase.CLEANING)
+                self._persist_phase_tracker()
+            
+            # Chunk all documents
+            logger.info(f"Chunking {len(self.all_documents)} documents...")
+            self._update_progress(
+                IngestionPhase.CLEANING,
+                40,
+                f"Chunking {len(self.all_documents)} documents..."
+            )
+            
+            documents_dict = self._convert_documents_to_dict(self.all_documents)
+            all_chunks = chunker.chunk_documents(documents_dict, state=self.state)
+            
+            await asyncio.sleep(0)  # Yield control
+            
+            logger.info(f"✓ Created {len(all_chunks)} chunks")
+            
+            # Complete CLEANING phase
+            if self.phase_tracker:
+                self.phase_tracker.complete_phase(TrackerPhase.CLEANING, len(self.all_documents))
+                self._persist_phase_tracker()
+            
+            # Check cancellation after chunking
+            if await self._check_cancel(f"after chunking"):
+                if self.phase_tracker:
+                    self.phase_tracker.pause_phase(TrackerPhase.CHUNKING)
+                    self._persist_phase_tracker()
+                return
+            
+            # Start CHUNKING phase (enqueueing)
+            if self.phase_tracker:
+                self.phase_tracker.start_phase(TrackerPhase.CHUNKING)
+                self._persist_phase_tracker()
+            
+            # Enqueue chunks for consumer
+            logger.info(f"Enqueuing {len(all_chunks)} chunks...")
+            self._update_progress(
+                IngestionPhase.EMBEDDING,
+                60,
+                f"Queuing chunks for embedding"
+            )
+            
+            enqueued = self._enqueue_chunks(all_chunks)
+            self.total_chunks_enqueued += enqueued
+            
+            await asyncio.sleep(0)  # Yield control
+            
+            logger.info(f"✓ Total: {len(self.all_documents)} docs, {self.total_chunks_enqueued} chunks queued")
+            
+            # Persist state
+            if self.state:
+                self.state.metrics['batches_processed'] = self.batch_num
+                self.state.metrics['chunks_queued'] = self.total_chunks_enqueued
+                self.state.metrics['documents_processed'] = len(self.all_documents)
                 
-                documents_dict = self._convert_documents_to_dict(document_batch)
-                batch_chunks = chunker.chunk_documents(documents_dict, state=self.state)
-                
-                await asyncio.sleep(0)  # Yield control
-                
-                logger.info(f"✓ Batch {self.batch_num}: Created {len(batch_chunks)} chunks")
-                
-                # Check cancellation after chunking
-                if await self._check_cancel(f"batch {self.batch_num} after chunk"):
-                    return
-                
-                # Enqueue chunks for consumer
-                logger.info(f"Enqueuing batch {self.batch_num} chunks...")
-                self._update_progress(
-                    IngestionPhase.EMBEDDING,
-                    min(70, 50 + self.batch_num * 2),
-                    f"Queued batch {self.batch_num} for embedding"
-                )
-                
-                enqueued = self._enqueue_chunks(batch_chunks)
-                self.total_chunks_enqueued += enqueued
-                
-                await asyncio.sleep(0)  # Yield control
-                
-                logger.info(f"✓ Total: {len(self.all_documents)} docs, {self.total_chunks_enqueued} chunks queued")
-                
-                # Persist state
-                if self.state:
-                    self.state.metrics['batches_processed'] = self.batch_num
-                    self.state.metrics['chunks_queued'] = self.total_chunks_enqueued
-                    self.state.metrics['documents_processed'] = len(self.all_documents)
-                    
-                    persistence = create_local_disk_persistence_store()
-                    persistence.save(self.state)
+                persistence = create_local_disk_persistence_store()
+                persistence.save(self.state)
                     
         except GeneratorExit:
             logger.info(f"Generator closed at batch {self.batch_num}")
@@ -188,6 +264,11 @@ class ProducerPipeline:
             logger.info(f"KB {self.kb_id} cancelled by system")
             if self.state:
                 self.state.status = "cancelled"
+            if self.phase_tracker:
+                current_phase = self.phase_tracker.get_current_phase()
+                if current_phase:
+                    self.phase_tracker.cancel_phase(current_phase)
+                self._persist_phase_tracker()
             raise
     
     async def _verify_completion(self):
@@ -355,3 +436,35 @@ class ProducerPipeline:
             logger.warning(f"Could not check queue stats: {e}")
         
         return False
+    
+    def _persist_phase_tracker(self) -> None:
+        """Persist phase tracker to database and state."""
+        if not self.phase_tracker or not self.state or not self.state.job_id:
+            return
+        
+        try:
+            # Update state with phase info
+            phase_data = self.phase_tracker.to_dict()
+            self.state.phase_status = phase_data
+            
+            current_phase = self.phase_tracker.get_current_phase()
+            if current_phase:
+                self.state.phase = current_phase.value
+            
+            # Calculate overall progress
+            self.state.progress = self.phase_tracker.get_overall_progress()
+            
+            # Persist to database
+            repo = create_database_repository()
+            repo.update_phase_progress(
+                self.state.job_id,
+                current_phase.value if current_phase else "unknown",
+                phase_data
+            )
+            
+            # Persist to local storage
+            persistence = create_local_disk_persistence_store()
+            persistence.save(self.state)
+            
+        except Exception as e:
+            logger.warning(f"Failed to persist phase tracker: {e}")

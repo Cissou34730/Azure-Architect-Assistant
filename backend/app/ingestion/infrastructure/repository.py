@@ -42,6 +42,8 @@ class DatabaseRepository:
                 total_items=0,
                 processed_items=0,
                 priority=priority,
+                current_phase="crawling",
+                phase_progress={},
             )
             session.add(job)
             session.flush()
@@ -80,6 +82,29 @@ class DatabaseRepository:
                 .where(IngestionJob.id == job_id)
                 .values(status=db_status, updated_at=datetime.utcnow())
             )
+    
+    def update_phase_progress(self, job_id: str, current_phase: str, phase_progress: Dict[str, Any]) -> None:
+        """Update phase progress for a job."""
+        with get_session() as session:
+            session.execute(
+                update(IngestionJob)
+                .where(IngestionJob.id == job_id)
+                .values(
+                    current_phase=current_phase,
+                    phase_progress=phase_progress,
+                    updated_at=datetime.utcnow()
+                )
+            )
+    
+    def get_phase_progress(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Get phase progress for a job."""
+        with get_session() as session:
+            result = session.execute(
+                select(IngestionJob.phase_progress)
+                .where(IngestionJob.id == job_id)
+            )
+            row = result.first()
+            return row[0] if row else None
 
     def enqueue_chunks(self, job_id: str, chunks: List[Dict[str, Any]]) -> int:
         """Enqueue chunks for processing; return count inserted."""
@@ -225,7 +250,7 @@ class DatabaseRepository:
             kb_id=job.kb_id,
             job_id=job.id,
             status=status,
-            phase="crawling",
+            phase=job.current_phase or "crawling",
             progress=0,
             metrics={},
             message="Recovered job",
@@ -235,6 +260,7 @@ class DatabaseRepository:
             created_at=job.created_at,
             started_at=job.updated_at,
             completed_at=completed_at,
+            phase_status=job.phase_progress if job.phase_progress else None,
         )
 
 
