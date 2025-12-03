@@ -82,9 +82,9 @@ class ProducerPipeline:
             # Check if this is a resume with existing work in queue
             if await self._check_resume_scenario():
                 logger.info("Resume scenario detected - skipping document loading, consumer will process existing queue")
-                # Mark crawling/cleaning/chunking as completed if not already
+                # Mark loading/chunking as completed if not already
                 if self.phase_tracker:
-                    for phase in [TrackerPhase.CRAWLING, TrackerPhase.CLEANING, TrackerPhase.CHUNKING]:
+                    for phase in [TrackerPhase.LOADING, TrackerPhase.CHUNKING]:
                         if not self.phase_tracker.is_phase_completed(phase):
                             self.phase_tracker.complete_phase(phase)
                     self._persist_phase_tracker()
@@ -137,15 +137,15 @@ class ProducerPipeline:
         """Process document batches from source."""
         # ===== PHASE 1: LOADING (formerly CRAWLING) =====
         # Check if LOADING phase needs to run
-        if self.phase_tracker and not self.phase_tracker.should_run_phase(TrackerPhase.CRAWLING):
+        if self.phase_tracker and not self.phase_tracker.should_run_phase(TrackerPhase.LOADING):
             logger.info("LOADING phase already complete, skipping document loading")
         else:
             # Start LOADING phase
             if self.phase_tracker:
-                self.phase_tracker.start_phase(TrackerPhase.CRAWLING)
+                self.phase_tracker.start_phase(TrackerPhase.LOADING)
                 self._persist_phase_tracker()
             
-            self._update_progress(IngestionPhase.CRAWLING, 0, \"Loading documents from source...\")
+            self._update_progress(IngestionPhase.LOADING, 0, \"Loading documents from source...\")
         
         try:
             for document_batch in self._load_documents_from_source(handler):
@@ -175,7 +175,7 @@ class ProducerPipeline:
                 if self.phase_tracker:
                     crawl_progress = min(100, (self.batch_num * 10))
                     self.phase_tracker.update_phase_progress(
-                        TrackerPhase.CRAWLING, 
+                        TrackerPhase.LOADING, 
                         crawl_progress,
                         items_processed=len(self.all_documents)
                     )
@@ -184,7 +184,7 @@ class ProducerPipeline:
                 
                 # Update progress
                 self._update_progress(
-                    IngestionPhase.CRAWLING,
+                    IngestionPhase.LOADING,
                     min(30, 10 + self.batch_num),
                     f"Loaded batch {self.batch_num} ({len(self.all_documents)} documents)",
                     {"documents_loaded": len(self.all_documents), "batch_num": self.batch_num}
@@ -193,45 +193,45 @@ class ProducerPipeline:
                 # Check cancellation after save
                 if await self._check_cancel(f"batch {self.batch_num} after save"):
                     if self.phase_tracker:
-                        self.phase_tracker.pause_phase(TrackerPhase.CRAWLING)
+                        self.phase_tracker.pause_phase(TrackerPhase.LOADING)
                         self._persist_phase_tracker()
                     return
                 
             # Complete CRAWLING phase
             if self.phase_tracker:
-                self.phase_tracker.complete_phase(TrackerPhase.CRAWLING, len(self.all_documents))
+                self.phase_tracker.complete_phase(TrackerPhase.LOADING, len(self.all_documents))
                 self._persist_phase_tracker()
         
-        # ===== PHASE 2: CHUNKING (CLEANING + CHUNKING) =====
+        # ===== PHASE 2: CHUNKING =====
         # Check if CHUNKING phase needs to run
         if self.phase_tracker and not self.phase_tracker.should_run_phase(TrackerPhase.CHUNKING):
             logger.info("CHUNKING phase already complete, skipping")
             return
         
-        # Start CLEANING phase (logical, happens inline with chunking)
-        if self.phase_tracker and self.phase_tracker.should_run_phase(TrackerPhase.CLEANING):
-            self.phase_tracker.start_phase(TrackerPhase.CLEANING)
+        # Start CHUNKING phase
+        if self.phase_tracker and self.phase_tracker.should_run_phase(TrackerPhase.CHUNKING):
+            self.phase_tracker.start_phase(TrackerPhase.CHUNKING)
             self._persist_phase_tracker()
         
         # Chunk all documents
-        logger.info(f\"Chunking {len(self.all_documents)} documents...\")
-            self._update_progress(
-                IngestionPhase.CLEANING,
-                40,
-                f"Chunking {len(self.all_documents)} documents..."
-            )
-            
-            documents_dict = self._convert_documents_to_dict(self.all_documents)
-            all_chunks = chunker.chunk_documents(documents_dict, state=self.state)
-            
-            await asyncio.sleep(0)  # Yield control
-            
-            logger.info(f"✓ Created {len(all_chunks)} chunks")
-            
-            # Complete CLEANING phase
-            if self.phase_tracker:
-                self.phase_tracker.complete_phase(TrackerPhase.CLEANING, len(self.all_documents))
-                self._persist_phase_tracker()
+        logger.info(f"Chunking {len(self.all_documents)} documents...")
+        self._update_progress(
+            IngestionPhase.CHUNKING,
+            40,
+            f"Chunking {len(self.all_documents)} documents..."
+        )
+        
+        documents_dict = self._convert_documents_to_dict(self.all_documents)
+        all_chunks = chunker.chunk_documents(documents_dict, state=self.state)
+        
+        await asyncio.sleep(0)  # Yield control
+        
+        logger.info(f"✓ Created {len(all_chunks)} chunks")
+        
+        # Complete CHUNKING phase
+        if self.phase_tracker:
+            self.phase_tracker.complete_phase(TrackerPhase.CHUNKING, len(self.all_documents))
+            self._persist_phase_tracker()
             
             # Check cancellation after chunking
             if await self._check_cancel(f"after chunking"):
@@ -287,7 +287,7 @@ class ProducerPipeline:
         # If we have no documents but phases show as complete, that's OK (resume scenario)
         if not self.all_documents:
             if self.phase_tracker:
-                if self.phase_tracker.is_phase_completed(TrackerPhase.CRAWLING):
+                if self.phase_tracker.is_phase_completed(TrackerPhase.LOADING):
                     logger.info("No documents loaded but LOADING phase complete (resume scenario)")
                     return
             # Only fail if we truly didn't do any work

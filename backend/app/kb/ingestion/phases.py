@@ -8,9 +8,9 @@ from enum import Enum
 
 class IngestionPhase(str, Enum):
     """Phases of the ingestion process."""
-    CRAWLING = "crawling"
-    CLEANING = "cleaning"
-    EMBEDDING = "embedding"
-    INDEXING = "indexing"
+    LOADING = "loading"      # Source-specific document loading
+    CHUNKING = "chunking"    # Splitting documents into chunks
+    EMBEDDING = "embedding"  # Generating vector embeddings
+    INDEXING = "indexing"    # Building vector index
     COMPLETED = "completed"
     FAILED = "failed"

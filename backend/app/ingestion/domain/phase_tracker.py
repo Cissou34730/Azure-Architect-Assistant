@@ -1,6 +1,7 @@
 """
 Phase Tracker - Manages phase-level state transitions and persistence
-Tracks CRAWLING → CLEANING → CHUNKING → EMBEDDING → INDEXING phases
+Tracks LOADING → CHUNKING → EMBEDDING → INDEXING phases
+LOADING is source-specific (crawling, PDF loading, etc.)
 """
 
 import logging
@@ -13,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 class IngestionPhase(str, Enum):
     """Phases of the ingestion process."""
-    CRAWLING = "crawling"
-    CLEANING = "cleaning"
+    LOADING = "loading"  # Source-specific: crawling, PDF reading, etc.
     CHUNKING = "chunking"
     EMBEDDING = "embedding"
     INDEXING = "indexing"
@@ -38,8 +38,7 @@ class PhaseTracker:
     
     # Phase order for validation
     PHASE_ORDER = [
-        IngestionPhase.CRAWLING,
-        IngestionPhase.CLEANING,
+        IngestionPhase.LOADING,
         IngestionPhase.CHUNKING,
         IngestionPhase.EMBEDDING,
         IngestionPhase.INDEXING
@@ -47,11 +46,10 @@ class PhaseTracker:
     
     # Progress weights for each phase (total = 100%)
     PHASE_WEIGHTS = {
-        IngestionPhase.CRAWLING: 20,
-        IngestionPhase.CLEANING: 10,
-        IngestionPhase.CHUNKING: 10,
-        IngestionPhase.EMBEDDING: 30,
-        IngestionPhase.INDEXING: 30,
+        IngestionPhase.LOADING: 30,    # Loading/crawling documents
+        IngestionPhase.CHUNKING: 10,   # Splitting into chunks
+        IngestionPhase.EMBEDDING: 30,  # Generating embeddings
+        IngestionPhase.INDEXING: 30,   # Building vector index
     }
     
     def __init__(self, job_id: str, kb_id: str):
