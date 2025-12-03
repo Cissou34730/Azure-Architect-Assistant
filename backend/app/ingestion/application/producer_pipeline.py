@@ -66,6 +66,11 @@ class ProducerPipeline:
             if await self._check_cancel("pipeline start"):
                 return
             
+            # Check if this is a resume with existing work in queue
+            if await self._check_resume_scenario():
+                logger.info("Resume scenario detected - skipping document loading, consumer will process existing queue")
+                return
+            
             # Initialize components
             handler = SourceHandlerFactory.create_handler(
                 self.source_type,
@@ -186,25 +191,9 @@ class ProducerPipeline:
             raise
     
     async def _verify_completion(self):
-        """Verify work was done or handle resume scenario."""
+        """Verify that work was done."""
         if not self.all_documents:
-            # Check if this is a resume with existing chunks in queue
-            logger.info("No new documents from source - checking for resume scenario")
-            
-            if self.state and self.state.job_id:
-                try:
-                    repo = create_database_repository()
-                    queue_stats = repo.get_queue_stats(self.state.job_id)
-                    total_in_queue = queue_stats['pending'] + queue_stats['processing']
-                    
-                    if total_in_queue > 0:
-                        logger.info(f"Resume scenario: {total_in_queue} chunks in queue, producer work complete")
-                        logger.info("Consumer will continue processing existing chunks")
-                        return
-                except Exception as e:
-                    logger.warning(f"Could not check queue stats: {e}")
-            
-            raise ValueError("No documents loaded from source and no chunks in queue")
+            raise ValueError("No documents loaded from source")
     
     def _load_documents_from_source(self, handler):
         """Load documents from source handler (generator)."""
@@ -341,5 +330,28 @@ class ProducerPipeline:
             persistence = create_local_disk_persistence_store()
             persistence.save(self.state)
             return True
+        
+        return False
+    
+    async def _check_resume_scenario(self) -> bool:
+        """
+        Check if this is a resume with existing work in queue.
+        Returns True if producer should skip document loading.
+        """
+        if not self.state or not self.state.job_id:
+            return False
+        
+        try:
+            repo = create_database_repository()
+            queue_stats = repo.get_queue_stats(self.state.job_id)
+            total_in_queue = queue_stats['pending'] + queue_stats['processing']
+            
+            if total_in_queue > 0:
+                logger.info(f"Resume scenario detected: {total_in_queue} chunks already in queue")
+                logger.info(f"  Pending: {queue_stats['pending']}, Processing: {queue_stats['processing']}")
+                logger.info(f"  Done: {queue_stats['done']}, Error: {queue_stats['error']}")
+                return True
+        except Exception as e:
+            logger.warning(f"Could not check queue stats: {e}")
         
         return False
