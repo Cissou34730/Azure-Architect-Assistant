@@ -55,23 +55,40 @@ class IngestionSettings:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
         
-        return cls(
-            data_root=Path(config.get("data_root", "data/knowledge_bases")),
-            batch_size=int(config.get("batch_size", 50)),
-            dequeue_timeout=float(config.get("dequeue_timeout", 0.1)),
-            consumer_poll_interval=float(config.get("consumer_poll_interval", 0.1)),
-            thread_join_timeout=float(config.get("thread_join_timeout", 5.0)),
-            shutdown_grace_period=float(config.get("shutdown_grace_period", 30.0)),
-            max_retries=int(config.get("max_retries", 3)),
-            retry_delay=float(config.get("retry_delay", 1.0)),
-            persistence_backend=config.get("persistence_backend", "local_disk"),
-            state_file_name=config.get("state_file_name", "state.json"),
-            log_level=config.get("log_level", "INFO"),
-            enable_correlation_ids=config.get("enable_correlation_ids", True),
-            enable_metrics=config.get("enable_metrics", True),
-            metrics_backend=config.get("metrics_backend", "prometheus"),
-            metrics_port=int(config.get("metrics_port", 9090)),
-        )
+        # Create instance with defaults, then override from config
+        instance = cls()
+        if "data_root" in config:
+            instance.data_root = Path(config["data_root"])
+        if "batch_size" in config:
+            instance.batch_size = int(config["batch_size"])
+        if "dequeue_timeout" in config:
+            instance.dequeue_timeout = float(config["dequeue_timeout"])
+        if "consumer_poll_interval" in config:
+            instance.consumer_poll_interval = float(config["consumer_poll_interval"])
+        if "thread_join_timeout" in config:
+            instance.thread_join_timeout = float(config["thread_join_timeout"])
+        if "shutdown_grace_period" in config:
+            instance.shutdown_grace_period = float(config["shutdown_grace_period"])
+        if "max_retries" in config:
+            instance.max_retries = int(config["max_retries"])
+        if "retry_delay" in config:
+            instance.retry_delay = float(config["retry_delay"])
+        if "persistence_backend" in config:
+            instance.persistence_backend = config["persistence_backend"]
+        if "state_file_name" in config:
+            instance.state_file_name = config["state_file_name"]
+        if "log_level" in config:
+            instance.log_level = config["log_level"]
+        if "enable_correlation_ids" in config:
+            instance.enable_correlation_ids = config["enable_correlation_ids"]
+        if "enable_metrics" in config:
+            instance.enable_metrics = config["enable_metrics"]
+        if "metrics_backend" in config:
+            instance.metrics_backend = config["metrics_backend"]
+        if "metrics_port" in config:
+            instance.metrics_port = int(config["metrics_port"])
+        
+        return instance
 
 
 # Global settings instance

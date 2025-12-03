@@ -7,6 +7,8 @@ import logging
 import threading
 from typing import Any, Callable, Coroutine, Optional, TypeVar
 
+from app.ingestion.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
@@ -92,6 +94,7 @@ class AsyncioExecutor:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
+        self.settings = get_settings()
 
     def start(self) -> None:
         """Start background event loop in dedicated thread."""
@@ -127,5 +130,5 @@ class AsyncioExecutor:
             if self._loop is not None and self._loop.is_running():
                 self._loop.call_soon_threadsafe(self._loop.stop)
                 if self._thread is not None:
-                    self._thread.join(timeout=5.0)
+                    self._thread.join(timeout=self.settings.thread_join_timeout)
                 logger.info("AsyncioExecutor stopped")
