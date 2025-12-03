@@ -6,13 +6,14 @@ Proper separation from worker layer.
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from app.ingestion.domain.models import JobRuntime
 from app.ingestion.infrastructure.repository import DatabaseRepository
 from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
 from app.kb.ingestion.indexing import IndexBuilderFactory
+from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase as TrackerPhase, PhaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,16 @@ class ConsumerPipeline:
         self.consecutive_empty_batches = 0
         self.max_empty_batches = 10
         
+        # Phase tracking
+        self.phase_tracker: Optional[PhaseTracker] = None
+        if self.state and self.state.job_id:
+            self.phase_tracker = PhaseTracker(self.state.job_id, self.kb_id)
+            if self.state.phase_status:
+                self.phase_tracker.load_from_dict(self.state.phase_status)
+        
+        self.total_embedded = 0
+        self.total_indexed = 0
+        
         self.log_prefix = f"[ConsumerPipeline|KB={self.kb_id}|Job={self.job_id}]"
     
     def run(self) -> None:
@@ -58,10 +69,20 @@ class ConsumerPipeline:
         logger.info(f"{self.log_prefix} Starting consumer pipeline")
         
         try:
+            # Start EMBEDDING phase if not completed
+            if self.phase_tracker and not self.phase_tracker.is_phase_completed(TrackerPhase.EMBEDDING):
+                self.phase_tracker.start_phase(TrackerPhase.EMBEDDING)
+                self._persist_phase_tracker()
+            
             # Main processing loop
             while True:
                 # Check for immediate cancellation
                 if self._should_cancel():
+                    if self.phase_tracker:
+                        current_phase = self.phase_tracker.get_current_phase()
+                        if current_phase:
+                            self.phase_tracker.cancel_phase(current_phase)
+                        self._persist_phase_tracker()
                     break
                 
                 # Check if producer finished
@@ -80,6 +101,14 @@ class ConsumerPipeline:
             logger.error(f"{self.log_prefix} Pipeline failed: {e}", exc_info=True)
             self.state.status = "failed"
             self.state.error = str(e)
+            
+            # Mark current phase as failed
+            if self.phase_tracker:
+                current_phase = self.phase_tracker.get_current_phase()
+                if current_phase:
+                    self.phase_tracker.fail_phase(current_phase, str(e))
+                self._persist_phase_tracker()
+            
             raise
         finally:
             logger.info(f"{self.log_prefix} Consumer pipeline finished")
@@ -195,12 +224,56 @@ class ConsumerPipeline:
     def _index_documents(self, docs: List[Dict[str, Any]], ids: List[int]) -> None:
         """Index documents and commit results."""
         try:
+            # Check if we need to transition to INDEXING phase
+            if self.phase_tracker:
+                queue_stats = self.repository.get_queue_stats(self.job_id)
+                embedding_done = queue_stats['done']
+                
+                # Update EMBEDDING phase progress
+                if not self.phase_tracker.is_phase_completed(TrackerPhase.EMBEDDING):
+                    total_items = queue_stats['pending'] + queue_stats['processing'] + queue_stats['done'] + queue_stats['error']
+                    if total_items > 0:
+                        embed_progress = int((embedding_done / total_items) * 100)
+                        self.phase_tracker.update_phase_progress(
+                            TrackerPhase.EMBEDDING,
+                            embed_progress,
+                            items_processed=embedding_done,
+                            items_total=total_items
+                        )
+            
             # Progress callback (could update metrics here)
             def progress_cb(_phase, _prog, _msg, _metrics=None):
                 pass
             
             # Build index
             self.index_builder.build_index(docs, progress_cb, state=self.state)
+            
+            # Track indexing progress
+            self.total_indexed += len(docs)
+            
+            # Start INDEXING phase if embedding is done
+            if self.phase_tracker:
+                queue_stats = self.repository.get_queue_stats(self.job_id)
+                all_embedded = queue_stats['pending'] == 0 and queue_stats['processing'] == 0
+                
+                if all_embedded and not self.phase_tracker.is_phase_completed(TrackerPhase.EMBEDDING):
+                    self.phase_tracker.complete_phase(TrackerPhase.EMBEDDING, queue_stats['done'])
+                    self.phase_tracker.start_phase(TrackerPhase.INDEXING)
+                    self._persist_phase_tracker()
+                
+                # Update INDEXING phase progress
+                if self.phase_tracker.is_phase_completed(TrackerPhase.EMBEDDING):
+                    total_to_index = queue_stats['done']
+                    if total_to_index > 0:
+                        index_progress = int((self.total_indexed / total_to_index) * 100)
+                        self.phase_tracker.update_phase_progress(
+                            TrackerPhase.INDEXING,
+                            index_progress,
+                            items_processed=self.total_indexed,
+                            items_total=total_to_index
+                        )
+                        if index_progress % 10 == 0:  # Persist every 10%
+                            self._persist_phase_tracker()
             
             # Commit success
             self.repository.commit_batch_success(self.job_id, ids)
@@ -210,6 +283,14 @@ class ConsumerPipeline:
             
         except Exception as exc:
             logger.error(f"{self.log_prefix} Indexing error: {exc}", exc_info=True)
+            
+            # Mark phase as failed
+            if self.phase_tracker:
+                current_phase = self.phase_tracker.get_current_phase()
+                if current_phase:
+                    self.phase_tracker.fail_phase(current_phase, str(exc))
+                    self._persist_phase_tracker()
+            
             for item_id in ids:
                 try:
                     self.repository.commit_batch_error(item_id, str(exc))
@@ -241,6 +322,12 @@ class ConsumerPipeline:
             return
         
         logger.info(f"{self.log_prefix} All queue items processed - marking job as completed")
+        
+        # Complete INDEXING phase
+        if self.phase_tracker:
+            if not self.phase_tracker.is_phase_completed(TrackerPhase.INDEXING):
+                self.phase_tracker.complete_phase(TrackerPhase.INDEXING, self.total_indexed)
+            self._persist_phase_tracker()
         
         self.state.status = "completed"
         self.state.phase = "completed"
@@ -286,3 +373,33 @@ class ConsumerPipeline:
             if isinstance(value, dict) and value.get("id"):
                 return value
         return {}
+    
+    def _persist_phase_tracker(self) -> None:
+        """Persist phase tracker to database and state."""
+        if not self.phase_tracker or not self.state or not self.state.job_id:
+            return
+        
+        try:
+            # Update state with phase info
+            phase_data = self.phase_tracker.to_dict()
+            self.state.phase_status = phase_data
+            
+            current_phase = self.phase_tracker.get_current_phase()
+            if current_phase:
+                self.state.phase = current_phase.value
+            
+            # Calculate overall progress
+            self.state.progress = self.phase_tracker.get_overall_progress()
+            
+            # Persist to database
+            self.repository.update_phase_progress(
+                self.state.job_id,
+                current_phase.value if current_phase else "unknown",
+                phase_data
+            )
+            
+            # Persist to local storage
+            self.persistence.save_state(self.state)
+            
+        except Exception as e:
+            logger.warning(f"Failed to persist phase tracker: {e}")
