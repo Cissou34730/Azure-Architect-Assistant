@@ -23,14 +23,14 @@ Base = declarative_base()
 
 
 class JobStatus(str, enum.Enum):
-    """Lifecycle states for an ingestion job."""
+    """Lifecycle states for an ingestion job (database model)."""
 
     PENDING = "PENDING"
     RUNNING = "RUNNING"
     PAUSED = "PAUSED"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
-    CANCELED = "CANCELED"
+    CANCELLED = "CANCELLED"
 
 
 class QueueStatus(str, enum.Enum):
@@ -63,7 +63,7 @@ class IngestionJob(Base):
     priority = Column(Integer, nullable=False, default=0)
     
     # Phase-level tracking
-    current_phase = Column(String(50), nullable=True, default="crawling")
+    current_phase = Column(String(50), nullable=True, default="loading")
     phase_progress = Column(JSON, nullable=True, default=dict)
 
     queue_items = relationship(

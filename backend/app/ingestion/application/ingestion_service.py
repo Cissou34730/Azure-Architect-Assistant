@@ -65,9 +65,10 @@ class IngestionService:
         persisted_states = self.persistence.load_all_states()
         for kb_id, state in persisted_states.items():
             # If state shows "running" but no runtime exists, mark as paused
-            if state.status == "running":
+            from app.ingestion.domain.enums import JobStatus
+            if state.status == JobStatus.RUNNING.value:
                 logger.info(f"[Recovery] KB {kb_id} shows 'running' status but no active threads - marking as paused")
-                state.status = "paused"
+                state.status = JobStatus.PAUSED.value
                 state.paused = True
                 state.message = "Job was interrupted (server restart)"
                 try:

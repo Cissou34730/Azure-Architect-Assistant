@@ -117,7 +117,8 @@ class ConsumerPipeline:
             
         except Exception as e:
             logger.error(f"{self.log_prefix} Pipeline failed: {e}", exc_info=True)
-            self.state.status = "failed"
+            from app.ingestion.domain.enums import JobStatus
+            self.state.status = JobStatus.FAILED.value
             self.state.error = str(e)
             
             # Mark current phase as failed
@@ -378,7 +379,8 @@ class ConsumerPipeline:
                 self.phase_tracker.complete_phase(IngestionPhase.INDEXING, self.total_indexed)
             self._persist_phase_tracker()
         
-        self.state.status = "completed"
+        from app.ingestion.domain.enums import JobStatus
+        self.state.status = JobStatus.COMPLETED.value
         self.state.phase = "completed"
         self.state.progress = 100
         self.state.message = "Ingestion completed successfully"

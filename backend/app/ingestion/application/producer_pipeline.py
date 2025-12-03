@@ -120,7 +120,8 @@ class ProducerPipeline:
         except Exception as e:
             logger.error(f"Producer pipeline failed for KB {self.kb_id}: {e}", exc_info=True)
             if self.state:
-                self.state.status = "failed"
+                from app.ingestion.domain.enums import JobStatus
+                self.state.status = JobStatus.FAILED.value
                 self.state.error = str(e)
             
             # Mark current phase as failed
