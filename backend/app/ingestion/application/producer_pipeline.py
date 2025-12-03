@@ -14,12 +14,11 @@ from urllib.parse import urlparse
 
 from llama_index.core import Document
 
-from app.kb.ingestion import IngestionPhase
-from app.kb.ingestion.sources import SourceHandlerFactory
-from app.kb.ingestion.chunking import ChunkerFactory
+from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase, PhaseStatus
+from app.ingestion.domain.sources import SourceHandlerFactory
+from app.ingestion.domain.chunking import ChunkerFactory
 from app.ingestion.infrastructure.persistence import create_local_disk_persistence_store
 from app.ingestion.infrastructure.repository import create_database_repository
-from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase as TrackerPhase, PhaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +83,7 @@ class ProducerPipeline:
                 logger.info("Resume scenario detected - skipping document loading, consumer will process existing queue")
                 # Mark loading/chunking as completed if not already
                 if self.phase_tracker:
-                    for phase in [TrackerPhase.LOADING, TrackerPhase.CHUNKING]:
+                    for phase in [IngestionPhase.LOADING, IngestionPhase.CHUNKING]:
                         if not self.phase_tracker.is_phase_completed(phase):
                             self.phase_tracker.complete_phase(phase)
                     self._persist_phase_tracker()
@@ -111,7 +110,7 @@ class ProducerPipeline:
             
             # Mark chunking phase as completed
             if self.phase_tracker:
-                self.phase_tracker.complete_phase(TrackerPhase.CHUNKING, self.total_chunks_enqueued)
+                self.phase_tracker.complete_phase(IngestionPhase.CHUNKING, self.total_chunks_enqueued)
                 self._persist_phase_tracker()
             
             logger.info(f"=== Producer Pipeline Complete: KB {self.kb_id} ===")
@@ -137,12 +136,12 @@ class ProducerPipeline:
         """Process document batches from source."""
         # ===== PHASE 1: LOADING (formerly CRAWLING) =====
         # Check if LOADING phase needs to run
-        if self.phase_tracker and not self.phase_tracker.should_run_phase(TrackerPhase.LOADING):
+        if self.phase_tracker and not self.phase_tracker.should_run_phase(IngestionPhase.LOADING):
             logger.info("LOADING phase already complete, skipping document loading")
         else:
             # Start LOADING phase
             if self.phase_tracker:
-                self.phase_tracker.start_phase(TrackerPhase.LOADING)
+                self.phase_tracker.start_phase(IngestionPhase.LOADING)
                 self._persist_phase_tracker()
             
             self._update_progress(IngestionPhase.LOADING, 0, \"Loading documents from source...\")
@@ -175,7 +174,7 @@ class ProducerPipeline:
                 if self.phase_tracker:
                     crawl_progress = min(100, (self.batch_num * 10))
                     self.phase_tracker.update_phase_progress(
-                        TrackerPhase.LOADING, 
+                        IngestionPhase.LOADING, 
                         crawl_progress,
                         items_processed=len(self.all_documents)
                     )
@@ -193,24 +192,24 @@ class ProducerPipeline:
                 # Check cancellation after save
                 if await self._check_cancel(f"batch {self.batch_num} after save"):
                     if self.phase_tracker:
-                        self.phase_tracker.pause_phase(TrackerPhase.LOADING)
+                        self.phase_tracker.pause_phase(IngestionPhase.LOADING)
                         self._persist_phase_tracker()
                     return
                 
             # Complete CRAWLING phase
             if self.phase_tracker:
-                self.phase_tracker.complete_phase(TrackerPhase.LOADING, len(self.all_documents))
+                self.phase_tracker.complete_phase(IngestionPhase.LOADING, len(self.all_documents))
                 self._persist_phase_tracker()
         
         # ===== PHASE 2: CHUNKING =====
         # Check if CHUNKING phase needs to run
-        if self.phase_tracker and not self.phase_tracker.should_run_phase(TrackerPhase.CHUNKING):
+        if self.phase_tracker and not self.phase_tracker.should_run_phase(IngestionPhase.CHUNKING):
             logger.info("CHUNKING phase already complete, skipping")
             return
         
         # Start CHUNKING phase
-        if self.phase_tracker and self.phase_tracker.should_run_phase(TrackerPhase.CHUNKING):
-            self.phase_tracker.start_phase(TrackerPhase.CHUNKING)
+        if self.phase_tracker and self.phase_tracker.should_run_phase(IngestionPhase.CHUNKING):
+            self.phase_tracker.start_phase(IngestionPhase.CHUNKING)
             self._persist_phase_tracker()
         
         # Chunk all documents
@@ -230,19 +229,19 @@ class ProducerPipeline:
         
         # Complete CHUNKING phase
         if self.phase_tracker:
-            self.phase_tracker.complete_phase(TrackerPhase.CHUNKING, len(self.all_documents))
+            self.phase_tracker.complete_phase(IngestionPhase.CHUNKING, len(self.all_documents))
             self._persist_phase_tracker()
             
             # Check cancellation after chunking
             if await self._check_cancel(f"after chunking"):
                 if self.phase_tracker:
-                    self.phase_tracker.pause_phase(TrackerPhase.CHUNKING)
+                    self.phase_tracker.pause_phase(IngestionPhase.CHUNKING)
                     self._persist_phase_tracker()
                 return
             
             # Start CHUNKING phase (enqueueing)
             if self.phase_tracker:
-                self.phase_tracker.start_phase(TrackerPhase.CHUNKING)
+                self.phase_tracker.start_phase(IngestionPhase.CHUNKING)
                 self._persist_phase_tracker()
             
             # Enqueue chunks for consumer
@@ -287,7 +286,7 @@ class ProducerPipeline:
         # If we have no documents but phases show as complete, that's OK (resume scenario)
         if not self.all_documents:
             if self.phase_tracker:
-                if self.phase_tracker.is_phase_completed(TrackerPhase.LOADING):
+                if self.phase_tracker.is_phase_completed(IngestionPhase.LOADING):
                     logger.info("No documents loaded but LOADING phase complete (resume scenario)")
                     return
             # Only fail if we truly didn't do any work

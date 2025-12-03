@@ -12,8 +12,8 @@ from datetime import datetime
 from app.ingestion.domain.models import JobRuntime
 from app.ingestion.infrastructure.repository import DatabaseRepository
 from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
-from app.kb.ingestion.indexing import IndexBuilderFactory
-from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase as TrackerPhase, PhaseStatus
+from app.ingestion.infrastructure.indexing import IndexBuilderFactory
+from app.ingestion.domain.phase_tracker import PhaseTracker,  PhaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -88,18 +88,18 @@ class ConsumerPipeline:
                 
                 # Start EMBEDDING phase when first batch arrives (lazy start)
                 if not embedding_phase_started and self.phase_tracker:
-                    if self.phase_tracker.should_run_phase(TrackerPhase.EMBEDDING):
+                    if self.phase_tracker.should_run_phase(IngestionPhase.EMBEDDING):
                         # Check if queue has items before starting phase
                         queue_stats = self.repository.get_queue_stats(self.job_id)
                         if queue_stats['pending'] > 0 or queue_stats['processing'] > 0:
                             logger.info(f"{self.log_prefix} Queue has items, starting EMBEDDING phase")
-                            self.phase_tracker.start_phase(TrackerPhase.EMBEDDING)
+                            self.phase_tracker.start_phase(IngestionPhase.EMBEDDING)
                             self._persist_phase_tracker()
                             embedding_phase_started = True
                         elif producer_stopped:
                             # Producer done but no items in queue
                             logger.info(f"{self.log_prefix} Producer finished with empty queue, checking phases")
-                            if self.phase_tracker.is_phase_completed(TrackerPhase.CHUNKING):
+                            if self.phase_tracker.is_phase_completed(IngestionPhase.CHUNKING):
                                 # All phases complete, nothing to do
                                 logger.info(f"{self.log_prefix} All producer phases complete, no items to process")
                                 break
@@ -246,12 +246,12 @@ class ConsumerPipeline:
                 embedding_done = queue_stats['done']
                 
                 # Update EMBEDDING phase progress
-                if not self.phase_tracker.is_phase_completed(TrackerPhase.EMBEDDING):
+                if not self.phase_tracker.is_phase_completed(IngestionPhase.EMBEDDING):
                     total_items = queue_stats['pending'] + queue_stats['processing'] + queue_stats['done'] + queue_stats['error']
                     if total_items > 0:
                         embed_progress = int((embedding_done / total_items) * 100)
                         self.phase_tracker.update_phase_progress(
-                            TrackerPhase.EMBEDDING,
+                            IngestionPhase.EMBEDDING,
                             embed_progress,
                             items_processed=embedding_done,
                             items_total=total_items
@@ -272,18 +272,18 @@ class ConsumerPipeline:
                 queue_stats = self.repository.get_queue_stats(self.job_id)
                 all_embedded = queue_stats['pending'] == 0 and queue_stats['processing'] == 0
                 
-                if all_embedded and not self.phase_tracker.is_phase_completed(TrackerPhase.EMBEDDING):
-                    self.phase_tracker.complete_phase(TrackerPhase.EMBEDDING, queue_stats['done'])
-                    self.phase_tracker.start_phase(TrackerPhase.INDEXING)
+                if all_embedded and not self.phase_tracker.is_phase_completed(IngestionPhase.EMBEDDING):
+                    self.phase_tracker.complete_phase(IngestionPhase.EMBEDDING, queue_stats['done'])
+                    self.phase_tracker.start_phase(IngestionPhase.INDEXING)
                     self._persist_phase_tracker()
                 
                 # Update INDEXING phase progress
-                if self.phase_tracker.is_phase_completed(TrackerPhase.EMBEDDING):
+                if self.phase_tracker.is_phase_completed(IngestionPhase.EMBEDDING):
                     total_to_index = queue_stats['done']
                     if total_to_index > 0:
                         index_progress = int((self.total_indexed / total_to_index) * 100)
                         self.phase_tracker.update_phase_progress(
-                            TrackerPhase.INDEXING,
+                            IngestionPhase.INDEXING,
                             index_progress,
                             items_processed=self.total_indexed,
                             items_total=total_to_index
@@ -341,8 +341,8 @@ class ConsumerPipeline:
         
         # Complete INDEXING phase
         if self.phase_tracker:
-            if not self.phase_tracker.is_phase_completed(TrackerPhase.INDEXING):
-                self.phase_tracker.complete_phase(TrackerPhase.INDEXING, self.total_indexed)
+            if not self.phase_tracker.is_phase_completed(IngestionPhase.INDEXING):
+                self.phase_tracker.complete_phase(IngestionPhase.INDEXING, self.total_indexed)
             self._persist_phase_tracker()
         
         self.state.status = "completed"
