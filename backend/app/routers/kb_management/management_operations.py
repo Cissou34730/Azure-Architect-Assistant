@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 from pathlib import Path
 
 from app.kb import KBManager, MultiSourceQueryService
-from .models import CreateKBRequest
+from .management_models import CreateKBRequest
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +16,10 @@ logger = logging.getLogger(__name__)
 class KBManagementService:
     """Service layer for KB management operations"""
     
-    @staticmethod
-    def create_knowledge_base(request: CreateKBRequest, manager: KBManager) -> Dict[str, str]:
+    def __init__(self):
+        pass
+    
+    def create_knowledge_base(self, request: CreateKBRequest, manager: KBManager) -> Dict[str, str]:
         """
         Create a new knowledge base.
         
@@ -62,8 +64,7 @@ class KBManagementService:
             "kb_name": request.name
         }
     
-    @staticmethod
-    def list_knowledge_bases(manager: KBManager) -> List[Dict[str, Any]]:
+    def list_knowledge_bases(self, manager: KBManager) -> List[Dict[str, Any]]:
         """
         List all available knowledge bases.
         
@@ -76,8 +77,7 @@ class KBManagementService:
         kbs_info = manager.list_kbs()
         return kbs_info  # Listing log suppressed
     
-    @staticmethod
-    def check_health(service: MultiSourceQueryService) -> Dict[str, Any]:
+    def check_health(self, service: MultiSourceQueryService) -> Dict[str, Any]:
         """
         Check health status of all knowledge bases.
         
@@ -117,3 +117,15 @@ class KBManagementService:
             'overall_status': overall_status,
             'knowledge_bases': kb_health
         }
+
+
+# Singleton instance
+_management_service = None
+
+
+def get_management_service() -> KBManagementService:
+    """Get singleton management service instance"""
+    global _management_service
+    if _management_service is None:
+        _management_service = KBManagementService()
+    return _management_service

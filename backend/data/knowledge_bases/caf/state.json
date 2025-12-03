@@ -2,17 +2,17 @@
   "kb_id": "caf",
   "job_id": "c77c54a9-e8d8-4e2f-8dea-03d2e98f5a56",
   "version": 1,
-  "updated_at": "2025-12-02T23:01:48.730319",
+  "updated_at": "2025-12-03T13:53:52.721865",
   "job": {
-    "status": "running",
+    "status": "paused",
     "phase": "crawling",
     "progress": 0,
-    "message": "Loading documents from source...",
+    "message": "Job was interrupted (server restart)",
     "error": null,
     "created_at": "2025-12-02T21:40:57.638862",
     "started_at": "2025-12-02T21:40:57.638862",
     "completed_at": null,
-    "paused": false,
+    "paused": true,
     "cancel_requested": false
   },
   "metrics": {

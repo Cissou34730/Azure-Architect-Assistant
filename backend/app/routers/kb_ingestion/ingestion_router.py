@@ -11,13 +11,13 @@ from app.ingestion.application.ingestion_service import IngestionService
 from app.service_registry import get_kb_manager
 from app.kb.manager import KBManager
 
-from .models import (
+from .ingestion_models import (
     StartIngestionRequest,
     StartIngestionResponse,
     JobStatusResponse,
     JobListResponse
 )
-from .operations import KBIngestionService, get_ingestion_service
+from .ingestion_operations import KBIngestionService, get_ingestion_service
 
 logger = logging.getLogger(__name__)
 

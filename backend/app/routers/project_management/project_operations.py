@@ -16,7 +16,7 @@ from app.services.llm_service import get_llm_service
 from app.kb.multi_query import QueryProfile
 from app.service_registry import get_multi_query_service
 
-from .models import CreateProjectRequest, UpdateRequirementsRequest, ChatMessageRequest
+from .project_models import CreateProjectRequest, UpdateRequirementsRequest, ChatMessageRequest
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +24,10 @@ logger = logging.getLogger(__name__)
 class ProjectService:
     """Service layer for project management operations"""
     
-    @staticmethod
-    async def create_project(request: CreateProjectRequest, db: AsyncSession) -> Dict[str, Any]:
+    def __init__(self):
+        pass
+    
+    async def create_project(self, request: CreateProjectRequest, db: AsyncSession) -> Dict[str, Any]:
         """
         Create a new project.
         
@@ -55,8 +57,7 @@ class ProjectService:
         logger.info(f"Project created: {project.id} - {project.name}")
         return project.to_dict()
     
-    @staticmethod
-    async def list_projects(db: AsyncSession) -> List[Dict[str, Any]]:
+    async def list_projects(self, db: AsyncSession) -> List[Dict[str, Any]]:
         """List all projects"""
         result = await db.execute(select(Project))
         projects = result.scalars().all()
@@ -64,8 +65,8 @@ class ProjectService:
         logger.info(f"Listing {len(projects)} projects")
         return [p.to_dict() for p in projects]
     
-    @staticmethod
     async def update_requirements(
+        self,
         project_id: str,
         request: UpdateRequirementsRequest,
         db: AsyncSession
@@ -84,8 +85,8 @@ class ProjectService:
         logger.info(f"Requirements updated for project: {project_id}")
         return project.to_dict()
     
-    @staticmethod
     async def upload_documents(
+        self,
         project_id: str,
         files: List[Any],
         db: AsyncSession
@@ -130,8 +131,7 @@ class ProjectService:
         logger.info(f"Uploaded {len(saved_docs)} documents for project: {project_id}")
         return [doc.to_dict() for doc in saved_docs]
     
-    @staticmethod
-    async def analyze_documents(project_id: str, db: AsyncSession) -> Dict[str, Any]:
+    async def analyze_documents(self, project_id: str, db: AsyncSession) -> Dict[str, Any]:
         """Analyze documents and generate initial ProjectState"""
         # Get project
         result = await db.execute(select(Project).where(Project.id == project_id))
@@ -189,8 +189,8 @@ class ProjectService:
         logger.info(f"Document analysis completed for project: {project_id}")
         return state_data
     
-    @staticmethod
     async def process_chat_message(
+        self,
         project_id: str,
         request: ChatMessageRequest,
         db: AsyncSession
@@ -296,8 +296,7 @@ class ProjectService:
             "wafSources": response.get('sources', [])
         }
     
-    @staticmethod
-    async def get_project_state(project_id: str, db: AsyncSession) -> Dict[str, Any]:
+    async def get_project_state(self, project_id: str, db: AsyncSession) -> Dict[str, Any]:
         """Get current project state"""
         # Check project exists
         result = await db.execute(select(Project).where(Project.id == project_id))
@@ -321,8 +320,7 @@ class ProjectService:
         
         return state_data
     
-    @staticmethod
-    async def get_conversation_messages(project_id: str, db: AsyncSession) -> List[Dict[str, Any]]:
+    async def get_conversation_messages(self, project_id: str, db: AsyncSession) -> List[Dict[str, Any]]:
         """Get all conversation messages for a project"""
         # Check project exists
         result = await db.execute(select(Project).where(Project.id == project_id))
@@ -341,8 +339,7 @@ class ProjectService:
         
         return [msg.to_dict() for msg in messages]
     
-    @staticmethod
-    async def generate_proposal(project_id: str, db: AsyncSession, progress_callback=None):
+    async def generate_proposal(self, project_id: str, db: AsyncSession, progress_callback=None):
         """
         Generate architecture proposal for a project.
         

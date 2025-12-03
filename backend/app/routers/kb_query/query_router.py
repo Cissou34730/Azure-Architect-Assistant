@@ -3,36 +3,58 @@ KB Query Router
 FastAPI endpoints for knowledge base queries.
 """
 
-from fastapi import APIRouter, HTTPException
+from typing import List
+from fastapi import APIRouter, HTTPException, Depends
 import logging
 
 from app.service_registry import get_multi_query_service
-from app.kb import QueryProfile
-from .models import (
+from app.kb import QueryProfile, MultiSourceQueryService
+from .query_models import (
     QueryRequest,
     ProfileQueryRequest,
     KBQueryRequest,
     SourceInfo,
     QueryResponse
 )
-from .operations import KBQueryService
+from .query_operations import KBQueryService, get_query_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/query", tags=["query"])
 
 
+# ============================================================================
+# Dependency Injection
+# ============================================================================
+
+def get_multi_query_service_dep() -> MultiSourceQueryService:
+    """Dependency for Multi Query Service - allows mocking in tests"""
+    return get_multi_query_service()
+
+
+def get_query_service_dep() -> KBQueryService:
+    """Dependency for Query Service - allows mocking in tests"""
+    return get_query_service()
+
+
+# ============================================================================
+# Query Endpoints
+# ============================================================================
+
 @router.post("", response_model=QueryResponse)
 @router.post("/", response_model=QueryResponse, include_in_schema=False)
-async def query_legacy(request: QueryRequest):
+async def query_legacy(
+    request: QueryRequest,
+    multi_query_service: MultiSourceQueryService = Depends(get_multi_query_service_dep),
+    operations: KBQueryService = Depends(get_query_service_dep)
+) -> QueryResponse:
     """
     Legacy query endpoint - queries all active KBs using CHAT profile.
     Maintained for backward compatibility.
     """
     try:
-        service = get_multi_query_service()
-        result = KBQueryService.query_with_profile(
-            service,
+        result = operations.query_with_profile(
+            multi_query_service,
             request.question,
             QueryProfile.CHAT,
             request.topK
@@ -63,15 +85,18 @@ async def query_legacy(request: QueryRequest):
 
 
 @router.post("/chat", response_model=QueryResponse)
-async def query_chat(request: ProfileQueryRequest):
+async def query_chat(
+    request: ProfileQueryRequest,
+    multi_query_service: MultiSourceQueryService = Depends(get_multi_query_service_dep),
+    operations: KBQueryService = Depends(get_query_service_dep)
+) -> QueryResponse:
     """
     Query knowledge bases using CHAT profile (fast, targeted responses).
     Returns answer with sources from chat-enabled knowledge bases.
     """
     try:
-        service = get_multi_query_service()
-        result = KBQueryService.query_with_profile(
-            service,
+        result = operations.query_with_profile(
+            multi_query_service,
             request.question,
             QueryProfile.CHAT,
             request.topKPerKB
@@ -102,15 +127,18 @@ async def query_chat(request: ProfileQueryRequest):
 
 
 @router.post("/proposal", response_model=QueryResponse)
-async def query_proposal(request: ProfileQueryRequest):
+async def query_proposal(
+    request: ProfileQueryRequest,
+    multi_query_service: MultiSourceQueryService = Depends(get_multi_query_service_dep),
+    operations: KBQueryService = Depends(get_query_service_dep)
+) -> QueryResponse:
     """
     Query knowledge bases using PROPOSAL profile (comprehensive, detailed responses).
     Returns answer with sources from proposal-enabled knowledge bases.
     """
     try:
-        service = get_multi_query_service()
-        result = KBQueryService.query_with_profile(
-            service,
+        result = operations.query_with_profile(
+            multi_query_service,
             request.question,
             QueryProfile.PROPOSAL,
             request.topKPerKB
@@ -141,15 +169,18 @@ async def query_proposal(request: ProfileQueryRequest):
 
 
 @router.post("/kb-query", response_model=QueryResponse)
-async def query_kb_manual(request: KBQueryRequest):
+async def query_kb_manual(
+    request: KBQueryRequest,
+    multi_query_service: MultiSourceQueryService = Depends(get_multi_query_service_dep),
+    operations: KBQueryService = Depends(get_query_service_dep)
+) -> QueryResponse:
     """
     Query specific knowledge bases manually selected by user.
     Used in KB Query tab for manual KB selection.
     """
     try:
-        service = get_multi_query_service()
-        result = KBQueryService.query_specific_kbs(
-            service,
+        result = operations.query_specific_kbs(
+            multi_query_service,
             request.question,
             request.kb_ids,
             request.topKPerKB

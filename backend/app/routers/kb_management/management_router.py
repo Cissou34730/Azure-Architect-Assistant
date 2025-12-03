@@ -3,14 +3,17 @@ KB Management Router
 FastAPI endpoints for KB CRUD operations, listing, and health monitoring.
 """
 
-from fastapi import APIRouter, HTTPException
+from typing import Dict, Any
+from fastapi import APIRouter, HTTPException, Depends
 import logging
 import asyncio
 
 from app.ingestion.application.ingestion_service import IngestionService
 from app.service_registry import get_kb_manager, get_multi_query_service, invalidate_kb_manager
+from app.kb.manager import KBManager
+from app.kb.multi_query import MultiSourceQueryService
 from app.kb.service import clear_index_cache
-from .models import (
+from .management_models import (
     KBInfo, 
     KBListResponse, 
     KBHealthInfo, 
@@ -18,19 +21,50 @@ from .models import (
     CreateKBRequest,
     CreateKBResponse
 )
-from .operations import KBManagementService
+from .management_operations import KBManagementService, get_management_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/kb", tags=["knowledge-bases"])
 
 
+# ============================================================================
+# Dependency Injection
+# ============================================================================
+
+def get_kb_manager_dep() -> KBManager:
+    """Dependency for KB Manager - allows mocking in tests"""
+    return get_kb_manager()
+
+
+def get_multi_query_service_dep() -> MultiSourceQueryService:
+    """Dependency for Multi Query Service - allows mocking in tests"""
+    return get_multi_query_service()
+
+
+def get_ingestion_service_dep() -> IngestionService:
+    """Dependency for Ingestion Service - allows mocking in tests"""
+    return IngestionService.instance()
+
+
+def get_management_service_dep() -> KBManagementService:
+    """Dependency for Management Service - allows mocking in tests"""
+    return get_management_service()
+
+
+# ============================================================================
+# KB CRUD Endpoints
+# ============================================================================
+
 @router.post("/create", response_model=CreateKBResponse)
-async def create_kb(request: CreateKBRequest):
+async def create_kb(
+    request: CreateKBRequest,
+    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    operations: KBManagementService = Depends(get_management_service_dep)
+) -> CreateKBResponse:
     """Create a new knowledge base"""
     try:
-        manager = get_kb_manager()
-        result = KBManagementService.create_knowledge_base(request, manager)
+        result = operations.create_knowledge_base(request, kb_manager)
         
         # Invalidate KB manager cache to reload config
         invalidate_kb_manager()
@@ -44,7 +78,11 @@ async def create_kb(request: CreateKBRequest):
 
 
 @router.delete("/{kb_id}")
-async def delete_kb(kb_id: str):
+async def delete_kb(
+    kb_id: str,
+    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
+) -> Dict[str, str]:
     """
     Delete a knowledge base and all its data.
     
@@ -55,8 +93,6 @@ async def delete_kb(kb_id: str):
     - Delete all KB data (index, documents, etc.)
     """
     try:
-        kb_manager = get_kb_manager()
-        
         # Check if KB exists
         if not kb_manager.kb_exists(kb_id):
             raise HTTPException(
@@ -69,7 +105,6 @@ async def delete_kb(kb_id: str):
         storage_dir = kb_config.index_path if kb_config else None
         
         # Cancel any running ingestion via IngestionService
-        ingest_service = IngestionService.instance()
         await ingest_service.cancel(kb_id)
         logger.info(f"Cancelled ingestion for KB before deletion: {kb_id}")
         await asyncio.sleep(1.0)
@@ -104,14 +139,16 @@ async def delete_kb(kb_id: str):
 
 
 @router.get("/list", response_model=KBListResponse)
-async def list_knowledge_bases():
+async def list_knowledge_bases(
+    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    operations: KBManagementService = Depends(get_management_service_dep)
+) -> KBListResponse:
     """
     List all available knowledge bases with their configuration.
     Returns KB metadata including supported profiles and priority.
     """
     try:
-        manager = get_kb_manager()
-        kbs_info = KBManagementService.list_knowledge_bases(manager)
+        kbs_info = operations.list_knowledge_bases(kb_manager)
         
         kb_list = [
             KBInfo(
@@ -135,14 +172,16 @@ async def list_knowledge_bases():
 
 
 @router.get("/health", response_model=KBHealthResponse)
-async def check_kb_health():
+async def check_kb_health(
+    multi_query_service: MultiSourceQueryService = Depends(get_multi_query_service_dep),
+    operations: KBManagementService = Depends(get_management_service_dep)
+) -> KBHealthResponse:
     """
     Check health status of all knowledge bases.
     Returns per-KB status including index readiness.
     """
     try:
-        service = get_multi_query_service()
-        result = KBManagementService.check_health(service)
+        result = operations.check_health(multi_query_service)
         
         kb_health = [
             KBHealthInfo(**kb_info)

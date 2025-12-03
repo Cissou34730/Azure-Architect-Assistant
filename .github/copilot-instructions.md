@@ -5,7 +5,15 @@
 	Azure Architect assistant. There are 4 main features. Project to describe the project we want to build an architecutre on. Chat with technical documentation. Manage the technical document build a RAG and generate an architecture document and IaC code.
 	The frontend is TypeScript React, backend in Python.
 	
-	
+	[x] Mandatory rules to follow before writing code:
+	- Use descriptive variable names (days_until_expiration vs d) and clear logic. If you need a comment to explain what the code does, the code is likely too complex.
+	- DRY (Don't Repeat Yourself): If you copy-paste code, you create a maintenance debt. Abstract duplicate logic into a single function or class so you only have to fix bugs in one place
+	- Avoid over-engineering. The simplest solution that solves the problem is usually the best. Complexity increases the surface area for bugs
+	- Do not add functionality until it is necessary. Speculative coding leads to unused, unmaintained bloat
+	- Single Responsibility Principle (SRP): A function, class, or module should have one, and only one, reason to change. THE MOST IMPORTANT RULE FOR YOU
+	- Never trust data coming from outside your system (user input, API responses). Always validate types
+	- Version control (Git) is a save point. Make small, descriptive commits that fix one thing at a time
+
 	[x] Technical Stack Requirements:
 	- React 19+ with TypeScript
 	- Use TypeScript 5+

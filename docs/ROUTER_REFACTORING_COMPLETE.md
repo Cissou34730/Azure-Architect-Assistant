@@ -2,7 +2,46 @@
 
 ## Overview
 
-Successfully refactored the KB ingestion router to follow proper dependency injection, clean code principles, and remove code smells.
+Successfully refactored **ALL ROUTER MODULES** to follow consistent patterns:
+1. **File Naming**: Specific names instead of generic ones (e.g., `ingestion_router.py` vs `router.py`)
+2. **Dependency Injection**: FastAPI `Depends()` pattern for all service dependencies
+3. **Service Layer**: Instance methods instead of static methods, with singleton getters
+4. **Type Safety**: Return type annotations on all endpoints
+
+This refactoring covers:
+- `backend/app/routers/kb_ingestion/`
+- `backend/app/routers/kb_management/`
+- `backend/app/routers/kb_query/`
+- `backend/app/routers/project_management/`
+
+## File Renaming
+
+### Problem
+All routers had identical filenames (`router.py`, `models.py`, `operations.py`), making navigation in IDE confusing.
+
+### Solution - Specific File Names
+
+#### kb_ingestion/
+- `router.py` → `ingestion_router.py`
+- `models.py` → `ingestion_models.py`
+- `operations.py` → `ingestion_operations.py`
+
+#### kb_management/
+- `router.py` → `management_router.py`
+- `models.py` → `management_models.py`
+- `operations.py` → `management_operations.py`
+
+#### kb_query/
+- `router.py` → `query_router.py`
+- `models.py` → `query_models.py`
+- `operations.py` → `query_operations.py`
+
+#### project_management/
+- `router.py` → `project_router.py`
+- `models.py` → `project_models.py`
+- `operations.py` → `project_operations.py`
+
+All `__init__.py` files and internal imports updated accordingly.
 
 ## Problems Identified
 
@@ -302,3 +341,109 @@ The router has been successfully refactored to follow professional FastAPI patte
 **After**: ✅ Easy to test, clean code, loose coupling, full type safety
 
 This refactoring improves code quality without changing any external behavior, making the codebase more maintainable and professional.
+
+---
+
+## Extended Refactoring - All Router Modules
+
+### kb_management Module
+
+**Changes Applied:**
+1. **File Renaming**: `router.py` → `management_router.py`, etc.
+2. **Added DI Functions**: 
+   - `get_kb_manager_dep()`
+   - `get_multi_query_service_dep()`
+   - `get_ingestion_service_dep()`
+   - `get_management_service_dep()`
+3. **Updated Endpoints** (all 4):
+   - `create_kb` - Added DI parameters + return type
+   - `delete_kb` - Added DI parameters + return type `Dict[str, str]`
+   - `list_knowledge_bases` - Added DI parameters + return type `KBListResponse`
+   - `check_kb_health` - Added DI parameters + return type `KBHealthResponse`
+4. **Refactored operations.py**:
+   - Converted all `@staticmethod` to instance methods
+   - Added `__init__(self): pass`
+   - Added singleton getter: `get_management_service()`
+
+### kb_query Module
+
+**Changes Applied:**
+1. **File Renaming**: `router.py` → `query_router.py`, etc.
+2. **Added DI Functions**:
+   - `get_multi_query_service_dep()`
+   - `get_query_service_dep()`
+3. **Updated Endpoints** (all 4):
+   - `query_legacy` - Added DI parameters + return type `QueryResponse`
+   - `query_chat` - Added DI parameters + return type `QueryResponse`
+   - `query_proposal` - Added DI parameters + return type `QueryResponse`
+   - `query_kb_manual` - Added DI parameters + return type `QueryResponse`
+4. **Refactored operations.py**:
+   - Converted all `@staticmethod` to instance methods
+   - Added `__init__(self): pass`
+   - Added singleton getter: `get_query_service()`
+
+### project_management Module
+
+**Changes Applied:**
+1. **File Renaming**: `router.py` → `project_router.py`, etc.
+2. **Already had DI**: Uses `Depends(get_db)` for database
+3. **Already called singleton**: All endpoints call `get_project_service()`
+4. **Already had return types**: All endpoints properly typed
+5. **Refactored operations.py**:
+   - Converted all 10 `@staticmethod` to instance methods
+   - Added `__init__(self): pass`
+   - Singleton getter `get_project_service()` already existed
+   - Updated imports: `.models` → `.project_models`
+
+### Consistency Achieved
+
+All 4 router modules now follow the **exact same pattern**:
+
+```
+routers/
+├── kb_ingestion/
+│   ├── __init__.py (exports router)
+│   ├── ingestion_router.py (FastAPI routes with DI)
+│   ├── ingestion_models.py (Pydantic models)
+│   └── ingestion_operations.py (Business logic + singleton)
+├── kb_management/
+│   ├── __init__.py (exports router)
+│   ├── management_router.py (FastAPI routes with DI)
+│   ├── management_models.py (Pydantic models)
+│   └── management_operations.py (Business logic + singleton)
+├── kb_query/
+│   ├── __init__.py (exports router)
+│   ├── query_router.py (FastAPI routes with DI)
+│   ├── query_models.py (Pydantic models)
+│   └── query_operations.py (Business logic + singleton)
+└── project_management/
+    ├── __init__.py (exports router)
+    ├── project_router.py (FastAPI routes with DI)
+    ├── project_models.py (Pydantic models)
+    └── project_operations.py (Business logic + singleton)
+```
+
+### Benefits of Full Refactoring
+
+1. **Navigation**: No more confusion with multiple `router.py` files in IDE tabs
+2. **Testability**: All services injectable and mockable
+3. **Maintainability**: Same pattern everywhere - learn once, apply everywhere
+4. **Type Safety**: Return types catch errors at development time
+5. **Single Responsibility**: Clear separation between routing and business logic
+6. **Flexibility**: Easy to add new dependencies or swap implementations
+
+### Verification
+
+✅ No errors in any router module  
+✅ All imports updated correctly  
+✅ All `__init__.py` files export `router`  
+✅ `main.py` imports still work  
+✅ Consistent patterns across all 4 modules  
+
+### Next Steps (Optional)
+
+1. Add unit tests leveraging DI pattern
+2. Add integration tests for full request/response cycle
+3. Verify OpenAPI docs show correct types
+4. Performance testing to ensure no regressions
+

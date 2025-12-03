@@ -3,6 +3,6 @@ KB Management Router Package
 Handles knowledge base listing and health monitoring.
 """
 
-from .router import router
+from .management_router import router
 
 __all__ = ['router']

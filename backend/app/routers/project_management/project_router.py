@@ -13,7 +13,7 @@ from datetime import datetime
 
 from app.database import get_db
 
-from .models import (
+from .project_models import (
     CreateProjectRequest,
     UpdateRequirementsRequest,
     ChatMessageRequest,
@@ -24,7 +24,7 @@ from .models import (
     MessagesResponse,
     ChatResponse
 )
-from .operations import get_project_service
+from .project_operations import get_project_service
 
 logger = logging.getLogger(__name__)
 
