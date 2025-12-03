@@ -10,38 +10,16 @@ from pydantic import BaseModel, Field
 
 class IngestionSettings(BaseModel):
     """Configuration for ingestion system - auto-loaded from JSON."""
-
-    # Paths
-    data_root: Path = Field(default=Path("data/knowledge_bases"))
     
     # Queue configuration
-    batch_size: int = Field(default=50)
-    dequeue_timeout: float = Field(default=0.1, description="seconds to wait when queue empty")
-    consumer_poll_interval: float = Field(default=0.1, description="seconds between dequeue attempts")
+    batch_size: int = Field(default=50, description="Number of items to dequeue per batch")
+    dequeue_timeout: float = Field(default=0.1, description="Seconds to wait when queue empty")
+    consumer_poll_interval: float = Field(default=0.1, description="Seconds between dequeue attempts")
     
     # Thread lifecycle
-    thread_join_timeout: float = Field(default=5.0, description="seconds to wait for thread exit")
-    shutdown_grace_period: float = Field(default=30.0, description="max seconds for graceful shutdown")
-    
-    # Retry policy
-    max_retries: int = Field(default=3)
-    retry_delay: float = Field(default=1.0, description="seconds between retries")
-    
-    # Persistence
-    persistence_backend: str = Field(default="local_disk", description="local_disk | azure_files | azure_blob")
-    state_file_name: str = Field(default="state.json")
-    
-    # Logging
-    log_level: str = Field(default="INFO")
-    enable_correlation_ids: bool = Field(default=True)
-    
-    # Metrics
-    enable_metrics: bool = Field(default=True)
-    metrics_backend: str = Field(default="prometheus", description="prometheus | otlp | none")
-    metrics_port: int = Field(default=9090)
+    thread_join_timeout: float = Field(default=5.0, description="Seconds to wait for thread exit")
 
     class Config:
-        # Allow arbitrary types (like Path)
         arbitrary_types_allowed = True
 
     @classmethod

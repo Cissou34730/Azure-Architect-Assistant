@@ -22,13 +22,10 @@ def temp_data_dir() -> Generator[Path, None, None]:
 def test_settings(temp_data_dir: Path) -> IngestionSettings:
     """Provide test settings with temp directory."""
     settings = IngestionSettings(
-        data_root=temp_data_dir,
         batch_size=10,
         dequeue_timeout=0.01,
         consumer_poll_interval=0.01,
         thread_join_timeout=2.0,
-        enable_correlation_ids=True,
-        enable_metrics=True,
     )
     set_settings(settings)
     return settings
