@@ -8,7 +8,7 @@ import os
 import json
 import logging
 import tempfile
-from typing import List, Any, Optional, Callable
+from typing import List, Any, Optional, Callable, Dict
 from pathlib import Path
 
 from llama_index.core import VectorStoreIndex, Settings, StorageContext, load_index_from_storage
