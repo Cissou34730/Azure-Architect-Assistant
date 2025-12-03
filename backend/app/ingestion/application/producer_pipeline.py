@@ -145,7 +145,7 @@ class ProducerPipeline:
                 self.phase_tracker.start_phase(IngestionPhase.LOADING)
                 self._persist_phase_tracker()
             
-            self._update_progress(IngestionPhase.LOADING, 0, \"Loading documents from source...\")
+            self._update_progress(IngestionPhase.LOADING, 0, "Loading documents from source...")
         
         try:
             for document_batch in self._load_documents_from_source(handler):
@@ -197,10 +197,21 @@ class ProducerPipeline:
                         self._persist_phase_tracker()
                     return
                 
-            # Complete CRAWLING phase
+            # Complete LOADING phase
             if self.phase_tracker:
                 self.phase_tracker.complete_phase(IngestionPhase.LOADING, len(self.all_documents))
                 self._persist_phase_tracker()
+        
+        except GeneratorExit:
+            logger.info(f"Generator closed at batch {self.batch_num}")
+        except asyncio.CancelledError:
+            logger.info(f"KB {self.kb_id} cancelled by system")
+            if self.phase_tracker:
+                current_phase = self.phase_tracker.get_current_phase()
+                if current_phase:
+                    self.phase_tracker.pause_phase(current_phase)
+                self._persist_phase_tracker()
+            raise
         
         # ===== PHASE 2: CHUNKING =====
         # Check if CHUNKING phase needs to run
