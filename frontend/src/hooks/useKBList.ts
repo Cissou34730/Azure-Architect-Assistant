@@ -27,7 +27,11 @@ export function useKBList() {
       setIsLoadingKBs(true);
       setError(null);
 
-      const response = await fetch("http://localhost:8000/api/kb/list");
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+        }/api/kb/list`
+      );
       if (!response.ok) {
         throw new Error(`Failed to fetch KB list: ${response.statusText}`);
       }
