@@ -399,9 +399,11 @@ class ConsumerPipeline:
     def _create_embedder(self):
         """Create embedder from runtime configuration."""
         kb_config = self._extract_kb_config()
+        defaults = get_kb_defaults()
+        merged = defaults.merge_with_kb_config(kb_config)
         
-        embedding_model = kb_config.get('embedding_model', 'text-embedding-3-small')
-        embedder_type = kb_config.get('embedder_type', 'openai')
+        embedding_model = merged['embedding_model']
+        embedder_type = merged['embedder_type']
         
         return EmbedderFactory.create_embedder(
             embedder_type=embedder_type,
@@ -411,6 +413,8 @@ class ConsumerPipeline:
     def _create_index_builder(self):
         """Create index builder from runtime configuration."""
         kb_config = self._extract_kb_config()
+        defaults = get_kb_defaults()
+        merged = defaults.merge_with_kb_config(kb_config)
         
         backend_root = Path(__file__).parent.parent.parent.parent
         if 'paths' in kb_config and 'index' in kb_config['paths']:
@@ -419,9 +423,9 @@ class ConsumerPipeline:
         else:
             storage_dir = str(backend_root / "data" / "knowledge_bases" / self.kb_id / "index")
         
-        embedding_model = kb_config.get('embedding_model', 'text-embedding-3-small')
-        generation_model = kb_config.get('generation_model', 'gpt-4o-mini')
-        index_type = kb_config.get('index_type', 'vector')
+        embedding_model = merged['embedding_model']
+        generation_model = merged['generation_model']
+        index_type = merged['index_type']
         
         return IndexBuilderFactory.create_builder(
             index_type=index_type,

@@ -138,7 +138,11 @@ class IngestionService:
                 self._cleanup_runtime(kb_id, runtime)
 
             # Extract config
-            source_type = kb_config.get("source_type", "website")
+            from app.ingestion.config.settings import get_kb_defaults
+            defaults = get_kb_defaults()
+            merged = defaults.merge_with_kb_config(kb_config)
+            
+            source_type = merged["source_type"]
             source_config = kb_config.get("source_config", {})
             priority = kb_config.get("priority", 0)
 

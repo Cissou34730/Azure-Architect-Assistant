@@ -37,16 +37,18 @@ class ProducerPipeline:
             kb_config: Knowledge base configuration
             state: IngestionState for progress tracking and cancellation
         """
-        self.kb_config = kb_config
+        # Merge KB config with defaults
+        defaults = get_kb_defaults()
+        self.kb_config = defaults.merge_with_kb_config(kb_config)
         self.state = state
-        self.kb_id = kb_config.get('id', kb_config.get('kb_id'))
-        self.source_type = kb_config.get('source_type', 'website')
-        self.source_config = kb_config.get('source_config', {})
+        self.kb_id = self.kb_config['id'] if 'id' in self.kb_config else self.kb_config['kb_id']
+        self.source_type = self.kb_config['source_type']
+        self.source_config = self.kb_config.get('source_config', {})
         
         # Configuration
-        self.chunk_size = kb_config.get('chunk_size', 1024)
-        self.chunk_overlap = kb_config.get('chunk_overlap', 200)
-        self.chunking_strategy = kb_config.get('chunking_strategy', 'semantic')
+        self.chunk_size = self.kb_config['chunk_size']
+        self.chunk_overlap = self.kb_config['chunk_overlap']
+        self.chunking_strategy = self.kb_config['chunking_strategy']
         
         # Metrics
         self.all_documents = []
