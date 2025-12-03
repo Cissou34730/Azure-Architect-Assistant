@@ -1,17 +1,18 @@
 """
 Vector Index Builder
-Builds vector indexes using LlamaIndex.
+Builds vector indexes from pre-embedded documents using LlamaIndex.
+Responsible ONLY for indexing - embedding is done separately.
 """
 
 import os
 import json
 import logging
 import tempfile
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Any, Optional, Callable
 from pathlib import Path
 
-from llama_index.core import Document, VectorStoreIndex, Settings
-from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.core import VectorStoreIndex, Settings, StorageContext, load_index_from_storage
+from llama_index.core import Document as LlamaDocument
 from llama_index.llms.openai import OpenAI
 
 from .builder_base import BaseIndexBuilder
@@ -22,7 +23,8 @@ logger = logging.getLogger(__name__)
 class VectorIndexBuilder(BaseIndexBuilder):
     """
     Vector index builder using LlamaIndex.
-    Creates vector embeddings and builds searchable index.
+    Builds searchable index from PRE-EMBEDDED documents.
+    Does NOT handle embedding generation - that's done by EmbedderFactory.
     """
     
     def __init__(
@@ -38,13 +40,12 @@ class VectorIndexBuilder(BaseIndexBuilder):
         Args:
             kb_id: Knowledge base identifier
             storage_dir: Directory for index storage
-            embedding_model: Model for embeddings
-            generation_model: Model for generation/LLM tasks
+            embedding_model: Model name (for metadata only)
+            generation_model: Model for LLM/generation tasks
         """
         super().__init__(kb_id, storage_dir, embedding_model, generation_model)
         
-        # Initialize LlamaIndex settings
-        Settings.embed_model = OpenAIEmbedding(model=embedding_model)
+        # Initialize LlamaIndex LLM only (embedding done separately)
         Settings.llm = OpenAI(model=generation_model, temperature=0.1)
         
         self.logger.info(f"VectorIndexBuilder ready KB={kb_id} storage={storage_dir}")
@@ -113,30 +114,35 @@ class VectorIndexBuilder(BaseIndexBuilder):
     
     def build_index(
         self,
-        documents: List[Dict[str, Any]],
+        embedded_documents: List[LlamaDocument],
         progress_callback: Optional[Callable] = None,
         state = None
     ) -> str:
         """
-        Build vector index from documents with incremental support.
-        Resumes from last indexed doc_id if checkpoint exists.
+        Build vector index from PRE-EMBEDDED documents.
+        Expects documents that already have embeddings generated.
         
         Args:
-            documents: List of documents with 'content' and 'metadata' keys
+            embedded_documents: List of LlamaIndex Documents WITH embeddings already set
             progress_callback: Optional callback(phase, progress, message, metrics)
             state: Optional IngestionState for cooperative pause/cancel checking
             
         Returns:
             Path to the created index
         """
-        from ..phases import IngestionPhase
-        from llama_index.core import StorageContext, load_index_from_storage
+        from app.ingestion.domain.phase_tracker import IngestionPhase
         
         self.logger.info(f"Index build start KB={self.kb_id}")
         
-        # Validate documents
-        if not self.validate_documents(documents):
-            raise ValueError("Document validation failed")
+        if not embedded_documents:
+            self.logger.warning("No documents provided for indexing")
+            return self.storage_dir
+        
+        # Validate that documents have embeddings
+        missing_embeddings = [i for i, doc in enumerate(embedded_documents) if not hasattr(doc, 'embedding') or doc.embedding is None]
+        if missing_embeddings:
+            self.logger.error(f"{len(missing_embeddings)} documents missing embeddings at indices: {missing_embeddings[:10]}")
+            raise ValueError(f"Documents must have embeddings set before indexing. Found {len(missing_embeddings)} without embeddings.")
         
         # Load state to see if we're resuming
         processing_state = self._load_state()
@@ -157,11 +163,10 @@ class VectorIndexBuilder(BaseIndexBuilder):
         
         # Filter documents to only process new ones
         if last_indexed_id > 0:
-            new_docs = [d for d in documents if d.get('metadata', {}).get('doc_id', 0) > last_indexed_id]
-            # Resuming document count log suppressed
+            new_docs = [d for d in embedded_documents if d.metadata.get('doc_id', 0) > last_indexed_id]
             documents_to_process = new_docs
         else:
-            documents_to_process = documents
+            documents_to_process = embedded_documents
         
         if not documents_to_process:
             self.logger.info("Index up to date (no new documents)")
@@ -169,50 +174,36 @@ class VectorIndexBuilder(BaseIndexBuilder):
         
         if progress_callback:
             progress_callback(
-                IngestionPhase.EMBEDDING,
+                IngestionPhase.INDEXING,
                 0,
-                "Converting documents...",
+                f"Building index from {len(documents_to_process)} documents...",
                 {'documents': len(documents_to_process)}
             )
         
-        # Convert to LlamaIndex documents
-        llama_docs = self._build_llama_documents(documents_to_process)
-        
-        if not llama_docs:
-            self.logger.warning("No valid documents to index")
-            return self.storage_dir
-        
-        # Conversion summary suppressed
-        
-        if progress_callback:
-            progress_callback(
-                IngestionPhase.EMBEDDING,
-                25,
-                f"Building index from {len(llama_docs)} documents...",
-                {'documents': len(llama_docs)}
-            )
-        
-        # Build or update index
-        # Embedding generation log suppressed
-        if progress_callback:
-            progress_callback(
-                IngestionPhase.EMBEDDING,
-                50,
-                "Generating embeddings...",
-                {}
-            )
+        # Build or update index from pre-embedded documents
+        self.logger.info(f"Indexing {len(documents_to_process)} pre-embedded documents")
         
         if index is None:
-            # Build new index - pause/cancel handled at pipeline level (batch boundaries)
-            index = VectorStoreIndex.from_documents(
-                llama_docs,
-                show_progress=True
-            )
+            # Build new index from pre-embedded documents
+            if progress_callback:
+                progress_callback(
+                    IngestionPhase.INDEXING,
+                    25,
+                    "Creating new vector index...",
+                    {}
+                )
+            index = VectorStoreIndex(documents_to_process, show_progress=True)
         else:
-            # Append to existing index - pause/cancel handled at pipeline level
-            for doc in llama_docs:
+            # Append to existing index
+            if progress_callback:
+                progress_callback(
+                    IngestionPhase.INDEXING,
+                    25,
+                    f"Appending {len(documents_to_process)} documents to existing index...",
+                    {}
+                )
+            for doc in documents_to_process:
                 index.insert(doc)
-            # Append summary suppressed
         
         if progress_callback:
             progress_callback(
@@ -226,68 +217,31 @@ class VectorIndexBuilder(BaseIndexBuilder):
         os.makedirs(self.storage_dir, exist_ok=True)
         index.storage_context.persist(persist_dir=self.storage_dir)
         
-        # Persist log suppressed
-        
         # Update state with newly indexed doc_ids
         if documents_to_process:
-            max_doc_id = max(d.get('metadata', {}).get('doc_id', 0) for d in documents_to_process)
-            new_chunks_total = chunks_total + len(llama_docs)
+            max_doc_id = max(d.metadata.get('doc_id', 0) for d in documents_to_process)
+            new_chunks_total = chunks_total + len(documents_to_process)
             self._save_state(max_doc_id, new_chunks_total, batches_processed + 1)
         
         # Save metadata
-        self._save_index_metadata(len(documents), len(llama_docs))
+        self._save_index_metadata(len(embedded_documents), len(documents_to_process))
         
         if progress_callback:
             progress_callback(
                 IngestionPhase.INDEXING,
                 100,
-                f"Index complete: {len(documents)} documents",
-                {'documents': len(documents)}
+                f"Index complete: {len(documents_to_process)} documents indexed",
+                {'documents': len(documents_to_process)}
             )
         
         self.logger.info("=" * 70)
         self.logger.info("Vector index build complete!")
-        self.logger.info(f"  Documents: {len(documents)}")
+        self.logger.info(f"  Documents indexed: {len(documents_to_process)}")
         self.logger.info(f"  Storage: {self.storage_dir}")
         self.logger.info("=" * 70)
         
         return self.storage_dir
     
-    def _build_llama_documents(self, documents: List[Dict[str, Any]]) -> List[Document]:
-        """
-        Convert documents to LlamaIndex Document objects.
-        
-        Args:
-            documents: List of documents with 'content' and 'metadata' keys
-            
-        Returns:
-            List of LlamaIndex Documents
-        """
-        llama_docs = []
-        
-        for i, doc in enumerate(documents):
-            content = doc.get('content', '')
-            metadata = doc.get('metadata', {})
-            
-            if not content:
-                self.logger.warning(f"Skipping document {i}: empty content")
-                continue
-            
-            # Create document ID
-            doc_id = metadata.get('url') or metadata.get('file_path') or f"doc_{i}"
-            if len(doc_id) > 200:  # Truncate long IDs
-                doc_id = doc_id[:200]
-            
-            llama_doc = Document(
-                text=content,
-                metadata=metadata,
-                id_=doc_id
-            )
-            
-            llama_docs.append(llama_doc)
-        
-        # Detailed creation count suppressed
-        return llama_docs
     
     def _save_index_metadata(self, doc_count: int, indexed_count: int):
         """Save index metadata"""
@@ -304,5 +258,4 @@ class VectorIndexBuilder(BaseIndexBuilder):
         
         with open(metadata_file, 'w', encoding='utf-8') as f:
             json.dump(metadata, f, indent=2)
-        
-        # Metadata save log suppressed
+

@@ -12,8 +12,9 @@ from datetime import datetime
 from app.ingestion.domain.models import JobRuntime
 from app.ingestion.infrastructure.repository import DatabaseRepository
 from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
+from app.ingestion.infrastructure.embedding import EmbedderFactory
 from app.ingestion.infrastructure.indexing import IndexBuilderFactory
-from app.ingestion.domain.phase_tracker import PhaseTracker,  PhaseStatus
+from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase, PhaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,8 @@ class ConsumerPipeline:
         self.repository = DatabaseRepository()
         self.persistence = LocalDiskPersistenceStore()
         
-        # Build index builder
+        # Build embedder and index builder (separate responsibilities)
+        self.embedder = self._create_embedder()
         self.index_builder = self._create_index_builder()
         
         # Processing state
@@ -238,9 +240,10 @@ class ConsumerPipeline:
         return docs, ids
     
     def _index_documents(self, docs: List[Dict[str, Any]], ids: List[int]) -> None:
-        """Index documents and commit results."""
+        """Embed and index documents (two separate phases)."""
         try:
-            # Check if we need to transition to INDEXING phase
+            # === PHASE 1: EMBEDDING ===
+            # Check if we need to start EMBEDDING phase
             if self.phase_tracker:
                 queue_stats = self.repository.get_queue_stats(self.job_id)
                 embedding_done = queue_stats['done']
@@ -257,39 +260,69 @@ class ConsumerPipeline:
                             items_total=total_items
                         )
             
-            # Progress callback (could update metrics here)
-            def progress_cb(_phase, _prog, _msg, _metrics=None):
-                pass
+            # Progress callback for embedding
+            def embedding_progress_cb(phase, prog, msg, metrics=None):
+                if self.phase_tracker:
+                    self.phase_tracker.update_phase_progress(
+                        phase,
+                        prog,
+                        message=msg
+                    )
             
-            # Build index
-            self.index_builder.build_index(docs, progress_cb, state=self.state)
+            # Generate embeddings
+            logger.info(f"{self.log_prefix} Generating embeddings for {len(docs)} documents")
+            embedded_docs = self.embedder.embed_documents(docs, progress_callback=embedding_progress_cb)
             
-            # Track indexing progress
-            self.total_indexed += len(docs)
+            # Track embedding progress
+            self.total_embedded += len(embedded_docs)
             
-            # Start INDEXING phase if embedding is done
+            # Check if embedding phase is complete
             if self.phase_tracker:
                 queue_stats = self.repository.get_queue_stats(self.job_id)
                 all_embedded = queue_stats['pending'] == 0 and queue_stats['processing'] == 0
                 
                 if all_embedded and not self.phase_tracker.is_phase_completed(IngestionPhase.EMBEDDING):
                     self.phase_tracker.complete_phase(IngestionPhase.EMBEDDING, queue_stats['done'])
-                    self.phase_tracker.start_phase(IngestionPhase.INDEXING)
                     self._persist_phase_tracker()
-                
-                # Update INDEXING phase progress
+            
+            # === PHASE 2: INDEXING ===
+            # Start INDEXING phase if embedding is done
+            if self.phase_tracker:
                 if self.phase_tracker.is_phase_completed(IngestionPhase.EMBEDDING):
-                    total_to_index = queue_stats['done']
-                    if total_to_index > 0:
-                        index_progress = int((self.total_indexed / total_to_index) * 100)
-                        self.phase_tracker.update_phase_progress(
-                            IngestionPhase.INDEXING,
-                            index_progress,
-                            items_processed=self.total_indexed,
-                            items_total=total_to_index
-                        )
-                        if index_progress % 10 == 0:  # Persist every 10%
-                            self._persist_phase_tracker()
+                    if self.phase_tracker.should_run_phase(IngestionPhase.INDEXING):
+                        self.phase_tracker.start_phase(IngestionPhase.INDEXING)
+                        self._persist_phase_tracker()
+            
+            # Progress callback for indexing
+            def indexing_progress_cb(phase, prog, msg, metrics=None):
+                if self.phase_tracker:
+                    self.phase_tracker.update_phase_progress(
+                        phase,
+                        prog,
+                        message=msg
+                    )
+            
+            # Build index from pre-embedded documents
+            logger.info(f"{self.log_prefix} Indexing {len(embedded_docs)} embedded documents")
+            self.index_builder.build_index(embedded_docs, progress_callback=indexing_progress_cb, state=self.state)
+            
+            # Track indexing progress
+            self.total_indexed += len(embedded_docs)
+            
+            # Update INDEXING phase progress
+            if self.phase_tracker and self.phase_tracker.is_phase_completed(IngestionPhase.EMBEDDING):
+                queue_stats = self.repository.get_queue_stats(self.job_id)
+                total_to_index = queue_stats['done']
+                if total_to_index > 0:
+                    index_progress = int((self.total_indexed / total_to_index) * 100)
+                    self.phase_tracker.update_phase_progress(
+                        IngestionPhase.INDEXING,
+                        index_progress,
+                        items_processed=self.total_indexed,
+                        items_total=total_to_index
+                    )
+                    if index_progress % 10 == 0:  # Persist every 10%
+                        self._persist_phase_tracker()
             
             # Commit success
             self.repository.commit_batch_success(self.job_id, ids)
@@ -298,7 +331,7 @@ class ConsumerPipeline:
             self._update_metrics()
             
         except Exception as exc:
-            logger.error(f"{self.log_prefix} Indexing error: {exc}", exc_info=True)
+            logger.error(f"{self.log_prefix} Embed/Index error: {exc}", exc_info=True)
             
             # Mark phase as failed
             if self.phase_tracker:
@@ -359,6 +392,19 @@ class ConsumerPipeline:
             logger.info(f"{self.log_prefix} Job marked as completed in DB")
         except Exception as e:
             logger.error(f"{self.log_prefix} Failed to update job status: {e}")
+    
+    
+    def _create_embedder(self):
+        """Create embedder from runtime configuration."""
+        kb_config = self._extract_kb_config()
+        
+        embedding_model = kb_config.get('embedding_model', 'text-embedding-3-small')
+        embedder_type = kb_config.get('embedder_type', 'openai')
+        
+        return EmbedderFactory.create_embedder(
+            embedder_type=embedder_type,
+            model_name=embedding_model,
+        )
     
     def _create_index_builder(self):
         """Create index builder from runtime configuration."""
