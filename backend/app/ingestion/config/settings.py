@@ -46,7 +46,6 @@ class KBDefaults(BaseModel):
     embedder_type: str = Field(description="Type of embedder (openai, azure, etc.)")
     generation_model: str = Field(description="Model name for text generation")
     index_type: str = Field(description="Type of index (vector, summary, etc.)")
-    source_type: str = Field(description="Default source type (website, file, etc.)")
 
     @classmethod
     def from_json(cls, config_path: Optional[Path] = None) -> "KBDefaults":

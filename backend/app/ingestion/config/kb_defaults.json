@@ -5,6 +5,5 @@
   "embedding_model": "text-embedding-3-small",
   "embedder_type": "openai",
   "generation_model": "gpt-4o-mini",
-  "index_type": "vector",
-  "source_type": "website"
+  "index_type": "vector"
 }
