@@ -135,12 +135,17 @@ class ProducerPipeline:
     
     async def _process_batches(self, handler, chunker):
         """Process document batches from source."""
-        # Start CRAWLING phase
-        if self.phase_tracker and not self.phase_tracker.is_phase_completed(TrackerPhase.CRAWLING):
-            self.phase_tracker.start_phase(TrackerPhase.CRAWLING)
-            self._persist_phase_tracker()
-        
-        self._update_progress(IngestionPhase.CRAWLING, 0, "Loading documents from source...")
+        # ===== PHASE 1: LOADING (formerly CRAWLING) =====
+        # Check if LOADING phase needs to run
+        if self.phase_tracker and not self.phase_tracker.should_run_phase(TrackerPhase.CRAWLING):
+            logger.info("LOADING phase already complete, skipping document loading")
+        else:
+            # Start LOADING phase
+            if self.phase_tracker:
+                self.phase_tracker.start_phase(TrackerPhase.CRAWLING)
+                self._persist_phase_tracker()
+            
+            self._update_progress(IngestionPhase.CRAWLING, 0, \"Loading documents from source...\")
         
         try:
             for document_batch in self._load_documents_from_source(handler):
@@ -196,14 +201,20 @@ class ProducerPipeline:
             if self.phase_tracker:
                 self.phase_tracker.complete_phase(TrackerPhase.CRAWLING, len(self.all_documents))
                 self._persist_phase_tracker()
-            
-            # Start CLEANING phase
-            if self.phase_tracker:
-                self.phase_tracker.start_phase(TrackerPhase.CLEANING)
-                self._persist_phase_tracker()
-            
-            # Chunk all documents
-            logger.info(f"Chunking {len(self.all_documents)} documents...")
+        
+        # ===== PHASE 2: CHUNKING (CLEANING + CHUNKING) =====
+        # Check if CHUNKING phase needs to run
+        if self.phase_tracker and not self.phase_tracker.should_run_phase(TrackerPhase.CHUNKING):
+            logger.info("CHUNKING phase already complete, skipping")
+            return
+        
+        # Start CLEANING phase (logical, happens inline with chunking)
+        if self.phase_tracker and self.phase_tracker.should_run_phase(TrackerPhase.CLEANING):
+            self.phase_tracker.start_phase(TrackerPhase.CLEANING)
+            self._persist_phase_tracker()
+        
+        # Chunk all documents
+        logger.info(f\"Chunking {len(self.all_documents)} documents...\")
             self._update_progress(
                 IngestionPhase.CLEANING,
                 40,
@@ -272,8 +283,14 @@ class ProducerPipeline:
             raise
     
     async def _verify_completion(self):
-        """Verify that work was done."""
+        """Verify that work was done (or already complete)."""
+        # If we have no documents but phases show as complete, that's OK (resume scenario)
         if not self.all_documents:
+            if self.phase_tracker:
+                if self.phase_tracker.is_phase_completed(TrackerPhase.CRAWLING):
+                    logger.info("No documents loaded but LOADING phase complete (resume scenario)")
+                    return
+            # Only fail if we truly didn't do any work
             raise ValueError("No documents loaded from source")
     
     def _load_documents_from_source(self, handler):

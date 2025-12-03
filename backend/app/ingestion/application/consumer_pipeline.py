@@ -68,12 +68,10 @@ class ConsumerPipeline:
         """
         logger.info(f"{self.log_prefix} Starting consumer pipeline")
         
+        # Don't start EMBEDDING phase immediately - wait for queue items first
+        embedding_phase_started = False
+        
         try:
-            # Start EMBEDDING phase if not completed
-            if self.phase_tracker and not self.phase_tracker.is_phase_completed(TrackerPhase.EMBEDDING):
-                self.phase_tracker.start_phase(TrackerPhase.EMBEDDING)
-                self._persist_phase_tracker()
-            
             # Main processing loop
             while True:
                 # Check for immediate cancellation
@@ -87,6 +85,24 @@ class ConsumerPipeline:
                 
                 # Check if producer finished
                 producer_stopped = self._is_producer_stopped()
+                
+                # Start EMBEDDING phase when first batch arrives (lazy start)
+                if not embedding_phase_started and self.phase_tracker:
+                    if self.phase_tracker.should_run_phase(TrackerPhase.EMBEDDING):
+                        # Check if queue has items before starting phase
+                        queue_stats = self.repository.get_queue_stats(self.job_id)
+                        if queue_stats['pending'] > 0 or queue_stats['processing'] > 0:
+                            logger.info(f"{self.log_prefix} Queue has items, starting EMBEDDING phase")
+                            self.phase_tracker.start_phase(TrackerPhase.EMBEDDING)
+                            self._persist_phase_tracker()
+                            embedding_phase_started = True
+                        elif producer_stopped:
+                            # Producer done but no items in queue
+                            logger.info(f"{self.log_prefix} Producer finished with empty queue, checking phases")
+                            if self.phase_tracker.is_phase_completed(TrackerPhase.CHUNKING):
+                                # All phases complete, nothing to do
+                                logger.info(f"{self.log_prefix} All producer phases complete, no items to process")
+                                break
                 
                 # Dequeue and process batch
                 if not self._process_next_batch(producer_stopped):

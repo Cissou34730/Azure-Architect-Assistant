@@ -81,15 +81,26 @@ class PhaseTracker:
             logger.info(f"[PhaseTracker|Job={self.job_id}] Loaded phase data from database")
     
     def start_phase(self, phase: IngestionPhase) -> None:
-        """Mark a phase as started."""
+        """Mark a phase as started (idempotent - no-op if already running/completed)."""
         phase_key = phase.value
+        current_status = self.phases[phase_key]["status"]
         
-        # Validate phase order
-        if not self._can_start_phase(phase):
-            prev_phase = self._get_previous_phase(phase)
-            raise ValueError(
-                f"Cannot start {phase_key}: previous phase {prev_phase.value if prev_phase else 'N/A'} not completed"
-            )
+        # Already running or completed? Skip
+        if current_status == PhaseStatus.RUNNING.value:
+            logger.debug(f"[PhaseTracker|Job={self.job_id}] Phase {phase_key} already RUNNING, skipping start")
+            return
+        
+        if current_status == PhaseStatus.COMPLETED.value:
+            logger.debug(f"[PhaseTracker|Job={self.job_id}] Phase {phase_key} already COMPLETED, skipping start")
+            return
+        
+        # Validate phase order only if starting fresh (PENDING or PAUSED)
+        if current_status in [PhaseStatus.PENDING.value, PhaseStatus.PAUSED.value]:
+            if not self._can_start_phase(phase):
+                prev_phase = self._get_previous_phase(phase)
+                raise ValueError(
+                    f"Cannot start {phase_key}: previous phase {prev_phase.value if prev_phase else 'N/A'} not completed"
+                )
         
         self.phases[phase_key]["status"] = PhaseStatus.RUNNING.value
         self.phases[phase_key]["started_at"] = datetime.utcnow().isoformat()
@@ -261,3 +272,9 @@ class PhaseTracker:
             if phase_data["status"] == PhaseStatus.FAILED.value:
                 errors[phase_key] = phase_data.get("error", "Unknown error")
         return errors
+    
+    def should_run_phase(self, phase: IngestionPhase) -> bool:
+        """Check if a phase needs to run (not completed or failed)."""
+        phase_key = phase.value
+        status = self.phases[phase_key]["status"]
+        return status not in [PhaseStatus.COMPLETED.value, PhaseStatus.FAILED.value]
