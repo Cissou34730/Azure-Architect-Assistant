@@ -3,11 +3,13 @@ FastAPI Router for KB Ingestion Endpoints
 Clean routing layer - business logic delegated to operations.py
 """
 
-from fastapi import APIRouter, HTTPException
+from typing import Dict, Any, Optional
+from fastapi import APIRouter, HTTPException, Depends
 import logging
 
 from app.ingestion.application.ingestion_service import IngestionService
 from app.service_registry import get_kb_manager
+from app.kb.manager import KBManager
 
 from .models import (
     StartIngestionRequest,
@@ -15,7 +17,7 @@ from .models import (
     JobStatusResponse,
     JobListResponse
 )
-from .operations import get_ingestion_service
+from .operations import KBIngestionService, get_ingestion_service
 
 logger = logging.getLogger(__name__)
 
@@ -23,23 +25,45 @@ router = APIRouter(prefix="/api/ingestion", tags=["kb-ingestion"])
 
 
 # ============================================================================
+# Dependency Injection
+# ============================================================================
+
+def get_kb_manager_dep() -> KBManager:
+    """Dependency for KB Manager - allows mocking in tests"""
+    return get_kb_manager()
+
+
+def get_ingestion_service_dep() -> IngestionService:
+    """Dependency for Ingestion Service - allows mocking in tests"""
+    return IngestionService.instance()
+
+
+def get_operations_service_dep() -> KBIngestionService:
+    """Dependency for Operations Service - allows mocking in tests"""
+    return get_ingestion_service()
+
+
+# ============================================================================
 # Ingestion Job Endpoints
 # ============================================================================
 
 @router.post("/kb/{kb_id}/start", response_model=StartIngestionResponse)
-async def start_ingestion(kb_id: str):
+async def start_ingestion(
+    kb_id: str,
+    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    ingest_service: IngestionService = Depends(get_ingestion_service_dep),
+    operations: KBIngestionService = Depends(get_operations_service_dep)
+) -> StartIngestionResponse:
     """Start ingestion for a knowledge base"""
     try:
-        service = get_ingestion_service()
-        result = service.start_ingestion(kb_id)
+        # Validate and get orchestration result
+        result = operations.start_ingestion(kb_id)
         
-        kb_manager = get_kb_manager()
+        # Get KB configuration
         kb_config = kb_manager.get_kb_config(kb_id)
         
-        # Start ingestion using asyncio-based service (KB-centric)
-        ingest_service = IngestionService.instance()
-        # Pass only kb_config to pipeline
-        await ingest_service.start(kb_id, service.run_ingestion_pipeline, kb_config)
+        # Start ingestion
+        await ingest_service.start(kb_id, kb_config)
         
         return StartIngestionResponse(**result)
         
@@ -51,16 +75,18 @@ async def start_ingestion(kb_id: str):
 
 
 @router.get("/kb/{kb_id}/status", response_model=JobStatusResponse)
-async def get_kb_status(kb_id: str):
+async def get_kb_status(
+    kb_id: str,
+    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
+) -> JobStatusResponse:
     """Get ingestion status for a KB"""
     try:
         # Check if KB exists
-        kb_manager = get_kb_manager()
         if not kb_manager.kb_exists(kb_id):
             raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
         
         # Get state from IngestionService
-        ingest_service = IngestionService.instance()
         state = ingest_service.status(kb_id)
         
         if state:
@@ -126,11 +152,12 @@ async def get_kb_status(kb_id: str):
 
 
 @router.post("/kb/{kb_id}/cancel")
-async def cancel_ingestion(kb_id: str):
+async def cancel_ingestion(
+    kb_id: str,
+    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
+) -> Dict[str, str]:
     """Cancel the running ingestion job for a knowledge base"""
     try:
-        # Cancel via KB-centric ingestion service
-        ingest_service = IngestionService.instance()
         success = await ingest_service.cancel(kb_id)
         if not success:
             raise HTTPException(status_code=404, detail=f"No active ingestion for KB '{kb_id}'")
@@ -145,10 +172,12 @@ async def cancel_ingestion(kb_id: str):
 
 
 @router.post("/kb/{kb_id}/pause")
-async def pause_ingestion(kb_id: str):
+async def pause_ingestion(
+    kb_id: str,
+    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
+) -> Dict[str, str]:
     """Pause the running ingestion job for a knowledge base"""
     try:
-        ingest_service = IngestionService.instance()
         success = await ingest_service.pause(kb_id)
         if not success:
             raise HTTPException(status_code=404, detail=f"No running ingestion for KB '{kb_id}'")
@@ -163,20 +192,21 @@ async def pause_ingestion(kb_id: str):
 
 
 @router.post("/kb/{kb_id}/resume")
-async def resume_ingestion(kb_id: str):
+async def resume_ingestion(
+    kb_id: str,
+    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
+) -> Dict[str, str]:
     """Resume a paused ingestion job for a knowledge base"""
     try:
         logger.info(f"[resume_endpoint] KB {kb_id}: Resume endpoint called")
-        ingest_service = IngestionService.instance()
         
-        service = get_ingestion_service()
-        kb_manager = get_kb_manager()
         logger.info(f"[resume_endpoint] KB {kb_id}: Checking if KB exists")
         kb_config = kb_manager.get_kb_config(kb_id)
         logger.info(f"[resume_endpoint] KB {kb_id}: KB config retrieved, calling resume")
         
-        # Pass only kb_config to resume
-        success = await ingest_service.resume(kb_id, service.run_ingestion_pipeline, kb_config)
+        # Resume with kb_config only
+        success = await ingest_service.resume(kb_id, kb_config)
         logger.info(f"[resume_endpoint] KB {kb_id}: resume returned {success}")
         if not success:
             logger.error(f"[resume_endpoint] KB {kb_id}: resume returned False")
@@ -192,10 +222,13 @@ async def resume_ingestion(kb_id: str):
 
 
 @router.get("/jobs", response_model=JobListResponse)
-async def list_jobs(kb_id: str = None, limit: int = 50):
+async def list_jobs(
+    kb_id: Optional[str] = None,
+    limit: int = 50,
+    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
+) -> JobListResponse:
     """List all ingestion jobs, optionally filtered by KB"""
     try:
-        ingest_service = IngestionService.instance()
         states = ingest_service.list_kb_states()
         
         # Filter by kb_id if specified

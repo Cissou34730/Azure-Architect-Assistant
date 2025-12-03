@@ -6,7 +6,7 @@ import asyncio
 import logging
 import threading
 from datetime import datetime
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from app.ingestion.domain.models import IngestionState, JobRuntime
 from app.ingestion.domain.enums import JobStatus, transition_or_raise, StateTransitionError
@@ -90,27 +90,39 @@ class IngestionService:
     async def start(
         self,
         kb_id: str,
-        run_callable: Callable[..., Any],
-        *args: Any,
-        **kwargs: Any,
+        kb_config: Dict[str, Any],
     ) -> IngestionState:
-        """Start fresh ingestion for a knowledge base (first run)."""
+        """
+        Start fresh ingestion for a knowledge base (first run).
+        
+        Args:
+            kb_id: Knowledge base identifier
+            kb_config: KB configuration dict
+            
+        Returns:
+            IngestionState of the started job
+        """
         return await asyncio.to_thread(
             self._start_sync,
             kb_id,
-            run_callable,
-            args,
-            kwargs,
+            kb_config,
         )
 
     def _start_sync(
         self,
         kb_id: str,
-        run_callable: Callable[..., Any],
-        args: Tuple[Any, ...],
-        kwargs: Dict[str, Any],
+        kb_config: Dict[str, Any],
     ) -> IngestionState:
-        """Start fresh ingestion (first run)."""
+        """
+        Start fresh ingestion (first run).
+        
+        Args:
+            kb_id: Knowledge base identifier
+            kb_config: KB configuration dict
+            
+        Returns:
+            IngestionState of the started job
+        """
         logger.info(f"[IngestionService] KB {kb_id}: Starting fresh ingestion")
         
         with self._lock:
@@ -124,11 +136,10 @@ class IngestionService:
                 logger.warning(f"[IngestionService] KB {kb_id}: Cleaning up stale runtime")
                 self._cleanup_runtime(kb_id, runtime)
 
-            # Extract config from args
-            kb_config = self._extract_kb_config(args)
-            source_type = kb_config.get("source_type", "website") if kb_config else "website"
-            source_config = kb_config.get("source_config", {}) if kb_config else {}
-            priority = kb_config.get("priority", 0) if kb_config else 0
+            # Extract config
+            source_type = kb_config.get("source_type", "website")
+            source_config = kb_config.get("source_config", {})
+            priority = kb_config.get("priority", 0)
 
             # Create fresh state
             logger.info(f"[IngestionService] KB {kb_id}: Creating fresh state")
@@ -149,33 +160,45 @@ class IngestionService:
             logger.info(f"[IngestionService] KB {kb_id}: Created job_id={job_id}")
             state.job_id = job_id
 
-            # Create and start threads
-            return self._create_and_start_threads(kb_id, job_id, state, run_callable, args, kwargs)
+            # Create and start threads with kb_config
+            return self._create_and_start_threads(kb_id, job_id, state, kb_config)
 
     async def resume(
         self,
         kb_id: str,
-        run_callable: Callable[..., Any],
-        *args: Any,
-        **kwargs: Any,
+        kb_config: Dict[str, Any],
     ) -> bool:
-        """Resume paused ingestion from checkpoint."""
+        """
+        Resume paused ingestion from checkpoint.
+        
+        Args:
+            kb_id: Knowledge base identifier
+            kb_config: KB configuration dict
+            
+        Returns:
+            True if resume was successful, False otherwise
+        """
         return await asyncio.to_thread(
             self._resume_sync,
             kb_id,
-            run_callable,
-            args,
-            kwargs,
+            kb_config,
         )
 
     def _resume_sync(
         self,
         kb_id: str,
-        run_callable: Callable[..., Any],
-        args: Tuple[Any, ...],
-        kwargs: Dict[str, Any],
+        kb_config: Dict[str, Any],
     ) -> bool:
-        """Resume ingestion from checkpoint."""
+        """
+        Resume ingestion from checkpoint.
+        
+        Args:
+            kb_id: Knowledge base identifier
+            kb_config: KB configuration dict
+            
+        Returns:
+            True if resume was successful, False otherwise
+        """
         logger.info(f"[IngestionService] KB {kb_id}: Resuming from checkpoint")
         
         # Check if already running
@@ -223,8 +246,8 @@ class IngestionService:
                 logger.error(f"[IngestionService] KB {kb_id}: No job_id in checkpoint")
                 return False
             
-            # Create and start threads
-            new_state = self._create_and_start_threads(kb_id, job_id, state, run_callable, args, kwargs)
+            # Create and start threads with kb_config
+            new_state = self._create_and_start_threads(kb_id, job_id, state, kb_config)
             return new_state is not None
 
     async def pause(self, kb_id: str) -> bool:
@@ -366,22 +389,28 @@ class IngestionService:
         kb_id: str,
         job_id: str,
         state: IngestionState,
-        run_callable: Callable[..., Any],
-        args: Tuple[Any, ...],
-        kwargs: Dict[str, Any],
+        kb_config: Dict[str, Any],
     ) -> IngestionState:
-        """Create runtime and start threads."""
-        # Create runtime via lifecycle manager
-        producer_kwargs = dict(kwargs)
-        producer_kwargs.setdefault("state", state)
+        """
+        Create runtime and start threads.
         
+        Args:
+            kb_id: Knowledge base identifier
+            job_id: Job identifier
+            state: IngestionState
+            kb_config: KB configuration dict
+            
+        Returns:
+            IngestionState with updated runtime info
+        """
+        # Create runtime via lifecycle manager
         runtime = self.lifecycle.create_runtime(
             job_id=job_id,
             kb_id=kb_id,
             state=state,
-            producer_target=run_callable,
-            producer_args=args,
-            producer_kwargs=producer_kwargs,
+            producer_target=None,  # Not used - workers know what to do
+            producer_args=(kb_config,),
+            producer_kwargs={"state": state},
         )
 
         # Register runtime
@@ -406,9 +435,3 @@ class IngestionService:
             del self._runtimes_by_kb[kb_id]
         if runtime.job_id in self._runtimes_by_job:
             del self._runtimes_by_job[runtime.job_id]
-
-    def _extract_kb_config(self, args: Tuple[Any, ...]) -> Optional[Dict[str, Any]]:
-        """Extract KB config from args (first arg should be kb_config dict)."""
-        if args and isinstance(args[0], dict):
-            return args[0]
-        return None
