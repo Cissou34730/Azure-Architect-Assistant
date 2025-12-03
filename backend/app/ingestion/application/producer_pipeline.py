@@ -282,19 +282,6 @@ class ProducerPipeline:
                 persistence = create_local_disk_persistence_store()
                 persistence.save(self.state)
                     
-        except GeneratorExit:
-            logger.info(f"Generator closed at batch {self.batch_num}")
-        except asyncio.CancelledError:
-            logger.info(f"KB {self.kb_id} cancelled by system")
-            if self.state:
-                self.state.status = "cancelled"
-            if self.phase_tracker:
-                current_phase = self.phase_tracker.get_current_phase()
-                if current_phase:
-                    self.phase_tracker.cancel_phase(current_phase)
-                self._persist_phase_tracker()
-            raise
-    
     async def _verify_completion(self):
         """Verify that work was done (or already complete)."""
         # If we have no documents but phases show as complete, that's OK (resume scenario)
