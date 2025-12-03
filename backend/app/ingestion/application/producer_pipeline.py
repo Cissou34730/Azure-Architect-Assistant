@@ -37,16 +37,18 @@ class ProducerPipeline:
             kb_config: Knowledge base configuration
             state: IngestionState for progress tracking and cancellation
         """
-        self.kb_config = kb_config
+        # Merge KB config with defaults
+        defaults = get_kb_defaults()
+        self.kb_config = defaults.merge_with_kb_config(kb_config)
         self.state = state
-        self.kb_id = kb_config.get('id', kb_config.get('kb_id'))
-        self.source_type = kb_config.get('source_type', 'website')
-        self.source_config = kb_config.get('source_config', {})
+        self.kb_id = self.kb_config['id'] if 'id' in self.kb_config else self.kb_config['kb_id']
+        self.source_type = self.kb_config['source_type']
+        self.source_config = self.kb_config.get('source_config', {})
         
         # Configuration
-        self.chunk_size = kb_config.get('chunk_size', 1024)
-        self.chunk_overlap = kb_config.get('chunk_overlap', 200)
-        self.chunking_strategy = kb_config.get('chunking_strategy', 'semantic')
+        self.chunk_size = self.kb_config['chunk_size']
+        self.chunk_overlap = self.kb_config['chunk_overlap']
+        self.chunking_strategy = self.kb_config['chunking_strategy']
         
         # Metrics
         self.all_documents = []
@@ -120,7 +122,8 @@ class ProducerPipeline:
         except Exception as e:
             logger.error(f"Producer pipeline failed for KB {self.kb_id}: {e}", exc_info=True)
             if self.state:
-                self.state.status = "failed"
+                from app.ingestion.domain.enums import JobStatus
+                self.state.status = JobStatus.FAILED.value
                 self.state.error = str(e)
             
             # Mark current phase as failed
@@ -144,7 +147,7 @@ class ProducerPipeline:
                 self.phase_tracker.start_phase(IngestionPhase.LOADING)
                 self._persist_phase_tracker()
             
-            self._update_progress(IngestionPhase.LOADING, 0, \"Loading documents from source...\")
+            self._update_progress(IngestionPhase.LOADING, 0, "Loading documents from source...")
         
         try:
             for document_batch in self._load_documents_from_source(handler):
@@ -196,10 +199,21 @@ class ProducerPipeline:
                         self._persist_phase_tracker()
                     return
                 
-            # Complete CRAWLING phase
+            # Complete LOADING phase
             if self.phase_tracker:
                 self.phase_tracker.complete_phase(IngestionPhase.LOADING, len(self.all_documents))
                 self._persist_phase_tracker()
+        
+        except GeneratorExit:
+            logger.info(f"Generator closed at batch {self.batch_num}")
+        except asyncio.CancelledError:
+            logger.info(f"KB {self.kb_id} cancelled by system")
+            if self.phase_tracker:
+                current_phase = self.phase_tracker.get_current_phase()
+                if current_phase:
+                    self.phase_tracker.pause_phase(current_phase)
+                self._persist_phase_tracker()
+            raise
         
         # ===== PHASE 2: CHUNKING =====
         # Check if CHUNKING phase needs to run

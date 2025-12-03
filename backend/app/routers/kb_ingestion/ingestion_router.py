@@ -117,6 +117,23 @@ async def get_kb_status(
                 adjusted_message = f"Ingestion incomplete: {queue_stats['pending']} chunks pending. Click Resume to continue."
                 logger.info(f"KB {kb_id}: Failed job has {queue_stats['pending']} pending chunks - treating as paused/resumable")
             
+            # Convert phase_status dict to PhaseDetail list
+            phase_details = None
+            if state.phase_status:
+                from app.routers.kb_ingestion.ingestion_models import PhaseDetail
+                phase_details = []
+                for phase_name, phase_data in state.phase_status.items():
+                    phase_details.append(PhaseDetail(
+                        name=phase_name,
+                        status=phase_data.get('status', 'pending'),
+                        progress=phase_data.get('progress', 0),
+                        items_processed=phase_data.get('items_processed', 0),
+                        items_total=phase_data.get('items_total', 0),
+                        started_at=phase_data.get('started_at'),
+                        completed_at=phase_data.get('completed_at'),
+                        error=phase_data.get('error'),
+                    ))
+            
             return JobStatusResponse(
                 job_id=f"{kb_id}-job",
                 kb_id=kb_id,
@@ -128,6 +145,7 @@ async def get_kb_status(
                 metrics=state.metrics,
                 started_at=state.started_at,
                 completed_at=state.completed_at,
+                phase_details=phase_details,
             )
         
         # No state found - return default "not started" state
@@ -135,13 +153,14 @@ async def get_kb_status(
             job_id=f"{kb_id}-pending",
             kb_id=kb_id,
             status="pending",
-            phase="crawling",
+            phase="loading",
             progress=0,
             message="No ingestion started",
             error=None,
             metrics={},
             started_at=None,
             completed_at=None,
+            phase_details=None,
         )
         
     except HTTPException:

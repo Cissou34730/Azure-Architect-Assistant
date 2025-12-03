@@ -20,7 +20,7 @@ class IngestionState:
     kb_id: str
     job_id: str
     status: str = "pending"  # pending | running | paused | completed | failed | cancelled
-    phase: str = "crawling"
+    phase: str = "loading"
     progress: int = 0
     metrics: Dict[str, Any] = field(default_factory=dict)
     message: str = ""
@@ -42,7 +42,7 @@ if PYDANTIC_AVAILABLE:
         kb_id: str
         job_id: str
         status: str = Field(default="pending")
-        phase: str = Field(default="crawling")
+        phase: str = Field(default="loading")
         progress: int = Field(default=0, ge=0, le=100)
         metrics: Dict[str, Any] = Field(default_factory=dict)
         message: str = Field(default="")

@@ -65,9 +65,10 @@ class IngestionService:
         persisted_states = self.persistence.load_all_states()
         for kb_id, state in persisted_states.items():
             # If state shows "running" but no runtime exists, mark as paused
-            if state.status == "running":
+            from app.ingestion.domain.enums import JobStatus
+            if state.status == JobStatus.RUNNING.value:
                 logger.info(f"[Recovery] KB {kb_id} shows 'running' status but no active threads - marking as paused")
-                state.status = "paused"
+                state.status = JobStatus.PAUSED.value
                 state.paused = True
                 state.message = "Job was interrupted (server restart)"
                 try:
@@ -137,7 +138,11 @@ class IngestionService:
                 self._cleanup_runtime(kb_id, runtime)
 
             # Extract config
-            source_type = kb_config.get("source_type", "website")
+            from app.ingestion.config.settings import get_kb_defaults
+            defaults = get_kb_defaults()
+            merged = defaults.merge_with_kb_config(kb_config)
+            
+            source_type = kb_config["source_type"]  # Must come from user's KB config
             source_config = kb_config.get("source_config", {})
             priority = kb_config.get("priority", 0)
 

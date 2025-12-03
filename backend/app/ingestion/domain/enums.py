@@ -14,13 +14,13 @@ class JobStatus(str, enum.Enum):
     PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
-    CANCELED = "cancelled"
+    CANCELLED = "cancelled"
 
 
 class JobPhase(str, enum.Enum):
     """Execution phases within a running job."""
 
-    CRAWLING = "crawling"
+    LOADING = "loading"
     CHUNKING = "chunking"
     EMBEDDING = "embedding"
     INDEXING = "indexing"
@@ -31,12 +31,12 @@ class JobPhase(str, enum.Enum):
 
 # State transition map: current_status -> allowed_next_statuses
 _TRANSITION_MAP: Dict[JobStatus, Set[JobStatus]] = {
-    JobStatus.PENDING: {JobStatus.RUNNING, JobStatus.CANCELED},
-    JobStatus.RUNNING: {JobStatus.PAUSED, JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELED},
-    JobStatus.PAUSED: {JobStatus.RUNNING, JobStatus.CANCELED},
+    JobStatus.PENDING: {JobStatus.RUNNING, JobStatus.CANCELLED},
+    JobStatus.RUNNING: {JobStatus.PAUSED, JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED},
+    JobStatus.PAUSED: {JobStatus.RUNNING, JobStatus.CANCELLED},
     JobStatus.COMPLETED: set(),  # Terminal state
     JobStatus.FAILED: set(),  # Terminal state
-    JobStatus.CANCELED: set(),  # Terminal state
+    JobStatus.CANCELLED: set(),  # Terminal state
 }
 
 

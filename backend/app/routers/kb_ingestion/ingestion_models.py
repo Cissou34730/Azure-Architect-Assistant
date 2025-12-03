@@ -8,16 +8,7 @@ from enum import Enum
 from datetime import datetime
 
 from app.ingestion.domain.phase_tracker import IngestionPhase
-
-
-class JobStatus(str, Enum):
-    """Job execution status - kept for API compatibility"""
-    PENDING = "pending"
-    RUNNING = "running"
-    PAUSED = "paused"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
+from app.ingestion.domain.enums import JobStatus
 
 
 class SourceType(str, Enum):
@@ -53,6 +44,18 @@ class MarkdownConfig(BaseModel):
     recursive: bool = Field(default=True, description="Recursively scan subfolders")
 
 
+class PhaseDetail(BaseModel):
+    """Detailed information about a single phase"""
+    name: str = Field(..., description="Phase name (loading, chunking, embedding, indexing)")
+    status: str = Field(..., description="Phase status (pending, running, paused, completed, failed, cancelled)")
+    progress: int = Field(default=0, ge=0, le=100, description="Phase progress percentage")
+    items_processed: int = Field(default=0, description="Number of items processed in this phase")
+    items_total: int = Field(default=0, description="Total items for this phase")
+    started_at: Optional[str] = Field(None, description="Phase start timestamp (ISO format)")
+    completed_at: Optional[str] = Field(None, description="Phase completion timestamp (ISO format)")
+    error: Optional[str] = Field(None, description="Error message if phase failed")
+
+
 class CreateKBRequest(BaseModel):
     """Request to create a new knowledge base"""
     kb_id: str = Field(..., description="Unique KB identifier")
@@ -84,6 +87,10 @@ class JobStatusResponse(BaseModel):
     metrics: Dict[str, Any]
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    phase_details: Optional[List[PhaseDetail]] = Field(
+        None, 
+        description="Detailed status for each ingestion phase"
+    )
 
 
 class JobListResponse(BaseModel):
