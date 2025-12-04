@@ -9,7 +9,7 @@ from typing import Any
 
 from app.ingestion.domain.models import JobRuntime
 from app.ingestion.domain.enums import JobStatus
-from app.ingestion.config import get_settings
+from config import get_settings
 from app.ingestion.application.producer_pipeline import ProducerPipeline
 
 logger = logging.getLogger(__name__)

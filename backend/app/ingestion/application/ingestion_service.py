@@ -15,7 +15,7 @@ from app.ingestion.infrastructure.repository import DatabaseRepository
 from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
 from app.ingestion.application.lifecycle import LifecycleManager
 from app.ingestion.workers import ProducerWorker, ConsumerWorker
-from app.ingestion.config import get_settings
+from config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ class IngestionService:
                 self._cleanup_runtime(kb_id, runtime)
 
             # Extract config
-            from app.ingestion.config.settings import get_kb_defaults
+            from config.settings import get_kb_defaults
             defaults = get_kb_defaults()
             merged = defaults.merge_with_kb_config(kb_config)
             

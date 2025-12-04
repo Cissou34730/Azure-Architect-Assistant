@@ -36,7 +36,7 @@ class ConsumerPipeline:
         self.stop_event = runtime.stop_event
         
         # Get settings
-        from app.ingestion.config import get_settings
+        from config import get_settings
         self.settings = get_settings()
         
         # Initialize infrastructure

@@ -41,7 +41,7 @@ from app.ingestion.models import IngestionJob, IngestionQueueItem, JobStatus as 
 from app.ingestion.application.ingestion_service import IngestionService
 from app.ingestion.domain.models import IngestionState, IngestionStateSchema, JobRuntime
 from app.ingestion.domain.enums import JobStatus, JobPhase
-from app.ingestion.config import get_settings, set_settings, IngestionSettings
+from config import get_settings, set_settings, IngestionSettings
 
 __all__ = [
     # Legacy models (backward compatibility)

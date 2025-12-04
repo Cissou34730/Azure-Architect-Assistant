@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from typing import Generator
 
-from app.ingestion.config import IngestionSettings, set_settings
+from config import IngestionSettings, set_settings
 from app.ingestion.infrastructure.repository import DatabaseRepository
 from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
 from app.ingestion.application.lifecycle import LifecycleManager

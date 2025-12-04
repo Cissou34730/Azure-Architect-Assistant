@@ -7,7 +7,7 @@ import logging
 import threading
 from typing import Any, Callable, Coroutine, Optional, TypeVar
 
-from app.ingestion.config import get_settings
+from config import get_settings
 
 logger = logging.getLogger(__name__)
 

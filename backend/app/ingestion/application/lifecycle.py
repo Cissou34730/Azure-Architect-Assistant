@@ -7,7 +7,7 @@ import threading
 from typing import Any, Callable, Tuple
 
 from app.ingestion.domain.models import JobRuntime, IngestionState
-from app.ingestion.config import get_settings
+from config import get_settings
 
 logger = logging.getLogger(__name__)
 

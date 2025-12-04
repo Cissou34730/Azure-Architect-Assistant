@@ -35,7 +35,7 @@ def validate_imports():
         print("✓ Workers imports OK")
         
         # Config imports
-        from app.ingestion.config import get_settings, IngestionSettings
+        from config import get_settings, IngestionSettings
         print("✓ Config imports OK")
         
         # Observability imports
