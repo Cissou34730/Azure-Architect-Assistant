@@ -66,6 +66,7 @@ class LocalDiskPersistenceStore:
                 "cancel_requested": state.cancel_requested,
             },
             "metrics": state.metrics,
+            "phase_status": state.phase_status,
         })
 
         tmp_fd, tmp_name = tempfile.mkstemp(dir=str(state_path.parent), suffix=".tmp")
@@ -161,7 +162,7 @@ class LocalDiskPersistenceStore:
         """Parse state dict to IngestionState object."""
         try:
             job = data.get("job", {})
-            return IngestionState(
+            state = IngestionState(
                 kb_id=kb_id,
                 job_id=data.get("job_id", f"{kb_id}-legacy"),
                 status=job.get("status", "pending"),
@@ -176,6 +177,10 @@ class LocalDiskPersistenceStore:
                 started_at=self._parse_dt(job.get("started_at")),
                 completed_at=self._parse_dt(job.get("completed_at")),
             )
+            # Load phase_status if available
+            if "phase_status" in data:
+                state.phase_status = data["phase_status"]
+            return state
         except Exception:
             return None
 
