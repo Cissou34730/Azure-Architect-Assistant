@@ -13,13 +13,18 @@ from sqlalchemy.orm import sessionmaker, Session
 from app.ingestion.models import Base
 
 # Point to consolidated data directory at backend/data
-DATA_ROOT = Path(__file__).parent.parent.parent / "data"
+BACKEND_ROOT = Path(__file__).parent.parent.parent
+DATA_ROOT = BACKEND_ROOT / "data"
 DATA_ROOT.mkdir(exist_ok=True)
 
 INGESTION_DB_PATH = os.getenv(
-    "INGESTION_DATABASE_PATH",
+    "INGESTION_DATABASE",
     str(DATA_ROOT / "ingestion.db"),
 )
+
+# Handle relative paths
+if not Path(INGESTION_DB_PATH).is_absolute():
+    INGESTION_DB_PATH = str(BACKEND_ROOT / INGESTION_DB_PATH)
 
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{INGESTION_DB_PATH}"
 

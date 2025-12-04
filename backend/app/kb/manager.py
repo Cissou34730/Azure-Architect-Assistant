@@ -151,7 +151,13 @@ class KBManager:
     def get_kb_storage_path(self, kb_id: str) -> str:
         """Get storage directory path for a KB."""
         backend_root = Path(__file__).parent.parent.parent
-        kb_dir = backend_root / "data" / "knowledge_bases" / kb_id
+        kb_root = os.getenv("KNOWLEDGE_BASES_ROOT", str(backend_root / "data" / "knowledge_bases"))
+        
+        # Handle relative paths
+        if not Path(kb_root).is_absolute():
+            kb_root = str(backend_root / kb_root)
+        
+        kb_dir = Path(kb_root) / kb_id
         return str(kb_dir / "index")
     
     def create_kb(self, kb_id: str, kb_config: Dict):

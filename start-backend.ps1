@@ -23,9 +23,20 @@ try {
     # Change to backend directory
     Push-Location backend
     
-    Write-Host "Starting uvicorn server on port 8000..." -ForegroundColor Cyan
+    # Read port from .env file (default to 8000)
+    $port = "8000"
+    $envFile = Join-Path $PSScriptRoot ".env"
+    if (Test-Path $envFile) {
+        $envContent = Get-Content $envFile
+        $portLine = $envContent | Where-Object { $_ -match "^BACKEND_PORT=(\d+)" }
+        if ($portLine) {
+            $port = $Matches[1]
+        }
+    }
+    
+    Write-Host "Starting uvicorn server on port $port..." -ForegroundColor Cyan
     # Start uvicorn without reload for stability
-    python -m uvicorn app.main:app --port 8000 
+    python -m uvicorn app.main:app --port $port 
 }
 catch {
     Write-Host "Error: $_" -ForegroundColor Red

@@ -13,13 +13,17 @@ from app.models.project import Base
 
 logger = logging.getLogger(__name__)
 
-# Database path - now inside backend/data
+# Database path from environment variable
 BACKEND_ROOT = Path(__file__).parent.parent
 DATA_DIR = BACKEND_ROOT / "data"
-DB_PATH = DATA_DIR / "projects.db"
+DB_PATH = Path(os.getenv("PROJECTS_DATABASE", str(DATA_DIR / "projects.db")))
+
+# Handle relative paths
+if not DB_PATH.is_absolute():
+    DB_PATH = BACKEND_ROOT / DB_PATH
 
 # Ensure data directory exists
-DATA_DIR.mkdir(exist_ok=True)
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 # Database URL for async SQLite
 DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
