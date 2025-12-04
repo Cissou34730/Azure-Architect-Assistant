@@ -5,8 +5,8 @@ Handles startup and shutdown events for the FastAPI application.
 
 import logging
 import asyncio
-from app.database import init_database, close_database
-from app.ingestion.db import init_ingestion_database
+from app.projects_database import init_database, close_database
+from app.ingestion.ingestion_database import init_ingestion_database
 from app.ingestion.application.ingestion_service import IngestionService
 
 logger = logging.getLogger(__name__)

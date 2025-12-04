@@ -11,7 +11,7 @@ import json
 import logging
 from datetime import datetime
 
-from app.database import get_db
+from app.projects_database import get_db
 
 from .project_models import (
     CreateProjectRequest,

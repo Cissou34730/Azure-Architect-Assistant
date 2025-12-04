@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select, update, func
 
-from app.ingestion.db import get_session
+from app.ingestion.ingestion_database import get_session
 from app.ingestion.models import (
     IngestionJob,
     IngestionQueueItem,

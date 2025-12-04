@@ -51,7 +51,7 @@ class IngestionService:
 
         # Initialize database and recover inflight jobs
         try:
-            from app.ingestion.db import init_ingestion_database
+            from app.ingestion.ingestion_database import init_ingestion_database
             init_ingestion_database()
         except Exception as exc:
             logger.warning(f"Failed to initialize ingestion database: {exc}")
