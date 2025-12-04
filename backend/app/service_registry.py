@@ -11,7 +11,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from app.kb import KBManager, MultiSourceQueryService
+from app.kb.knowledge_base_manager import KBManager
+from services.kb_query import MultiSourceQueryService
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Depends
 import logging
 
 from app.service_registry import get_multi_query_service
-from app.kb import QueryProfile, MultiSourceQueryService
+from services.kb_query import QueryProfile, MultiSourceQueryService
 from .query_models import (
     QueryRequest,
     ProfileQueryRequest,

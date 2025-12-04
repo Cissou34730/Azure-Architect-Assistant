@@ -1,11 +1,11 @@
 """
-Generic Knowledge Base Service
-Wrapper around the existing query logic, now KB-agnostic.
+Knowledge Base Index Service
+Manages index loading/caching only. Query logic lives in services/kb_query.
 """
 
 import os
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from llama_index.core import VectorStoreIndex, StorageContext, Settings
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
@@ -19,7 +19,7 @@ _INDEX_CACHE: Dict[str, VectorStoreIndex] = {}
 
 
 class KnowledgeBaseService:
-    """Generic service for querying a knowledge base."""
+    """Service for managing index lifecycle for a knowledge base."""
     
     def __init__(self, kb_config: KBConfig, similarity_threshold: float = 0.5):
         """
@@ -33,7 +33,6 @@ class KnowledgeBaseService:
         self.kb_id = kb_config.id
         self.kb_name = kb_config.name
         self.storage_dir = kb_config.index_path
-        self.similarity_threshold = similarity_threshold
         self._settings_configured = False
         
         logger.info(f"[{self.kb_id}] Service initialized - Storage: {self.storage_dir}")
@@ -76,118 +75,9 @@ class KnowledgeBaseService:
         
         return index
     
-    def query(
-        self,
-        question: str,
-        top_k: int = 5,
-        metadata_filters: Optional[Dict] = None
-    ) -> Dict:
-        """
-        Query the knowledge base.
-        
-        Args:
-            question: Question to ask
-            top_k: Number of chunks to retrieve
-            metadata_filters: Optional metadata filters
-            
-        Returns:
-            Dictionary with answer, sources, scores, kb_id, kb_name
-        """
-        logger.info(f"[{self.kb_id}] Processing query: {question[:100]}...")
-        
-        # Load index and create retriever
-        index = self._load_index()
-        retriever = index.as_retriever(similarity_top_k=top_k)
-        
-        # Apply metadata filters if provided
-        if metadata_filters:
-            from llama_index.core.vector_stores import MetadataFilters, MetadataFilter
-            filters = MetadataFilters(
-                filters=[
-                    MetadataFilter(key=k, value=v)
-                    for k, v in metadata_filters.items()
-                ]
-            )
-            retriever = index.as_retriever(similarity_top_k=top_k, filters=filters)
-        
-        # Retrieve relevant chunks
-        retrieved_nodes = retriever.retrieve(question)
-        logger.info(f"[{self.kb_id}] Retrieved {len(retrieved_nodes)} nodes")
-        
-        # Filter by similarity threshold and limit to top_k
-        filtered_nodes = [
-            node for node in retrieved_nodes
-            if node.score >= self.similarity_threshold
-        ]
-        
-        # Explicitly limit to top_k (in case retriever didn't respect it)
-        filtered_nodes = filtered_nodes[:top_k]
-        
-        logger.info(f"[{self.kb_id}] After filtering: {len(filtered_nodes)} nodes")
-        
-        if not filtered_nodes:
-            return {
-                'answer': f"No relevant information found in {self.kb_name}.",
-                'sources': [],
-                'scores': [],
-                'has_results': False,
-                'kb_id': self.kb_id,
-                'kb_name': self.kb_name
-            }
-        
-        # Build context and sources
-        context_parts = []
-        sources = []
-        scores = []
-        
-        for i, node in enumerate(filtered_nodes, 1):
-            context_parts.append(f"[Source {i} - {self.kb_name}]\n{node.text}\n")
-            sources.append({
-                'url': node.metadata.get('url', ''),
-                'title': node.metadata.get('title', ''),
-                'section': node.metadata.get('section', ''),
-                'score': float(node.score),
-                'kb_id': self.kb_id,
-                'kb_name': self.kb_name
-            })
-            scores.append(float(node.score))
-        
-        context = "\n".join(context_parts)
-        
-        # Build prompt
-        prompt = self._build_prompt(question, context)
-        
-        # Generate answer
-        try:
-            llm = Settings.llm
-            response = llm.complete(prompt)
-            answer = response.text.strip()
-            logger.info(f"[{self.kb_id}] Answer generated: {len(answer)} chars")
-        except Exception as e:
-            logger.error(f"[{self.kb_id}] Generation failed: {e}")
-            raise
-        
-        return {
-            'answer': answer,
-            'sources': sources,
-            'scores': scores,
-            'has_results': True,
-            'kb_id': self.kb_id,
-            'kb_name': self.kb_name
-        }
-    
-    def _build_prompt(self, question: str, context: str) -> str:
-        """Build generation prompt with context."""
-        return f"""You are an expert assistant for {self.kb_name}.
-
-Use the following context to answer the question. Be specific and cite sources using [Source N].
-
-Context:
-{context}
-
-Question: {question}
-
-Answer:"""
+    def get_index(self) -> VectorStoreIndex:
+        """Public accessor to obtain the loaded index for this KB."""
+        return self._load_index()
     
     def is_index_ready(self) -> bool:
         """Check if index exists and is ready."""

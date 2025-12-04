@@ -6,7 +6,7 @@ Service layer handling query orchestration.
 import logging
 from typing import Dict, Any, List, Optional
 
-from app.kb import MultiSourceQueryService, QueryProfile
+from services.kb_query import MultiSourceQueryService, QueryProfile
 
 logger = logging.getLogger(__name__)
 
