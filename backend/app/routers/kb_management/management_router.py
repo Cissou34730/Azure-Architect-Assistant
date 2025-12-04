@@ -10,7 +10,7 @@ import asyncio
 
 from app.ingestion.application.ingestion_service import IngestionService
 from app.service_registry import get_kb_manager, get_multi_query_service, invalidate_kb_manager
-from app.kb.manager import KBManager
+from app.kb.knowledge_base_manager import KBManager
 from app.kb.multi_query import MultiSourceQueryService
 from app.kb.service import clear_index_cache
 from .management_models import (

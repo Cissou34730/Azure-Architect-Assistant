@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -91,6 +91,8 @@ class KBDefaults(BaseModel):
 _settings: Optional[IngestionSettings] = None
 _kb_defaults: Optional[KBDefaults] = None
 _openai_settings: Optional[OpenAISettings] = None
+_kb_storage_root: Optional[Path] = None
+_kb_storage_root_raw: Optional[str] = None
 
 
 def get_settings() -> IngestionSettings:
@@ -121,3 +123,32 @@ def set_settings(settings: IngestionSettings) -> None:
     """Override global settings (useful for testing)."""
     global _settings
     _settings = settings
+
+
+def get_kb_storage_root(raw: bool = False) -> Union[Path, str]:
+    """Get the configured knowledge base storage root.
+
+    Args:
+        raw: When True, return the raw environment value (may be relative).
+
+    Returns:
+        Absolute Path to the storage root by default, or the raw string value when requested.
+    """
+    global _kb_storage_root, _kb_storage_root_raw
+
+    if _kb_storage_root is None or _kb_storage_root_raw is None:
+        backend_root = Path(__file__).resolve().parent.parent
+        kb_root_env = os.getenv("KNOWLEDGE_BASES_ROOT", "data/knowledge_bases")
+        kb_root_path = Path(kb_root_env)
+        if not kb_root_path.is_absolute():
+            kb_root_path = backend_root / kb_root_path
+
+        _kb_storage_root = kb_root_path
+        _kb_storage_root_raw = kb_root_env
+
+    if raw:
+        assert _kb_storage_root_raw is not None
+        return _kb_storage_root_raw
+
+    assert _kb_storage_root is not None
+    return _kb_storage_root

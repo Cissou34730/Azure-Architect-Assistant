@@ -10,7 +10,7 @@ from llama_index.core import VectorStoreIndex, StorageContext, Settings
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 
-from .manager import KBConfig
+from .knowledge_base_manager import KBConfig
 
 logger = logging.getLogger(__name__)
 

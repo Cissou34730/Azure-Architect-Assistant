@@ -9,7 +9,7 @@ import logging
 
 from app.ingestion.application.ingestion_service import IngestionService
 from app.service_registry import get_kb_manager
-from app.kb.manager import KBManager
+from app.kb.knowledge_base_manager import KBManager
 
 from .ingestion_models import (
     StartIngestionRequest,

@@ -16,7 +16,7 @@ from app.kb.ingestion.sources.web_generic import GenericWebCrawler
 from app.kb.ingestion.sources.web_cleaner import WebContentCleaner
 from app.kb.ingestion.sources.web_indexer import GenericIndexBuilder
 from app.kb.ingestion.base import IngestionPipeline
-from app.kb.manager import KBManager
+from app.kb.knowledge_base_manager import KBManager
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,4 @@
-""" 
+"""
 Knowledge Base Manager
 Loads and manages multiple knowledge base configurations.
 """
@@ -8,7 +8,7 @@ import os
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
-from config import get_openai_settings, get_kb_defaults
+from config import get_openai_settings, get_kb_defaults, get_kb_storage_root
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,9 @@ class KBConfig:
         
         # Profile configuration
         self.profiles: List[str] = config_dict.get('profiles', ['chat', 'proposal'])
-        self.priority: int = config_dict.get('priority', 5)    @property
+        self.priority: int = config_dict.get('priority', 5)
+    
+    @property
     def index_path(self) -> str:
         """Get full path to index directory."""
         if 'index' in self.paths:
@@ -67,14 +69,21 @@ class KBManager:
         Args:
             config_path: Path to config.json. If None, uses default location.
         """
+        self.backend_root = Path(__file__).parent.parent.parent
+        self.kb_root = Path(get_kb_storage_root())
+        self.kb_root_config_value = str(get_kb_storage_root(raw=True))
+
         if config_path is None:
-            backend_root = Path(__file__).parent.parent.parent
-            config_path = backend_root / "data" / "knowledge_bases" / "config.json"
-        
-        self.config_path = Path(config_path)
+            resolved_config_path = self.kb_root / "config.json"
+        else:
+            resolved_config_path = Path(config_path)
+            if not resolved_config_path.is_absolute():
+                resolved_config_path = self.backend_root / resolved_config_path
+
+        self.config_path = resolved_config_path
         self.knowledge_bases: Dict[str, KBConfig] = {}
         self._load_config()
-    
+
     def _load_config(self):
         """Load knowledge base configurations from config.json."""
         try:
@@ -153,14 +162,7 @@ class KBManager:
     
     def get_kb_storage_path(self, kb_id: str) -> str:
         """Get storage directory path for a KB."""
-        backend_root = Path(__file__).parent.parent.parent
-        kb_root = os.getenv("KNOWLEDGE_BASES_ROOT", str(backend_root / "data" / "knowledge_bases"))
-        
-        # Handle relative paths
-        if not Path(kb_root).is_absolute():
-            kb_root = str(backend_root / kb_root)
-        
-        kb_dir = Path(kb_root) / kb_id
+        kb_dir = self.kb_root / kb_id
         return str(kb_dir / "index")
     
     def create_kb(self, kb_id: str, kb_config: Dict):
@@ -175,16 +177,16 @@ class KBManager:
             raise ValueError(f"KB '{kb_id}' already exists")
         
         # Create KB directory structure
-        backend_root = Path(__file__).parent.parent.parent
-        kb_dir = backend_root / "data" / "knowledge_bases" / kb_id
+        kb_dir = self.kb_root / kb_id
         kb_dir.mkdir(parents=True, exist_ok=True)
         (kb_dir / "index").mkdir(exist_ok=True)
         (kb_dir / "documents").mkdir(exist_ok=True)
         
         # Update paths in config
+        kb_root_for_config = Path(self.kb_root_config_value)
         kb_config['paths'] = {
-            'index': f"data/knowledge_bases/{kb_id}/index",
-            'documents': f"data/knowledge_bases/{kb_id}/documents"
+            'index': (kb_root_for_config / kb_id / "index").as_posix(),
+            'documents': (kb_root_for_config / kb_id / "documents").as_posix()
         }
         
         # Add to config.json
@@ -259,8 +261,7 @@ class KBManager:
             json.dump(config, f, indent=2)
         
         # Delete KB directory and all its data
-        backend_root = Path(__file__).parent.parent.parent
-        kb_dir = backend_root / "data" / "knowledge_bases" / kb_id
+        kb_dir = self.kb_root / kb_id
         
         if kb_dir.exists():
             import shutil

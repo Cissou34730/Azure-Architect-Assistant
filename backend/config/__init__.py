@@ -7,6 +7,7 @@ from config.settings import (
     get_settings,
     get_kb_defaults,
     get_openai_settings,
+    get_kb_storage_root,
     set_settings,
 )
 
@@ -17,5 +18,6 @@ __all__ = [
     "get_settings",
     "get_kb_defaults",
     "get_openai_settings",
+    "get_kb_storage_root",
     "set_settings",
 ]

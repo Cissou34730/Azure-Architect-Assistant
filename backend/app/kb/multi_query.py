@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 from enum import Enum
 import asyncio
 
-from .manager import KBManager, KBConfig
+from .knowledge_base_manager import KBManager, KBConfig
 from .service import KnowledgeBaseService
 
 logger = logging.getLogger(__name__)
