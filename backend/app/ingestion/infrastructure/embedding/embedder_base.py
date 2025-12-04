@@ -4,8 +4,9 @@ Abstract base class for embedding strategies.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
+from config import get_openai_settings
 
 logger = logging.getLogger(__name__)
 
@@ -13,13 +14,15 @@ logger = logging.getLogger(__name__)
 class BaseEmbedder(ABC):
     """Abstract base class for document embedders"""
     
-    def __init__(self, model_name: str = "text-embedding-3-small"):
+    def __init__(self, model_name: Optional[str] = None):
         """
         Initialize embedder.
         
         Args:
-            model_name: Name of the embedding model
+            model_name: Name of the embedding model (defaults to config setting)
         """
+        if model_name is None:
+            model_name = get_openai_settings().embedding_model
         self.model_name = model_name
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
     

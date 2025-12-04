@@ -6,6 +6,7 @@ Abstract base class for index building strategies.
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Callable
+from config import get_openai_settings
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +18,8 @@ class BaseIndexBuilder(ABC):
         self,
         kb_id: str,
         storage_dir: str,
-        embedding_model: str = "text-embedding-3-small",
-        generation_model: str = "gpt-4o-mini"
+        embedding_model: Optional[str] = None,
+        generation_model: Optional[str] = None
     ):
         """
         Initialize index builder.
@@ -26,13 +27,15 @@ class BaseIndexBuilder(ABC):
         Args:
             kb_id: Knowledge base identifier
             storage_dir: Directory for index storage
-            embedding_model: Model for embeddings
-            generation_model: Model for generation/LLM tasks
+            embedding_model: Model for embeddings (defaults to config setting)
+            generation_model: Model for generation/LLM tasks (defaults to config setting)
         """
+        openai_settings = get_openai_settings()
+        
         self.kb_id = kb_id
         self.storage_dir = storage_dir
-        self.embedding_model = embedding_model
-        self.generation_model = generation_model
+        self.embedding_model = embedding_model or openai_settings.embedding_model
+        self.generation_model = generation_model or openai_settings.model
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
     
     @abstractmethod

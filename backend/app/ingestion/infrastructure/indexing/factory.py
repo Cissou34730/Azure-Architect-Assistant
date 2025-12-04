@@ -4,7 +4,8 @@ Creates appropriate index builder based on type.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+from config import get_openai_settings
 
 from .builder_base import BaseIndexBuilder
 from .vector import VectorIndexBuilder
@@ -27,8 +28,8 @@ class IndexBuilderFactory:
         index_type: str = 'vector',
         kb_id: str = None,
         storage_dir: str = None,
-        embedding_model: str = "text-embedding-3-small",
-        generation_model: str = "gpt-4o-mini",
+        embedding_model: Optional[str] = None,
+        generation_model: Optional[str] = None,
         **kwargs
     ) -> BaseIndexBuilder:
         """
@@ -38,8 +39,8 @@ class IndexBuilderFactory:
             index_type: Type of index (vector, graph, hybrid, etc.)
             kb_id: Knowledge base identifier
             storage_dir: Directory for index storage
-            embedding_model: Model for embeddings
-            generation_model: Model for generation
+            embedding_model: Model for embeddings (defaults to config setting)
+            generation_model: Model for generation (defaults to config setting)
             **kwargs: Additional type-specific parameters
             
         Returns:

@@ -4,7 +4,8 @@ Creates appropriate embedder based on type.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+from config import get_openai_settings
 
 from .embedder_base import BaseEmbedder
 from .openai_embedder import OpenAIEmbedder
@@ -25,7 +26,7 @@ class EmbedderFactory:
     def create_embedder(
         cls,
         embedder_type: str = 'openai',
-        model_name: str = "text-embedding-3-small",
+        model_name: Optional[str] = None,
         **kwargs
     ) -> BaseEmbedder:
         """
@@ -33,7 +34,7 @@ class EmbedderFactory:
         
         Args:
             embedder_type: Type of embedder (openai, azure, local, etc.)
-            model_name: Embedding model name
+            model_name: Embedding model name (defaults to config setting)
             **kwargs: Additional embedder-specific parameters
             
         Returns:
@@ -42,6 +43,9 @@ class EmbedderFactory:
         Raises:
             ValueError: If embedder_type is unknown
         """
+        if model_name is None:
+            model_name = get_openai_settings().embedding_model
+            
         embedder_class = cls.EMBEDDERS.get(embedder_type.lower())
         
         if not embedder_class:
