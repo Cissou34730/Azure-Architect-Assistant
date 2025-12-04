@@ -34,7 +34,9 @@ class KBConfig:
         
         # Profile configuration
         self.profiles: List[str] = config_dict.get('profiles', ['chat', 'proposal'])
-        self.priority: int = config_dict.get('priority', 5)    @property
+        self.priority: int = config_dict.get('priority', 5)
+    
+    @property
     def index_path(self) -> str:
         """Get full path to index directory."""
         if 'index' in self.paths:
