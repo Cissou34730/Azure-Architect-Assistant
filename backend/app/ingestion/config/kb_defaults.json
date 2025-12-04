@@ -2,8 +2,6 @@
   "chunk_size": 800,
   "chunk_overlap": 150,
   "chunking_strategy": "semantic",
-  "embedding_model": "text-embedding-3-small",
   "embedder_type": "openai",
-  "generation_model": "gpt-4o-mini",
   "index_type": "vector"
 }

@@ -3,10 +3,23 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+
+# Load environment variables once at module import
+load_dotenv()
+
+
+class OpenAISettings(BaseModel):
+    """OpenAI configuration loaded from environment variables."""
+    
+    api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
+    model: str = Field(default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
+    embedding_model: str = Field(default_factory=lambda: os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"))
 
 
 class IngestionSettings(BaseModel):
@@ -42,9 +55,7 @@ class KBDefaults(BaseModel):
     chunk_size: int = Field(description="Target size for text chunks")
     chunk_overlap: int = Field(description="Overlap between consecutive chunks")
     chunking_strategy: str = Field(description="Strategy for chunking (semantic, fixed, etc.)")
-    embedding_model: str = Field(description="Model name for embeddings")
     embedder_type: str = Field(description="Type of embedder (openai, azure, etc.)")
-    generation_model: str = Field(description="Model name for text generation")
     index_type: str = Field(description="Type of index (vector, summary, etc.)")
 
     @classmethod
@@ -59,14 +70,27 @@ class KBDefaults(BaseModel):
         return cls.parse_file(config_path)
     
     def merge_with_kb_config(self, kb_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Merge defaults with KB-specific config (KB config takes precedence)."""
-        defaults = self.dict()
-        return {**defaults, **kb_config}
+        """Merge defaults with KB-specific config and environment variables.
+        Priority: kb_config > defaults > environment variables
+        """
+        # Start with JSON defaults
+        merged = self.dict()
+        
+        # Add models from environment (will be overridden if in kb_config)
+        openai_settings = get_openai_settings()
+        merged["embedding_model"] = openai_settings.embedding_model
+        merged["generation_model"] = openai_settings.model
+        
+        # KB-specific config takes precedence
+        merged.update(kb_config)
+        
+        return merged
 
 
-# Global settings instance
+# Global settings instances
 _settings: Optional[IngestionSettings] = None
 _kb_defaults: Optional[KBDefaults] = None
+_openai_settings: Optional[OpenAISettings] = None
 
 
 def get_settings() -> IngestionSettings:
@@ -83,6 +107,14 @@ def get_kb_defaults() -> KBDefaults:
     if _kb_defaults is None:
         _kb_defaults = KBDefaults.from_json()
     return _kb_defaults
+
+
+def get_openai_settings() -> OpenAISettings:
+    """Get OpenAI settings instance (lazy-loaded from environment)."""
+    global _openai_settings
+    if _openai_settings is None:
+        _openai_settings = OpenAISettings()
+    return _openai_settings
 
 
 def set_settings(settings: IngestionSettings) -> None:
