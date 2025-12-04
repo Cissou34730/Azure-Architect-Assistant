@@ -20,7 +20,8 @@ llama-index-readers-file>=0.5.0
 llama-index-readers-youtube-transcript>=0.4.0
 
 # OpenAI
-openai==1.57.2
+# Align with llama-index-llms-openai which requires >=1.81.0 and <2
+openai>=1.81.0,<2.0.0
 
 # Document Processing (Free alternatives)
 trafilatura==1.12.2
