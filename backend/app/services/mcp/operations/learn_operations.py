@@ -1,8 +1,8 @@
 """
-Domain-level operations for Microsoft Learn MCP client.
+Refactored domain-level operations for Microsoft Learn MCP client.
 
-Provides high-level, business-oriented functions for interacting with
-Microsoft Learn documentation, built on top of the low-level MCP client.
+Based on actual response contract from Microsoft Learn MCP server.
+Eliminates unnecessary type checking and response normalization.
 """
 
 import logging
@@ -11,6 +11,39 @@ from typing import Any
 from ..learn_mcp_client import MicrosoftLearnMCPClient
 
 logger = logging.getLogger(__name__)
+
+
+async def _call_mcp_tool(
+    client: MicrosoftLearnMCPClient,
+    tool_name: str,
+    arguments: dict[str, Any],
+    operation_name: str,
+) -> dict[str, Any]:
+    """
+    Base wrapper for MCP tool calls with logging and error handling.
+
+    Args:
+        client: Initialized MCP client
+        tool_name: Name of the MCP tool to call
+        arguments: Tool arguments
+        operation_name: Human-readable operation name for logging
+
+    Returns:
+        Response from MCP server
+
+    Raises:
+        Exception: Re-raises any exception from the MCP call
+    """
+    logger.info(f"{operation_name}: {arguments}")
+
+    try:
+        response = await client.call_tool(tool_name, arguments)
+        logger.debug(f"{operation_name} completed successfully")
+        return response
+
+    except Exception as e:
+        logger.error(f"{operation_name} failed: {e}")
+        raise
 
 
 async def search_microsoft_docs(
@@ -26,9 +59,9 @@ async def search_microsoft_docs(
 
     Returns:
         Dictionary with:
-            - results: List of search results with title, url, excerpt
+            - results: List of search results with title, content, contentUrl
             - query: Original query
-            - total_results: Number of results found
+            - total_results: Number of results returned
 
     Example:
         ```python
@@ -37,36 +70,24 @@ async def search_microsoft_docs(
             "Azure Container Apps networking"
         )
         for result in results["results"]:
-            print(f"{result['title']}: {result['url']}")
+            print(f"{result['title']}: {result['contentUrl']}")
         ```
     """
-    logger.info(f"Searching Microsoft docs for: {query}")
+    response = await _call_mcp_tool(
+        client,
+        "microsoft_docs_search",
+        {"query": query},
+        f"Searching Microsoft docs for '{query}'",
+    )
 
-    try:
-        response = await client.call_tool("microsoft_docs_search", {"query": query})
+    # Content is already a list of result dicts
+    results = response.get("content", [])[:max_results]
 
-        # Parse and normalize response
-        content = response.get("content", {})
-
-        if isinstance(content, dict):
-            results = content.get("results", [])[:max_results]
-        elif isinstance(content, list):
-            results = content[:max_results]
-        else:
-            results = []
-
-        normalized = {
-            "results": results,
-            "query": query,
-            "total_results": len(results),
-        }
-
-        logger.info(f"Found {len(results)} results for query: {query}")
-        return normalized
-
-    except Exception as e:
-        logger.error(f"Failed to search Microsoft docs: {e}")
-        raise
+    return {
+        "results": results,
+        "query": query,
+        "total_results": len(results),
+    }
 
 
 async def fetch_documentation(client: MicrosoftLearnMCPClient, url: str) -> dict[str, Any]:
@@ -80,10 +101,8 @@ async def fetch_documentation(client: MicrosoftLearnMCPClient, url: str) -> dict
     Returns:
         Dictionary with:
             - url: Original URL
-            - title: Document title
             - content: Full content in markdown format
-            - sections: List of section headings
-            - last_updated: Last update timestamp (if available)
+            - length: Content length in characters
 
     Example:
         ```python
@@ -94,46 +113,18 @@ async def fetch_documentation(client: MicrosoftLearnMCPClient, url: str) -> dict
         print(doc["content"])
         ```
     """
-    logger.info(f"Fetching documentation from: {url}")
+    response = await _call_mcp_tool(
+        client, "microsoft_docs_fetch", {"url": url}, f"Fetching documentation from '{url}'"
+    )
 
-    try:
-        response = await client.call_tool("microsoft_docs_fetch", {"url": url})
+    # Content is a markdown string
+    content = response.get("content", "")
 
-        content = response.get("content", {})
-
-        if isinstance(content, str):
-            # Content is raw markdown
-            normalized = {
-                "url": url,
-                "title": None,
-                "content": content,
-                "sections": [],
-                "last_updated": None,
-            }
-        elif isinstance(content, dict):
-            # Content is structured
-            normalized = {
-                "url": url,
-                "title": content.get("title"),
-                "content": content.get("content", content.get("text", "")),
-                "sections": content.get("sections", []),
-                "last_updated": content.get("last_updated"),
-            }
-        else:
-            normalized = {
-                "url": url,
-                "title": None,
-                "content": str(content),
-                "sections": [],
-                "last_updated": None,
-            }
-
-        logger.info(f"Successfully fetched documentation from: {url}")
-        return normalized
-
-    except Exception as e:
-        logger.error(f"Failed to fetch documentation: {e}")
-        raise
+    return {
+        "url": url,
+        "content": content,
+        "length": len(content),
+    }
 
 
 async def search_code_samples(
@@ -153,53 +144,43 @@ async def search_code_samples(
 
     Returns:
         Dictionary with:
-            - samples: List of code samples with title, language, code, description, source_url
+            - samples: List of code samples with description, codeSnippet, language, link
             - query: Original query
             - language_filter: Applied language filter (if any)
+            - total_samples: Number of samples returned
 
     Example:
         ```python
         samples = await search_code_samples(
             client,
-            "Azure OpenAI chat completion",
+            "Azure Blob Storage upload",
             language="python"
         )
         for sample in samples["samples"]:
-            print(f"{sample['title']} ({sample['language']})")
-            print(sample['code'])
+            print(f"{sample['language']}: {sample['link']}")
+            print(sample['codeSnippet'])
         ```
     """
-    logger.info(f"Searching code samples for: {query} (language: {language})")
+    arguments = {"query": query}
+    if language:
+        arguments["language"] = language
 
-    try:
-        arguments = {"query": query}
-        if language:
-            arguments["language"] = language
+    response = await _call_mcp_tool(
+        client,
+        "microsoft_code_sample_search",
+        arguments,
+        f"Searching code samples for '{query}' (language: {language})",
+    )
 
-        response = await client.call_tool("microsoft_code_sample_search", arguments)
+    # Content is already a list of sample dicts
+    samples = response.get("content", [])[:max_results]
 
-        content = response.get("content", {})
-
-        if isinstance(content, dict):
-            samples = content.get("samples", [])[:max_results]
-        elif isinstance(content, list):
-            samples = content[:max_results]
-        else:
-            samples = []
-
-        normalized = {
-            "samples": samples,
-            "query": query,
-            "language_filter": language,
-            "total_samples": len(samples),
-        }
-
-        logger.info(f"Found {len(samples)} code samples for query: {query}")
-        return normalized
-
-    except Exception as e:
-        logger.error(f"Failed to search code samples: {e}")
-        raise
+    return {
+        "samples": samples,
+        "query": query,
+        "language_filter": language,
+        "total_samples": len(samples),
+    }
 
 
 async def get_azure_guidance(
@@ -234,36 +215,36 @@ async def get_azure_guidance(
     """
     logger.info(f"Getting Azure guidance for topic: {topic}")
 
-    try:
-        # Search documentation
-        docs = await search_microsoft_docs(client, topic, max_results=5)
+    # Search documentation
+    docs = await search_microsoft_docs(client, topic, max_results=5)
 
-        result = {"topic": topic, "documentation": docs, "code_samples": None, "summary": ""}
+    result = {
+        "topic": topic,
+        "documentation": docs,
+        "code_samples": None,
+        "summary": "",
+    }
 
-        # Optionally search code samples
-        if include_code:
-            try:
-                samples = await search_code_samples(client, topic, max_results=3)
-                result["code_samples"] = samples
-            except Exception as e:
-                logger.warning(f"Failed to fetch code samples: {e}")
-                result["code_samples"] = {"samples": [], "error": str(e)}
+    # Optionally search code samples
+    if include_code:
+        try:
+            samples = await search_code_samples(client, topic, max_results=3)
+            result["code_samples"] = samples
+        except Exception as e:
+            logger.warning(f"Failed to fetch code samples: {e}")
+            result["code_samples"] = {"samples": [], "error": str(e)}
 
-        # Generate summary
-        doc_count = len(docs.get("results", []))
-        sample_count = (
-            len(result["code_samples"].get("samples", []))
-            if result["code_samples"] and not result["code_samples"].get("error")
-            else 0
-        )
+    # Generate summary
+    doc_count = len(docs.get("results", []))
+    sample_count = (
+        len(result["code_samples"].get("samples", []))
+        if result["code_samples"] and not result["code_samples"].get("error")
+        else 0
+    )
 
-        result["summary"] = (
-            f"Found {doc_count} documentation pages and {sample_count} code samples for '{topic}'"
-        )
+    result["summary"] = (
+        f"Found {doc_count} documentation pages and {sample_count} code samples for '{topic}'"
+    )
 
-        logger.info(f"Successfully retrieved Azure guidance for: {topic}")
-        return result
-
-    except Exception as e:
-        logger.error(f"Failed to get Azure guidance: {e}")
-        raise
+    logger.info(f"Successfully retrieved Azure guidance for: {topic}")
+    return result
