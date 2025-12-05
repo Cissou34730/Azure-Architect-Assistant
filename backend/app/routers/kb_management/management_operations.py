@@ -7,7 +7,8 @@ import logging
 from typing import List, Dict, Any
 from pathlib import Path
 
-from app.kb import KBManager, MultiSourceQueryService
+from app.kb import KBManager
+from app.kb.service import KnowledgeBaseService
 from .management_models import CreateKBRequest
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,7 @@ class KBManagementService:
         kbs_info = manager.list_kbs()
         return kbs_info  # Listing log suppressed
     
-    def check_health(self, service: MultiSourceQueryService) -> Dict[str, Any]:
+    def check_health(self, manager: KBManager) -> Dict[str, Any]:
         """
         Check health status of all knowledge bases.
         
@@ -87,7 +88,21 @@ class KBManagementService:
         Returns:
             Dictionary with overall status and per-KB health info
         """
-        health_dict = service.get_kb_health()
+        # Build health by checking index readiness per KB via KB service
+        health_dict: Dict[str, Dict[str, Any]] = {}
+        for kb in manager.knowledge_bases.values():
+            try:
+                if not kb.is_active:
+                    health_dict[kb.id] = {"name": kb.name, "status": "inactive", "error": None}
+                    continue
+
+                svc = KnowledgeBaseService(kb)
+                ready = svc.is_index_ready()
+                status = "ready" if ready else "not-indexed"
+                health_dict[kb.id] = {"name": kb.name, "status": status, "error": None}
+            except Exception as exc:
+                logger.error(f"Health check failed for KB {kb.id}: {exc}")
+                health_dict[kb.id] = {"name": kb.name, "status": "error", "error": str(exc)}
         
         # Process health information
         kb_health = []

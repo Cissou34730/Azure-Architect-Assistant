@@ -17,7 +17,7 @@ import uuid
 from app.database import get_db
 from app.models import Project, ProjectDocument, ProjectState, ConversationMessage
 from app.llm_service import get_llm_service
-from app.kb.multi_query import MultiSourceQueryService, QueryProfile
+from services.kb_query import MultiSourceQueryService, QueryProfile
 from app.services import get_multi_query_service
 
 logger = logging.getLogger(__name__)

@@ -173,7 +173,7 @@ async def list_knowledge_bases(
 
 @router.get("/health", response_model=KBHealthResponse)
 async def check_kb_health(
-    multi_query_service: MultiSourceQueryService = Depends(get_multi_query_service_dep),
+    kb_manager: KBManager = Depends(get_kb_manager_dep),
     operations: KBManagementService = Depends(get_management_service_dep)
 ) -> KBHealthResponse:
     """
@@ -181,7 +181,7 @@ async def check_kb_health(
     Returns per-KB status including index readiness.
     """
     try:
-        result = operations.check_health(multi_query_service)
+        result = operations.check_health(kb_manager)
         
         kb_health = [
             KBHealthInfo(**kb_info)
