@@ -413,7 +413,6 @@ class ProducerPipeline:
         if not self.state:
             return
         
-        self.state.phase = phase.value if hasattr(phase, 'value') else str(phase)
         self.state.progress = progress
         self.state.message = message
         
