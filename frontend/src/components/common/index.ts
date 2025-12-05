@@ -3,3 +3,4 @@ export { TabNavigation } from "./TabNavigation";
 export { Button } from "./Button";
 export { StatusBadge } from "./StatusBadge";
 export { LoadingSpinner } from "./LoadingSpinner";
+export { Banner } from "./Banner";

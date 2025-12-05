@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    envDir: "../",
     server: {
       port: frontendPort,
       proxy: {
