@@ -1,0 +1,8 @@
+{
+  "microsoft_learn": {
+    "endpoint": "https://learn.microsoft.com/api/mcp",
+    "timeout": 30,
+    "auto_reconnect": true,
+    "max_retries": 3
+  }
+}
