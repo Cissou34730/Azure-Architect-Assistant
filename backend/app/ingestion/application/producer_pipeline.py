@@ -122,9 +122,15 @@ class ProducerPipeline:
         except Exception as e:
             logger.error(f"Producer pipeline failed for KB {self.kb_id}: {e}", exc_info=True)
             if self.state:
-                from app.ingestion.domain.enums import JobStatus
-                self.state.status = JobStatus.FAILED.value
-                self.state.error = str(e)
+                # Route failure through service helper to enforce invariants
+                try:
+                    from app.ingestion.application.ingestion_service import IngestionService
+                    IngestionService.instance()._set_failed(self.state, error_message=str(e))
+                except Exception:
+                    # Fallback if service not available
+                    from app.ingestion.domain.enums import JobStatus
+                    self.state.status = JobStatus.FAILED.value
+                    self.state.error = str(e)
             
             # Mark current phase as failed
             if self.phase_tracker:

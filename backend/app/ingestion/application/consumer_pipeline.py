@@ -117,9 +117,13 @@ class ConsumerPipeline:
             
         except Exception as e:
             logger.error(f"{self.log_prefix} Pipeline failed: {e}", exc_info=True)
-            from app.ingestion.domain.enums import JobStatus
-            self.state.status = JobStatus.FAILED.value
-            self.state.error = str(e)
+            try:
+                from app.ingestion.application.ingestion_service import IngestionService
+                IngestionService.instance()._set_failed(self.state, error_message=str(e))
+            except Exception:
+                from app.ingestion.domain.enums import JobStatus
+                self.state.status = JobStatus.FAILED.value
+                self.state.error = str(e)
             
             # Mark current phase as failed
             if self.phase_tracker:
@@ -379,17 +383,28 @@ class ConsumerPipeline:
                 self.phase_tracker.complete_phase(IngestionPhase.INDEXING, self.total_indexed)
             self._persist_phase_tracker()
         
-        from app.ingestion.domain.enums import JobStatus
-        self.state.status = JobStatus.COMPLETED.value
-        self.state.phase = "completed"
-        self.state.progress = 100
-        self.state.message = "Ingestion completed successfully"
-        self.state.completed_at = datetime.utcnow()
+        try:
+            from app.ingestion.application.ingestion_service import IngestionService
+            IngestionService.instance()._set_completed(self.state, message="Ingestion completed successfully")
+            self.state.phase = "completed"
+            self.state.progress = 100
+            self.state.completed_at = datetime.utcnow()
+        except Exception:
+            from app.ingestion.domain.enums import JobStatus
+            self.state.status = JobStatus.COMPLETED.value
+            self.state.phase = "completed"
+            self.state.progress = 100
+            self.state.message = "Ingestion completed successfully"
+            self.state.completed_at = datetime.utcnow()
         
         # Update repository
         try:
             from app.ingestion.domain.enums import JobStatus
             self.repository.update_job_status(self.job_id, JobStatus.COMPLETED.value)
+            # Optional invariant check before saving
+            if self.state.status == "running" and getattr(self.state, "paused", False):
+                logger.warning(f"{self.log_prefix} Invariant violation: running with paused=True; correcting to paused status")
+                self.state.status = "paused"
             self.persistence.save_state(self.state)
             logger.info(f"{self.log_prefix} Job marked as completed in DB")
         except Exception as e:

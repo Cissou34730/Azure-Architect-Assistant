@@ -37,9 +37,13 @@ class ConsumerWorker:
                 f"{log_prefix} Consumer thread failed: {exc}",
                 exc_info=True,
             )
-            from app.ingestion.domain.enums import JobStatus
-            runtime.state.status = JobStatus.FAILED.value
-            runtime.state.error = str(exc)
+            try:
+                from app.ingestion.application.ingestion_service import IngestionService
+                IngestionService.instance()._set_failed(runtime.state, error_message=str(exc))
+            except Exception:
+                from app.ingestion.domain.enums import JobStatus
+                runtime.state.status = JobStatus.FAILED.value
+                runtime.state.error = str(exc)
             
         finally:
             logger.info(f"{log_prefix} Consumer thread finished")

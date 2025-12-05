@@ -149,15 +149,10 @@ class IngestionService:
             # Create fresh state
             logger.info(f"[IngestionService] KB {kb_id}: Creating fresh state")
             state = IngestionState(kb_id=kb_id, job_id="")
-            state.status = JobStatus.RUNNING.value
-            state.phase = "crawling"
-            state.progress = 0
-            state.message = "Ingestion started"
-            state.error = None
-            state.paused = False
-            state.cancel_requested = False
+            # Initialize via helper to keep invariants consistent
             state.created_at = datetime.utcnow()
             state.started_at = datetime.utcnow()
+            self._set_running(state, phase="crawling", message="Ingestion started")
             
             # Create job record
             logger.info(f"[IngestionService] KB {kb_id}: Creating new job record")
@@ -237,11 +232,7 @@ class IngestionService:
                 logger.error(f"[IngestionService] KB {kb_id}: Invalid transition: {exc}")
                 return False
             
-            state.status = JobStatus.RUNNING.value
-            state.paused = False
-            state.cancel_requested = False
-            state.error = None
-            state.message = "Resumed from checkpoint"
+            self._set_running(state, message="Resumed from checkpoint")
             
             # Update job record
             if state.job_id:
@@ -286,8 +277,7 @@ class IngestionService:
 
             # Signal threads to stop gracefully
             logger.info(f"[IngestionService] KB {kb_id}: Signaling threads to stop")
-            state.paused = True
-            state.message = "Pausing - waiting for threads to finish"
+            self._set_paused_flag(state, message="Pausing - waiting for threads to finish")
             self.persistence.save_state(state)
         
         # Wait for threads to exit (outside lock)
@@ -296,8 +286,7 @@ class IngestionService:
         
         # Update state after threads exited
         with self._lock:
-            state.status = JobStatus.PAUSED.value
-            state.message = "Paused - checkpoint saved"
+            self._set_paused(state, message="Paused - checkpoint saved")
             self.repository.update_job_status(runtime.job_id, JobStatus.PAUSED.value)
             self.persistence.save_state(state)
             
@@ -321,10 +310,7 @@ class IngestionService:
                 return False
 
             state = runtime.state
-            state.cancel_requested = True
-            state.status = JobStatus.CANCELED.value
-            state.phase = "cancelled"
-            state.message = "Cancellation requested"
+            self._set_canceled(state, message="Cancellation requested")
             self.repository.update_job_status(runtime.job_id, JobStatus.CANCELED.value)
             self.persistence.save_state(state)
 
@@ -440,3 +426,55 @@ class IngestionService:
             del self._runtimes_by_kb[kb_id]
         if runtime.job_id in self._runtimes_by_job:
             del self._runtimes_by_job[runtime.job_id]
+
+    # ---------------------------------------------------------------------
+    # State helpers: single source of truth for status/flags
+    # ---------------------------------------------------------------------
+    def _set_running(self, state: IngestionState, *, phase: Optional[str] = None, message: Optional[str] = None) -> None:
+        """Mark state as running and clear cooperative flags."""
+        state.status = JobStatus.RUNNING.value
+        if phase:
+            state.phase = phase
+        state.paused = False
+        state.cancel_requested = False
+        state.error = None
+        if message is not None:
+            state.message = message
+
+    def _set_paused_flag(self, state: IngestionState, *, message: Optional[str] = None) -> None:
+        """Only flip cooperative pause flag without lifecycle change (used before stopping threads)."""
+        state.paused = True
+        if message is not None:
+            state.message = message
+
+    def _set_paused(self, state: IngestionState, *, message: Optional[str] = None) -> None:
+        """Mark state paused for UI/lifecycle and keep cooperative flag true."""
+        state.status = JobStatus.PAUSED.value
+        state.paused = True
+        if message is not None:
+            state.message = message
+
+    def _set_canceled(self, state: IngestionState, *, message: Optional[str] = None) -> None:
+        """Mark state canceled and set cooperative cancel flag."""
+        state.status = JobStatus.CANCELED.value
+        state.cancel_requested = True
+        state.paused = False
+        state.phase = "cancelled"
+        if message is not None:
+            state.message = message
+
+    def _set_failed(self, state: IngestionState, *, error_message: str) -> None:
+        """Mark state failed with error message."""
+        state.status = JobStatus.FAILED.value
+        state.paused = False
+        state.cancel_requested = False
+        state.error = error_message
+        state.message = error_message
+
+    def _set_completed(self, state: IngestionState, *, message: Optional[str] = "Completed") -> None:
+        """Mark state completed."""
+        state.status = JobStatus.COMPLETED.value
+        state.paused = False
+        state.cancel_requested = False
+        if message is not None:
+            state.message = message

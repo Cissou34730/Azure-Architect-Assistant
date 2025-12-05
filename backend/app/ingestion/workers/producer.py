@@ -50,11 +50,15 @@ class ProducerWorker:
                 f"{log_prefix} Producer thread failed: {exc}",
                 exc_info=True,
             )
-            state.status = JobStatus.FAILED.value
-            state.phase = "failed"
-            state.error = str(exc)
-            state.message = "Ingestion failed"
-            state.completed_at = datetime.utcnow()
+            try:
+                from app.ingestion.application.ingestion_service import IngestionService
+                IngestionService.instance()._set_failed(state, error_message=str(exc))
+            except Exception:
+                state.status = JobStatus.FAILED.value
+                state.phase = "failed"
+                state.error = str(exc)
+                state.message = "Ingestion failed"
+                state.completed_at = datetime.utcnow()
             
         finally:
             # Signal consumer to stop (no more work coming)
