@@ -1,108 +1,142 @@
-# Quick Start Guide - Two Backend Architecture
+# Quick Start Guide - Unified Python Backend (v4.0)
 
-## ✅ Refactoring Complete!
+## ✅ Modern Architecture with uv!
 
-You now have **two separate backend services** communicating via HTTP (no more spawn!).
+You now have a **unified Python FastAPI backend** with uv for blazing-fast dependency management.
 
 ## 🚀 Quick Start (3 Steps)
 
-### 1. Install Dependencies
-```bash
-npm run install:all
+### 1. Install uv (if not already installed)
+```powershell
+# Windows
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Linux/macOS
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### 2. Configure Environment
+Restart your terminal after installation.
+
+### 2. Install Dependencies
 ```bash
-# Copy and edit root .env (shared by both backend services)
+# Install all dependencies (Python + Node.js)
+npm run installAll
+
+# OR install Python dependencies only
+uv sync
+```
+
+This will:
+- Create a `.venv` virtual environment automatically
+- Install all Python dependencies from `pyproject.toml`
+- Generate a `uv.lock` file for reproducible builds
+- Install frontend dependencies
+
+**⚡ uv is 10-100x faster than pip!**
+
+### 3. Configure Environment
+```bash
+# Copy and edit root .env
 cp .env.example .env
 # Edit .env and set your OPENAI_API_KEY
 ```
 
-**Note**: Both Express backend and Python service now share the same `.env` file at the project root. This eliminates duplication and keeps configuration in sync.
-
-### 3. Run All Services
+### 4. Run the Application
 ```bash
-npm run dev
+# Start both backend and frontend
+npm run backend    # Terminal 1 (uses uv run automatically)
+npm run frontend   # Terminal 2
 ```
 
 This starts:
-- **Python RAG Service** on http://localhost:8000
-- **Express Backend** on http://localhost:3000
+- **Python FastAPI Backend** on http://localhost:8000 (managed by uv)
 - **React Frontend** on http://localhost:5173
 
 ## 🧪 Test the Setup
 
-### 1. Test Python Service Directly
+### 1. Test Python Service
 ```bash
 # Health check
 curl http://localhost:8000/health
 
-# Interactive docs
+# Interactive docs (Swagger UI)
 open http://localhost:8000/docs
 ```
 
-### 2. Test Through Express Backend
-```bash
-curl -X POST http://localhost:3000/api/waf/query \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What are the five pillars of WAF?", "topK": 5}'
-```
-
-### 3. Test in Browser
+### 2. Test in Browser
 1. Open http://localhost:5173
-2. Click "WAF Query" tab
-3. Ask a question
+2. Create a project or query knowledge bases
+3. Everything works through the unified Python backend!
 
-## 📋 What Changed
+## 📋 What's New in v4.0
 
-### Before ❌
+### Before (v3.x) ❌
 ```
-Express → spawn(python) → stdin/stdout → messy error handling
+Express (TypeScript) → HTTP → Python Service → LlamaIndex
 ```
 
-### After ✅
+### After (v4.0) ✅
 ```
-Express → HTTP → FastAPI → clean REST API
+React → FastAPI (Python) → LlamaIndex
 ```
 
 ## 🎯 Benefits
 
-✅ No more process spawning overhead  
-✅ Clean HTTP boundaries  
-✅ Proper error handling (HTTP status codes)  
-✅ Self-documenting API (Swagger at /docs)  
-✅ Independent scaling  
-✅ Industry-standard architecture  
+✅ **Simpler architecture** - One backend instead of two  
+✅ **Faster development** - Direct Python-to-LlamaIndex integration  
+✅ **10-100x faster installs** - uv vs pip  
+✅ **Better type safety** - SQLAlchemy models + TypeScript  
+✅ **Modern Python** - pyproject.toml, lockfiles, dependency groups  
+✅ **Zero activation needed** - `uv run` handles venv automatically  
 
 ## 📁 New Structure
 
 ```
 project/
-├── backend/              # Express API (TypeScript) :3000
-├── python-service/       # FastAPI RAG (Python) :8000  ⭐ NEW
+├── pyproject.toml        # Python dependencies & project config ⭐ NEW
+├── uv.lock              # Lockfile for reproducible builds ⭐ NEW
+├── .python-version      # Python version (3.10) ⭐ NEW
+├── backend/             # Python FastAPI :8000
 │   ├── app/
-│   │   ├── main.py      # FastAPI endpoints
-│   │   └── rag/         # RAG modules
-│   └── requirements.txt
-└── frontend/            # React (Vite) :5173
+│   │   ├── main.py     # FastAPI app
+│   │   └── routers/    # API endpoints
+│   └── tests/
+└── frontend/           # React (Vite) :5173
 ```
 
-## 🛠️ Individual Service Commands
+## 🛠️ Development Commands
 
-If you prefer separate terminals:
+### Running Services
 
 ```bash
-# Terminal 1: Python Service
-cd python-service
-uvicorn app.main:app --reload --port 8000
+# Python backend (with uv - no venv activation needed!)
+uv run uvicorn app.main:app --reload --port 8000
 
-# Terminal 2: Express Backend  
-cd backend
-npm run dev
+# OR use npm scripts
+npm run backend   # Uses uv run internally
+npm run frontend
+```
 
-# Terminal 3: Frontend
-cd frontend
-npm run dev
+### Managing Dependencies
+
+```bash
+# Add a new Python package
+uv add package-name
+
+# Add a dev dependency
+uv add --dev pytest
+
+# Remove a package
+uv remove package-name
+
+# Update all dependencies
+uv sync --upgrade
+
+# Run Python scripts
+uv run python script.py
+
+# Run tests
+uv run pytest
 ```
 
 ## 📚 API Documentation
@@ -113,23 +147,30 @@ Once running:
 
 ## 🐛 Troubleshooting
 
-**"Connection refused to localhost:8000"**
-- Make sure Python service is running
-- Check `PYTHON_SERVICE_URL` in backend/.env
+**"uv: command not found"**
+- Install uv: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
+- Restart your terminal
+- Add to PATH: `~/.local/bin` (Linux/macOS) or `%USERPROFILE%\.local\bin` (Windows)
 
-**"Module not found"**
-- Run `pip install -r python-service/requirements.txt`
-- Activate virtual environment if using one
+**"Connection refused to localhost:8000"**
+- Make sure Python backend is running: `npm run backend`
+- Check that port 8000 is not in use: `netstat -ano | findstr :8000`
+
+**"Module not found" or dependency issues**
+- Reinstall dependencies: `uv sync`
+- Remove lockfile and resync: `rm uv.lock && uv sync`
 
 **"OpenAI API key not found"**
-- Set `OPENAI_API_KEY` in both backend/.env and python-service/.env
+- Create `.env` file in project root
+- Set `OPENAI_API_KEY=your-key-here`
 
 ## 📖 More Documentation
 
-- `ARCHITECTURE.md` - Detailed architecture explanation
-- `REFACTORING_COMPLETE.md` - Full refactoring details
-- `python-service/README.md` - Python service documentation
+- `README.md` - Complete project documentation
+- `docs/REFACTORING_SUMMARY.md` - Architecture evolution
+- `backend/README.md` - Backend service details
 
 ---
 
-**Ready to go!** 🎉
+**Ready to go with uv!** 🚀⚡
+
