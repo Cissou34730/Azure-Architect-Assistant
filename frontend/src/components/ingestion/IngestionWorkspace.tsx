@@ -176,16 +176,27 @@ export function IngestionWorkspace() {
                 }}
               />
             ) : (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-card p-4">
-                <div className="text-yellow-800">No job found for this knowledge base.</div>
-                <Button
-                  variant="warning"
-                  size="sm"
-                  onClick={handleBackToList}
-                  className="mt-3"
-                >
-                  Back to List
-                </Button>
+              <div className="bg-blue-50 border border-blue-200 rounded-card p-4">
+                <div className="text-blue-800 font-medium">KB created; ingestion not started yet.</div>
+                <p className="text-blue-700 text-sm mt-1">Click Start to begin loading and processing.</p>
+                <div className="mt-3 flex gap-3">
+                  {selectedKbId && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => handleStartIngestion(selectedKbId)}
+                    >
+                      Start Ingestion
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBackToList}
+                  >
+                    Back to List
+                  </Button>
+                </div>
               </div>
             )}
           </div>
