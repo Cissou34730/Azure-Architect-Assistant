@@ -8,6 +8,7 @@ import asyncio
 from app.projects_database import init_database, close_database
 from app.ingestion.ingestion_database import init_ingestion_database
 from app.ingestion.application.ingestion_service import IngestionService
+from app.agents_system.runner import initialize_agent_runner, shutdown_agent_runner
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,25 @@ async def startup():
         except Exception as e:
             logger.warning(f"Failed to initialize ingestion service: {e}")
         
+        # Initialize agent system with MCP client
+        try:
+            from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+            logger.info("Initializing MCP client for agent system...")
+            mcp_config = {
+                "endpoint": "https://learn.microsoft.com/api/mcp",
+                "timeout": 30,
+            }
+            mcp_client = MicrosoftLearnMCPClient(mcp_config)
+            await mcp_client.initialize()
+            logger.info("✓ MCP client initialized")
+            
+            logger.info("Initializing agent system...")
+            await initialize_agent_runner(mcp_client)
+            logger.info("✓ Agent system ready")
+        except Exception as e:
+            logger.warning(f"Failed to initialize agent system: {e}")
+            logger.warning("Agent chat endpoints will not be available")
+        
         logger.info("=" * 60)
         logger.info("STARTUP COMPLETE: Ready to accept requests")
         logger.info("=" * 60)
@@ -76,6 +96,14 @@ async def shutdown():
     except Exception as e:
         logger.warning(f"Error cancelling ingestion tasks: {e}")
 
+    # Shutdown agent system
+    try:
+        logger.info("Shutting down agent system...")
+        await shutdown_agent_runner()
+        logger.info("✓ Agent system shutdown")
+    except Exception as e:
+        logger.warning(f"Error shutting down agent system: {e}")
+    
     # Close database connections
     await close_database()
     

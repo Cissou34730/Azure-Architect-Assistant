@@ -1,6 +1,6 @@
 interface NavigationProps {
-  currentView: 'projects' | 'kb' | 'kb-management'
-  onViewChange: (view: 'projects' | 'kb' | 'kb-management') => void
+  currentView: 'projects' | 'kb' | 'kb-management' | 'agent-chat'
+  onViewChange: (view: 'projects' | 'kb' | 'kb-management' | 'agent-chat') => void
 }
 
 export function Navigation({ currentView, onViewChange }: NavigationProps) {
@@ -8,6 +8,7 @@ export function Navigation({ currentView, onViewChange }: NavigationProps) {
     { id: 'projects' as const, label: 'Architecture Projects', ariaLabel: 'View architecture projects' },
     { id: 'kb' as const, label: 'Knowledge Base Query', ariaLabel: 'Query knowledge bases' },
     { id: 'kb-management' as const, label: 'KB Management', ariaLabel: 'Manage knowledge bases' },
+    { id: 'agent-chat' as const, label: 'Agent Chat', ariaLabel: 'Chat with Azure Architect Assistant' },
   ]
 
   return (
@@ -20,7 +21,7 @@ export function Navigation({ currentView, onViewChange }: NavigationProps) {
                 key={item.id}
                 onClick={() => onViewChange(item.id)}
                 role="tab"
-                aria-selected={currentView === item.id ? 'true' : 'false'}
+                aria-selected={currentView === item.id}
                 aria-label={item.ariaLabel}
                 className={`px-3 py-2 text-sm font-medium transition-colors ${
                   currentView === item.id
