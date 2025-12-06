@@ -15,6 +15,9 @@ from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
 from app.ingestion.infrastructure.embedding import EmbedderFactory
 from app.ingestion.infrastructure.indexing import IndexBuilderFactory
 from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase, PhaseStatus
+from app.ingestion.core.orchestrator import IngestionOrchestrator
+from app.ingestion.core.state_manager import aggregate_job_status
+from app.ingestion.core.phase import PhaseStatus as CorePhaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -138,8 +141,13 @@ class ConsumerPipeline:
     
     def _should_cancel(self) -> bool:
         """Check if immediate cancellation requested."""
-        if self.state.cancel_requested:
+        orchestrator = IngestionOrchestrator.instance()
+        desired = orchestrator.get_desired_state(self.job_id) if self.job_id else "idle"
+        if self.state.cancel_requested or desired in ("canceled", "shutdown"):
             logger.info(f"{self.log_prefix} Cancellation requested - exiting immediately")
+            return True
+        if desired == "paused":
+            logger.info(f"{self.log_prefix} Pause requested - exiting loop to allow resume")
             return True
         return False
     
@@ -474,6 +482,16 @@ class ConsumerPipeline:
             # Calculate overall progress
             self.state.progress = self.phase_tracker.get_overall_progress()
             
+            # Aggregate overall job status from per-phase statuses
+            try:
+                overall = aggregate_job_status({
+                    k: {"status": v.get("status", CorePhaseStatus.IDLE.value)}
+                    for k, v in phase_data.items()
+                })
+                self.state.status = overall
+            except Exception:
+                pass
+
             # Persist to database
             self.repository.update_phase_progress(
                 self.state.job_id,

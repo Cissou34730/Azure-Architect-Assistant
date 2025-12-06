@@ -60,7 +60,7 @@
       "status": "active",
       "source_type": "website",
       "source_config": {
-        "start_url": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework",
+        "start_url": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/",
         "max_pages": 1000
       },
       "embedding_model": "text-embedding-3-small",
