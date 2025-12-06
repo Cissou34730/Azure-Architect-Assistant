@@ -13,50 +13,8 @@ from config import get_openai_settings, get_kb_defaults, get_kb_storage_root
 logger = logging.getLogger(__name__)
 
 
-class KBConfig:
-    """Knowledge base configuration."""
-    
-    def __init__(self, config_dict: dict):
-        # Load defaults from config
-        openai_settings = get_openai_settings()
-        kb_defaults = get_kb_defaults()
-        
-        self.id: str = config_dict['id']
-        self.name: str = config_dict['name']
-        self.description: str = config_dict.get('description', '')
-        self.status: str = config_dict.get('status', 'active')
-        self.embedding_model: str = config_dict.get('embedding_model', openai_settings.embedding_model)
-        self.generation_model: str = config_dict.get('generation_model', openai_settings.model)
-        self.chunk_size: int = config_dict.get('chunk_size', kb_defaults.chunk_size)
-        self.chunk_overlap: int = config_dict.get('chunk_overlap', kb_defaults.chunk_overlap)
-        self.source_url: str = config_dict.get('source_url', '')
-        self.paths: dict = config_dict.get('paths', {})
-        
-        # Profile configuration
-        self.profiles: List[str] = config_dict.get('profiles', ['chat', 'proposal'])
-        self.priority: int = config_dict.get('priority', 5)
-    
-    @property
-    def index_path(self) -> str:
-        """Get full path to index directory."""
-        if 'index' in self.paths:
-            # Check if absolute path
-            index_path = self.paths['index']
-            if os.path.isabs(index_path):
-                return index_path
-            # Relative to backend root (backend/data/...)
-            backend_root = Path(__file__).parent.parent.parent
-            return str(backend_root / index_path)
-        return ""
-    
-    @property
-    def is_active(self) -> bool:
-        """Check if KB is active."""
-        return self.status == 'active'
-    
-    def supports_profile(self, profile: str) -> bool:
-        """Check if KB supports given profile."""
-        return profile in self.profiles
+from .models import KBConfig
+from .models import KBConfig
 
 
 class KBManager:

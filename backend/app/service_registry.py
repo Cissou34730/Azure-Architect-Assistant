@@ -11,15 +11,15 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from app.kb.knowledge_base_manager import KBManager
-from services.kb_query import MultiSourceQueryService
+from app.kb import KBManager
+from app.services.kb import MultiKBQueryService
 
 logger = logging.getLogger(__name__)
 
 # Global service instances (initialized at startup)
 # Singletons maintain in-memory index cache for performance
 _kb_manager: Optional[KBManager] = None
-_multi_query_service: Optional[MultiSourceQueryService] = None
+_multi_query_service: Optional[MultiKBQueryService] = None
 
 
 def get_kb_manager() -> KBManager:
@@ -34,7 +34,7 @@ def get_kb_manager() -> KBManager:
     return _kb_manager
 
 
-def get_multi_query_service() -> MultiSourceQueryService:
+def get_multi_query_service() -> MultiKBQueryService:
     """
     Get or create MultiSourceQueryService instance (singleton pattern).
     Handles multi-source KB queries with profile support.
@@ -42,7 +42,7 @@ def get_multi_query_service() -> MultiSourceQueryService:
     global _multi_query_service
     if _multi_query_service is None:
         manager = get_kb_manager()
-        _multi_query_service = MultiSourceQueryService(manager)
+        _multi_query_service = MultiKBQueryService(manager)
         logger.info("MultiSourceQueryService ready")
     return _multi_query_service
 

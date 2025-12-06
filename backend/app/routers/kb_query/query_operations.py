@@ -6,7 +6,7 @@ Service layer handling query orchestration.
 import logging
 from typing import Dict, Any, List, Optional
 
-from services.kb_query import MultiSourceQueryService, QueryProfile
+from app.services.kb import MultiKBQueryService, QueryProfile
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class KBQueryService:
     
     def query_with_profile(
         self,
-        service: MultiSourceQueryService,
+        service: MultiKBQueryService,
         question: str,
         profile: QueryProfile,
         top_k_per_kb: Optional[int] = None
@@ -46,7 +46,7 @@ class KBQueryService:
     
     def query_specific_kbs(
         self,
-        service: MultiSourceQueryService,
+        service: MultiKBQueryService,
         question: str,
         kb_ids: List[str],
         top_k_per_kb: int = 5

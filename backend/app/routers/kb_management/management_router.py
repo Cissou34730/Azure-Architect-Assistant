@@ -10,8 +10,8 @@ import asyncio
 
 from app.ingestion.application.ingestion_service import IngestionService
 from app.service_registry import get_kb_manager, get_multi_query_service, invalidate_kb_manager
-from app.kb.knowledge_base_manager import KBManager
-from services.kb_query import MultiSourceQueryService, QueryProfile
+from app.kb import KBManager
+from app.services.kb import MultiKBQueryService, QueryProfile
 from app.kb.service import clear_index_cache
 from .management_models import (
     KBInfo, 
@@ -37,7 +37,7 @@ def get_kb_manager_dep() -> KBManager:
     return get_kb_manager()
 
 
-def get_multi_query_service_dep() -> MultiSourceQueryService:
+def get_multi_query_service_dep() -> MultiKBQueryService:
     """Dependency for Multi Query Service - allows mocking in tests"""
     return get_multi_query_service()
 
