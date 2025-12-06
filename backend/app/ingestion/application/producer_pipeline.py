@@ -19,6 +19,9 @@ from app.ingestion.domain.sources import SourceHandlerFactory
 from app.ingestion.domain.chunking import ChunkerFactory
 from app.ingestion.infrastructure.persistence import create_local_disk_persistence_store
 from app.ingestion.infrastructure.repository import create_database_repository
+from app.ingestion.core.orchestrator import IngestionOrchestrator
+from app.ingestion.core.state_manager import aggregate_job_status
+from app.ingestion.core.phase import PhaseStatus
 
 logger = logging.getLogger(__name__)
 
@@ -427,13 +430,20 @@ class ProducerPipeline:
         """Check if cancelled."""
         if not self.state:
             return False
-        
-        if self.state.cancel_requested:
+        orchestrator = IngestionOrchestrator.instance()
+        desired = orchestrator.get_desired_state(self.state.job_id) if self.state.job_id else "idle"
+
+        if self.state.cancel_requested or desired in ("canceled", "shutdown"):
             logger.info(f"KB {self.kb_id} cancelled at {checkpoint_name}")
             persistence = create_local_disk_persistence_store()
             persistence.save(self.state)
             return True
-        
+        # Pause handling: honor orchestrator desired state
+        if desired == "paused":
+            logger.info(f"KB {self.kb_id} paused at {checkpoint_name}")
+            persistence = create_local_disk_persistence_store()
+            persistence.save(self.state)
+            return True
         return False
     
     async def _check_resume_scenario(self) -> bool:
@@ -475,6 +485,16 @@ class ProducerPipeline:
             
             # Calculate overall progress
             self.state.progress = self.phase_tracker.get_overall_progress()
+
+            # Aggregate overall job status from per-phase statuses
+            try:
+                overall = aggregate_job_status({
+                    k: {"status": v.get("status", PhaseStatus.IDLE.value)}
+                    for k, v in phase_data.items()
+                })
+                self.state.status = overall
+            except Exception:
+                pass
             
             # Persist to database
             repo = create_database_repository()
