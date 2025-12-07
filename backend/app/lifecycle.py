@@ -12,6 +12,9 @@ from app.agents_system.runner import initialize_agent_runner, shutdown_agent_run
 
 logger = logging.getLogger(__name__)
 
+# Global reference to MCP client for proper cleanup
+_mcp_client_instance = None
+
 
 async def startup():
     """
@@ -49,6 +52,7 @@ async def startup():
         
         # Initialize agent system with MCP client
         try:
+            global _mcp_client_instance
             from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
             logger.info("Initializing MCP client for agent system...")
             mcp_config = {
@@ -57,6 +61,7 @@ async def startup():
             }
             mcp_client = MicrosoftLearnMCPClient(mcp_config)
             await mcp_client.initialize()
+            _mcp_client_instance = mcp_client  # Store for cleanup
             logger.info("✓ MCP client initialized")
             
             logger.info("Initializing agent system...")
@@ -79,6 +84,8 @@ async def shutdown():
     """
     Cleanup on shutdown - cancel running ingestion jobs gracefully.
     """
+    global _mcp_client_instance
+    
     logger.info("=" * 60)
     logger.info("SHUTDOWN: Pausing running ingestion jobs...")
     logger.info("=" * 60)
@@ -103,6 +110,16 @@ async def shutdown():
         logger.info("✓ Agent system shutdown")
     except Exception as e:
         logger.warning(f"Error shutting down agent system: {e}")
+    
+    # Close MCP client explicitly to avoid asyncio context errors
+    if _mcp_client_instance:
+        try:
+            logger.info("Closing MCP client...")
+            await _mcp_client_instance.close()
+            _mcp_client_instance = None
+            logger.info("✓ MCP client closed")
+        except Exception as e:
+            logger.debug(f"MCP client cleanup (expected during shutdown): {e}")
     
     # Close database connections
     await close_database()
