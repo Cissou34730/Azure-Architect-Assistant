@@ -311,12 +311,33 @@ class IngestionService:
 
             state = runtime.state
             self._set_canceled(state, message="Cancellation requested")
-            self.repository.update_job_status(runtime.job_id, JobStatus.CANCELED.value)
+            # Update DB status using correct enum spelling
+            self.repository.update_job_status(runtime.job_id, JobStatus.CANCELLED.value)
             self.persistence.save_state(state)
 
         self.lifecycle.stop_threads(runtime)
         
+        # After threads stop, perform storage cleanup and reset state
+        try:
+            self._cleanup_storage_for_kb(kb_id)
+        except Exception as e:
+            logger.error(f"[IngestionService] KB {kb_id}: Storage cleanup failed: {e}")
+
         with self._lock:
+            # Reset persisted state to NOT_STARTED
+            reset_state = runtime.state
+            reset_state.status = JobStatus.NOT_STARTED.value
+            reset_state.phase = "loading"
+            reset_state.progress = 0
+            reset_state.message = "KB created; ingestion not started yet"
+            reset_state.error = None
+            reset_state.metrics = {}
+            reset_state.started_at = None
+            reset_state.completed_at = None
+            reset_state.phase_status = {}
+            self.persistence.save_state(reset_state)
+
+            # Clear runtime from memory
             self._cleanup_runtime(kb_id, runtime)
         
         return True
@@ -360,6 +381,21 @@ class IngestionService:
                 self._cancel_sync(kb_id)
             except Exception as exc:
                 logger.error(f"Failed to cancel KB {kb_id}: {exc}")
+
+    def _cleanup_storage_for_kb(self, kb_id: str) -> None:
+        """Remove index storage for a KB (documents, embeddings, index files)."""
+        try:
+            from pathlib import Path
+            backend_root = Path(__file__).parent.parent.parent.parent
+            storage_dir = backend_root / "data" / "knowledge_bases" / kb_id / "index"
+            if storage_dir.exists():
+                import shutil
+                shutil.rmtree(storage_dir)
+                logger.info(f"[IngestionService] KB {kb_id}: Removed storage directory {storage_dir}")
+            else:
+                logger.info(f"[IngestionService] KB {kb_id}: Storage directory not found; nothing to remove")
+        except Exception as e:
+            logger.error(f"[IngestionService] KB {kb_id}: Failed to remove storage: {e}")
 
     async def pause_all(self) -> None:
         """Pause all running jobs."""

@@ -13,6 +13,7 @@ import re
 from urllib.parse import urlparse
 
 from llama_index.core import Document
+from config import get_kb_defaults
 
 from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase, PhaseStatus
 from app.ingestion.domain.sources import SourceHandlerFactory

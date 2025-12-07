@@ -67,12 +67,13 @@ class DatabaseRepository:
         """Update job status and timestamp."""
         # Map domain status to DB enum
         status_map = {
-            JobStatus.PENDING.value: DBJobStatus.PENDING.value,
-            JobStatus.RUNNING.value: DBJobStatus.RUNNING.value,
-            JobStatus.PAUSED.value: DBJobStatus.PAUSED.value,
-            JobStatus.COMPLETED.value: DBJobStatus.COMPLETED.value,
-            JobStatus.FAILED.value: DBJobStatus.FAILED.value,
-            JobStatus.CANCELED.value: DBJobStatus.CANCELED.value,
+                JobStatus.NOT_STARTED.value: DBJobStatus.PENDING.value,
+                JobStatus.PENDING.value: DBJobStatus.PENDING.value,
+                JobStatus.RUNNING.value: DBJobStatus.RUNNING.value,
+                JobStatus.PAUSED.value: DBJobStatus.PAUSED.value,
+                JobStatus.COMPLETED.value: DBJobStatus.COMPLETED.value,
+                JobStatus.FAILED.value: DBJobStatus.FAILED.value,
+                JobStatus.CANCELLED.value: DBJobStatus.CANCELED.value,
         }
         db_status = status_map.get(status, DBJobStatus.PENDING.value)
         
@@ -234,7 +235,7 @@ class DatabaseRepository:
             DBJobStatus.PAUSED.value: JobStatus.PAUSED.value,
             DBJobStatus.COMPLETED.value: JobStatus.COMPLETED.value,
             DBJobStatus.FAILED.value: JobStatus.FAILED.value,
-            DBJobStatus.CANCELED.value: JobStatus.CANCELED.value,
+              DBJobStatus.CANCELED.value: JobStatus.CANCELLED.value,
         }
         status = status_map.get(job.status, JobStatus.PENDING.value)
         completed_at = (

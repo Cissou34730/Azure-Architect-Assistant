@@ -1,20 +1,20 @@
 {
   "kb_id": "caf",
-  "job_id": "33777552-3ffa-4f27-a760-cea60d151ea0",
+  "job_id": "3077ae99-8dc7-411f-a536-21f4ce6f646e",
   "version": 1,
-  "updated_at": "2025-12-06T21:37:54.404379",
+  "updated_at": "2025-12-07T08:10:04.460370",
   "job": {
-    "status": "paused",
-    "phase": "crawling",
+    "status": "pending",
+    "phase": "loading",
     "progress": 0,
-    "message": "Job was interrupted (server restart)",
+    "message": "KB created; ingestion not started yet",
     "error": null,
-    "created_at": "2025-12-06T10:31:44.923455",
-    "started_at": "2025-12-06T10:31:44.923455",
+    "created_at": "2025-12-07T07:46:31.448305",
+    "started_at": null,
     "completed_at": null,
     "paused": true,
     "cancel_requested": false
   },
   "metrics": {},
-  "phase_status": null
+  "phase_status": {}
 }

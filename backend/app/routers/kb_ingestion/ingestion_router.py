@@ -146,11 +146,19 @@ async def get_kb_status(
                         error=phase_data.get('error'),
                     ))
             
+            # Normalize phase to supported API enum
+            allowed_phases = {"loading", "chunking", "embedding", "indexing"}
+            normalized_phase = state.phase
+            if isinstance(normalized_phase, str):
+                normalized_phase = normalized_phase.lower()
+                if normalized_phase not in allowed_phases:
+                    normalized_phase = "loading"
+
             return JobStatusResponse(
                 job_id=f"{kb_id}-job",
                 kb_id=kb_id,
                 status=adjusted_status,
-                phase=state.phase,
+                phase=normalized_phase,
                 progress=state.progress,
                 message=adjusted_message,
                 error=state.error if adjusted_status == "failed" else None,
@@ -160,11 +168,11 @@ async def get_kb_status(
                 phase_details=phase_details,
             )
         
-        # No state found - return default "not started" state
+        # No state found - return default NOT_STARTED state
         return JobStatusResponse(
             job_id=f"{kb_id}-pending",
             kb_id=kb_id,
-            status="pending",
+            status="not_started",
             phase="loading",
             progress=0,
             message="KB created; ingestion not started yet",

@@ -271,7 +271,7 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
       </div>
 
       {/* Actions */}
-      {(isRunning || isPaused) && (
+      {(isRunning || isPaused) && job.status !== "not_started" && (
         <div className="flex justify-end gap-3 pt-2">
           {isPaused && (
             <Button

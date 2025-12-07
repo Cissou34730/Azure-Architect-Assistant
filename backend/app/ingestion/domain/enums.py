@@ -8,7 +8,7 @@ from typing import Dict, Set, Optional
 
 class JobStatus(str, enum.Enum):
     """Lifecycle states for an ingestion job."""
-
+    NOT_STARTED = "not_started"
     PENDING = "pending"
     RUNNING = "running"
     PAUSED = "paused"
@@ -31,6 +31,7 @@ class JobPhase(str, enum.Enum):
 
 # State transition map: current_status -> allowed_next_statuses
 _TRANSITION_MAP: Dict[JobStatus, Set[JobStatus]] = {
+    JobStatus.NOT_STARTED: {JobStatus.RUNNING, JobStatus.CANCELLED},
     JobStatus.PENDING: {JobStatus.RUNNING, JobStatus.CANCELLED},
     JobStatus.RUNNING: {JobStatus.PAUSED, JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED},
     JobStatus.PAUSED: {JobStatus.RUNNING, JobStatus.CANCELLED},

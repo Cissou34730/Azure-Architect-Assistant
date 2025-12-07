@@ -66,7 +66,7 @@ class ProducerWorker:
             
             # DO NOT mark as completed here - consumer will do that after finishing all work
             # Producer only handles crawl/chunk/enqueue phase
-            if state.status not in {JobStatus.FAILED.value, JobStatus.CANCELED.value}:
+            if state.status not in {JobStatus.FAILED.value, JobStatus.CANCELLED.value}:
                 state.phase = "embedding"
                 state.message = "Crawling complete, processing chunks..."
                 logger.info(f"{log_prefix} Producer finished - consumer will continue processing queue")

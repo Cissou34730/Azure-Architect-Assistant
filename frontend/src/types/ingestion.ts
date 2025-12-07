@@ -4,6 +4,7 @@
 
 // Enums for better type safety
 export type JobStatus =
+  | "not_started"
   | "pending"
   | "running"
   | "paused"
@@ -12,15 +13,13 @@ export type JobStatus =
   | "cancelled";
 
 export type IngestionPhase =
-  | "pending"
-  | "crawling"
-  | "cleaning"
+  | "loading"
+  | "chunking"
   | "embedding"
   | "indexing"
   | "completed"
   | "failed"
-  | "cancelled"
-  | "paused";
+  | "cancelled";
 
 export type SourceType =
   | "web_documentation"
@@ -35,6 +34,7 @@ export type KBStatus = "active" | "inactive" | "archived";
 // Type guard functions
 export const isJobStatus = (value: string): value is JobStatus => {
   return [
+    "not_started",
     "pending",
     "running",
     "paused",
@@ -46,15 +46,13 @@ export const isJobStatus = (value: string): value is JobStatus => {
 
 export const isIngestionPhase = (value: string): value is IngestionPhase => {
   return [
-    "pending",
-    "crawling",
-    "cleaning",
+    "loading",
+    "chunking",
     "embedding",
     "indexing",
     "completed",
     "failed",
     "cancelled",
-    "paused",
   ].includes(value);
 };
 

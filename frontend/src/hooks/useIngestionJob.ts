@@ -69,7 +69,7 @@ export function useIngestionJob(
       // Initial fetch
       await fetchStatus();
 
-      // Set up polling only if job is running or pending
+      // Set up polling only if job is running or pending/not_started
       intervalId = setInterval(async () => {
         const data = await getKBStatus(kbId);
         setJob(data);
@@ -78,7 +78,8 @@ export function useIngestionJob(
         if (
           data.status === "completed" ||
           data.status === "failed" ||
-          data.status === "cancelled"
+          data.status === "cancelled" ||
+          data.status === "not_started"
         ) {
           if (intervalId) {
             clearInterval(intervalId);

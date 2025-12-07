@@ -422,6 +422,7 @@ class ConsumerPipeline:
     def _create_embedder(self):
         """Create embedder from runtime configuration."""
         kb_config = self._extract_kb_config()
+        from config import get_kb_defaults
         defaults = get_kb_defaults()
         merged = defaults.merge_with_kb_config(kb_config)
         
@@ -436,6 +437,7 @@ class ConsumerPipeline:
     def _create_index_builder(self):
         """Create index builder from runtime configuration."""
         kb_config = self._extract_kb_config()
+        from config import get_kb_defaults
         defaults = get_kb_defaults()
         merged = defaults.merge_with_kb_config(kb_config)
         
