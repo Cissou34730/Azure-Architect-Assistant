@@ -32,7 +32,7 @@ class MCPReActAgent:
         self,
         openai_api_key: str,
         mcp_client: MicrosoftLearnMCPClient,
-        model: str = "gpt-4",
+        model: str,
         temperature: float = 0.1,
         max_iterations: int = 10,
         verbose: bool = True,
@@ -43,7 +43,7 @@ class MCPReActAgent:
         Args:
             openai_api_key: OpenAI API key for LLM
             mcp_client: Initialized MicrosoftLearnMCPClient for tool access
-            model: OpenAI model to use (default: gpt-4)
+            model: OpenAI model to use
             temperature: Model temperature for response generation (default: 0.1 for consistency)
             max_iterations: Maximum ReAct iterations (default: 10)
             verbose: Enable detailed logging (default: True)
