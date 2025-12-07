@@ -34,7 +34,7 @@ class MCPReActAgent:
         mcp_client: MicrosoftLearnMCPClient,
         model: str,
         temperature: float = 0.1,
-        max_iterations: int = 10,
+        max_iterations: int = 4,  # 3 tool calls + final answer
         verbose: bool = True,
     ):
         """
@@ -45,7 +45,7 @@ class MCPReActAgent:
             mcp_client: Initialized MicrosoftLearnMCPClient for tool access
             model: OpenAI model to use
             temperature: Model temperature for response generation (default: 0.1 for consistency)
-            max_iterations: Maximum ReAct iterations (default: 10)
+            max_iterations: Maximum ReAct iterations (default: 4 for up to 3 tool calls)
             verbose: Enable detailed logging (default: True)
         """
         self.openai_api_key = openai_api_key
@@ -155,7 +155,7 @@ Please answer considering the project context above. If your answer clarifies or
             # Execute the agent
             result = await self.agent_executor.ainvoke(agent_input)
             
-            logger.info(f"Agent execution completed successfully")
+            logger.info(f"Agent execution completed")
             logger.debug(f"Intermediate steps: {len(result.get('intermediate_steps', []))}")
             
             return {

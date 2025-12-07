@@ -172,7 +172,7 @@ export function AgentChatWorkspace() {
     } else {
       setProjectState(null)
     }
-  }, [selectedProjectId, loadProjectState])
+  }, [selectedProjectId])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

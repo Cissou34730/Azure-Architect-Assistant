@@ -42,21 +42,22 @@ Your role is to support Cloud Solution Architects during discovery, design, and 
 Begin each response by thinking through the problem, then use tools as needed."""
 
 
-# ReAct reasoning template
+# ReAct reasoning template - SINGLE ITERATION ONLY
 REACT_TEMPLATE = """Answer the following question as best you can. You have access to the following tools:
 
 {tools}
 
-Use the following format:
+Use the following format (ONE ACTION ONLY):
 
 Question: the input question you must answer
 Thought: you should always think about what to do
 Action: the action to take, should be one of [{tool_names}]
 Action Input: the input to the action
 Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
 Thought: I now know the final answer
 Final Answer: the final answer to the original input question
+
+IMPORTANT: Make ONE tool call only, then provide your final answer based on that single observation.
 
 Begin!
 
