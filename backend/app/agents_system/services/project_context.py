@@ -92,7 +92,8 @@ async def update_project_state(
     state_record.state = json.dumps(updated_state)
     state_record.updated_at = datetime.utcnow().isoformat()
     
-    await db.commit()
+    # Don't commit here - let the dependency handle it
+    await db.flush()  # Flush to get updated values but don't commit
     
     # Return with metadata
     updated_state["projectId"] = project_id

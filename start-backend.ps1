@@ -6,7 +6,14 @@ Write-Host "Starting Azure Architect Assistant Backend..." -ForegroundColor Gree
 # Function to cleanup Python processes
 function Stop-BackendProcesses {
     Write-Host "`nCleaning up Python processes..." -ForegroundColor Yellow
-    Get-Process -Name python* -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name python* -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+            Stop-Process -Id $_.Id -Force -ErrorAction Stop
+        } catch {
+            # Ignore permission errors for processes we can't stop
+            Write-Host "  Skipped PID $($_.Id) (permission denied)" -ForegroundColor DarkGray
+        }
+    }
     Write-Host "Cleanup complete." -ForegroundColor Green
 }
 
