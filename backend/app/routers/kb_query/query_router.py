@@ -7,8 +7,9 @@ from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 import logging
 
-from app.service_registry import get_multi_query_service
+from app.service_registry import get_multi_query_service, get_kb_manager
 from app.services.kb import QueryProfile, MultiKBQueryService
+from app.kb.service import KnowledgeBaseService
 from .query_models import (
     QueryRequest,
     ProfileQueryRequest,
@@ -95,6 +96,17 @@ async def query_chat(
     Returns answer with sources from chat-enabled knowledge bases.
     """
     try:
+        # Filter to ready KBs only
+        ready_kbs = [kb for kb in get_kb_manager().get_kbs_for_profile(QueryProfile.CHAT.value)
+                     if KnowledgeBaseService(kb).is_index_ready()]
+        if not ready_kbs:
+            return QueryResponse(
+                answer="No indexed knowledge bases available for chat yet.",
+                sources=[],
+                hasResults=False,
+                suggestedFollowUps=None
+            )
+
         result = operations.query_with_profile(
             multi_query_service,
             request.question,
@@ -137,6 +149,16 @@ async def query_proposal(
     Returns answer with sources from proposal-enabled knowledge bases.
     """
     try:
+        ready_kbs = [kb for kb in get_kb_manager().get_kbs_for_profile(QueryProfile.PROPOSAL.value)
+                     if KnowledgeBaseService(kb).is_index_ready()]
+        if not ready_kbs:
+            return QueryResponse(
+                answer="No indexed knowledge bases available for proposal yet.",
+                sources=[],
+                hasResults=False,
+                suggestedFollowUps=None
+            )
+
         result = operations.query_with_profile(
             multi_query_service,
             request.question,
@@ -179,10 +201,23 @@ async def query_kb_manual(
     Used in KB Query tab for manual KB selection.
     """
     try:
+        # Filter input kb_ids to those with ready indexes
+        from typing import List
+        kb_ids: List[str] = [kb_id for kb_id in request.kb_ids
+                             if (lambda cfg: cfg and KnowledgeBaseService(cfg).is_index_ready())
+                             (get_kb_manager().get_kb(kb_id))]
+        if not kb_ids:
+            return QueryResponse(
+                answer="Selected KBs have no built index yet.",
+                sources=[],
+                hasResults=False,
+                suggestedFollowUps=None
+            )
+
         result = operations.query_specific_kbs(
             multi_query_service,
             request.question,
-            request.kb_ids,
+            kb_ids,
             request.topKPerKB
         )
         

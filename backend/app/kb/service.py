@@ -81,7 +81,11 @@ class KnowledgeBaseService:
     
     def is_index_ready(self) -> bool:
         """Check if index exists and is ready."""
-        return os.path.exists(self.storage_dir)
+        if not os.path.exists(self.storage_dir):
+            return False
+        # Consider index ready only if core index files exist
+        docstore_path = os.path.join(self.storage_dir, 'docstore.json')
+        return os.path.exists(docstore_path)
 
 
 def clear_index_cache(kb_id: Optional[str] = None, storage_dir: Optional[str] = None):

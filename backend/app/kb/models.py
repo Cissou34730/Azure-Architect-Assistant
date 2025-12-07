@@ -22,6 +22,8 @@ class KBConfig:
         self.chunk_overlap: int = config_dict.get("chunk_overlap", kb_defaults.chunk_overlap)
         self.source_url: str = config_dict.get("source_url", "")
         self.paths: dict = config_dict.get("paths", {})
+        # Indexed flag: true when index was built
+        self.indexed: bool = bool(config_dict.get("indexed", False))
 
         self.profiles: List[str] = config_dict.get("profiles", ["chat", "proposal"])
         self.priority: int = config_dict.get("priority", 5)
