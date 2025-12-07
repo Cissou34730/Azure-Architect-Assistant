@@ -259,7 +259,7 @@ class IngestionService:
             if not runtime:
                 # Check if there's a persisted state that's already paused or completed
                 state = self._states.get(kb_id) or self.persistence.load(kb_id)
-                if state and state.status in [JobStatus.PAUSED.value, JobStatus.COMPLETED.value, JobStatus.FAILED.value, JobStatus.CANCELED.value]:
+                if state and state.status in [JobStatus.PAUSED.value, JobStatus.COMPLETED.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value]:
                     logger.info(f"[IngestionService] KB {kb_id}: Already in {state.status} state")
                     return True
                 logger.warning(f"[IngestionService] KB {kb_id}: No runtime found and no pausable state")
@@ -492,7 +492,7 @@ class IngestionService:
 
     def _set_canceled(self, state: IngestionState, *, message: Optional[str] = None) -> None:
         """Mark state canceled and set cooperative cancel flag."""
-        state.status = JobStatus.CANCELED.value
+        state.status = JobStatus.CANCELLED.value
         state.cancel_requested = True
         state.paused = False
         state.phase = "cancelled"

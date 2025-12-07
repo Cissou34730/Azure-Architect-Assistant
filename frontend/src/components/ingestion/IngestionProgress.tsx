@@ -13,12 +13,13 @@ interface IngestionProgressProps {
   job: IngestionJob;
   onCancel?: () => void;
   onRefresh?: () => void;
+  onStart?: () => void;
 }
 
 // Align with backend phases (lowercase)
 const PHASE_LABELS: Record<string, string> = {
-  crawling: 'Crawling Documents',
-  cleaning: 'Cleaning Content',
+  loading: 'Loading Documents',
+  chunking: 'Chunking Content',
   embedding: 'Generating Embeddings',
   indexing: 'Building Index',
   completed: 'Completed',
@@ -26,17 +27,17 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 const PHASE_COLORS: Record<string, string> = {
-  crawling: 'bg-blue-500',
-  cleaning: 'bg-indigo-500',
+  loading: 'bg-blue-500',
+  chunking: 'bg-indigo-500',
   embedding: 'bg-purple-500',
   indexing: 'bg-pink-500',
   completed: 'bg-green-500',
   failed: 'bg-red-500',
 };
 
-const PHASE_ORDER: string[] = ['crawling', 'cleaning', 'embedding', 'indexing', 'completed'];
+const PHASE_ORDER: string[] = ['loading', 'chunking', 'embedding', 'indexing', 'completed'];
 
-export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgressProps) {
+export function IngestionProgress({ job, onCancel, onRefresh, onStart }: IngestionProgressProps) {
   const [isPending, startTransition] = useTransition();
 
   const handleCancel = () => {
@@ -79,7 +80,8 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
     });
   };
 
-  const isRunning = job.status === 'running' || job.status === 'pending';
+  const isNotStarted = job.status === 'not_started' || job.phase === 'not_started';
+  const isRunning = (job.status === 'running' || job.status === 'pending') && !isNotStarted;
   const isPaused = job.status === 'paused';
   const progressPercent = Math.min(Math.max(job.progress, 0), 100);
   
@@ -92,6 +94,28 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
     return phaseIndex < currentPhaseIndex;
   };
   const isPhaseActive = (phase: string) => phase === job.phase && isRunning;
+
+  // Render explicit Not Started state: clear label, 0%, Start action only
+  if (isNotStarted) {
+    return (
+      <div className="card space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Ingestion Progress</h3>
+          <StatusBadge variant={'inactive'}>NOT STARTED</StatusBadge>
+        </div>
+
+        <div className="p-3 bg-gray-50 border rounded-md text-sm text-gray-700">Ingestion has not started yet.</div>
+
+        <div className="flex justify-end gap-3 pt-2">
+          {onStart && (
+            <Button variant="primary" onClick={onStart}>
+              Start Ingestion
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card space-y-6">
@@ -156,8 +180,8 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
                     <div className="w-full bg-gray-200 rounded-pill h-2 overflow-hidden">
                       <div
                         className={`h-full transition-all duration-300 ${
-                          phase === 'crawling' ? 'bg-phase-crawling' :
-                          phase === 'cleaning' ? 'bg-phase-cleaning' :
+                          phase === 'loading' ? 'bg-phase-crawling' :
+                          phase === 'chunking' ? 'bg-phase-cleaning' :
                           phase === 'embedding' ? 'bg-phase-embedding' :
                           phase === 'indexing' ? 'bg-phase-indexing' :
                           'bg-accent-success'
@@ -271,7 +295,7 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
       </div>
 
       {/* Actions */}
-      {(isRunning || isPaused) && job.status !== "not_started" && (
+      {(isRunning || isPaused) && (
         <div className="flex justify-end gap-3 pt-2">
           {isPaused && (
             <Button

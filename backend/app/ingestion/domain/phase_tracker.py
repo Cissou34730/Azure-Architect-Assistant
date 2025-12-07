@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class IngestionPhase(str, Enum):
     """Phases of the ingestion process."""
+    NOT_STARTED = "not_started"  # Explicit pre-ingestion phase
     LOADING = "loading"  # Source-specific: crawling, PDF reading, etc.
     CHUNKING = "chunking"
     EMBEDDING = "embedding"
@@ -22,7 +23,8 @@ class IngestionPhase(str, Enum):
 
 class PhaseStatus(str, Enum):
     """Status of each phase - mirrors job status."""
-    PENDING = "pending"  # Waiting for upstream phases or queued items
+    NOT_STARTED = "not_started"  # Explicitly not begun yet
+    PENDING = "pending"          # Waiting for upstream phases or queued items
     RUNNING = "running"
     PAUSED = "paused"
     COMPLETED = "completed"
@@ -38,6 +40,7 @@ class PhaseTracker:
     
     # Phase order for validation
     PHASE_ORDER = [
+        IngestionPhase.NOT_STARTED,
         IngestionPhase.LOADING,
         IngestionPhase.CHUNKING,
         IngestionPhase.EMBEDDING,
@@ -52,10 +55,10 @@ class PhaseTracker:
         self._initialize_phases()
     
     def _initialize_phases(self):
-        """Initialize all phases as pending."""
+        """Initialize all phases as not_started."""
         for phase in self.PHASE_ORDER:
             self.phases[phase.value] = {
-                "status": PhaseStatus.PENDING.value,
+                "status": PhaseStatus.NOT_STARTED.value,
                 "started_at": None,
                 "completed_at": None,
                 "progress": 0,

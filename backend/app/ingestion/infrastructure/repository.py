@@ -73,7 +73,7 @@ class DatabaseRepository:
                 JobStatus.PAUSED.value: DBJobStatus.PAUSED.value,
                 JobStatus.COMPLETED.value: DBJobStatus.COMPLETED.value,
                 JobStatus.FAILED.value: DBJobStatus.FAILED.value,
-                JobStatus.CANCELLED.value: DBJobStatus.CANCELED.value,
+                JobStatus.CANCELLED.value: DBJobStatus.CANCELLED.value,
         }
         db_status = status_map.get(status, DBJobStatus.PENDING.value)
         
@@ -235,7 +235,7 @@ class DatabaseRepository:
             DBJobStatus.PAUSED.value: JobStatus.PAUSED.value,
             DBJobStatus.COMPLETED.value: JobStatus.COMPLETED.value,
             DBJobStatus.FAILED.value: JobStatus.FAILED.value,
-              DBJobStatus.CANCELED.value: JobStatus.CANCELLED.value,
+              DBJobStatus.CANCELLED.value: JobStatus.CANCELLED.value,
         }
         status = status_map.get(job.status, JobStatus.PENDING.value)
         completed_at = (
@@ -243,7 +243,7 @@ class DatabaseRepository:
             if job.status in {
                 DBJobStatus.COMPLETED.value,
                 DBJobStatus.FAILED.value,
-                DBJobStatus.CANCELED.value,
+                DBJobStatus.CANCELLED.value,
             }
             else None
         )
@@ -257,7 +257,7 @@ class DatabaseRepository:
             message="Recovered job",
             error=None,
             paused=job.status == DBJobStatus.PAUSED.value,
-            cancel_requested=job.status == DBJobStatus.CANCELED.value,
+            cancel_requested=job.status == DBJobStatus.CANCELLED.value,
             created_at=job.created_at,
             started_at=job.updated_at,
             completed_at=completed_at,

@@ -22,10 +22,11 @@ interface KBListItemProps {
 export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete, onCancel, onPause, onResume }: KBListItemProps) {
   const [showActions, setShowActions] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const isIngesting = job?.status === 'running' || job?.status === 'pending';
+  const isNotStarted = job?.status === 'not_started';
+  const isIngesting = (job?.status === 'running' || job?.status === 'pending') && !isNotStarted;
   const isPaused = job?.status === 'paused';
   const isCompleted = job?.status === 'completed';
-  const canStartIngestion = !isIngesting && !isPaused && !isCompleted; // Only show Start for pending/failed/cancelled or no job
+  const canStartIngestion = isNotStarted || (!isIngesting && !isPaused && !isCompleted); // Show Start for not_started or no job/idle
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -90,7 +91,7 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
           )}
 
           {/* Job Status */}
-          {job && (
+          {job && !isNotStarted && (
             <div className="mt-3 space-y-2">
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-pill ${
@@ -101,7 +102,9 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
                   'bg-gray-500'
                 }`} />
                 <span className="text-sm font-medium text-gray-700">
-                  {job.status === 'paused' ? 'PAUSED' : `${job.phase.toUpperCase()} - ${job.progress.toFixed(0)}%`}
+                  {job.status === 'paused' && 'PAUSED'}
+                  {job.status === 'completed' && 'COMPLETED'}
+                  {job.status !== 'paused' && job.status !== 'completed' && `${job.phase.toUpperCase()} - ${job.progress.toFixed(0)}%`}
                 </span>
                 <span className="text-xs text-gray-500">
                   {job.message}
@@ -154,6 +157,15 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
                   )}
                 </div>
               )}
+            </div>
+          )}
+          {job && isNotStarted && (
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-pill bg-gray-500" />
+                <span className="text-sm font-medium text-gray-700">NOT STARTED</span>
+                <span className="text-xs text-gray-500">Waiting to start</span>
+              </div>
             </div>
           )}
         </div>

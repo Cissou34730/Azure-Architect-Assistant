@@ -174,6 +174,11 @@ export function IngestionWorkspace() {
                     await refetch();
                   });
                 }}
+                onStart={() => {
+                  if (selectedKbId) {
+                    handleStartIngestion(selectedKbId);
+                  }
+                }}
               />
             ) : (
               <div className="bg-blue-50 border border-blue-200 rounded-card p-4">

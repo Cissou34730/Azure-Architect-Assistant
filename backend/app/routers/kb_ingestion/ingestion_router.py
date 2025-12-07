@@ -146,9 +146,10 @@ async def get_kb_status(
                         error=phase_data.get('error'),
                     ))
             
-            # Normalize phase to supported API enum
-            allowed_phases = {"loading", "chunking", "embedding", "indexing"}
-            normalized_phase = state.phase
+            # Normalize phase to supported API enum; for not_started, no active phase
+            allowed_phases = {"not_started", "loading", "chunking", "embedding", "indexing"}
+            # Phase must be one of the allowed enum values for validation
+            normalized_phase = state.phase or "not_started"
             if isinstance(normalized_phase, str):
                 normalized_phase = normalized_phase.lower()
                 if normalized_phase not in allowed_phases:
@@ -168,7 +169,27 @@ async def get_kb_status(
                 phase_details=phase_details,
             )
         
-        # No state found - return default NOT_STARTED state
+        # No state found - infer from index readiness
+        try:
+            # If index is ready, treat as completed
+            if kb_manager.is_index_ready(kb_id):
+                return JobStatusResponse(
+                    job_id=f"{kb_id}-completed",
+                    kb_id=kb_id,
+                    status="completed",
+                    phase="completed",
+                    progress=100,
+                    message="Ingestion completed; index is ready",
+                    error=None,
+                    metrics={},
+                    started_at=None,
+                    completed_at=None,
+                    phase_details=None,
+                )
+        except Exception as e:
+            logger.warning(f"KB {kb_id}: readiness check failed in status endpoint: {e}")
+
+        # Otherwise, default to NOT_STARTED
         return JobStatusResponse(
             job_id=f"{kb_id}-pending",
             kb_id=kb_id,
