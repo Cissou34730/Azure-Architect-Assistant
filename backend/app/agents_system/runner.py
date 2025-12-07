@@ -74,12 +74,13 @@ class AgentRunner:
         
         logger.info("Agent system initialization complete")
     
-    async def execute_query(self, user_query: str) -> dict:
+    async def execute_query(self, user_query: str, project_context: Optional[str] = None) -> dict:
         """
         Execute a user query through the agent.
         
         Args:
             user_query: User's architectural question or requirement
+            project_context: Optional formatted project context string
             
         Returns:
             Dictionary with agent response and metadata
@@ -92,7 +93,7 @@ class AgentRunner:
         
         logger.info(f"Executing query: {user_query[:100]}...")
         
-        result = await self.agent.execute(user_query)
+        result = await self.agent.execute(user_query, project_context=project_context)
         
         logger.info(f"Query execution complete (success={result['success']})")
         

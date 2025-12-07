@@ -4,11 +4,20 @@ FastAPI router for agent chat endpoints and request handling.
 """
 
 import logging
-from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status
+import re
+import json
+from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..runner import get_agent_runner
+from ..services.project_context import (
+    read_project_state,
+    update_project_state,
+    get_project_context_summary
+)
+from ...projects_database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +55,26 @@ class AgentChatResponse(BaseModel):
     reasoning_steps: List[AgentStep] = Field(
         default=[],
         description="Agent's reasoning steps (Thought/Action/Observation)"
+    )
+    error: Optional[str] = Field(default=None, description="Error message if failed")
+
+
+class ProjectAgentChatRequest(BaseModel):
+    """Request for project-aware agent chat."""
+    message: str = Field(description="User's question or requirement")
+
+
+class ProjectAgentChatResponse(BaseModel):
+    """Response from project-aware agent chat."""
+    answer: str = Field(description="Agent's final answer")
+    success: bool = Field(description="Whether execution was successful")
+    project_state: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Updated project state if modified"
+    )
+    reasoning_steps: List[AgentStep] = Field(
+        default=[],
+        description="Agent's reasoning steps"
     )
     error: Optional[str] = Field(default=None, description="Error message if failed")
 
@@ -120,6 +149,155 @@ async def chat_with_agent(request: AgentChatRequest) -> AgentChatResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process chat request: {str(e)}"
         )
+
+
+@router.post("/projects/{project_id}/chat", response_model=ProjectAgentChatResponse)
+async def chat_with_project_context(
+    project_id: str,
+    request: ProjectAgentChatRequest,
+    db: AsyncSession = Depends(get_db)
+) -> ProjectAgentChatResponse:
+    """
+    Chat with the agent in the context of a specific architecture project.
+    
+    The agent will:
+    1. Load the current project state (requirements, NFRs, architecture)
+    2. Consider project context when answering questions
+    3. Search Azure documentation for relevant guidance
+    4. Detect if the answer updates project requirements
+    5. Update the project state if needed
+    
+    Example request:
+    ```json
+    {
+        "message": "We need 99.9% availability for our web app"
+    }
+    ```
+    
+    The agent will understand this is an NFR and may update the project state accordingly.
+    """
+    try:
+        logger.info(f"Project {project_id}: Received agent chat request")
+        
+        # Load project context
+        project_state = await read_project_state(project_id, db)
+        if not project_state:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Project state not found for {project_id}. Please analyze documents first."
+            )
+        
+        # Get formatted context summary
+        context_summary = await get_project_context_summary(project_id, db)
+        
+        # Get the agent runner
+        runner = await get_agent_runner()
+        
+        # Execute with project context
+        result = await runner.execute_query(request.message, project_context=context_summary)
+        
+        # Parse response for potential state updates
+        updated_state = None
+        answer = result["output"]
+        
+        # Look for state update suggestions in the answer
+        state_updates = _extract_state_updates(answer, request.message, project_state)
+        
+        if state_updates:
+            logger.info(f"Project {project_id}: Detected state updates, applying...")
+            try:
+                updated_state = await update_project_state(project_id, state_updates, db)
+                logger.info(f"Project {project_id}: State updated successfully")
+            except Exception as update_error:
+                logger.error(f"Failed to update state: {update_error}")
+                # Don't fail the request, just log the error
+        
+        # Format reasoning steps
+        reasoning_steps = []
+        for action, observation in result.get("intermediate_steps", []):
+            reasoning_steps.append(
+                AgentStep(
+                    action=action.tool if hasattr(action, "tool") else str(action),
+                    action_input=action.tool_input if hasattr(action, "tool_input") else "",
+                    observation=str(observation)[:500],
+                )
+            )
+        
+        return ProjectAgentChatResponse(
+            answer=answer,
+            success=result["success"],
+            project_state=updated_state,
+            reasoning_steps=reasoning_steps,
+            error=result.get("error"),
+        )
+        
+    except HTTPException:
+        raise
+    except RuntimeError as e:
+        logger.error(f"Agent not initialized: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Agent system not initialized. Please try again later."
+        )
+    except Exception as e:
+        logger.error(f"Project chat endpoint error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process chat request: {str(e)}"
+        )
+
+
+def _extract_state_updates(
+    agent_response: str,
+    user_message: str,
+    current_state: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    """
+    Extract potential ProjectState updates from agent response.
+    
+    This is a simple heuristic parser. For more robust parsing,
+    we could ask the agent to output structured JSON.
+    """
+    updates = {}
+    
+    # Detect availability requirements
+    availability_match = re.search(
+        r'(\d{2,3}(?:\.\d+)?%)\s+(?:availability|uptime|SLA)',
+        user_message + " " + agent_response,
+        re.IGNORECASE
+    )
+    if availability_match:
+        updates.setdefault("nfrs", {})["availability"] = f"{availability_match.group(1)} SLA requirement"
+    
+    # Detect security requirements
+    security_keywords = ["security", "authentication", "authorization", "encryption", "compliance"]
+    if any(keyword in user_message.lower() for keyword in security_keywords):
+        if "security" not in current_state.get("nfrs", {}) or not current_state["nfrs"]["security"]:
+            # Extract security-related content from agent response
+            security_mentions = []
+            for line in agent_response.split("\n"):
+                if any(kw in line.lower() for kw in security_keywords):
+                    security_mentions.append(line.strip())
+            
+            if security_mentions:
+                updates.setdefault("nfrs", {})["security"] = "; ".join(security_mentions[:3])
+    
+    # Detect performance requirements
+    perf_match = re.search(
+        r'(\d+(?:\.\d+)?)\s*(ms|seconds?|milliseconds?)\s+(?:latency|response time)',
+        user_message + " " + agent_response,
+        re.IGNORECASE
+    )
+    if perf_match:
+        updates.setdefault("nfrs", {})["performance"] = f"{perf_match.group(1)} {perf_match.group(2)} target"
+    
+    # Detect cost constraints
+    if "cost" in user_message.lower() or "budget" in user_message.lower():
+        cost_match = re.search(r'\$[\d,]+(?:\.\d{2})?', user_message)
+        if cost_match:
+            updates.setdefault("nfrs", {})["costConstraints"] = f"Budget: {cost_match.group(0)}"
+    
+    return updates if updates else None
 
 
 @router.get("/health", response_model=AgentHealthResponse)

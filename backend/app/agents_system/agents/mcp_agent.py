@@ -107,12 +107,13 @@ class MCPReActAgent:
         
         logger.info("MCPReActAgent initialization complete")
     
-    async def execute(self, user_query: str) -> dict:
+    async def execute(self, user_query: str, project_context: Optional[str] = None) -> dict:
         """
         Execute the agent on a user query.
         
         Args:
             user_query: User's architectural question or requirement
+            project_context: Optional formatted project context to inject into prompt
             
         Returns:
             Dictionary with:
@@ -134,9 +135,25 @@ class MCPReActAgent:
         
         logger.info(f"Executing agent on query: {user_query}")
         
+        # Build input with optional project context
+        agent_input = {"input": user_query}
+        
+        # If project context provided, prepend to query for context awareness
+        if project_context:
+            contextualized_query = f"""CURRENT PROJECT CONTEXT:
+{project_context}
+
+---
+
+User Question: {user_query}
+
+Please answer considering the project context above. If your answer clarifies or updates project requirements, mention what should be updated in the project state."""
+            agent_input["input"] = contextualized_query
+            logger.debug(f"Added project context to query")
+        
         try:
             # Execute the agent
-            result = await self.agent_executor.ainvoke({"input": user_query})
+            result = await self.agent_executor.ainvoke(agent_input)
             
             logger.info(f"Agent execution completed successfully")
             logger.debug(f"Intermediate steps: {len(result.get('intermediate_steps', []))}")
@@ -156,17 +173,18 @@ class MCPReActAgent:
                 "error": str(e),
             }
     
-    async def stream_execute(self, user_query: str):
+    async def stream_execute(self, user_query: str, project_context: Optional[str] = None):
         """
         Execute the agent with streaming output (for future implementation).
         
         Args:
             user_query: User's architectural question
+            project_context: Optional formatted project context
             
         Yields:
             Chunks of the agent's response as they're generated
         """
         # TODO: Implement streaming with LangChain's streaming callbacks
         # For now, just return the full result
-        result = await self.execute(user_query)
+        result = await self.execute(user_query, project_context)
         yield result

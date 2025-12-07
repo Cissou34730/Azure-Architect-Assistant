@@ -1,1 +1,1 @@
-export { AgentChatWorkspace } from './AgentChatWorkspace'
+export { AgentChatWorkspace } from "./AgentChatWorkspace";
