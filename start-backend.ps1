@@ -6,7 +6,14 @@ Write-Host "Starting Azure Architect Assistant Backend..." -ForegroundColor Gree
 # Function to cleanup Python processes
 function Stop-BackendProcesses {
     Write-Host "`nCleaning up Python processes..." -ForegroundColor Yellow
-    Get-Process -Name python* -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name python* -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+            Stop-Process -Id $_.Id -Force -ErrorAction Stop
+        } catch {
+            # Ignore permission errors for processes we can't stop
+            Write-Host "  Skipped PID $($_.Id) (permission denied)" -ForegroundColor DarkGray
+        }
+    }
     Write-Host "Cleanup complete." -ForegroundColor Green
 }
 
@@ -16,13 +23,6 @@ $null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
 }
 
 try {
-    # Activate virtual environment
-    Write-Host "Activating virtual environment..." -ForegroundColor Cyan
-    & ".\.venv\Scripts\Activate.ps1"
-    
-    # Change to backend directory
-    Push-Location backend
-    
     # Read port from .env file (default to 8000)
     $port = "8000"
     $envFile = Join-Path $PSScriptRoot ".env"
@@ -35,13 +35,12 @@ try {
     }
     
     Write-Host "Starting uvicorn server on port $port..." -ForegroundColor Cyan
-    # Start uvicorn without reload for stability
-    python -m uvicorn app.main:app --port $port 
+    # Activate venv and run directly (much faster than uv run)
+    & "$PSScriptRoot\.venv\Scripts\python.exe" -m uvicorn app.main:app --port $port --app-dir backend 
 }
 catch {
     Write-Host "Error: $_" -ForegroundColor Red
 }
 finally {
-    Pop-Location
     Stop-BackendProcesses
 }
