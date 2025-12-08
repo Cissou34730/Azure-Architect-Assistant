@@ -136,9 +136,16 @@ class DatabaseRepository:
             return row[0] if row else None
 
     def initialize_phase_statuses(self, job_id: str) -> None:
-        """Initialize phase status records for all phases."""
+        """Initialize phase status records for all phases (idempotent)."""
         with get_session() as session:
+            existing = session.execute(
+                select(IngestionPhaseStatus.phase_name)
+                .where(IngestionPhaseStatus.job_id == job_id)
+            ).scalars().all()
+            existing_set = set(existing)
             for phase in JobPhase:
+                if phase.value in existing_set:
+                    continue
                 phase_status = IngestionPhaseStatus(
                     job_id=job_id,
                     phase_name=phase.value,
