@@ -35,7 +35,14 @@ See README.md and docs/ingestion/ for detailed documentation.
 """
 
 # Legacy database models (for backward compatibility)
-from app.ingestion.models import IngestionJob, IngestionQueueItem, JobStatus as DBJobStatus, QueueStatus
+from app.ingestion.models import (
+    IngestionJob,
+    IngestionQueueItem,
+    IngestionPhaseStatus,
+    JobStatus as DBJobStatus,
+    QueueStatus,
+    PhaseStatusDB,
+)
 
 # New layered architecture exports
 from app.ingestion.application.ingestion_service import IngestionService
@@ -47,8 +54,10 @@ __all__ = [
     # Legacy models (backward compatibility)
     "IngestionJob",
     "IngestionQueueItem",
+    "IngestionPhaseStatus",
     "DBJobStatus",
     "QueueStatus",
+    "PhaseStatusDB",
     # New architecture
     "IngestionService",
     "IngestionState",

@@ -40,6 +40,16 @@ class QueueStatus(str, enum.Enum):
     ERROR = "ERROR"
 
 
+class PhaseStatusDB(str, enum.Enum):
+    """Phase status values for database storage."""
+
+    NOT_STARTED = "not_started"
+    RUNNING = "running"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class IngestionJob(Base):
     """Persisted ingestion job definition."""
 
@@ -73,6 +83,75 @@ class IngestionJob(Base):
 
     def update_status(self, status: JobStatus) -> None:
         self.status = status.value
+        self.updated_at = datetime.utcnow()
+
+
+class IngestionPhaseStatus(Base):
+    """Tracks status of individual phases within an ingestion job."""
+
+    __tablename__ = "ingestion_phase_status"
+    __table_args__ = (
+        UniqueConstraint("job_id", "phase_name", name="uq_phase_status_job_phase"),
+        Index("ix_phase_status_job_id", "job_id"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(String(36), ForeignKey("ingestion_jobs.id", ondelete="CASCADE"), nullable=False)
+    phase_name = Column(String(50), nullable=False)  # loading, chunking, embedding, indexing
+    status = Column(String(20), nullable=False, default=PhaseStatusDB.NOT_STARTED.value)
+    progress_percent = Column(Integer, nullable=False, default=0)
+    items_processed = Column(Integer, nullable=False, default=0)
+    items_total = Column(Integer, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    job = relationship("IngestionJob", backref="phase_statuses")
+
+    def start(self) -> None:
+        """Mark phase as started."""
+        self.status = PhaseStatusDB.RUNNING.value
+        self.started_at = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
+
+    def pause(self) -> None:
+        """Mark phase as paused."""
+        self.status = PhaseStatusDB.PAUSED.value
+        self.updated_at = datetime.utcnow()
+
+    def resume(self) -> None:
+        """Mark phase as resumed."""
+        self.status = PhaseStatusDB.RUNNING.value
+        self.updated_at = datetime.utcnow()
+
+    def complete(self) -> None:
+        """Mark phase as completed."""
+        self.status = PhaseStatusDB.COMPLETED.value
+        self.progress_percent = 100
+        self.completed_at = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
+
+    def fail(self, error_message: str) -> None:
+        """Mark phase as failed."""
+        self.status = PhaseStatusDB.FAILED.value
+        self.error_message = error_message
+        self.completed_at = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
+
+    def update_progress(self, items_processed: int, items_total: int = None) -> None:
+        """Update phase progress."""
+        self.items_processed = items_processed
+        if items_total is not None:
+            self.items_total = items_total
+        
+        if self.items_total and self.items_total > 0:
+            self.progress_percent = min(100, int((items_processed / self.items_total) * 100))
+        else:
+            # Without total, cap at 99% until completion
+            self.progress_percent = min(99, int((items_processed / max(items_processed + 1, 100)) * 100))
+        
         self.updated_at = datetime.utcnow()
 
 

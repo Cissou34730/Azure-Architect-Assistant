@@ -9,7 +9,7 @@ from sqlalchemy.engine import Engine
 
 from app.ingestion.models import Base
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # Updated for ingestion_phase_status table
 
 
 def _ensure_version_table(engine: Engine) -> MetaData:
