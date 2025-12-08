@@ -13,6 +13,7 @@ from app.ingestion.domain.models import IngestionState, JobRuntime
 # from app.ingestion.domain.enums import JobStatus, transition_or_raise, StateTransitionError
 from app.ingestion.domain.errors import RuntimeNotFoundError, InvalidJobStateError
 from app.ingestion.infrastructure.repository import DatabaseRepository
+from app.ingestion.application.phase_tracker import PhaseTracker
 from app.ingestion.application.lifecycle import LifecycleManager
 from app.ingestion.workers import ProducerWorker, ConsumerWorker
 from config import get_settings
@@ -40,6 +41,7 @@ class IngestionService:
         self.settings = get_settings()
         self.repository = repository or DatabaseRepository()
         self.lifecycle = lifecycle or LifecycleManager()
+        self.phase_tracker = PhaseTracker(self.repository)
         
         self._runtimes_by_kb: Dict[str, JobRuntime] = {}
         self._runtimes_by_job: Dict[str, JobRuntime] = {}
@@ -136,6 +138,11 @@ class IngestionService:
             job_id = self.repository.create_job(kb_id, source_type, source_config, priority)
             logger.info(f"[IngestionService] KB {kb_id}: Created job_id={job_id}")
             state.job_id = job_id
+
+            # Initialize phases via tracker (NOT_STARTED for all)
+            self.phase_tracker.initialize_phases(job_id)
+            # Mark first phase as RUNNING (loading/crawling)
+            self.phase_tracker.start_phase(job_id, "loading")
 
             # Create and start threads with kb_config
             return self._create_and_start_threads(kb_id, job_id, state, kb_config)
