@@ -12,6 +12,7 @@ from langchain.tools import BaseTool
 
 from ..config.react_prompts import SYSTEM_PROMPT, REACT_TEMPLATE
 from ..tools.mcp_tool import create_mcp_tools
+from ..tools.kb_tool import create_kb_tools
 from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
 logger = logging.getLogger(__name__)
@@ -76,7 +77,9 @@ class MCPReActAgent:
         
         # Create MCP tools
         self.tools = await create_mcp_tools(self.mcp_client)
-        logger.info(f"Initialized {len(self.tools)} MCP tools: {[t.name for t in self.tools]}")
+        # Add KB/RAG tools (internal service wrappers)
+        self.tools.extend(create_kb_tools())
+        logger.info(f"Initialized {len(self.tools)} tools: {[t.name for t in self.tools]}")
         
         # Create ReAct prompt template
         prompt = PromptTemplate(
