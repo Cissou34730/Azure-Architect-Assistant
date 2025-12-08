@@ -218,14 +218,13 @@ class MicrosoftLearnMCPClient:
                 finally:
                     self._session = None
 
-            if self._connection_context and self._streams:
-                try:
-                    await asyncio.shield(self._connection_context.__aexit__(None, None, None))
-                except asyncio.CancelledError:
-                    logger.debug("Transport cleanup cancelled; suppressing during shutdown")
-                finally:
-                    self._connection_context = None
-                    self._streams = None
+            # IMPORTANT: Avoid closing streamable_http transport context during app shutdown.
+            # Calling __aexit__ on the transport from a different task than __aenter__ can
+            # trigger anyio's "Attempted to exit cancel scope in a different task" RuntimeError.
+            # Instead, drop references and let process shutdown reclaim resources safely.
+            if self._connection_context or self._streams:
+                self._connection_context = None
+                self._streams = None
 
         except Exception as e:
             logger.warning(f"Error during cleanup: {e}")

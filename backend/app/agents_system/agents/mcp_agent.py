@@ -35,7 +35,8 @@ class MCPReActAgent:
         mcp_client: MicrosoftLearnMCPClient,
         model: str,
         temperature: float = 0.1,
-        max_iterations: int = 4,  # 3 tool calls + final answer
+        max_iterations: int = 8,  # allow more tool calls before final answer
+        max_execution_time: int = 60,  # seconds
         verbose: bool = True,
     ):
         """
@@ -46,7 +47,8 @@ class MCPReActAgent:
             mcp_client: Initialized MicrosoftLearnMCPClient for tool access
             model: OpenAI model to use
             temperature: Model temperature for response generation (default: 0.1 for consistency)
-            max_iterations: Maximum ReAct iterations (default: 4 for up to 3 tool calls)
+            max_iterations: Maximum ReAct iterations (default: 8 for more complex queries)
+            max_execution_time: Maximum total execution time in seconds (default: 60)
             verbose: Enable detailed logging (default: True)
         """
         self.openai_api_key = openai_api_key
@@ -54,6 +56,7 @@ class MCPReActAgent:
         self.model = model
         self.temperature = temperature
         self.max_iterations = max_iterations
+        self.max_execution_time = max_execution_time
         self.verbose = verbose
         
         # Initialize components
@@ -104,6 +107,7 @@ class MCPReActAgent:
             tools=self.tools,
             verbose=self.verbose,
             max_iterations=self.max_iterations,
+            max_execution_time=self.max_execution_time,
             handle_parsing_errors=True,
             return_intermediate_steps=True,
         )
@@ -169,11 +173,17 @@ Please answer considering the project context above. If your answer clarifies or
             
         except Exception as e:
             logger.error(f"Agent execution failed: {e}", exc_info=True)
+            err_text = str(e)
+            hint = None
+            if "max iterations" in err_text.lower():
+                hint = "The agent reached its reasoning limit. Try asking a more specific question or I can increase limits further if needed."
+            elif "exceeded time" in err_text.lower() or "timeout" in err_text.lower():
+                hint = "The agent timed out while reasoning. Consider narrowing the query or I can raise the time limit."
             return {
-                "output": f"I encountered an error while processing your query: {str(e)}",
+                "output": f"I encountered an error while processing your query: {err_text}" + (f"\n\nTip: {hint}" if hint else ""),
                 "intermediate_steps": [],
                 "success": False,
-                "error": str(e),
+                "error": err_text,
             }
     
     async def stream_execute(self, user_query: str, project_context: Optional[str] = None):
