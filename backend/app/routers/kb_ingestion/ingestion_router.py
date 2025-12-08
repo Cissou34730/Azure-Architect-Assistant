@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Depends
 import logging
 
 from app.ingestion.application.ingestion_service import IngestionService
+from app.ingestion.application.status_query_service import StatusQueryService
 from app.service_registry import get_kb_manager
 from app.kb.knowledge_base_manager import KBManager
 
@@ -83,71 +84,23 @@ async def start_ingestion(
 async def get_kb_status(
     kb_id: str,
     kb_manager: KBManager = Depends(get_kb_manager_dep),
-    ingest_service: IngestionService = Depends(get_ingestion_service_dep),
 ) -> Dict[str, Any]:
     """Get ingestion status including phase details when available."""
     try:
         if not kb_manager.kb_exists(kb_id):
             raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
 
-        index_ready = False
-        try:
-            index_ready = kb_manager.is_index_ready(kb_id)
-        except Exception as e:
-            logger.warning(f"KB {kb_id}: readiness check failed: {e}")
-
-        # Try to fetch live queue stats if repository exists
-        metrics: Dict[str, Any] = {}
-        try:
-            from app.ingestion.infrastructure.repository import create_database_repository
-            repo = create_database_repository()
-            # Use kb_id as job_id surrogate when no orchestrator/state exists
-            queue_stats = repo.get_queue_stats(job_id=kb_id)
-            metrics.update({
-                'chunks_pending': queue_stats.get('pending', 0),
-                'chunks_processing': queue_stats.get('processing', 0),
-                'chunks_done': queue_stats.get('done', 0),
-                'chunks_error': queue_stats.get('error', 0),
-                'chunks_queued': sum(queue_stats.values()) if queue_stats else 0,
-            })
-        except Exception as e:
-            logger.info(f"KB {kb_id}: queue stats unavailable: {e}")
-
-        # Attempt to read lightweight in-memory counters from KB manager if exposed
-        try:
-            counters = kb_manager.get_runtime_counters(kb_id)
-            metrics.update({
-                'documents_loaded': counters.get('documents_loaded', 0),
-                'chunks_enqueued': counters.get('chunks_enqueued', 0),
-            })
-        except Exception:
-            pass
-
-        # Try to get job state for phase details
-        state = ingest_service.status(kb_id)
-        phase_details = None
-        if state and state.phases:
-            phase_details = []
-            for name, ph in state.phases.items():
-                phase_details.append(PhaseDetail(
-                    name=name,
-                    status=ph.get('status', 'not_started'),
-                    progress=ph.get('progress', 0),
-                    items_processed=ph.get('items_processed', 0),
-                    items_total=ph.get('items_total', 0) or 0,
-                    started_at=ph.get('started_at'),
-                    completed_at=ph.get('completed_at'),
-                    error=ph.get('error'),
-                ).model_dump())
-
+        # Persisted-only status derivation
+        sqs = StatusQueryService(kb_manager)
+        ps = sqs.get_status(kb_id)
         return {
             'kb_id': kb_id,
-            'index_ready': index_ready,
-            'metrics': metrics,
-            'status': state.get_overall_status() if state else 'pending',
-            'current_phase': state.get_current_phase() if state else None,
-            'overall_progress': state.get_overall_progress() if state else 0,
-            'phase_details': phase_details,
+            'index_ready': ps.index_ready,
+            'metrics': ps.metrics,
+            'status': ps.status,
+            'current_phase': ps.current_phase,
+            'overall_progress': ps.overall_progress,
+            'phase_details': ps.phase_details,
         }
     except HTTPException:
         raise
