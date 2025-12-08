@@ -19,14 +19,12 @@ class IngestionState:
 
     kb_id: str
     job_id: str
-    status: str = "pending"  # pending | running | paused | completed | failed | cancelled
+    status: str = "pending"  # pending | running | completed | failed
     phase: str = "loading"
     progress: int = 0
     metrics: Dict[str, Any] = field(default_factory=dict)
     message: str = ""
     error: Optional[str] = None
-    paused: bool = False
-    cancel_requested: bool = False
     created_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
@@ -47,8 +45,6 @@ if PYDANTIC_AVAILABLE:
         metrics: Dict[str, Any] = Field(default_factory=dict)
         message: str = Field(default="")
         error: Optional[str] = None
-        paused: bool = False
-        cancel_requested: bool = False
         created_at: Optional[datetime] = None
         started_at: Optional[datetime] = None
         completed_at: Optional[datetime] = None
@@ -69,8 +65,6 @@ if PYDANTIC_AVAILABLE:
                 metrics=state.metrics,
                 message=state.message,
                 error=state.error,
-                paused=state.paused,
-                cancel_requested=state.cancel_requested,
                 created_at=state.created_at,
                 started_at=state.started_at,
                 completed_at=state.completed_at,

@@ -18,9 +18,7 @@ from config import get_kb_defaults
 from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase, PhaseStatus
 from app.ingestion.domain.sources import SourceHandlerFactory
 from app.ingestion.domain.chunking import ChunkerFactory
-from app.ingestion.infrastructure.persistence import create_local_disk_persistence_store
 from app.ingestion.infrastructure.repository import create_database_repository
-from app.ingestion.core.orchestrator import IngestionOrchestrator
 from app.ingestion.core.state_manager import aggregate_job_status
 from app.ingestion.core.phase import PhaseStatus
 
@@ -39,7 +37,7 @@ class ProducerPipeline:
         
         Args:
             kb_config: Knowledge base configuration
-            state: IngestionState for progress tracking and cancellation
+            state: IngestionState for progress tracking
         """
         # Merge KB config with defaults
         defaults = get_kb_defaults()
@@ -75,15 +73,6 @@ class ProducerPipeline:
         logger.info(f"  Source type: {self.source_type}")
         
         try:
-            # Check if cancelled before starting
-            if await self._check_cancel("pipeline start"):
-                if self.phase_tracker:
-                    current_phase = self.phase_tracker.get_current_phase()
-                    if current_phase:
-                        self.phase_tracker.cancel_phase(current_phase)
-                    self._persist_phase_tracker()
-                return
-            
             # Check if this is a resume with existing work in queue
             if await self._check_resume_scenario():
                 logger.info("Resume scenario detected - skipping document loading, consumer will process existing queue")
@@ -166,16 +155,6 @@ class ProducerPipeline:
                 
                 logger.info(f"\n=== Processing Batch {self.batch_num} ({batch_size} documents) ===")
                 
-                # Check cancellation
-                if await self._check_cancel(f"batch {self.batch_num} start"):
-                    logger.info(f"Stopped at batch {self.batch_num}: {len(self.all_documents)} docs, {self.total_chunks_enqueued} chunks")
-                    if self.phase_tracker:
-                        current_phase = self.phase_tracker.get_current_phase()
-                        if current_phase:
-                            self.phase_tracker.pause_phase(current_phase)
-                        self._persist_phase_tracker()
-                    return
-                
                 # Save documents to disk
                 self._save_documents_to_disk(document_batch)
                 self.all_documents.extend(document_batch)
@@ -202,13 +181,6 @@ class ProducerPipeline:
                     {"documents_loaded": len(self.all_documents), "batch_num": self.batch_num}
                 )
                 
-                # Check cancellation after save
-                if await self._check_cancel(f"batch {self.batch_num} after save"):
-                    if self.phase_tracker:
-                        self.phase_tracker.pause_phase(IngestionPhase.LOADING)
-                        self._persist_phase_tracker()
-                    return
-                
             # Complete LOADING phase
             if self.phase_tracker:
                 self.phase_tracker.complete_phase(IngestionPhase.LOADING, len(self.all_documents))
@@ -216,14 +188,6 @@ class ProducerPipeline:
         
         except GeneratorExit:
             logger.info(f"Generator closed at batch {self.batch_num}")
-        except asyncio.CancelledError:
-            logger.info(f"KB {self.kb_id} cancelled by system")
-            if self.phase_tracker:
-                current_phase = self.phase_tracker.get_current_phase()
-                if current_phase:
-                    self.phase_tracker.pause_phase(current_phase)
-                self._persist_phase_tracker()
-            raise
         
         # ===== PHASE 2: CHUNKING =====
         # Check if CHUNKING phase needs to run
@@ -256,13 +220,6 @@ class ProducerPipeline:
             self.phase_tracker.complete_phase(IngestionPhase.CHUNKING, len(self.all_documents))
             self._persist_phase_tracker()
             
-            # Check cancellation after chunking
-            if await self._check_cancel(f"after chunking"):
-                if self.phase_tracker:
-                    self.phase_tracker.pause_phase(IngestionPhase.CHUNKING)
-                    self._persist_phase_tracker()
-                return
-            
             # Start CHUNKING phase (enqueueing)
             if self.phase_tracker:
                 self.phase_tracker.start_phase(IngestionPhase.CHUNKING)
@@ -283,14 +240,11 @@ class ProducerPipeline:
             
             logger.info(f"✓ Total: {len(self.all_documents)} docs, {self.total_chunks_enqueued} chunks queued")
             
-            # Persist state
+            # Update metrics in state
             if self.state:
                 self.state.metrics['batches_processed'] = self.batch_num
                 self.state.metrics['chunks_queued'] = self.total_chunks_enqueued
                 self.state.metrics['documents_processed'] = len(self.all_documents)
-                
-                persistence = create_local_disk_persistence_store()
-                persistence.save(self.state)
                     
     async def _verify_completion(self):
         """Verify that work was done (or already complete)."""
@@ -422,14 +376,6 @@ class ProducerPipeline:
         
         if metrics:
             self.state.metrics.update(metrics)
-        
-        # Persist state
-        persistence = create_local_disk_persistence_store()
-        persistence.save(self.state)
-    
-    async def _check_cancel(self, checkpoint_name: str) -> bool:
-        """No-op cancel/pause check (state/orchestrator removed)."""
-        return False
     
     async def _check_resume_scenario(self) -> bool:
         """
@@ -463,10 +409,6 @@ class ProducerPipeline:
                 current_phase.value if current_phase else "unknown",
                 phase_data
             )
-            
-            # Persist to local storage
-            persistence = create_local_disk_persistence_store()
-            persistence.save(self.state)
             
         except Exception as e:
             logger.warning(f"Failed to persist phase tracker: {e}")

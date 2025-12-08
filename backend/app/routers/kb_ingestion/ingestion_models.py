@@ -48,7 +48,7 @@ class MarkdownConfig(BaseModel):
 class PhaseDetail(BaseModel):
     """Detailed information about a single phase"""
     name: str = Field(..., description="Phase name (not_started, loading, chunking, embedding, indexing)")
-    status: str = Field(..., description="Phase status (not_started, pending, running, paused, completed, failed, cancelled)")
+    status: str = Field(..., description="Phase status (not_started, pending, running, completed, failed)")
     progress: int = Field(default=0, ge=0, le=100, description="Phase progress percentage")
     items_processed: int = Field(default=0, description="Number of items processed in this phase")
     items_total: int = Field(default=0, description="Total items for this phase")

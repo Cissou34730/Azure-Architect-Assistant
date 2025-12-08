@@ -70,10 +70,8 @@ class DatabaseRepository:
                 JobStatus.NOT_STARTED.value: DBJobStatus.PENDING.value,
                 JobStatus.PENDING.value: DBJobStatus.PENDING.value,
                 JobStatus.RUNNING.value: DBJobStatus.RUNNING.value,
-                JobStatus.PAUSED.value: DBJobStatus.PAUSED.value,
                 JobStatus.COMPLETED.value: DBJobStatus.COMPLETED.value,
                 JobStatus.FAILED.value: DBJobStatus.FAILED.value,
-                JobStatus.CANCELLED.value: DBJobStatus.CANCELLED.value,
         }
         db_status = status_map.get(status, DBJobStatus.PENDING.value)
         

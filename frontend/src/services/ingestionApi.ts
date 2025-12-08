@@ -95,39 +95,6 @@ export async function getKBStatus(kbId: string): Promise<IngestionJob> {
 }
 
 /**
- * Cancel a running job
- */
-export async function cancelJob(kbId: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/cancel`, {
-    method: "POST",
-  });
-
-  await handleResponse<void>(response, "Failed to cancel job");
-}
-
-/**
- * Pause a running job
- */
-export async function pauseJob(kbId: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/pause`, {
-    method: "POST",
-  });
-
-  await handleResponse<void>(response, "Failed to pause job");
-}
-
-/**
- * Resume a paused job
- */
-export async function resumeJob(kbId: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/resume`, {
-    method: "POST",
-  });
-
-  await handleResponse<void>(response, "Failed to resume job");
-}
-
-/**
  * Delete a knowledge base and all its data
  */
 export async function deleteKB(kbId: string): Promise<void> {

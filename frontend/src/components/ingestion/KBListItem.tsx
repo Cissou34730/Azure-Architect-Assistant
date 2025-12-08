@@ -14,19 +14,15 @@ interface KBListItemProps {
   onViewProgress: (kbId: string) => void;
   onStartIngestion: (kbId: string) => void;
   onDelete: (kbId: string) => void;
-  onCancel: (kbId: string) => void;
-  onPause: (kbId: string) => void;
-  onResume: (kbId: string) => void;
 }
 
-export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete, onCancel, onPause, onResume }: KBListItemProps) {
+export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete }: KBListItemProps) {
   const [showActions, setShowActions] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const isNotStarted = job?.status === 'not_started';
   const isIngesting = (job?.status === 'running' || job?.status === 'pending') && !isNotStarted;
-  const isPaused = job?.status === 'paused';
   const isCompleted = job?.status === 'completed';
-  const canStartIngestion = isNotStarted || (!isIngesting && !isPaused && !isCompleted); // Show Start for not_started or no job/idle
+  const canStartIngestion = isNotStarted || (!isIngesting && !isCompleted); // Show Start for not_started or no job/idle
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -96,15 +92,13 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-pill ${
                   job.status === 'running' ? 'bg-status-running animate-pulse' :
-                  job.status === 'paused' ? 'bg-status-paused' :
                   job.status === 'completed' ? 'bg-status-completed' :
                   job.status === 'failed' ? 'bg-status-failed' :
                   'bg-gray-500'
                 }`} />
                 <span className="text-sm font-medium text-gray-700">
-                  {job.status === 'paused' && 'PAUSED'}
                   {job.status === 'completed' && 'COMPLETED'}
-                  {job.status !== 'paused' && job.status !== 'completed' && `${job.phase.toUpperCase()} - ${job.progress.toFixed(0)}%`}
+                  {job.status !== 'completed' && `${job.phase.toUpperCase()} - ${job.progress.toFixed(0)}%`}
                 </span>
                 <span className="text-xs text-gray-500">
                   {job.message}
@@ -172,51 +166,14 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
 
         {/* Actions */}
         <div className="flex gap-2 ml-4">
-          {isPaused ? (
-            <>
-              <Button
-                variant="success"
-                size="sm"
-                onClick={() => onResume(kb.id)}
-                aria-label="Resume ingestion"
-              >
-                Resume
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => onCancel(kb.id)}
-                aria-label="Cancel ingestion"
-              >
-                Cancel
-              </Button>
-            </>
-          ) : isIngesting ? (
-            <>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => onViewProgress(kb.id)}
-              >
-                View Progress
-              </Button>
-              <Button
-                variant="warning"
-                size="sm"
-                onClick={() => onPause(kb.id)}
-                aria-label="Pause ingestion"
-              >
-                Pause
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => onCancel(kb.id)}
-                aria-label="Cancel ingestion"
-              >
-                Cancel
-              </Button>
-            </>
+          {isIngesting ? (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onViewProgress(kb.id)}
+            >
+              View Progress
+            </Button>
           ) : canStartIngestion ? (
             <Button
               variant="success"
@@ -251,7 +208,7 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
                 <button
                   onClick={() => {
                     setShowActions(false);
-                    if (window.confirm(`Are you sure you want to delete "${kb.name}"?\n\nThis will:\n- Cancel any running jobs\n- Delete all indexed data\n- Remove the knowledge base\n\nThis action cannot be undone.`)) {
+                    if (window.confirm(`Are you sure you want to delete "${kb.name}"?\n\nThis will:\n- Stop any running jobs\n- Delete all indexed data\n- Remove the knowledge base\n\nThis action cannot be undone.`)) {
                       onDelete(kb.id);
                     }
                   }}

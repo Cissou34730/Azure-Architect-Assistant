@@ -11,10 +11,8 @@ class JobStatus(str, enum.Enum):
     NOT_STARTED = "not_started"
     PENDING = "pending"
     RUNNING = "running"
-    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
-    CANCELLED = "cancelled"
 
 
 class JobPhase(str, enum.Enum):
@@ -26,18 +24,15 @@ class JobPhase(str, enum.Enum):
     INDEXING = "indexing"
     COMPLETED = "completed"
     FAILED = "failed"
-    CANCELLED = "cancelled"
 
 
 # State transition map: current_status -> allowed_next_statuses
 _TRANSITION_MAP: Dict[JobStatus, Set[JobStatus]] = {
-    JobStatus.NOT_STARTED: {JobStatus.RUNNING, JobStatus.CANCELLED},
-    JobStatus.PENDING: {JobStatus.RUNNING, JobStatus.CANCELLED},
-    JobStatus.RUNNING: {JobStatus.PAUSED, JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED},
-    JobStatus.PAUSED: {JobStatus.RUNNING, JobStatus.CANCELLED},
+    JobStatus.NOT_STARTED: {JobStatus.RUNNING},
+    JobStatus.PENDING: {JobStatus.RUNNING},
+    JobStatus.RUNNING: {JobStatus.COMPLETED, JobStatus.FAILED},
     JobStatus.COMPLETED: set(),  # Terminal state
     JobStatus.FAILED: set(),  # Terminal state
-    JobStatus.CANCELLED: set(),  # Terminal state
 }
 
 

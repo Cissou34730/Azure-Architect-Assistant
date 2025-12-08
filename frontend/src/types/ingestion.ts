@@ -7,10 +7,8 @@ export type JobStatus =
   | "not_started"
   | "pending"
   | "running"
-  | "paused"
   | "completed"
-  | "failed"
-  | "cancelled";
+  | "failed";
 
 export type IngestionPhase =
   | "loading"
@@ -18,8 +16,7 @@ export type IngestionPhase =
   | "embedding"
   | "indexing"
   | "completed"
-  | "failed"
-  | "cancelled";
+  | "failed";
 
 export type SourceType =
   | "web_documentation"
@@ -33,15 +30,9 @@ export type KBStatus = "active" | "inactive" | "archived";
 
 // Type guard functions
 export const isJobStatus = (value: string): value is JobStatus => {
-  return [
-    "not_started",
-    "pending",
-    "running",
-    "paused",
-    "completed",
-    "failed",
-    "cancelled",
-  ].includes(value);
+  return ["not_started", "pending", "running", "completed", "failed"].includes(
+    value
+  );
 };
 
 export const isIngestionPhase = (value: string): value is IngestionPhase => {
@@ -52,7 +43,6 @@ export const isIngestionPhase = (value: string): value is IngestionPhase => {
     "indexing",
     "completed",
     "failed",
-    "cancelled",
   ].includes(value);
 };
 

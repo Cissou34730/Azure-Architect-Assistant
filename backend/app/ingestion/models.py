@@ -27,10 +27,8 @@ class JobStatus(str, enum.Enum):
 
     PENDING = "PENDING"
     RUNNING = "RUNNING"
-    PAUSED = "PAUSED"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
-    CANCELLED = "CANCELLED"
 
 
 class QueueStatus(str, enum.Enum):

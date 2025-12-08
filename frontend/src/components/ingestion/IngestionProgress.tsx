@@ -5,13 +5,11 @@
 
 import { useTransition } from 'react';
 import { IngestionJob } from '../../types/ingestion';
-import { cancelJob, pauseJob, resumeJob } from '../../services/ingestionApi';
 import { MetricCard } from './MetricCard';
 import { Button, StatusBadge } from '../common';
 
 interface IngestionProgressProps {
   job: IngestionJob;
-  onCancel?: () => void;
   onRefresh?: () => void;
   onStart?: () => void;
 }
@@ -37,52 +35,11 @@ const PHASE_COLORS: Record<string, string> = {
 
 const PHASE_ORDER: string[] = ['loading', 'chunking', 'embedding', 'indexing', 'completed'];
 
-export function IngestionProgress({ job, onCancel, onRefresh, onStart }: IngestionProgressProps) {
+export function IngestionProgress({ job, onRefresh, onStart }: IngestionProgressProps) {
   const [isPending, startTransition] = useTransition();
-
-  const handleCancel = () => {
-    if (!window.confirm('Are you sure you want to cancel this ingestion job?')) {
-      return;
-    }
-
-    startTransition(async () => {
-      try {
-        await cancelJob(job.kb_id);
-        onCancel?.();
-      } catch (error) {
-        console.error('Failed to cancel job:', error);
-        alert(`Failed to cancel job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    });
-  };
-
-  const handlePause = () => {
-    startTransition(async () => {
-      try {
-        await pauseJob(job.kb_id);
-        onRefresh?.();
-      } catch (error) {
-        console.error('Failed to pause job:', error);
-        alert(`Failed to pause job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    });
-  };
-
-  const handleResume = () => {
-    startTransition(async () => {
-      try {
-        await resumeJob(job.kb_id);
-        onRefresh?.();
-      } catch (error) {
-        console.error('Failed to resume job:', error);
-        alert(`Failed to resume job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    });
-  };
 
   const isNotStarted = job.status === 'not_started' || job.phase === 'not_started';
   const isRunning = (job.status === 'running' || job.status === 'pending') && !isNotStarted;
-  const isPaused = job.status === 'paused';
   const progressPercent = Math.min(Math.max(job.progress, 0), 100);
   
   // Determine which phases are completed
@@ -124,10 +81,7 @@ export function IngestionProgress({ job, onCancel, onRefresh, onStart }: Ingesti
         <h3 className="text-lg font-semibold text-gray-900">
           Ingestion Progress
         </h3>
-        <StatusBadge 
-          variant={job.status as 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'}
-          pulse={job.status === 'running'}
-        >
+        <StatusBadge variant={job.status as 'running' | 'completed' | 'failed'}>
           {job.status.toUpperCase()}
         </StatusBadge>
       </div>
@@ -293,37 +247,6 @@ export function IngestionProgress({ job, onCancel, onRefresh, onStart }: Ingesti
           </div>
         )}
       </div>
-
-      {/* Actions */}
-      {(isRunning || isPaused) && (
-        <div className="flex justify-end gap-3 pt-2">
-          {isPaused && (
-            <Button
-              variant="success"
-              onClick={handleResume}
-              isLoading={isPending}
-            >
-              Resume Job
-            </Button>
-          )}
-          {isRunning && (
-            <Button
-              variant="warning"
-              onClick={handlePause}
-              isLoading={isPending}
-            >
-              Pause Job
-            </Button>
-          )}
-          <Button
-            variant="danger"
-            onClick={handleCancel}
-            isLoading={isPending}
-          >
-            Cancel Job
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

@@ -21,6 +21,4 @@ def aggregate_job_status(phase_statuses: Dict[str, Dict[str, Any]]) -> str:
         return "completed"
     if PhaseStatus.RUNNING.value in statuses:
         return "running"
-    if PhaseStatus.PAUSED.value in statuses and PhaseStatus.RUNNING.value not in statuses:
-        return "paused"
     return "idle"

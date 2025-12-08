@@ -18,8 +18,6 @@ from .ingestion_models import (
     JobListResponse
 )
 from .ingestion_operations import KBIngestionService, get_ingestion_service
-from app.ingestion.core.orchestrator import IngestionOrchestrator
-from app.ingestion.core.signals import Signal
 
 logger = logging.getLogger(__name__)
 
@@ -69,12 +67,6 @@ async def start_ingestion(
         # Retrieve job_id from current state
         state = ingest_service.status(kb_id)
         job_id = state.job_id if state and state.job_id else f"{kb_id}-job"
-        
-        # Publish START signal to orchestrator
-        try:
-            await IngestionOrchestrator.instance().publish(job_id, Signal.START)
-        except Exception as e:
-            logger.warning(f"Failed to publish START signal: {e}")
         
         # Return result including job_id
         return StartIngestionResponse(message=result.get("message", "Ingestion started"), job_id=job_id, kb_id=kb_id)
@@ -141,93 +133,6 @@ async def get_kb_status(
         raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
 
 
-@router.post("/kb/{kb_id}/cancel")
-async def cancel_ingestion(
-    kb_id: str,
-    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
-) -> Dict[str, str]:
-    """Cancel the running ingestion job for a knowledge base"""
-    try:
-        success = await ingest_service.cancel(kb_id)
-        if not success:
-            raise HTTPException(status_code=404, detail=f"No active ingestion for KB '{kb_id}'")
-        # Publish CANCEL signal
-        try:
-            state = ingest_service.status(kb_id)
-            job_id = state.job_id if state and state.job_id else kb_id
-            await IngestionOrchestrator.instance().publish(job_id, Signal.CANCEL)
-        except Exception as e:
-            logger.warning(f"Failed to publish CANCEL signal: {e}")
-        
-        return {"message": f"Ingestion cancelled for KB '{kb_id}'", "kb_id": kb_id}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to cancel ingestion: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to cancel ingestion: {str(e)}")
-
-
-@router.post("/kb/{kb_id}/pause")
-async def pause_ingestion(
-    kb_id: str,
-    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
-) -> Dict[str, str]:
-    """Pause the running ingestion job for a knowledge base"""
-    try:
-        success = await ingest_service.pause(kb_id)
-        if not success:
-            raise HTTPException(status_code=404, detail=f"No running ingestion for KB '{kb_id}'")
-        # Publish PAUSE signal
-        try:
-            state = ingest_service.status(kb_id)
-            job_id = state.job_id if state and state.job_id else kb_id
-            await IngestionOrchestrator.instance().publish(job_id, Signal.PAUSE)
-        except Exception as e:
-            logger.warning(f"Failed to publish PAUSE signal: {e}")
-        
-        return {"message": f"Ingestion paused for KB '{kb_id}'", "kb_id": kb_id}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to pause ingestion: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to pause ingestion: {str(e)}")
-
-
-@router.post("/kb/{kb_id}/resume")
-async def resume_ingestion(
-    kb_id: str,
-    kb_manager: KBManager = Depends(get_kb_manager_dep),
-    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
-) -> Dict[str, str]:
-    """Resume a paused ingestion job for a knowledge base"""
-    try:
-        logger.info(f"[resume_endpoint] KB {kb_id}: Resume endpoint called")
-        
-        logger.info(f"[resume_endpoint] KB {kb_id}: Checking if KB exists")
-        kb_config = kb_manager.get_kb_config(kb_id)
-        logger.info(f"[resume_endpoint] KB {kb_id}: KB config retrieved, calling resume")
-        
-        # Resume with kb_config only
-        success = await ingest_service.resume(kb_id, kb_config)
-        logger.info(f"[resume_endpoint] KB {kb_id}: resume returned {success}")
-        if not success:
-            logger.error(f"[resume_endpoint] KB {kb_id}: resume returned False")
-            raise HTTPException(status_code=404, detail=f"Unable to resume ingestion for KB '{kb_id}'")
-        # Publish RESUME signal
-        try:
-            # Orchestrator removed: directly start workers if needed
-            await ingest_service.start_workers(kb_id)
-        except Exception as e:
-            logger.warning(f"Failed to start workers: {e}")
-        return {"message": f"Workers started for KB '{kb_id}'", "kb_id": kb_id}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"[resume_endpoint] Failed to resume ingestion: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to resume ingestion: {str(e)}")
 
 
 

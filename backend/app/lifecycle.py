@@ -57,10 +57,10 @@ async def startup():
 
 async def shutdown():
     """
-    Cleanup on shutdown - cancel running ingestion jobs gracefully.
+    Cleanup on shutdown - stop running ingestion jobs gracefully.
     """
     logger.info("=" * 60)
-    logger.info("SHUTDOWN: Pausing running ingestion jobs...")
+    logger.info("SHUTDOWN: Stopping running ingestion jobs...")
     logger.info("=" * 60)
     
     # Cancel asyncio-based ingestion tasks
@@ -69,9 +69,9 @@ async def shutdown():
         
         try:
             await asyncio.wait_for(ingest_service.pause_all(), timeout=5.0)
-            logger.info("✓ All ingestion jobs paused")
+            logger.info("✓ All ingestion jobs stopped")
         except asyncio.TimeoutError:
-            logger.warning("⚠ Timeout pausing ingestion jobs (5s exceeded)")
+            logger.warning("⚠ Timeout stopping ingestion jobs (5s exceeded)")
         
     except Exception as e:
         logger.warning(f"Error cancelling ingestion tasks: {e}")

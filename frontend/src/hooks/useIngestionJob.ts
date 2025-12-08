@@ -74,11 +74,10 @@ export function useIngestionJob(
         const data = await getKBStatus(kbId);
         setJob(data);
 
-        // Stop polling if job is completed, failed, or cancelled
+        // Stop polling if job is completed or failed
         if (
           data.status === "completed" ||
           data.status === "failed" ||
-          data.status === "cancelled" ||
           data.status === "not_started"
         ) {
           if (intervalId) {

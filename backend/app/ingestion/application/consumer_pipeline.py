@@ -11,11 +11,9 @@ from datetime import datetime
 
 from app.ingestion.domain.models import JobRuntime
 from app.ingestion.infrastructure.repository import DatabaseRepository
-from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
 from app.ingestion.infrastructure.embedding import EmbedderFactory
 from app.ingestion.infrastructure.indexing import IndexBuilderFactory
 from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase, PhaseStatus
-from app.ingestion.core.orchestrator import IngestionOrchestrator
 from app.ingestion.core.state_manager import aggregate_job_status
 from app.ingestion.core.phase import PhaseStatus as CorePhaseStatus
 
@@ -44,7 +42,6 @@ class ConsumerPipeline:
         
         # Initialize infrastructure
         self.repository = DatabaseRepository()
-        self.persistence = LocalDiskPersistenceStore()
         
         # Build embedder and index builder (separate responsibilities)
         self.embedder = self._create_embedder()
@@ -79,14 +76,8 @@ class ConsumerPipeline:
         try:
             # Main processing loop
             while True:
-                # Check for immediate cancellation
-                if self._should_cancel():
-                    if self.phase_tracker:
-                        current_phase = self.phase_tracker.get_current_phase()
-                        if current_phase:
-                            self.phase_tracker.cancel_phase(current_phase)
-                        self._persist_phase_tracker()
-                    break
+                # Check if we should stop
+                self._should_stop()  # Just for logging
                 
                 # Check if producer finished
                 producer_stopped = self._is_producer_stopped()
@@ -139,16 +130,11 @@ class ConsumerPipeline:
         finally:
             logger.info(f"{self.log_prefix} Consumer pipeline finished")
     
-    def _should_cancel(self) -> bool:
-        """Check if immediate cancellation requested."""
-        orchestrator = IngestionOrchestrator.instance()
-        desired = orchestrator.get_desired_state(self.job_id) if self.job_id else "idle"
-        if self.state.cancel_requested or desired in ("canceled", "shutdown"):
-            logger.info(f"{self.log_prefix} Cancellation requested - exiting immediately")
-            return True
-        if desired == "paused":
-            logger.info(f"{self.log_prefix} Pause requested - exiting loop to allow resume")
-            return True
+    def _should_stop(self) -> bool:
+        """Check if stop was requested (producer finished or external stop)."""
+        if self.stop_event.is_set():
+            logger.info(f"{self.log_prefix} Stop event set - finishing up")
+            return False  # Let normal queue draining complete
         return False
     
     def _is_producer_stopped(self) -> bool:
@@ -370,7 +356,6 @@ class ConsumerPipeline:
                 'chunks_failed': queue_stats['error'],
                 'chunks_queued': sum(queue_stats.values()),
             })
-            self.persistence.save_state(self.state)
         except Exception as e:
             logger.warning(f"{self.log_prefix} Failed to update metrics: {e}")
     
@@ -410,10 +395,7 @@ class ConsumerPipeline:
             from app.ingestion.domain.enums import JobStatus
             self.repository.update_job_status(self.job_id, JobStatus.COMPLETED.value)
             # Optional invariant check before saving
-            if self.state.status == "running" and getattr(self.state, "paused", False):
-                logger.warning(f"{self.log_prefix} Invariant violation: running with paused=True; correcting to paused status")
-                self.state.status = "paused"
-            self.persistence.save_state(self.state)
+            # Status check removed - no longer tracking paused state
             logger.info(f"{self.log_prefix} Job marked as completed in DB")
         except Exception as e:
             logger.error(f"{self.log_prefix} Failed to update job status: {e}")
@@ -500,9 +482,6 @@ class ConsumerPipeline:
                 current_phase.value if current_phase else "unknown",
                 phase_data
             )
-            
-            # Persist to local storage
-            self.persistence.save_state(self.state)
             
         except Exception as e:
             logger.warning(f"Failed to persist phase tracker: {e}")

@@ -7,7 +7,6 @@ from typing import Generator
 
 from config import IngestionSettings, set_settings
 from app.ingestion.infrastructure.repository import DatabaseRepository
-from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
 from app.ingestion.application.lifecycle import LifecycleManager
 
 
@@ -35,12 +34,6 @@ def test_settings(temp_data_dir: Path) -> IngestionSettings:
 def repository() -> DatabaseRepository:
     """Provide database repository for tests."""
     return DatabaseRepository()
-
-
-@pytest.fixture
-def persistence_store(temp_data_dir: Path) -> LocalDiskPersistenceStore:
-    """Provide local disk persistence store for tests."""
-    return LocalDiskPersistenceStore(base_path=temp_data_dir)
 
 
 @pytest.fixture

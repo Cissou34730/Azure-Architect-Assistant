@@ -12,7 +12,6 @@ from app.ingestion.domain.models import IngestionState, JobRuntime
 from app.ingestion.domain.enums import JobStatus, transition_or_raise, StateTransitionError
 from app.ingestion.domain.errors import RuntimeNotFoundError, InvalidJobStateError
 from app.ingestion.infrastructure.repository import DatabaseRepository
-from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
 from app.ingestion.application.lifecycle import LifecycleManager
 from app.ingestion.workers import ProducerWorker, ConsumerWorker
 from config import get_settings
@@ -28,7 +27,6 @@ class IngestionService:
     def __init__(
         self,
         repository: Optional[DatabaseRepository] = None,
-        persistence: Optional[LocalDiskPersistenceStore] = None,
         lifecycle: Optional[LifecycleManager] = None,
     ) -> None:
         """
@@ -36,12 +34,10 @@ class IngestionService:
         
         Args:
             repository: Job/queue repository (defaults to DatabaseRepository)
-            persistence: State persistence store (defaults to LocalDiskPersistenceStore)
             lifecycle: Thread lifecycle manager (defaults to LifecycleManager)
         """
         self.settings = get_settings()
         self.repository = repository or DatabaseRepository()
-        self.persistence = persistence or LocalDiskPersistenceStore()
         self.lifecycle = lifecycle or LifecycleManager()
         
         self._runtimes_by_kb: Dict[str, JobRuntime] = {}
@@ -60,26 +56,6 @@ class IngestionService:
             self.repository.recover_inflight_jobs()
         except Exception as exc:
             logger.warning(f"Failed to recover inflight jobs: {exc}")
-        
-        # Load persisted states and recover orphaned jobs
-        persisted_states = self.persistence.load_all_states()
-        for kb_id, state in persisted_states.items():
-            # If state shows "running" but no runtime exists, mark as paused
-            from app.ingestion.domain.enums import JobStatus
-            if state.status == JobStatus.RUNNING.value:
-                logger.info(f"[Recovery] KB {kb_id} shows 'running' status but no active threads - marking as paused")
-                state.status = JobStatus.PAUSED.value
-                state.paused = True
-                state.message = "Job was interrupted (server restart)"
-                try:
-                    self.persistence.save_state(state)
-                    logger.info(f"[Recovery] Updated persisted state for KB {kb_id} to 'paused'")
-                except Exception as exc:
-                    logger.warning(f"[Recovery] Failed to update state for KB {kb_id}: {exc}")
-            self._states[kb_id] = state
-        
-        if persisted_states:
-            logger.info(f"[Recovery] Loaded {len(persisted_states)} persisted KB states")
 
     @classmethod
     def instance(cls) -> "IngestionService":
@@ -163,185 +139,10 @@ class IngestionService:
             # Create and start threads with kb_config
             return self._create_and_start_threads(kb_id, job_id, state, kb_config)
 
-    async def resume(
-        self,
-        kb_id: str,
-        kb_config: Dict[str, Any],
-    ) -> bool:
-        """
-        Resume paused ingestion from checkpoint.
-        
-        Args:
-            kb_id: Knowledge base identifier
-            kb_config: KB configuration dict
-            
-        Returns:
-            True if resume was successful, False otherwise
-        """
-        return await asyncio.to_thread(
-            self._resume_sync,
-            kb_id,
-            kb_config,
-        )
 
-    def _resume_sync(
-        self,
-        kb_id: str,
-        kb_config: Dict[str, Any],
-    ) -> bool:
-        """
-        Resume ingestion from checkpoint.
-        
-        Args:
-            kb_id: Knowledge base identifier
-            kb_config: KB configuration dict
-            
-        Returns:
-            True if resume was successful, False otherwise
-        """
-        logger.info(f"[IngestionService] KB {kb_id}: Resuming from checkpoint")
-        
-        # Check if already running
-        with self._lock:
-            runtime = self._runtimes_by_kb.get(kb_id)
-            if runtime and self.lifecycle.is_running(runtime):
-                logger.info(f"[IngestionService] KB {kb_id}: Already running")
-                return True
-            
-            # Clean up stale runtime
-            if runtime:
-                logger.warning(f"[IngestionService] KB {kb_id}: Cleaning up stale runtime")
-                self._cleanup_runtime(kb_id, runtime)
-        
-        # Load checkpoint state
-        state = self.status(kb_id)
-        if not state:
-            logger.error(f"[IngestionService] KB {kb_id}: No checkpoint found")
-            return False
-        
-        if state.status not in (JobStatus.PAUSED.value, JobStatus.RUNNING.value):
-            logger.error(f"[IngestionService] KB {kb_id}: Invalid status for resume: {state.status}")
-            return False
-        
-        with self._lock:
-            # Validate and update state for resume
-            try:
-                current_status = JobStatus(state.status)
-                transition_or_raise(current_status, JobStatus.RUNNING)
-            except (ValueError, StateTransitionError) as exc:
-                logger.error(f"[IngestionService] KB {kb_id}: Invalid transition: {exc}")
-                return False
-            
-            self._set_running(state, message="Resumed from checkpoint")
-            
-            # Update job record
-            if state.job_id:
-                self.repository.update_job_status(state.job_id, JobStatus.RUNNING.value)
-                job_id = state.job_id
-            else:
-                logger.error(f"[IngestionService] KB {kb_id}: No job_id in checkpoint")
-                return False
-            
-            # Create and start threads with kb_config
-            new_state = self._create_and_start_threads(kb_id, job_id, state, kb_config)
-            return new_state is not None
 
-    async def pause(self, kb_id: str) -> bool:
-        """Pause = graceful stop. Threads exit after current work, state saved as 'paused'."""
-        return await asyncio.to_thread(self._pause_sync, kb_id)
-
-    def _pause_sync(self, kb_id: str) -> bool:
-        """Pause ingestion gracefully."""
-        logger.info(f"[IngestionService] KB {kb_id}: Starting pause (graceful stop)")
-        
-        with self._lock:
-            runtime = self._runtimes_by_kb.get(kb_id)
-            if not runtime:
-                # Check if there's a persisted state that's already paused or completed
-                state = self._states.get(kb_id) or self.persistence.load(kb_id)
-                if state and state.status in [JobStatus.PAUSED.value, JobStatus.COMPLETED.value, JobStatus.FAILED.value, JobStatus.CANCELLED.value]:
-                    logger.info(f"[IngestionService] KB {kb_id}: Already in {state.status} state")
-                    return True
-                logger.warning(f"[IngestionService] KB {kb_id}: No runtime found and no pausable state")
-                return False
-
-            state = runtime.state
-            
-            # Validate transition
-            try:
-                current_status = JobStatus(state.status)
-                transition_or_raise(current_status, JobStatus.PAUSED)
-            except (ValueError, StateTransitionError) as exc:
-                logger.warning(f"[IngestionService] KB {kb_id}: Cannot pause: {exc}")
-                return False
-
-            # Signal threads to stop gracefully
-            logger.info(f"[IngestionService] KB {kb_id}: Signaling threads to stop")
-            self._set_paused_flag(state, message="Pausing - waiting for threads to finish")
-            self.persistence.save_state(state)
-        
-        # Wait for threads to exit (outside lock)
-        logger.info(f"[IngestionService] KB {kb_id}: Waiting for threads to exit")
-        self.lifecycle.stop_threads(runtime)
-        
-        # Update state after threads exited
-        with self._lock:
-            self._set_paused(state, message="Paused - checkpoint saved")
-            self.repository.update_job_status(runtime.job_id, JobStatus.PAUSED.value)
-            self.persistence.save_state(state)
-            
-            # Clean up runtime from memory
-            self._cleanup_runtime(kb_id, runtime)
-        
-        logger.info(f"[IngestionService] KB {kb_id}: Pause complete")
-        return True
-
-    async def cancel(self, kb_id: str) -> bool:
-        """Cancel ingestion immediately."""
-        return await asyncio.to_thread(self._cancel_sync, kb_id)
-
-    def _cancel_sync(self, kb_id: str) -> bool:
-        """Cancel ingestion."""
-        logger.info(f"[IngestionService] KB {kb_id}: Cancelling")
-        
-        with self._lock:
-            runtime = self._runtimes_by_kb.get(kb_id)
-            if not runtime:
-                return False
-
-            state = runtime.state
-            self._set_canceled(state, message="Cancellation requested")
-            # Update DB status using correct enum spelling
-            self.repository.update_job_status(runtime.job_id, JobStatus.CANCELLED.value)
-            self.persistence.save_state(state)
-
-        self.lifecycle.stop_threads(runtime)
-        
-        # After threads stop, perform storage cleanup and reset state
-        try:
-            self._cleanup_storage_for_kb(kb_id)
-        except Exception as e:
-            logger.error(f"[IngestionService] KB {kb_id}: Storage cleanup failed: {e}")
-
-        with self._lock:
-            # Reset persisted state to NOT_STARTED
-            reset_state = runtime.state
-            reset_state.status = JobStatus.NOT_STARTED.value
-            reset_state.phase = "loading"
-            reset_state.progress = 0
-            reset_state.message = "KB created; ingestion not started yet"
-            reset_state.error = None
-            reset_state.metrics = {}
-            reset_state.started_at = None
-            reset_state.completed_at = None
-            reset_state.phase_status = {}
-            self.persistence.save_state(reset_state)
-
-            # Clear runtime from memory
-            self._cleanup_runtime(kb_id, runtime)
-        
-        return True
-
+    def status(self, kb_id: str) -> Optional[IngestionState]:
+        """Get ingestion status for a knowledge base."""
     def status(self, kb_id: str) -> Optional[IngestionState]:
         """Get ingestion status for a knowledge base."""
         with self._lock:
@@ -349,67 +150,21 @@ class IngestionService:
             if state:
                 return state
 
-        # Fallback to persisted state (for paused/stopped jobs)
-        persisted = self.persistence.load(kb_id)
-        if persisted:
-            with self._lock:
-                self._states[kb_id] = persisted
-            return persisted
-
         # Fallback to repository
         state = self.repository.get_latest_job(kb_id)
         if state:
             with self._lock:
                 self._states[kb_id] = state
-        return state
-
-    def list_kb_states(self) -> Dict[str, IngestionState]:
+        return statees(self) -> Dict[str, IngestionState]:
         """List all KB states."""
         with self._lock:
             return dict(self._states)
 
-    async def cancel_all(self) -> None:
-        """Cancel all running jobs."""
-        await asyncio.to_thread(self._cancel_all_sync)
 
-    def _cancel_all_sync(self) -> None:
-        """Cancel all jobs synchronously."""
-        with self._lock:
-            kb_ids = list(self._runtimes_by_kb.keys())
-        for kb_id in kb_ids:
-            try:
-                self._cancel_sync(kb_id)
-            except Exception as exc:
-                logger.error(f"Failed to cancel KB {kb_id}: {exc}")
 
-    def _cleanup_storage_for_kb(self, kb_id: str) -> None:
-        """Remove index storage for a KB (documents, embeddings, index files)."""
-        try:
-            from pathlib import Path
-            backend_root = Path(__file__).parent.parent.parent.parent
-            storage_dir = backend_root / "data" / "knowledge_bases" / kb_id / "index"
-            if storage_dir.exists():
-                import shutil
-                shutil.rmtree(storage_dir)
-                logger.info(f"[IngestionService] KB {kb_id}: Removed storage directory {storage_dir}")
-            else:
-                logger.info(f"[IngestionService] KB {kb_id}: Storage directory not found; nothing to remove")
-        except Exception as e:
-            logger.error(f"[IngestionService] KB {kb_id}: Failed to remove storage: {e}")
 
-    async def pause_all(self) -> None:
-        """Pause all running jobs."""
-        await asyncio.to_thread(self._pause_all_sync)
 
-    def _pause_all_sync(self) -> None:
-        """Pause all jobs synchronously."""
-        with self._lock:
-            kb_ids = list(self._runtimes_by_kb.keys())
-        for kb_id in kb_ids:
-            try:
-                self._pause_sync(kb_id)
-            except Exception as exc:
-                logger.error(f"Failed to pause KB {kb_id}: {exc}")
+
 
     def _create_and_start_threads(
         self,
@@ -453,64 +208,34 @@ class IngestionService:
         )
 
         # Persist initial state
-        self.persistence.save_state(state)
+        # Start threads via lifecycle manager
+        self.lifecycle.start_threads(
+            runtime,
+            ProducerWorker.run,
+            ConsumerWorker.run,
+        )
+
         return state
-
-    def _cleanup_runtime(self, kb_id: str, runtime: JobRuntime) -> None:
-        """Clean up runtime from memory."""
-        if kb_id in self._runtimes_by_kb:
-            del self._runtimes_by_kb[kb_id]
-        if runtime.job_id in self._runtimes_by_job:
-            del self._runtimes_by_job[runtime.job_id]
-
     # ---------------------------------------------------------------------
     # State helpers: single source of truth for status/flags
     # ---------------------------------------------------------------------
     def _set_running(self, state: IngestionState, *, phase: Optional[str] = None, message: Optional[str] = None) -> None:
-        """Mark state as running and clear cooperative flags."""
+        """Mark state as running."""
         state.status = JobStatus.RUNNING.value
         if phase:
             state.phase = phase
-        state.paused = False
-        state.cancel_requested = False
         state.error = None
-        if message is not None:
-            state.message = message
-
-    def _set_paused_flag(self, state: IngestionState, *, message: Optional[str] = None) -> None:
-        """Only flip cooperative pause flag without lifecycle change (used before stopping threads)."""
-        state.paused = True
-        if message is not None:
-            state.message = message
-
-    def _set_paused(self, state: IngestionState, *, message: Optional[str] = None) -> None:
-        """Mark state paused for UI/lifecycle and keep cooperative flag true."""
-        state.status = JobStatus.PAUSED.value
-        state.paused = True
-        if message is not None:
-            state.message = message
-
-    def _set_canceled(self, state: IngestionState, *, message: Optional[str] = None) -> None:
-        """Mark state canceled and set cooperative cancel flag."""
-        state.status = JobStatus.CANCELLED.value
-        state.cancel_requested = True
-        state.paused = False
-        state.phase = "cancelled"
         if message is not None:
             state.message = message
 
     def _set_failed(self, state: IngestionState, *, error_message: str) -> None:
         """Mark state failed with error message."""
         state.status = JobStatus.FAILED.value
-        state.paused = False
-        state.cancel_requested = False
         state.error = error_message
         state.message = error_message
 
     def _set_completed(self, state: IngestionState, *, message: Optional[str] = "Completed") -> None:
         """Mark state completed."""
         state.status = JobStatus.COMPLETED.value
-        state.paused = False
-        state.cancel_requested = False
         if message is not None:
             state.message = message

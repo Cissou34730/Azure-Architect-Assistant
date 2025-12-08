@@ -7,10 +7,8 @@ import { ReactNode } from 'react';
 
 export type StatusVariant = 
   | 'running' 
-  | 'paused' 
   | 'completed' 
   | 'failed' 
-  | 'cancelled' 
   | 'active' 
   | 'inactive';
 
@@ -22,10 +20,8 @@ interface StatusBadgeProps {
 
 const variantClasses: Record<StatusVariant, string> = {
   running: 'bg-status-running text-white',
-  paused: 'bg-status-paused text-gray-900',
   completed: 'bg-status-completed text-white',
   failed: 'bg-status-failed text-white',
-  cancelled: 'bg-status-cancelled text-white',
   active: 'bg-accent-success text-white',
   inactive: 'bg-gray-100 text-gray-800',
 };

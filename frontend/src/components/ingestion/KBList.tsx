@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { KnowledgeBase, IngestionJob } from '../../types/ingestion';
 import { KBListItem } from './KBListItem';
-import { getKBStatus, deleteKB, cancelJob, pauseJob, resumeJob } from '../../services/ingestionApi';
+import { getKBStatus, deleteKB } from '../../services/ingestionApi';
 
 interface KBListProps {
   kbs: KnowledgeBase[];
@@ -44,6 +44,7 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
     // Refresh jobs every 5 seconds
     const interval = setInterval(() => void fetchJobs(), 5000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDelete = async (kbId: string) => {
@@ -60,50 +61,12 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
           `Failed to delete KB: Files are currently in use.\n\n` +
           `Please try:\n` +
           `1. Wait a few seconds and try again\n` +
-          `2. Cancel any running ingestion jobs first\n` +
-          `3. Restart the backend server if the issue persists\n\n` +
+          `2. Restart the backend server if the issue persists\n\n` +
           `Technical details: ${errorMsg}`
         );
       } else {
         alert(`Failed to delete KB: ${errorMsg}`);
       }
-    }
-  };
-
-  const handleCancel = async (kbId: string) => {
-    if (!window.confirm('Are you sure you want to cancel this ingestion job?')) {
-      return;
-    }
-
-    try {
-      await cancelJob(kbId);
-      // Refresh jobs list
-      await fetchJobs();
-    } catch (error) {
-      console.error('Failed to cancel job:', error);
-      alert(`Failed to cancel job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  const handlePause = async (kbId: string) => {
-    try {
-      await pauseJob(kbId);
-      // Refresh jobs list
-      await fetchJobs();
-    } catch (error) {
-      console.error('Failed to pause job:', error);
-      alert(`Failed to pause job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  const handleResume = async (kbId: string) => {
-    try {
-      await resumeJob(kbId);
-      // Refresh jobs list
-      await fetchJobs();
-    } catch (error) {
-      console.error('Failed to resume job:', error);
-      alert(`Failed to resume job: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -154,9 +117,6 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
           onViewProgress={onViewProgress}
           onStartIngestion={onStartIngestion}
           onDelete={handleDelete}
-          onCancel={handleCancel}
-          onPause={handlePause}
-          onResume={handleResume}
         />
       ))}
     </div>

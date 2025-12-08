@@ -50,68 +50,6 @@ class VectorIndexBuilder(BaseIndexBuilder):
         
         self.logger.info(f"VectorIndexBuilder ready KB={kb_id} storage={storage_dir}")
     
-    def _get_state_path(self) -> str:
-        """Get path to unified state file."""
-        kb_dir = Path(self.storage_dir).parent
-        return str(kb_dir / "state.json")
-    
-    def _load_state(self) -> Dict[str, Any]:
-        """Load processing state from unified state.json."""
-        state_path = self._get_state_path()
-        if os.path.exists(state_path):
-            try:
-                with open(state_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    return data.get('processing', {
-                        'last_indexed_id': 0,
-                        'chunks_total': 0,
-                        'batches_processed': 0
-                    })
-            except Exception as e:
-                self.logger.warning(f"Could not load state: {e}")
-        return {
-            'last_indexed_id': 0,
-            'chunks_total': 0,
-            'batches_processed': 0
-        }
-    
-    def _save_state(self, last_indexed_id: int, chunks_total: int, batches_processed: int = 0):
-        """Save processing state to unified state.json."""
-        state_path = self._get_state_path()
-        try:
-            # Load existing state (preserve other sections like job, crawl)
-            state = {}
-            if os.path.exists(state_path):
-                try:
-                    with open(state_path, 'r', encoding='utf-8') as f:
-                        state = json.load(f)
-                except Exception:
-                    state = {}
-            
-            # Update only processing section
-            from datetime import datetime
-            state['kb_id'] = self.kb_id
-            state['version'] = 1
-            state['updated_at'] = datetime.now().isoformat()
-            state['processing'] = {
-                'last_indexed_id': last_indexed_id,
-                'chunks_total': chunks_total,
-                'batches_processed': batches_processed
-            }
-            
-            # Atomic write using tempfile
-            state_dir = os.path.dirname(state_path)
-            os.makedirs(state_dir, exist_ok=True)
-            
-            tmp_fd, tmp_name = tempfile.mkstemp(dir=state_dir, suffix='.tmp')
-            with os.fdopen(tmp_fd, 'w', encoding='utf-8') as f:
-                json.dump(state, f, indent=2)
-            os.replace(tmp_name, state_path)
-            
-            # State checkpoint saved (verbosity reduced)
-        except Exception as e:
-            self.logger.error(f"Failed to save state: {e}")
-    
     def build_index(
         self,
         embedded_documents: List[LlamaDocument],
