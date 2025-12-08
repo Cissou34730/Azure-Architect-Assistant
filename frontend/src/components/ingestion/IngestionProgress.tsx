@@ -7,6 +7,7 @@
 import { IngestionJob } from '../../types/ingestion';
 import { MetricCard } from './MetricCard';
 import { Button, StatusBadge } from '../common';
+import { pauseIngestion, resumeIngestion, cancelIngestion } from '../../services/ingestionApi';
 import PhaseStatus from './PhaseStatus';
 
 interface IngestionProgressProps {
@@ -234,6 +235,20 @@ export function IngestionProgress({ job, onStart }: IngestionProgressProps) {
           </div>
         </div>
       )}
+
+      {/* Controls */}
+      <div className="flex justify-end gap-2 pt-4">
+        {job.status === 'running' && (
+          <>
+            <Button variant="ghost" onClick={async () => { try { await pauseIngestion(job.kb_id); } catch {} }}>Pause</Button>
+            <Button variant="ghost" onClick={async () => { try { await resumeIngestion(job.kb_id); } catch {} }}>Resume</Button>
+            <Button variant="danger" onClick={async () => { if (confirm('Cancel current ingestion?')) { try { await cancelIngestion(job.kb_id); } catch {} } }}>Cancel</Button>
+          </>
+        )}
+        {isNotStarted && onStart && (
+          <Button variant="primary" onClick={onStart}>Start</Button>
+        )}
+      </div>
 
       {/* Error Display */}
       {job.error && (

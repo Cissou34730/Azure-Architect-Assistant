@@ -7,6 +7,7 @@ import { KnowledgeBase } from '../../types/ingestion';
 import { IngestionJob } from '../../types/ingestion';
 import { useState, useRef, useEffect } from 'react';
 import { Button, StatusBadge } from '../common';
+import { pauseIngestion, resumeIngestion, cancelIngestion } from '../../services/ingestionApi';
 
 interface KBListItemProps {
   kb: KnowledgeBase;
@@ -183,6 +184,41 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
               Start Ingestion
             </Button>
           ) : null}
+
+          {/* Controls: Pause/Resume/Cancel */}
+          {isIngesting && (
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  try { await pauseIngestion(kb.id); onViewProgress(kb.id); } catch (e) { alert('Failed to pause'); }
+                }}
+              >
+                Pause
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  try { await resumeIngestion(kb.id); onViewProgress(kb.id); } catch (e) { alert('Failed to resume'); }
+                }}
+              >
+                Resume
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={async () => {
+                  if (confirm('Cancel current ingestion?')) {
+                    try { await cancelIngestion(kb.id); onViewProgress(kb.id); } catch (e) { alert('Failed to cancel'); }
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
           
           {/* More Actions Menu */}
           <div className="relative" ref={dropdownRef}>
