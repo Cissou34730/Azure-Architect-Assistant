@@ -208,14 +208,24 @@ class MicrosoftLearnMCPClient:
     async def _cleanup(self) -> None:
         """Internal cleanup of connection resources."""
         try:
+            # Shield cleanup from task cancellation during app shutdown
             if self._session:
-                await self._session.__aexit__(None, None, None)
-                self._session = None
+                try:
+                    await asyncio.shield(self._session.__aexit__(None, None, None))
+                except asyncio.CancelledError:
+                    # Suppress cancellation to avoid anyio cancel scope mismatch
+                    logger.debug("Session cleanup cancelled; suppressing during shutdown")
+                finally:
+                    self._session = None
 
             if self._connection_context and self._streams:
-                await self._connection_context.__aexit__(None, None, None)
-                self._connection_context = None
-                self._streams = None
+                try:
+                    await asyncio.shield(self._connection_context.__aexit__(None, None, None))
+                except asyncio.CancelledError:
+                    logger.debug("Transport cleanup cancelled; suppressing during shutdown")
+                finally:
+                    self._connection_context = None
+                    self._streams = None
 
         except Exception as e:
             logger.warning(f"Error during cleanup: {e}")

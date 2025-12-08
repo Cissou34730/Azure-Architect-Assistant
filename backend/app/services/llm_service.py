@@ -65,7 +65,7 @@ Your response MUST be a valid JSON object with the following structure:
     "costConstraints": "Cost constraints"
   },
   "applicationStructure": {
-    "components": [{"name": "component name", "description": "component description"}],
+    "comsponents": [{"name": "component name", "description": "component description"}],
     "integrations": ["integration1", "integration2"]
   },
   "dataCompliance": {

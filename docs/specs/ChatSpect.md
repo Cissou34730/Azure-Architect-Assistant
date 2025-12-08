@@ -1,4 +1,4 @@
-Below is a **clean, developer-ready, AI-ready specification** written in English and formatted in Markdown.
+cd Below is a **clean, developer-ready, AI-ready specification** written in English and formatted in Markdown.
 It is structured so that an AI development agent can directly start implementing the architecture.
 
 ---
