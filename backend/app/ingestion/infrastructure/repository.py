@@ -211,7 +211,7 @@ class DatabaseRepository:
             }
 
     def recover_inflight_jobs(self) -> None:
-        """Reset processing items and mark running jobs as paused on startup."""
+        """Reset processing items and mark running jobs as failed on startup."""
         now = datetime.utcnow()
         with get_session() as session:
             session.execute(
@@ -222,7 +222,7 @@ class DatabaseRepository:
             session.execute(
                 update(IngestionJob)
                 .where(IngestionJob.status == DBJobStatus.RUNNING.value)
-                .values(status=DBJobStatus.PAUSED.value, updated_at=now)
+                .values(status=DBJobStatus.FAILED.value, updated_at=now)
             )
 
     def _job_to_state(self, job: IngestionJob) -> IngestionState:
@@ -230,10 +230,8 @@ class DatabaseRepository:
         status_map = {
             DBJobStatus.PENDING.value: JobStatus.PENDING.value,
             DBJobStatus.RUNNING.value: JobStatus.RUNNING.value,
-            DBJobStatus.PAUSED.value: JobStatus.PAUSED.value,
             DBJobStatus.COMPLETED.value: JobStatus.COMPLETED.value,
             DBJobStatus.FAILED.value: JobStatus.FAILED.value,
-              DBJobStatus.CANCELLED.value: JobStatus.CANCELLED.value,
         }
         status = status_map.get(job.status, JobStatus.PENDING.value)
         completed_at = (
@@ -241,7 +239,6 @@ class DatabaseRepository:
             if job.status in {
                 DBJobStatus.COMPLETED.value,
                 DBJobStatus.FAILED.value,
-                DBJobStatus.CANCELLED.value,
             }
             else None
         )
@@ -254,8 +251,6 @@ class DatabaseRepository:
             metrics={},
             message="Recovered job",
             error=None,
-            paused=job.status == DBJobStatus.PAUSED.value,
-            cancel_requested=job.status == DBJobStatus.CANCELLED.value,
             created_at=job.created_at,
             started_at=job.updated_at,
             completed_at=completed_at,

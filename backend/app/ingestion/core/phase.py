@@ -8,10 +8,8 @@ from typing import Optional, Dict, Any
 class PhaseStatus(Enum):
     IDLE = "idle"
     RUNNING = "running"
-    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
-    CANCELED = "canceled"
 
 
 @dataclass

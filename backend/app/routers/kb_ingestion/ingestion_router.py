@@ -174,7 +174,7 @@ async def list_jobs(
                         'chunks_error': qs.get('error', 0),
                         'chunks_queued': sum(qs.values()) if qs else 0,
                     }
-                } except Exception:
+                except Exception:
                     pass
             items.append({
                 'kb_id': k,

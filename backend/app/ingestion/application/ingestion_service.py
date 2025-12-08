@@ -143,8 +143,6 @@ class IngestionService:
 
     def status(self, kb_id: str) -> Optional[IngestionState]:
         """Get ingestion status for a knowledge base."""
-    def status(self, kb_id: str) -> Optional[IngestionState]:
-        """Get ingestion status for a knowledge base."""
         with self._lock:
             state = self._states.get(kb_id)
             if state:
@@ -155,7 +153,9 @@ class IngestionService:
         if state:
             with self._lock:
                 self._states[kb_id] = state
-        return statees(self) -> Dict[str, IngestionState]:
+        return state
+
+    def list_kb_states(self) -> Dict[str, IngestionState]:
         """List all KB states."""
         with self._lock:
             return dict(self._states)

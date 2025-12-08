@@ -403,12 +403,3 @@ class ProducerPipeline:
     def _persist_phase_tracker(self) -> None:
         """No-op: state tracking removed."""
         return
-            repo = create_database_repository()
-            repo.update_phase_progress(
-                self.state.job_id,
-                current_phase.value if current_phase else "unknown",
-                phase_data
-            )
-            
-        except Exception as e:
-            logger.warning(f"Failed to persist phase tracker: {e}")

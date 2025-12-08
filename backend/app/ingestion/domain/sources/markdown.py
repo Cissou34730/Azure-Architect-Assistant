@@ -64,14 +64,7 @@ class MarkdownSourceHandler(BaseSourceHandler):
             )
             docs = reader.load_data()
             
-            # Cooperative pause/cancel check
-            if self.state:
-                if self.state.cancel_requested:
-                    logger.info(f"Markdown ingestion cancelled after loading {len(docs)} files")
-                    return []
-                if self.state.paused:
-                    logger.info(f"Markdown ingestion paused after loading {len(docs)} files")
-                    return []
+            # State check removed - run to completion model
             
             # Enrich metadata
             for doc in docs:

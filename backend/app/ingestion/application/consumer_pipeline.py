@@ -361,11 +361,8 @@ class ConsumerPipeline:
     
     def _finalize_job(self) -> None:
         """Mark job as completed after successful processing."""
-        # Only mark completed if not cancelled or failed
-        if self.state.cancel_requested:
-            return
-        
-        if self.state.status in {"failed", "cancelled"}:
+        # Only mark completed if not failed
+        if self.state.status == "failed":
             return
         
         logger.info(f"{self.log_prefix} All queue items processed - marking job as completed")

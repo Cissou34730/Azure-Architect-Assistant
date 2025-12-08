@@ -82,19 +82,7 @@ class WebsiteCrawler:
         
         while to_visit and len(visited) < max_pages:
             # Cooperative pause/cancel check using shared state
-            if self.state:
-                if self.state.cancel_requested:
-                    logger.info(f"Crawler cancelled at {len(visited)} pages")
-                    if current_batch:
-                        yield current_batch
-                    return
-                
-                # Return immediately on pause - pipeline will handle resume
-                if self.state.paused:
-                    logger.info(f"Crawler paused at {len(visited)} pages")
-                    if current_batch:
-                        yield current_batch
-                    return
+            # State check removed - run to completion model
             
             url = to_visit.pop(0)
             
