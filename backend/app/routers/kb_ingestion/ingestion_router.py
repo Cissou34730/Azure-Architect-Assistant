@@ -86,124 +86,54 @@ async def start_ingestion(
         raise HTTPException(status_code=500, detail=f"Failed to start ingestion: {str(e)}")
 
 
-@router.get("/kb/{kb_id}/status", response_model=JobStatusResponse)
+@router.get("/kb/{kb_id}/status")
 async def get_kb_status(
     kb_id: str,
-    kb_manager: KBManager = Depends(get_kb_manager_dep),
-    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
-) -> JobStatusResponse:
-    """Get ingestion status for a KB"""
+    kb_manager: KBManager = Depends(get_kb_manager_dep)
+) -> Dict[str, Any]:
+    """Get live ingestion metrics for a KB (no persisted state)."""
     try:
-        # Check if KB exists
         if not kb_manager.kb_exists(kb_id):
             raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
-        
-        # Get state from IngestionService
-        state = ingest_service.status(kb_id)
-        
-        if state:
-            # Enrich with live queue stats
-            queue_has_work = False
-            if state.job_id:
-                try:
-                    from app.ingestion.infrastructure.repository import create_database_repository
-                    repo = create_database_repository()
-                    queue_stats = repo.get_queue_stats(state.job_id)
-                    state.metrics.update({
-                        'chunks_pending': queue_stats['pending'],
-                        'chunks_processing': queue_stats['processing'],
-                        'chunks_embedded': queue_stats['done'],
-                        'chunks_failed': queue_stats['error'],
-                        'chunks_queued': sum(queue_stats.values()),
-                    })
-                    # Check if there's pending work (can resume)
-                    queue_has_work = queue_stats['pending'] > 0 or queue_stats['processing'] > 0
-                except Exception as e:
-                    logger.warning(f"Failed to get queue stats: {e}")
-            
-            # Override status if job failed but work remains (should show as paused/resumable)
-            adjusted_status = state.status
-            adjusted_message = state.message
-            if state.status == "failed" and queue_has_work:
-                adjusted_status = "paused"
-                adjusted_message = f"Ingestion incomplete: {queue_stats['pending']} chunks pending. Click Resume to continue."
-                logger.info(f"KB {kb_id}: Failed job has {queue_stats['pending']} pending chunks - treating as paused/resumable")
-            
-            # Convert phase_status dict to PhaseDetail list
-            phase_details = None
-            if state.phase_status:
-                from app.routers.kb_ingestion.ingestion_models import PhaseDetail
-                phase_details = []
-                for phase_name, phase_data in state.phase_status.items():
-                    phase_details.append(PhaseDetail(
-                        name=phase_name,
-                        status=phase_data.get('status', 'pending'),
-                        progress=phase_data.get('progress', 0),
-                        items_processed=phase_data.get('items_processed', 0),
-                        items_total=phase_data.get('items_total', 0),
-                        started_at=phase_data.get('started_at'),
-                        completed_at=phase_data.get('completed_at'),
-                        error=phase_data.get('error'),
-                    ))
-            
-            # Normalize phase to supported API enum; for not_started, no active phase
-            allowed_phases = {"not_started", "loading", "chunking", "embedding", "indexing"}
-            # Phase must be one of the allowed enum values for validation
-            normalized_phase = state.phase or "not_started"
-            if isinstance(normalized_phase, str):
-                normalized_phase = normalized_phase.lower()
-                if normalized_phase not in allowed_phases:
-                    normalized_phase = "loading"
 
-            return JobStatusResponse(
-                job_id=f"{kb_id}-job",
-                kb_id=kb_id,
-                status=adjusted_status,
-                phase=normalized_phase,
-                progress=state.progress,
-                message=adjusted_message,
-                error=state.error if adjusted_status == "failed" else None,
-                metrics=state.metrics,
-                started_at=state.started_at,
-                completed_at=state.completed_at,
-                phase_details=phase_details,
-            )
-        
-        # No state found - infer from index readiness
+        index_ready = False
         try:
-            # If index is ready, treat as completed
-            if kb_manager.is_index_ready(kb_id):
-                return JobStatusResponse(
-                    job_id=f"{kb_id}-completed",
-                    kb_id=kb_id,
-                    status="completed",
-                    phase="completed",
-                    progress=100,
-                    message="Ingestion completed; index is ready",
-                    error=None,
-                    metrics={},
-                    started_at=None,
-                    completed_at=None,
-                    phase_details=None,
-                )
+            index_ready = kb_manager.is_index_ready(kb_id)
         except Exception as e:
-            logger.warning(f"KB {kb_id}: readiness check failed in status endpoint: {e}")
+            logger.warning(f"KB {kb_id}: readiness check failed: {e}")
 
-        # Otherwise, default to NOT_STARTED
-        return JobStatusResponse(
-            job_id=f"{kb_id}-pending",
-            kb_id=kb_id,
-            status="not_started",
-            phase="loading",
-            progress=0,
-            message="KB created; ingestion not started yet",
-            error=None,
-            metrics={},
-            started_at=None,
-            completed_at=None,
-            phase_details=None,
-        )
-        
+        # Try to fetch live queue stats if repository exists
+        metrics: Dict[str, Any] = {}
+        try:
+            from app.ingestion.infrastructure.repository import create_database_repository
+            repo = create_database_repository()
+            # Use kb_id as job_id surrogate when no orchestrator/state exists
+            queue_stats = repo.get_queue_stats(job_id=kb_id)
+            metrics.update({
+                'chunks_pending': queue_stats.get('pending', 0),
+                'chunks_processing': queue_stats.get('processing', 0),
+                'chunks_done': queue_stats.get('done', 0),
+                'chunks_error': queue_stats.get('error', 0),
+                'chunks_queued': sum(queue_stats.values()) if queue_stats else 0,
+            })
+        except Exception as e:
+            logger.info(f"KB {kb_id}: queue stats unavailable: {e}")
+
+        # Attempt to read lightweight in-memory counters from KB manager if exposed
+        try:
+            counters = kb_manager.get_runtime_counters(kb_id)
+            metrics.update({
+                'documents_loaded': counters.get('documents_loaded', 0),
+                'chunks_enqueued': counters.get('chunks_enqueued', 0),
+            })
+        except Exception:
+            pass
+
+        return {
+            'kb_id': kb_id,
+            'index_ready': index_ready,
+            'metrics': metrics,
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -287,12 +217,11 @@ async def resume_ingestion(
             raise HTTPException(status_code=404, detail=f"Unable to resume ingestion for KB '{kb_id}'")
         # Publish RESUME signal
         try:
-            state = ingest_service.status(kb_id)
-            job_id = state.job_id if state and state.job_id else kb_id
-            await IngestionOrchestrator.instance().publish(job_id, Signal.RESUME)
+            # Orchestrator removed: directly start workers if needed
+            await ingest_service.start_workers(kb_id)
         except Exception as e:
-            logger.warning(f"Failed to publish RESUME signal: {e}")
-        return {"message": f"Ingestion resumed for KB '{kb_id}'", "kb_id": kb_id}
+            logger.warning(f"Failed to start workers: {e}")
+        return {"message": f"Workers started for KB '{kb_id}'", "kb_id": kb_id}
         
     except HTTPException:
         raise
@@ -302,41 +231,53 @@ async def resume_ingestion(
 
 
 
-@router.get("/jobs", response_model=JobListResponse)
+@router.get("/jobs")
 async def list_jobs(
     kb_id: Optional[str] = None,
     limit: int = 50,
-    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
-) -> JobListResponse:
-    """List all ingestion jobs, optionally filtered by KB"""
+    kb_manager: KBManager = Depends(get_kb_manager_dep)
+) -> Dict[str, Any]:
+    """List KBs with minimal live metrics (no persisted jobs)."""
     try:
-        states = ingest_service.list_kb_states()
-        
-        # Filter by kb_id if specified
+        kb_ids = kb_manager.list_kbs()
         if kb_id:
-            states = {k: v for k, v in states.items() if k == kb_id}
-        
-        # Convert to list and limit
-        state_list = list(states.values())[:limit]
-        
-        return JobListResponse(
-            jobs=[
-                JobStatusResponse(
-                    job_id=f"{state.kb_id}-job",
-                    kb_id=state.kb_id,
-                    status=state.status,
-                    phase=state.phase,
-                    progress=state.progress,
-                    message=state.message,
-                    error=state.error,
-                    metrics=state.metrics,
-                    started_at=state.started_at,
-                    completed_at=state.completed_at
-                )
-                for state in state_list
-            ]
-        )
-        
+            kb_ids = [k for k in kb_ids if k == kb_id]
+        kb_ids = kb_ids[:limit]
+
+        items = []
+        from app.ingestion.infrastructure.repository import create_database_repository
+        repo = None
+        try:
+            repo = create_database_repository()
+        except Exception:
+            repo = None
+
+        for k in kb_ids:
+            index_ready = False
+            try:
+                index_ready = kb_manager.is_index_ready(k)
+            except Exception:
+                pass
+            metrics = {}
+            if repo:
+                try:
+                    qs = repo.get_queue_stats(job_id=k)
+                    metrics = {
+                        'chunks_pending': qs.get('pending', 0),
+                        'chunks_processing': qs.get('processing', 0),
+                        'chunks_done': qs.get('done', 0),
+                        'chunks_error': qs.get('error', 0),
+                        'chunks_queued': sum(qs.values()) if qs else 0,
+                    }
+                } except Exception:
+                    pass
+            items.append({
+                'kb_id': k,
+                'index_ready': index_ready,
+                'metrics': metrics,
+            })
+
+        return {'items': items}
     except Exception as e:
         logger.error(f"Failed to list jobs: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to list jobs: {str(e)}")

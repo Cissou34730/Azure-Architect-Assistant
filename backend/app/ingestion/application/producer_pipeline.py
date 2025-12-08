@@ -428,23 +428,7 @@ class ProducerPipeline:
         persistence.save(self.state)
     
     async def _check_cancel(self, checkpoint_name: str) -> bool:
-        """Check if cancelled."""
-        if not self.state:
-            return False
-        orchestrator = IngestionOrchestrator.instance()
-        desired = orchestrator.get_desired_state(self.state.job_id) if self.state.job_id else "idle"
-
-        if self.state.cancel_requested or desired in ("canceled", "shutdown"):
-            logger.info(f"KB {self.kb_id} cancelled at {checkpoint_name}")
-            persistence = create_local_disk_persistence_store()
-            persistence.save(self.state)
-            return True
-        # Pause handling: honor orchestrator desired state
-        if desired == "paused":
-            logger.info(f"KB {self.kb_id} paused at {checkpoint_name}")
-            persistence = create_local_disk_persistence_store()
-            persistence.save(self.state)
-            return True
+        """No-op cancel/pause check (state/orchestrator removed)."""
         return False
     
     async def _check_resume_scenario(self) -> bool:
@@ -471,33 +455,8 @@ class ProducerPipeline:
         return False
     
     def _persist_phase_tracker(self) -> None:
-        """Persist phase tracker to database and state."""
-        if not self.phase_tracker or not self.state or not self.state.job_id:
-            return
-        
-        try:
-            # Update state with phase info
-            phase_data = self.phase_tracker.to_dict()
-            self.state.phase_status = phase_data
-            
-            current_phase = self.phase_tracker.get_current_phase()
-            if current_phase:
-                self.state.phase = current_phase.value
-            
-            # Calculate overall progress
-            self.state.progress = self.phase_tracker.get_overall_progress()
-
-            # Aggregate overall job status from per-phase statuses
-            try:
-                overall = aggregate_job_status({
-                    k: {"status": v.get("status", PhaseStatus.IDLE.value)}
-                    for k, v in phase_data.items()
-                })
-                self.state.status = overall
-            except Exception:
-                pass
-            
-            # Persist to database
+        """No-op: state tracking removed."""
+        return
             repo = create_database_repository()
             repo.update_phase_progress(
                 self.state.job_id,
