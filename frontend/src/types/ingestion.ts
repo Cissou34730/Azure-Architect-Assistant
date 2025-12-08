@@ -78,6 +78,18 @@ export interface IngestionJob {
   readonly metrics: JobMetrics;
   readonly started_at: string;
   readonly completed_at: string | null;
+  readonly phase_details?: readonly PhaseDetail[];
+}
+
+export interface PhaseDetail {
+  readonly name: IngestionPhase;
+  readonly status: JobStatus;
+  readonly progress: number;
+  readonly items_processed?: number;
+  readonly items_total?: number;
+  readonly started_at?: string | null;
+  readonly completed_at?: string | null;
+  readonly error?: string | null;
 }
 
 export interface KnowledgeBase {

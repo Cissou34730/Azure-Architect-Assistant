@@ -94,6 +94,36 @@ export async function getKBStatus(kbId: string): Promise<IngestionJob> {
   return handleResponse<IngestionJob>(response, "Failed to get status");
 }
 
+export async function pauseIngestion(kbId: string): Promise<{ message: string; kb_id: string }>{
+  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/pause`, {
+    method: "POST",
+  });
+  return handleResponse<{ message: string; kb_id: string }>(
+    response,
+    "Failed to pause ingestion"
+  );
+}
+
+export async function resumeIngestion(kbId: string): Promise<{ message: string; kb_id: string }>{
+  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/resume`, {
+    method: "POST",
+  });
+  return handleResponse<{ message: string; kb_id: string }>(
+    response,
+    "Failed to resume ingestion"
+  );
+}
+
+export async function cancelIngestion(kbId: string): Promise<{ message: string; kb_id: string }>{
+  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/cancel`, {
+    method: "POST",
+  });
+  return handleResponse<{ message: string; kb_id: string }>(
+    response,
+    "Failed to cancel ingestion"
+  );
+}
+
 /**
  * Delete a knowledge base and all its data
  */

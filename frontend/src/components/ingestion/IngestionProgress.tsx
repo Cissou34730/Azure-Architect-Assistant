@@ -3,14 +3,14 @@
  * Displays real-time progress for an ingestion job
  */
 
-import { useTransition } from 'react';
+/* eslint-disable */
 import { IngestionJob } from '../../types/ingestion';
 import { MetricCard } from './MetricCard';
 import { Button, StatusBadge } from '../common';
+import PhaseStatus from './PhaseStatus';
 
 interface IngestionProgressProps {
   job: IngestionJob;
-  onRefresh?: () => void;
   onStart?: () => void;
 }
 
@@ -35,10 +35,9 @@ const PHASE_COLORS: Record<string, string> = {
 
 const PHASE_ORDER: string[] = ['loading', 'chunking', 'embedding', 'indexing', 'completed'];
 
-export function IngestionProgress({ job, onRefresh, onStart }: IngestionProgressProps) {
-  const [isPending, startTransition] = useTransition();
+export function IngestionProgress({ job, onStart }: IngestionProgressProps) {
 
-  const isNotStarted = job.status === 'not_started' || job.phase === 'not_started';
+  const isNotStarted = job.status === 'not_started';
   const isRunning = (job.status === 'running' || job.status === 'pending') && !isNotStarted;
   const progressPercent = Math.min(Math.max(job.progress, 0), 100);
   
@@ -155,6 +154,14 @@ export function IngestionProgress({ job, onRefresh, onStart }: IngestionProgress
           );
         })}
       </div>
+
+      {/* Phase Details from backend */}
+      {job.phase_details && job.phase_details.length > 0 && (
+        <div className="pt-4 border-t">
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">Phases</h4>
+          <PhaseStatus phases={job.phase_details} />
+        </div>
+      )}
 
       {/* Metrics */}
       {job.metrics && Object.keys(job.metrics).length > 0 && (
