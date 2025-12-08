@@ -12,6 +12,8 @@ from app.ingestion.domain.models import JobRuntime
 # from app.ingestion.domain.enums import JobStatus
 from config import get_settings
 from app.ingestion.application.producer_pipeline import ProducerPipeline
+from app.ingestion.application.phase_tracker import PhaseTracker
+from app.ingestion.infrastructure.repository import DatabaseRepository
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,10 @@ class ProducerWorker:
             # Extract KB config from args
             kb_config = ProducerWorker._extract_kb_config(runtime.producer_args)
             
+            # Phase tracking: start loading
+            tracker = PhaseTracker(DatabaseRepository())
+            tracker.start_phase(job_id, "loading")
+
             # Create and run producer pipeline
             pipeline = ProducerPipeline(kb_config, state)
             asyncio.run(pipeline.run())
@@ -68,6 +74,11 @@ class ProducerWorker:
             # DO NOT mark as completed here - consumer will do that after finishing all work
             # Producer only handles crawl/chunk/enqueue phase
             if state.status != "failed":  # TODO: Rebuild
+                # Mark chunking completed; next phases handled by consumer
+                try:
+                    tracker.complete_phase(job_id, "chunking")
+                except Exception:
+                    pass
                 state.phase = "embedding"
                 state.message = "Crawling complete, processing chunks..."
                 logger.info(f"{log_prefix} Producer finished - consumer will continue processing queue")

@@ -6,6 +6,8 @@ import logging
 
 from app.ingestion.domain.models import JobRuntime
 from app.ingestion.application.consumer_pipeline import ConsumerPipeline
+from app.ingestion.application.phase_tracker import PhaseTracker
+from app.ingestion.infrastructure.repository import DatabaseRepository
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,10 @@ class ConsumerWorker:
         try:
             logger.info(f"{log_prefix} Starting consumer thread")
             
+            tracker = PhaseTracker(DatabaseRepository())
+            # Start embedding when first item is dequeued in pipeline; mark here as running
+            tracker.start_phase(job_id, "embedding")
+
             # Create and run consumer pipeline
             pipeline = ConsumerPipeline(runtime)
             pipeline.run()
@@ -47,3 +53,8 @@ class ConsumerWorker:
             
         finally:
             logger.info(f"{log_prefix} Consumer thread finished")
+            # Mark indexing completed at end
+            try:
+                tracker.complete_phase(job_id, "indexing")
+            except Exception:
+                pass
