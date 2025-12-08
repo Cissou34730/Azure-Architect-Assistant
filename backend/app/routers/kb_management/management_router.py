@@ -25,6 +25,7 @@ from .management_models import (
 from .management_operations import KBManagementService, get_management_service
 from app.ingestion.application.status_query_service import StatusQueryService
 from app.ingestion.infrastructure.repository import create_database_repository
+from app.kb.service import clear_index_cache
 
 logger = logging.getLogger(__name__)
 
@@ -107,10 +108,19 @@ async def delete_kb(
         kb_config = kb_manager.get_kb(kb_id)
         storage_dir = kb_config.index_path if kb_config else None
         
-        # Cancel any running ingestion via IngestionService
-        await ingest_service.cancel(kb_id)
-        logger.info(f"Cancelled ingestion for KB before deletion: {kb_id}")
-        await asyncio.sleep(1.0)
+        # Persist cancel/reset prior to deletion
+        try:
+            repo = create_database_repository()
+            repo.cancel_job_and_reset(kb_id)
+        except Exception:
+            pass
+        # Best-effort runtime cancel
+        try:
+            await ingest_service.cancel(kb_id)
+            logger.info(f"Cancelled ingestion for KB before deletion: {kb_id}")
+            await asyncio.sleep(1.0)
+        except Exception:
+            pass
         
         # Clear index from memory cache
         if storage_dir:

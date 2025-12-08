@@ -188,7 +188,15 @@ async def pause_ingestion(
     ingest_service: IngestionService = Depends(get_ingestion_service_dep),
 ) -> Dict[str, Any]:
     try:
-        ingest_service.pause(kb_id)
+        # Persist pause on current phase
+        from app.ingestion.infrastructure.repository import create_database_repository
+        repo = create_database_repository()
+        repo.pause_current_phase(kb_id)
+        # Best-effort runtime pause
+        try:
+            ingest_service.pause(kb_id)
+        except Exception:
+            pass
         return {"message": "Pause requested", "kb_id": kb_id}
     except Exception as e:
         logger.error(f"Failed to pause ingestion: {e}", exc_info=True)
@@ -201,7 +209,15 @@ async def resume_ingestion(
     ingest_service: IngestionService = Depends(get_ingestion_service_dep),
 ) -> Dict[str, Any]:
     try:
-        ingest_service.resume(kb_id)
+        # Persist resume on current phase
+        from app.ingestion.infrastructure.repository import create_database_repository
+        repo = create_database_repository()
+        repo.resume_current_phase(kb_id)
+        # Best-effort runtime resume
+        try:
+            ingest_service.resume(kb_id)
+        except Exception:
+            pass
         return {"message": "Resume requested", "kb_id": kb_id}
     except Exception as e:
         logger.error(f"Failed to resume ingestion: {e}", exc_info=True)
@@ -214,7 +230,15 @@ async def cancel_ingestion(
     ingest_service: IngestionService = Depends(get_ingestion_service_dep),
 ) -> Dict[str, Any]:
     try:
-        ingest_service.cancel(kb_id)
+        # Persist cancel/reset
+        from app.ingestion.infrastructure.repository import create_database_repository
+        repo = create_database_repository()
+        repo.cancel_job_and_reset(kb_id)
+        # Best-effort runtime cancel
+        try:
+            ingest_service.cancel(kb_id)
+        except Exception:
+            pass
         return {"message": "Cancel requested", "kb_id": kb_id}
     except Exception as e:
         logger.error(f"Failed to cancel ingestion: {e}", exc_info=True)

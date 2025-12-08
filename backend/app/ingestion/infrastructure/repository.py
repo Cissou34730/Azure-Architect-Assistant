@@ -405,6 +405,114 @@ class DatabaseRepository:
             phases=phase_states,  # Add loaded phase states
         )
 
+    # =============================================================================
+    # Phase 6: Persistence on Actions
+    # =============================================================================
+    def pause_current_phase(self, kb_id: str) -> None:
+        """Mark current phase as paused for latest job and update timestamps."""
+        with get_session() as session:
+            job = session.execute(
+                select(IngestionJob)
+                .where(IngestionJob.kb_id == kb_id)
+                .order_by(IngestionJob.created_at.desc())
+                .limit(1)
+            ).scalars().first()
+            if not job:
+                return
+            current = job.current_phase or "loading"
+            session.execute(
+                update(IngestionPhaseStatus)
+                .where(
+                    IngestionPhaseStatus.job_id == job.id,
+                    IngestionPhaseStatus.phase_name == current,
+                )
+                .values(status=PhaseStatusDB.PAUSED.value, updated_at=datetime.utcnow())
+            )
+
+    def resume_current_phase(self, kb_id: str) -> None:
+        """Mark current phase as running for latest job; set started_at if missing."""
+        with get_session() as session:
+            job = session.execute(
+                select(IngestionJob)
+                .where(IngestionJob.kb_id == kb_id)
+                .order_by(IngestionJob.created_at.desc())
+                .limit(1)
+            ).scalars().first()
+            if not job:
+                return
+            current = job.current_phase or "loading"
+            now = datetime.utcnow()
+            # Ensure started_at populated
+            ps = session.execute(
+                select(IngestionPhaseStatus)
+                .where(
+                    IngestionPhaseStatus.job_id == job.id,
+                    IngestionPhaseStatus.phase_name == current,
+                )
+            ).scalars().first()
+            started_at = ps.started_at if ps else None
+            session.execute(
+                update(IngestionPhaseStatus)
+                .where(
+                    IngestionPhaseStatus.job_id == job.id,
+                    IngestionPhaseStatus.phase_name == current,
+                )
+                .values(
+                    status=PhaseStatusDB.RUNNING.value,
+                    started_at=started_at or now,
+                    updated_at=now,
+                )
+            )
+
+    def cancel_job_and_reset(self, kb_id: str) -> None:
+        """Cancel latest job: reset phases to not_started and clear queue items."""
+        with get_session() as session:
+            job = session.execute(
+                select(IngestionJob)
+                .where(IngestionJob.kb_id == kb_id)
+                .order_by(IngestionJob.created_at.desc())
+                .limit(1)
+            ).scalars().first()
+            if not job:
+                return
+            now = datetime.utcnow()
+            # Reset phases
+            session.execute(
+                update(IngestionPhaseStatus)
+                .where(IngestionPhaseStatus.job_id == job.id)
+                .values(
+                    status=PhaseStatusDB.NOT_STARTED.value,
+                    progress_percent=0,
+                    items_processed=0,
+                    error_message=None,
+                    started_at=None,
+                    completed_at=None,
+                    updated_at=now,
+                )
+            )
+            # Reset job
+            session.execute(
+                update(IngestionJob)
+                .where(IngestionJob.id == job.id)
+                .values(
+                    status=DBJobStatus.PENDING.value,
+                    current_phase="loading",
+                    phase_progress={},
+                    updated_at=now,
+                )
+            )
+            # Clear queue items
+            session.execute(
+                update(IngestionQueueItem)
+                .where(IngestionQueueItem.job_id == job.id)
+                .values(status=QueueStatus.DONE.value, updated_at=now)
+            )
+
+    def clear_index_and_reset(self, kb_id: str) -> None:
+        """Reset phases and job to not_started; index deletion handled at service layer."""
+        # This mirrors cancel but semantically for clear action
+        self.cancel_job_and_reset(kb_id)
+
 
 # Factory function for dependency injection
 def create_database_repository() -> DatabaseRepository:
