@@ -6,10 +6,12 @@ FastAPI router for agent chat endpoints and request handling.
 import logging
 import re
 import json
+from datetime import datetime
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from ..runner import get_agent_runner
 from ..services.project_context import (
@@ -18,6 +20,7 @@ from ..services.project_context import (
     get_project_context_summary
 )
 from ...projects_database import get_db
+from ...models.project import ConversationMessage
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +203,24 @@ async def chat_with_project_context(
         updated_state = None
         answer = result["output"]
         
+        # Save user message to database
+        user_message = ConversationMessage(
+            project_id=project_id,
+            role="user",
+            content=request.message,
+            timestamp=datetime.utcnow().isoformat()
+        )
+        db.add(user_message)
+        
+        # Save agent response to database
+        agent_message = ConversationMessage(
+            project_id=project_id,
+            role="assistant",
+            content=answer,
+            timestamp=datetime.utcnow().isoformat()
+        )
+        db.add(agent_message)
+        
         # Look for state update suggestions in the answer
         state_updates = _extract_state_updates(answer, request.message, project_state)
         
@@ -298,6 +319,36 @@ def _extract_state_updates(
             updates.setdefault("nfrs", {})["costConstraints"] = f"Budget: {cost_match.group(0)}"
     
     return updates if updates else None
+
+
+@router.get("/projects/{project_id}/history")
+async def get_conversation_history(
+    project_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get conversation history for a project.
+    
+    Returns all messages (user and assistant) in chronological order.
+    """
+    try:
+        result = await db.execute(
+            select(ConversationMessage)
+            .where(ConversationMessage.project_id == project_id)
+            .order_by(ConversationMessage.timestamp)
+        )
+        messages = result.scalars().all()
+        
+        return {
+            "messages": [msg.to_dict() for msg in messages],
+            "total": len(messages)
+        }
+    except Exception as e:
+        logger.error(f"Failed to load conversation history: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to load conversation history: {str(e)}"
+        )
 
 
 @router.get("/health", response_model=AgentHealthResponse)

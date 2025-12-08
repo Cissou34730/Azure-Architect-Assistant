@@ -93,6 +93,27 @@ export function AgentChatWorkspace() {
     }
   }
 
+  const loadConversationHistory = async () => {
+    if (!selectedProjectId) return
+    
+    try {
+      const response = await fetch(`http://localhost:8080/api/agent/projects/${selectedProjectId}/history`)
+      const data = await response.json()
+      
+      // Convert from API format to local Message format
+      const loadedMessages: Message[] = data.messages.map((msg: any) => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        reasoningSteps: undefined // History doesn't include reasoning steps
+      }))
+      
+      setMessages(loadedMessages)
+    } catch (error) {
+      console.error('Failed to load conversation history:', error)
+      setMessages([])
+    }
+  }
+
   const checkAgentHealth = async () => {
     try {
       const response = await fetch('http://localhost:8080/api/agent/health')
@@ -169,8 +190,10 @@ export function AgentChatWorkspace() {
   useEffect(() => {
     if (selectedProjectId) {
       void loadProjectState()
+      void loadConversationHistory()
     } else {
       setProjectState(null)
+      setMessages([])
     }
   }, [selectedProjectId])
 
