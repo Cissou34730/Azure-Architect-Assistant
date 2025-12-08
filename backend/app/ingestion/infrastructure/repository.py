@@ -152,6 +152,12 @@ class DatabaseRepository:
                     status=PhaseStatusDB.NOT_STARTED.value,
                 )
                 session.add(phase_status)
+            # After initialization, persist job.status to PENDING (not started)
+            session.execute(
+                update(IngestionJob)
+                .where(IngestionJob.id == job_id)
+                .values(status=DBJobStatus.PENDING.value, updated_at=datetime.utcnow())
+            )
 
     def get_phase_status(self, job_id: str, phase_name: str) -> Optional[PhaseState]:
         """Get status for a specific phase."""
@@ -230,6 +236,8 @@ class DatabaseRepository:
                 )
                 .values(**values)
             )
+            # Recompute and persist job.status based on all phase rows
+            self._recompute_and_persist_job_status(session, job_id)
 
     def save_phase_state(self, job_id: str, phase_name: str, phase_state: PhaseState) -> None:
         """Save a phase state to the database."""
@@ -435,6 +443,12 @@ class DatabaseRepository:
                 )
                 .values(status=PhaseStatusDB.PAUSED.value, updated_at=datetime.utcnow())
             )
+            # Also persist job.status = PAUSED at job level
+            session.execute(
+                update(IngestionJob)
+                .where(IngestionJob.id == job.id)
+                .values(status=DBJobStatus.PENDING.value, updated_at=datetime.utcnow())
+            )
 
     def resume_current_phase(self, kb_id: str) -> None:
         """Mark current phase as running for latest job; set started_at if missing."""
@@ -469,6 +483,12 @@ class DatabaseRepository:
                     started_at=started_at or now,
                     updated_at=now,
                 )
+            )
+            # Also persist job.status = RUNNING at job level
+            session.execute(
+                update(IngestionJob)
+                .where(IngestionJob.id == job.id)
+                .values(status=DBJobStatus.RUNNING.value, updated_at=now)
             )
 
     def cancel_job_and_reset(self, kb_id: str) -> None:
@@ -514,11 +534,50 @@ class DatabaseRepository:
                 .where(IngestionQueueItem.job_id == job.id)
                 .values(status=QueueStatus.DONE.value, updated_at=now)
             )
+            # Persist job.status after reset
+            self._recompute_and_persist_job_status(session, job.id)
 
     def clear_index_and_reset(self, kb_id: str) -> None:
         """Reset phases and job to not_started; index deletion handled at service layer."""
         # This mirrors cancel but semantically for clear action
         self.cancel_job_and_reset(kb_id)
+
+    # =============================================================================
+    # Job status recomputation
+    # =============================================================================
+    def _recompute_and_persist_job_status(self, session, job_id: str) -> None:
+        """Aggregate phase rows and set `ingestion_jobs.status` deterministically.
+
+        Rules:
+        - COMPLETED if all phases are completed
+        - FAILED if any phase is failed
+        - RUNNING if any phase is running
+        - PENDING if all phases are not_started
+        - Otherwise PENDING (covers paused/mixed states as pending at KB level)
+        """
+        phases = session.execute(
+            select(IngestionPhaseStatus.status)
+            .where(IngestionPhaseStatus.job_id == job_id)
+        ).scalars().all()
+        if not phases:
+            new_status = DBJobStatus.PENDING.value
+        elif all(s == PhaseStatusDB.COMPLETED.value for s in phases):
+            new_status = DBJobStatus.COMPLETED.value
+        elif any(s == PhaseStatusDB.FAILED.value for s in phases):
+            new_status = DBJobStatus.FAILED.value
+        elif any(s == PhaseStatusDB.RUNNING.value for s in phases):
+            new_status = DBJobStatus.RUNNING.value
+        elif all(s == PhaseStatusDB.NOT_STARTED.value for s in phases):
+            new_status = DBJobStatus.PENDING.value
+        else:
+            # paused or mixed completed/not_started defaults to PENDING
+            new_status = DBJobStatus.PENDING.value
+
+        session.execute(
+            update(IngestionJob)
+            .where(IngestionJob.id == job_id)
+            .values(status=new_status, updated_at=datetime.utcnow())
+        )
 
 
 # Factory function for dependency injection

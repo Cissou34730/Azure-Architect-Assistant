@@ -26,9 +26,9 @@ class StatusQueryService:
         self.repo = create_database_repository()
 
     def get_status(self, kb_id: str) -> KBPersistedStatus:
-        # Resolve latest job to obtain job_id
-        state = self.repo.get_latest_job(kb_id)
-        job_id = state.job_id if state else None
+        # Resolve latest job record to obtain job_id and DB job.status
+        latest = self.repo.get_latest_job(kb_id)
+        job_id = latest.job_id if latest else None
 
         # Load phases by job_id
         phase_map: Dict[str, PhaseState] = {}
@@ -62,16 +62,18 @@ class StatusQueryService:
                     'error': None,
                 })
 
-        statuses = [pd['status'] for pd in phase_details]
-        if job_id is None or all(s == 'not_started' for s in statuses):
+        # Use persisted job.status mapped to KB-level (ready|pending|not_ready)
+        if latest is None:
             derived = 'not_ready'
-        elif all(s == 'completed' for s in statuses):
-            derived = 'ready'
-        elif any(s in ('running', 'paused') for s in statuses):
-            derived = 'pending'
         else:
-            # Mixed completed/not_started without active phases still indicates pending work
-            derived = 'pending'
+            job_status = latest.status  # domain mapping: 'pending'|'running'|'completed'|'failed'
+            if job_status == 'completed':
+                derived = 'ready'
+            elif job_status in ('pending', 'running'):
+                derived = 'pending'
+            else:
+                # 'failed' or any unknown maps to not_ready for KB-level readiness
+                derived = 'not_ready'
 
         # Current phase: first non-completed canonical, else last
         current_phase = None
