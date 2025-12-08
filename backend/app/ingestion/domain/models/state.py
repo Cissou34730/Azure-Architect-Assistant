@@ -12,7 +12,7 @@ try:
 except ImportError:
     PYDANTIC_AVAILABLE = False
 
-from app.ingestion.domain.enums import JobStatus, JobPhase, PhaseStatus
+from app.ingestion.domain.enums import JobPhase, PhaseStatus
 
 
 @dataclass
@@ -39,10 +39,10 @@ class IngestionState:
         Calculate overall job status based on phase statuses.
         
         Logic:
-        - If any phase is FAILED -> job is FAILED
-        - If all phases are COMPLETED -> job is COMPLETED
-        - If any phase is RUNNING or PAUSED -> job is RUNNING
-        - Otherwise -> job is PENDING/NOT_STARTED
+        - If any phase is FAILED -> job is "failed"
+        - If all phases are COMPLETED -> job is "completed"
+        - If any phase is RUNNING or PAUSED -> job is "running"
+        - Otherwise -> job is "pending" or current status
         """
         if not self.phases:
             return self.status
@@ -51,15 +51,15 @@ class IngestionState:
         
         # Check for failures
         if PhaseStatus.FAILED.value in phase_statuses:
-            return JobStatus.FAILED.value
+            return "failed"
         
         # Check if all completed
         if all(s == PhaseStatus.COMPLETED.value for s in phase_statuses):
-            return JobStatus.COMPLETED.value
+            return "completed"
         
         # Check if any running or paused
         if PhaseStatus.RUNNING.value in phase_statuses or PhaseStatus.PAUSED.value in phase_statuses:
-            return JobStatus.RUNNING.value
+            return "running"
         
         # Default to current status
         return self.status

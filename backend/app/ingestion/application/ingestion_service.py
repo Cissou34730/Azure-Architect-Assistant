@@ -9,7 +9,8 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from app.ingestion.domain.models import IngestionState, JobRuntime
-from app.ingestion.domain.enums import JobStatus, transition_or_raise, StateTransitionError
+# TODO: Rebuild status logic from PhaseStatus aggregation
+# from app.ingestion.domain.enums import JobStatus, transition_or_raise, StateTransitionError
 from app.ingestion.domain.errors import RuntimeNotFoundError, InvalidJobStateError
 from app.ingestion.infrastructure.repository import DatabaseRepository
 from app.ingestion.application.lifecycle import LifecycleManager
@@ -221,7 +222,8 @@ class IngestionService:
     # ---------------------------------------------------------------------
     def _set_running(self, state: IngestionState, *, phase: Optional[str] = None, message: Optional[str] = None) -> None:
         """Mark state as running."""
-        state.status = JobStatus.RUNNING.value
+        # TODO: Rebuild - use PhaseStatus aggregation instead
+        state.status = "running"  # JobStatus.RUNNING.value
         if phase:
             state.phase = phase
         state.error = None
@@ -230,12 +232,14 @@ class IngestionService:
 
     def _set_failed(self, state: IngestionState, *, error_message: str) -> None:
         """Mark state failed with error message."""
-        state.status = JobStatus.FAILED.value
+        # TODO: Rebuild - use PhaseStatus aggregation instead
+        state.status = "failed"  # JobStatus.FAILED.value
         state.error = error_message
         state.message = error_message
 
     def _set_completed(self, state: IngestionState, *, message: Optional[str] = "Completed") -> None:
         """Mark state completed."""
-        state.status = JobStatus.COMPLETED.value
+        # TODO: Rebuild - use PhaseStatus aggregation instead
+        state.status = "completed"  # JobStatus.COMPLETED.value
         if message is not None:
             state.message = message

@@ -120,9 +120,9 @@ class ProducerPipeline:
                     from app.ingestion.application.ingestion_service import IngestionService
                     IngestionService.instance()._set_failed(self.state, error_message=str(e))
                 except Exception:
+                    # TODO: Rebuild status logic after JobStatus deletion
                     # Fallback if service not available
-                    from app.ingestion.domain.enums import JobStatus
-                    self.state.status = JobStatus.FAILED.value
+                    self.state.status = "failed"
                     self.state.error = str(e)
             
             # Mark current phase as failed

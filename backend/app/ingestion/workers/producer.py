@@ -8,7 +8,8 @@ from datetime import datetime
 from typing import Any
 
 from app.ingestion.domain.models import JobRuntime
-from app.ingestion.domain.enums import JobStatus
+# TODO: Rebuild status management
+# from app.ingestion.domain.enums import JobStatus
 from config import get_settings
 from app.ingestion.application.producer_pipeline import ProducerPipeline
 
@@ -54,7 +55,7 @@ class ProducerWorker:
                 from app.ingestion.application.ingestion_service import IngestionService
                 IngestionService.instance()._set_failed(state, error_message=str(exc))
             except Exception:
-                state.status = JobStatus.FAILED.value
+                state.status = "failed"  # TODO: Rebuild
                 state.phase = "failed"
                 state.error = str(exc)
                 state.message = "Ingestion failed"
@@ -66,7 +67,7 @@ class ProducerWorker:
             
             # DO NOT mark as completed here - consumer will do that after finishing all work
             # Producer only handles crawl/chunk/enqueue phase
-            if state.status != JobStatus.FAILED.value:
+            if state.status != "failed":  # TODO: Rebuild
                 state.phase = "embedding"
                 state.message = "Crawling complete, processing chunks..."
                 logger.info(f"{log_prefix} Producer finished - consumer will continue processing queue")

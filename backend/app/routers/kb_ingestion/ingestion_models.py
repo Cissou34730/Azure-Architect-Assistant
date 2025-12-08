@@ -9,7 +9,7 @@ from datetime import datetime
 from config import get_openai_settings, get_kb_defaults
 
 from app.ingestion.domain.phase_tracker import IngestionPhase
-from app.ingestion.domain.enums import JobStatus
+# TODO: JobStatus domain enum deleted - will use string literals for API responses
 
 
 class SourceType(str, Enum):
@@ -80,7 +80,7 @@ class JobStatusResponse(BaseModel):
     """Job status information"""
     job_id: str
     kb_id: str
-    status: JobStatus
+    status: str  # TODO: Was JobStatus enum - now string literal (pending, running, completed, failed)
     phase: IngestionPhase
     progress: float
     message: str

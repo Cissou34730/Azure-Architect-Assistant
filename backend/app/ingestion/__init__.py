@@ -40,7 +40,7 @@ from app.ingestion.models import IngestionJob, IngestionQueueItem, JobStatus as 
 # New layered architecture exports
 from app.ingestion.application.ingestion_service import IngestionService
 from app.ingestion.domain.models import IngestionState, IngestionStateSchema, JobRuntime
-from app.ingestion.domain.enums import JobStatus, JobPhase
+from app.ingestion.domain.enums import JobPhase, PhaseStatus
 from config import get_settings, set_settings, IngestionSettings
 
 __all__ = [
@@ -54,8 +54,8 @@ __all__ = [
     "IngestionState",
     "IngestionStateSchema",
     "JobRuntime",
-    "JobStatus",
     "JobPhase",
+    "PhaseStatus",
     "get_settings",
     "set_settings",
     "IngestionSettings",

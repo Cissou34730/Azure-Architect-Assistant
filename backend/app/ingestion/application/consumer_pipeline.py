@@ -115,8 +115,8 @@ class ConsumerPipeline:
                 from app.ingestion.application.ingestion_service import IngestionService
                 IngestionService.instance()._set_failed(self.state, error_message=str(e))
             except Exception:
-                from app.ingestion.domain.enums import JobStatus
-                self.state.status = JobStatus.FAILED.value
+                # TODO: Rebuild status logic after JobStatus deletion
+                self.state.status = "failed"
                 self.state.error = str(e)
             
             # Mark current phase as failed
@@ -380,8 +380,8 @@ class ConsumerPipeline:
             self.state.progress = 100
             self.state.completed_at = datetime.utcnow()
         except Exception:
-            from app.ingestion.domain.enums import JobStatus
-            self.state.status = JobStatus.COMPLETED.value
+            # TODO: Rebuild status logic after JobStatus deletion
+            self.state.status = "completed"
             self.state.phase = "completed"
             self.state.progress = 100
             self.state.message = "Ingestion completed successfully"
@@ -389,8 +389,8 @@ class ConsumerPipeline:
         
         # Update repository
         try:
-            from app.ingestion.domain.enums import JobStatus
-            self.repository.update_job_status(self.job_id, JobStatus.COMPLETED.value)
+            # TODO: Rebuild status logic after JobStatus deletion
+            self.repository.update_job_status(self.job_id, "completed")
             # Optional invariant check before saving
             # Status check removed - no longer tracking paused state
             logger.info(f"{self.log_prefix} Job marked as completed in DB")

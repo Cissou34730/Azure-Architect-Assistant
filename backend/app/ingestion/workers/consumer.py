@@ -41,8 +41,8 @@ class ConsumerWorker:
                 from app.ingestion.application.ingestion_service import IngestionService
                 IngestionService.instance()._set_failed(runtime.state, error_message=str(exc))
             except Exception:
-                from app.ingestion.domain.enums import JobStatus
-                runtime.state.status = JobStatus.FAILED.value
+                # TODO: Rebuild status management
+                runtime.state.status = "failed"
                 runtime.state.error = str(exc)
             
         finally:

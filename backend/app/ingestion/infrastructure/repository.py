@@ -16,7 +16,7 @@ from app.ingestion.models import (
 )
 from app.ingestion.domain.models import IngestionState
 from app.ingestion.domain.errors import DuplicateChunkError, JobNotFoundError
-from app.ingestion.domain.enums import JobStatus
+# TODO: JobStatus domain enum deleted - rebuild status logic from PhaseStatus
 
 
 class DatabaseRepository:
@@ -65,13 +65,13 @@ class DatabaseRepository:
 
     def update_job_status(self, job_id: str, status: str) -> None:
         """Update job status and timestamp."""
-        # Map domain status to DB enum
+        # TODO: Rebuild status mapping logic after PhaseStatus aggregation is implemented
+        # For now, use direct string values
         status_map = {
-                JobStatus.NOT_STARTED.value: DBJobStatus.PENDING.value,
-                JobStatus.PENDING.value: DBJobStatus.PENDING.value,
-                JobStatus.RUNNING.value: DBJobStatus.RUNNING.value,
-                JobStatus.COMPLETED.value: DBJobStatus.COMPLETED.value,
-                JobStatus.FAILED.value: DBJobStatus.FAILED.value,
+            "pending": DBJobStatus.PENDING.value,
+            "running": DBJobStatus.RUNNING.value,
+            "completed": DBJobStatus.COMPLETED.value,
+            "failed": DBJobStatus.FAILED.value,
         }
         db_status = status_map.get(status, DBJobStatus.PENDING.value)
         
@@ -227,13 +227,14 @@ class DatabaseRepository:
 
     def _job_to_state(self, job: IngestionJob) -> IngestionState:
         """Convert persisted job record to domain state."""
+        # TODO: Rebuild status mapping after JobStatus deletion - use string literals for now
         status_map = {
-            DBJobStatus.PENDING.value: JobStatus.PENDING.value,
-            DBJobStatus.RUNNING.value: JobStatus.RUNNING.value,
-            DBJobStatus.COMPLETED.value: JobStatus.COMPLETED.value,
-            DBJobStatus.FAILED.value: JobStatus.FAILED.value,
+            DBJobStatus.PENDING.value: "pending",
+            DBJobStatus.RUNNING.value: "running",
+            DBJobStatus.COMPLETED.value: "completed",
+            DBJobStatus.FAILED.value: "failed",
         }
-        status = status_map.get(job.status, JobStatus.PENDING.value)
+        status = status_map.get(job.status, "pending")
         completed_at = (
             job.updated_at
             if job.status in {
