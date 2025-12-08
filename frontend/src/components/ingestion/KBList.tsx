@@ -4,9 +4,9 @@
  */
 
 import { useEffect, useState } from 'react';
-import { KnowledgeBase, IngestionJob } from '../../types/ingestion';
+import { KnowledgeBase, IngestionJob, KBStatusSimple, KBIngestionDetails } from '../../types/ingestion';
 import { KBListItem } from './KBListItem';
-import { getKBStatus, deleteKB } from '../../services/ingestionApi';
+import { getKBReadyStatus, getKBIngestionDetails, deleteKB } from '../../services/ingestionApi';
 
 interface KBListProps {
   kbs: KnowledgeBase[];
@@ -19,13 +19,83 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
   const [jobs, setJobs] = useState<Map<string, IngestionJob>>(new Map());
   const [loading, setLoading] = useState(true);
 
+  function composeJob(kbId: string, status: KBStatusSimple, details?: KBIngestionDetails): IngestionJob {
+    const metrics = status.metrics || {};
+    if (status.status === 'not_ready') {
+      return {
+        job_id: `${kbId}-job`,
+        kb_id: kbId,
+        status: 'not_started',
+        phase: 'loading',
+        progress: 0,
+        message: 'Waiting to start',
+        error: null,
+        metrics: {
+          chunks_pending: metrics.pending || 0,
+          chunks_processing: metrics.processing || 0,
+          chunks_embedded: metrics.done || 0,
+          chunks_failed: metrics.error || 0,
+          chunks_queued: (metrics.pending || 0) + (metrics.processing || 0) + (metrics.done || 0) + (metrics.error || 0),
+        },
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        phase_details: details?.phase_details,
+      };
+    }
+    if (status.status === 'ready') {
+      return {
+        job_id: `${kbId}-job`,
+        kb_id: kbId,
+        status: 'completed',
+        phase: 'completed',
+        progress: 100,
+        message: 'Completed',
+        error: null,
+        metrics: {
+          chunks_pending: metrics.pending || 0,
+          chunks_processing: metrics.processing || 0,
+          chunks_embedded: metrics.done || 0,
+          chunks_failed: metrics.error || 0,
+          chunks_queued: (metrics.pending || 0) + (metrics.processing || 0) + (metrics.done || 0) + (metrics.error || 0),
+        },
+        started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+        phase_details: details?.phase_details,
+      };
+    }
+    // pending
+    return {
+      job_id: `${kbId}-job`,
+      kb_id: kbId,
+      status: 'pending',
+      phase: (details?.current_phase || 'loading'),
+      progress: details?.overall_progress ?? 0,
+      message: 'Ingestion in progress',
+      error: null,
+      metrics: {
+        chunks_pending: metrics.pending || 0,
+        chunks_processing: metrics.processing || 0,
+        chunks_embedded: metrics.done || 0,
+        chunks_failed: metrics.error || 0,
+        chunks_queued: (metrics.pending || 0) + (metrics.processing || 0) + (metrics.done || 0) + (metrics.error || 0),
+      },
+      started_at: new Date().toISOString(),
+      completed_at: null,
+      phase_details: details?.phase_details,
+    };
+  }
+
   const fetchJobs = async () => {
     try {
       const jobsMap = new Map<string, IngestionJob>();
       for (const kb of kbs) {
         try {
-          const status = await getKBStatus(kb.id);
-          jobsMap.set(kb.id, status);
+          const s = await getKBReadyStatus(kb.id);
+          let details: KBIngestionDetails | undefined;
+          if (s.status === 'pending') {
+            details = await getKBIngestionDetails(kb.id);
+          }
+          jobsMap.set(kb.id, composeJob(kb.id, s, details));
         } catch (e) {
           // No status yet for this KB; ignore
         }

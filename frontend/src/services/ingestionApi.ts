@@ -10,6 +10,8 @@ import {
   JobListResponse,
   KnowledgeBase,
   APIError,
+  KBStatusSimple,
+  KBIngestionDetails,
 } from "../types/ingestion";
 
 const API_BASE = `${
@@ -89,12 +91,26 @@ export async function startIngestion(
 /**
  * Get job status for a KB
  */
-export async function getKBStatus(kbId: string): Promise<IngestionJob> {
-  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/status`);
-  return handleResponse<IngestionJob>(response, "Failed to get status");
+// Phase 3: KB-level status (ready | pending | not_ready)
+export async function getKBReadyStatus(kbId: string): Promise<KBStatusSimple> {
+  const response = await fetch(`${API_BASE}/kb/${kbId}/status`);
+  return handleResponse<KBStatusSimple>(response, "Failed to get KB status");
 }
 
-export async function pauseIngestion(kbId: string): Promise<{ message: string; kb_id: string }>{
+// Phase 3: Ingestion details for pending state
+export async function getKBIngestionDetails(
+  kbId: string
+): Promise<KBIngestionDetails> {
+  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/details`);
+  return handleResponse<KBIngestionDetails>(
+    response,
+    "Failed to get ingestion details"
+  );
+}
+
+export async function pauseIngestion(
+  kbId: string
+): Promise<{ message: string; kb_id: string }> {
   const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/pause`, {
     method: "POST",
   });
@@ -104,7 +120,9 @@ export async function pauseIngestion(kbId: string): Promise<{ message: string; k
   );
 }
 
-export async function resumeIngestion(kbId: string): Promise<{ message: string; kb_id: string }>{
+export async function resumeIngestion(
+  kbId: string
+): Promise<{ message: string; kb_id: string }> {
   const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/resume`, {
     method: "POST",
   });
@@ -114,7 +132,9 @@ export async function resumeIngestion(kbId: string): Promise<{ message: string; 
   );
 }
 
-export async function cancelIngestion(kbId: string): Promise<{ message: string; kb_id: string }>{
+export async function cancelIngestion(
+  kbId: string
+): Promise<{ message: string; kb_id: string }> {
   const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/cancel`, {
     method: "POST",
   });

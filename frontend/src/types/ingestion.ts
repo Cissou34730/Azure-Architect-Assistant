@@ -160,3 +160,25 @@ export interface APIError {
   readonly detail?: string;
   readonly status?: number;
 }
+
+// Phase 3: KB-level status (ready | pending | not_ready)
+export type KBReadyState = "ready" | "pending" | "not_ready";
+
+export interface KBStatusSimple {
+  readonly kb_id: string;
+  readonly status: KBReadyState;
+  readonly metrics?: {
+    readonly pending?: number;
+    readonly processing?: number;
+    readonly done?: number;
+    readonly error?: number;
+  };
+}
+
+// Phase 3: Persisted ingestion details
+export interface KBIngestionDetails {
+  readonly kb_id: string;
+  readonly current_phase: IngestionPhase;
+  readonly overall_progress: number;
+  readonly phase_details: readonly PhaseDetail[];
+}

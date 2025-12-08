@@ -3,8 +3,15 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { IngestionJob } from "../types/ingestion";
-import { getKBStatus } from "../services/ingestionApi";
+import {
+  IngestionJob,
+  KBStatusSimple,
+  KBIngestionDetails,
+} from "../types/ingestion";
+import {
+  getKBReadyStatus,
+  getKBIngestionDetails,
+} from "../services/ingestionApi";
 
 interface UseIngestionJobOptions {
   pollInterval?: number; // milliseconds
@@ -33,19 +40,104 @@ export function useIngestionJob(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  function composeJob(
+    kbIdLocal: string,
+    status: KBStatusSimple,
+    details?: KBIngestionDetails
+  ): IngestionJob {
+    const metrics = status.metrics || {};
+    if (status.status === "not_ready") {
+      return {
+        job_id: `${kbIdLocal}-job`,
+        kb_id: kbIdLocal,
+        status: "not_started",
+        phase: "loading",
+        progress: 0,
+        message: "Waiting to start",
+        error: null,
+        metrics: {
+          chunks_pending: metrics.pending || 0,
+          chunks_processing: metrics.processing || 0,
+          chunks_embedded: metrics.done || 0,
+          chunks_failed: metrics.error || 0,
+          chunks_queued:
+            (metrics.pending || 0) +
+            (metrics.processing || 0) +
+            (metrics.done || 0) +
+            (metrics.error || 0),
+        },
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        phase_details: details?.phase_details,
+      };
+    }
+    if (status.status === "ready") {
+      return {
+        job_id: `${kbIdLocal}-job`,
+        kb_id: kbIdLocal,
+        status: "completed",
+        phase: "completed",
+        progress: 100,
+        message: "Completed",
+        error: null,
+        metrics: {
+          chunks_pending: metrics.pending || 0,
+          chunks_processing: metrics.processing || 0,
+          chunks_embedded: metrics.done || 0,
+          chunks_failed: metrics.error || 0,
+          chunks_queued:
+            (metrics.pending || 0) +
+            (metrics.processing || 0) +
+            (metrics.done || 0) +
+            (metrics.error || 0),
+        },
+        started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+        phase_details: details?.phase_details,
+      };
+    }
+    // pending
+    return {
+      job_id: `${kbIdLocal}-job`,
+      kb_id: kbIdLocal,
+      status: "pending",
+      phase: (details?.current_phase || "loading") as IngestionJob["phase"],
+      progress: details?.overall_progress ?? 0,
+      message: "Ingestion in progress",
+      error: null,
+      metrics: {
+        chunks_pending: metrics.pending || 0,
+        chunks_processing: metrics.processing || 0,
+        chunks_embedded: metrics.done || 0,
+        chunks_failed: metrics.error || 0,
+        chunks_queued:
+          (metrics.pending || 0) +
+          (metrics.processing || 0) +
+          (metrics.done || 0) +
+          (metrics.error || 0),
+      },
+      started_at: new Date().toISOString(),
+      completed_at: null,
+      phase_details: details?.phase_details,
+    };
+  }
+
   const fetchStatus = useCallback(async () => {
     if (!kbId || !enabled) return;
 
     try {
-      const data = await getKBStatus(kbId);
-      setJob(data);
+      const s = await getKBReadyStatus(kbId);
+      let details: KBIngestionDetails | undefined;
+      if (s.status === "pending") {
+        details = await getKBIngestionDetails(kbId);
+      }
+      const composed = composeJob(kbId, s, details);
+      setJob(composed);
       setError(null);
 
       // Check if job completed
-      if (data.status === "completed" && onComplete) {
-        onComplete(data);
-      } else if (data.status === "failed" && onError && data.error) {
-        onError(new Error(data.error));
+      if (composed.status === "completed" && onComplete) {
+        onComplete(composed);
       }
     } catch (err) {
       const error =
@@ -69,17 +161,18 @@ export function useIngestionJob(
       // Initial fetch
       await fetchStatus();
 
-      // Set up polling only if job is running or pending/not_started
+      // Set up polling while status is pending
       intervalId = setInterval(async () => {
-        const data = await getKBStatus(kbId);
-        setJob(data);
+        const s = await getKBReadyStatus(kbId);
+        let details: KBIngestionDetails | undefined;
+        if (s.status === "pending") {
+          details = await getKBIngestionDetails(kbId);
+        }
+        const composed = composeJob(kbId, s, details);
+        setJob(composed);
 
-        // Stop polling if job is completed or failed
-        if (
-          data.status === "completed" ||
-          data.status === "failed" ||
-          data.status === "not_started"
-        ) {
+        // Stop polling if job is completed or not_started
+        if (composed.status === "completed" || composed.status === "not_started") {
           if (intervalId) {
             clearInterval(intervalId);
             intervalId = null;
