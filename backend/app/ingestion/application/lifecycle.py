@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, Tuple, Optional
 
 from app.ingestion.domain.models import JobRuntime, IngestionState
 from config import get_settings
+from app.ingestion.application.phase_tracker import PhaseTracker
+from app.ingestion.infrastructure.repository import DatabaseRepository
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +99,43 @@ class LifecycleManager:
         except Exception as exc:
             logger.warning(f"Failed to check queue stats for KB {runtime.kb_id}: {exc}")
             return False
+
+    # -------------------------
+    # Phase 6: Pause/Resume/Cancel
+    # -------------------------
+    def request_pause(self, runtime: JobRuntime) -> None:
+        """Request pause: wait for batch boundary and mark current phase PAUSED."""
+        logger.info(f"[LifecycleManager] Pause requested for KB {runtime.kb_id}")
+        runtime.pause_event.set()
+        tracker = PhaseTracker(DatabaseRepository())
+        current_phase = runtime.state.get_current_phase() or runtime.state.phase
+        try:
+            tracker.pause_phase(runtime.job_id, current_phase)
+        except Exception as exc:
+            logger.warning(f"Pause marking failed for KB {runtime.kb_id}: {exc}")
+
+    def request_resume(self, runtime: JobRuntime) -> None:
+        """Resume from last PAUSED phase by setting RUNNING and clearing pause flag."""
+        logger.info(f"[LifecycleManager] Resume requested for KB {runtime.kb_id}")
+        runtime.pause_event.clear()
+        tracker = PhaseTracker(DatabaseRepository())
+        current_phase = runtime.state.get_current_phase() or runtime.state.phase
+        try:
+            tracker.start_phase(runtime.job_id, current_phase)
+        except Exception as exc:
+            logger.warning(f"Resume marking failed for KB {runtime.kb_id}: {exc}")
+
+    def request_cancel(self, runtime: JobRuntime) -> None:
+        """Cancel job: set stop flag and mark current phase FAILED with message."""
+        logger.info(f"[LifecycleManager] Cancel requested for KB {runtime.kb_id}")
+        runtime.stop_event.set()
+        runtime.canceled = True
+        tracker = PhaseTracker(DatabaseRepository())
+        current_phase = runtime.state.get_current_phase() or runtime.state.phase
+        try:
+            tracker.fail_phase(runtime.job_id, current_phase, "Canceled by user")
+        except Exception as exc:
+            logger.warning(f"Cancel marking failed for KB {runtime.kb_id}: {exc}")
 
 
 # Factory function
