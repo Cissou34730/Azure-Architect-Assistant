@@ -15,7 +15,8 @@ from .ingestion_models import (
     StartIngestionRequest,
     StartIngestionResponse,
     JobStatusResponse,
-    JobListResponse
+    JobListResponse,
+    PhaseDetail,
 )
 from .ingestion_operations import KBIngestionService, get_ingestion_service
 
@@ -81,9 +82,10 @@ async def start_ingestion(
 @router.get("/kb/{kb_id}/status")
 async def get_kb_status(
     kb_id: str,
-    kb_manager: KBManager = Depends(get_kb_manager_dep)
+    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    ingest_service: IngestionService = Depends(get_ingestion_service_dep),
 ) -> Dict[str, Any]:
-    """Get live ingestion metrics for a KB (no persisted state)."""
+    """Get ingestion status including phase details when available."""
     try:
         if not kb_manager.kb_exists(kb_id):
             raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
@@ -121,10 +123,31 @@ async def get_kb_status(
         except Exception:
             pass
 
+        # Try to get job state for phase details
+        state = ingest_service.status(kb_id)
+        phase_details = None
+        if state and state.phases:
+            phase_details = []
+            for name, ph in state.phases.items():
+                phase_details.append(PhaseDetail(
+                    name=name,
+                    status=ph.get('status', 'not_started'),
+                    progress=ph.get('progress', 0),
+                    items_processed=ph.get('items_processed', 0),
+                    items_total=ph.get('items_total', 0) or 0,
+                    started_at=ph.get('started_at'),
+                    completed_at=ph.get('completed_at'),
+                    error=ph.get('error'),
+                ).model_dump())
+
         return {
             'kb_id': kb_id,
             'index_ready': index_ready,
             'metrics': metrics,
+            'status': state.get_overall_status() if state else 'pending',
+            'current_phase': state.get_current_phase() if state else None,
+            'overall_progress': state.get_overall_progress() if state else 0,
+            'phase_details': phase_details,
         }
     except HTTPException:
         raise
@@ -186,3 +209,46 @@ async def list_jobs(
     except Exception as e:
         logger.error(f"Failed to list jobs: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to list jobs: {str(e)}")
+
+
+# ============================================================================
+# Phase 7: Control Endpoints
+# ============================================================================
+
+@router.post("/kb/{kb_id}/pause")
+async def pause_ingestion(
+    kb_id: str,
+    ingest_service: IngestionService = Depends(get_ingestion_service_dep),
+) -> Dict[str, Any]:
+    try:
+        ingest_service.pause(kb_id)
+        return {"message": "Pause requested", "kb_id": kb_id}
+    except Exception as e:
+        logger.error(f"Failed to pause ingestion: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/kb/{kb_id}/resume")
+async def resume_ingestion(
+    kb_id: str,
+    ingest_service: IngestionService = Depends(get_ingestion_service_dep),
+) -> Dict[str, Any]:
+    try:
+        ingest_service.resume(kb_id)
+        return {"message": "Resume requested", "kb_id": kb_id}
+    except Exception as e:
+        logger.error(f"Failed to resume ingestion: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/kb/{kb_id}/cancel")
+async def cancel_ingestion(
+    kb_id: str,
+    ingest_service: IngestionService = Depends(get_ingestion_service_dep),
+) -> Dict[str, Any]:
+    try:
+        ingest_service.cancel(kb_id)
+        return {"message": "Cancel requested", "kb_id": kb_id}
+    except Exception as e:
+        logger.error(f"Failed to cancel ingestion: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

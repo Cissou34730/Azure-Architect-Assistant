@@ -168,6 +168,30 @@ class IngestionService:
         with self._lock:
             return dict(self._states)
 
+    # -------------------------
+    # Phase 6 Controls
+    # -------------------------
+    def pause(self, kb_id: str) -> None:
+        with self._lock:
+            runtime = self._runtimes_by_kb.get(kb_id)
+            if not runtime:
+                raise RuntimeNotFoundError(f"No runtime for KB {kb_id}")
+        self.lifecycle.request_pause(runtime)
+
+    def resume(self, kb_id: str) -> None:
+        with self._lock:
+            runtime = self._runtimes_by_kb.get(kb_id)
+            if not runtime:
+                raise RuntimeNotFoundError(f"No runtime for KB {kb_id}")
+        self.lifecycle.request_resume(runtime)
+
+    def cancel(self, kb_id: str) -> None:
+        with self._lock:
+            runtime = self._runtimes_by_kb.get(kb_id)
+            if not runtime:
+                raise RuntimeNotFoundError(f"No runtime for KB {kb_id}")
+        self.lifecycle.request_cancel(runtime)
+
 
 
 
