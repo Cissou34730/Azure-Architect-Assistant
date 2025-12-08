@@ -19,9 +19,12 @@ from .management_models import (
     KBHealthInfo, 
     KBHealthResponse,
     CreateKBRequest,
-    CreateKBResponse
+    CreateKBResponse,
+    KBStatusResponse,
 )
 from .management_operations import KBManagementService, get_management_service
+from app.ingestion.application.status_query_service import StatusQueryService
+from app.ingestion.infrastructure.repository import create_database_repository
 
 logger = logging.getLogger(__name__)
 
@@ -199,3 +202,44 @@ async def check_kb_health(
             status_code=500,
             detail=f"Health check failed: {str(e)}"
         )
+
+
+# ============================================================================
+# Phase 3: KB-level persisted status
+# ============================================================================
+
+@router.get("/{kb_id}/status", response_model=KBStatusResponse)
+async def get_kb_status(
+    kb_id: str,
+    kb_manager: KBManager = Depends(get_kb_manager_dep),
+) -> KBStatusResponse:
+    """Persisted-only KB status derived from phase rows; no runtime calls."""
+    try:
+        if not kb_manager.kb_exists(kb_id):
+            raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+
+        status_service = StatusQueryService()
+        status = status_service.get_status(kb_id)
+
+        # Minimal persisted counters from queue using correct job_id
+        metrics = None
+        try:
+            repo = create_database_repository()
+            job_id = repo.get_latest_job_id(kb_id)
+            if job_id:
+                qs = repo.get_queue_stats(job_id)
+                metrics = {
+                    'pending': qs.get('pending', 0),
+                    'processing': qs.get('processing', 0),
+                    'done': qs.get('done', 0),
+                    'error': qs.get('error', 0),
+                }
+        except Exception:
+            metrics = None
+
+        return KBStatusResponse(kb_id=kb_id, status=status.status, metrics=metrics)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get KB status: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get KB status: {str(e)}")

@@ -17,8 +17,10 @@ from .ingestion_models import (
     JobStatusResponse,
     JobListResponse,
     PhaseDetail,
+    KBIngestionDetailsResponse,
 )
 from .ingestion_operations import KBIngestionService, get_ingestion_service
+from app.ingestion.application.status_query_service import StatusQueryService
 
 logger = logging.getLogger(__name__)
 
@@ -79,81 +81,44 @@ async def start_ingestion(
         raise HTTPException(status_code=500, detail=f"Failed to start ingestion: {str(e)}")
 
 
-@router.get("/kb/{kb_id}/status")
-async def get_kb_status(
+@router.get("/kb/{kb_id}/details", response_model=KBIngestionDetailsResponse)
+async def get_ingestion_details(
     kb_id: str,
     kb_manager: KBManager = Depends(get_kb_manager_dep),
-    ingest_service: IngestionService = Depends(get_ingestion_service_dep),
-) -> Dict[str, Any]:
-    """Get ingestion status including phase details when available."""
+) -> KBIngestionDetailsResponse:
+    """Persisted ingestion details for a KB: current phase, progress, per-phase info."""
     try:
         if not kb_manager.kb_exists(kb_id):
             raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
 
-        index_ready = False
-        try:
-            index_ready = kb_manager.is_index_ready(kb_id)
-        except Exception as e:
-            logger.warning(f"KB {kb_id}: readiness check failed: {e}")
+        status_service = StatusQueryService()
+        s = status_service.get_status(kb_id)
 
-        # Try to fetch live queue stats if repository exists
-        metrics: Dict[str, Any] = {}
-        try:
-            from app.ingestion.infrastructure.repository import create_database_repository
-            repo = create_database_repository()
-            # Use kb_id as job_id surrogate when no orchestrator/state exists
-            queue_stats = repo.get_queue_stats(job_id=kb_id)
-            metrics.update({
-                'chunks_pending': queue_stats.get('pending', 0),
-                'chunks_processing': queue_stats.get('processing', 0),
-                'chunks_done': queue_stats.get('done', 0),
-                'chunks_error': queue_stats.get('error', 0),
-                'chunks_queued': sum(queue_stats.values()) if queue_stats else 0,
-            })
-        except Exception as e:
-            logger.info(f"KB {kb_id}: queue stats unavailable: {e}")
+        phase_details = [
+            PhaseDetail(
+                name=p['name'],
+                status=p['status'],
+                progress=p['progress'],
+                items_processed=p['items_processed'],
+                items_total=p['items_total'],
+                started_at=p['started_at'],
+                completed_at=p['completed_at'],
+                error=p['error'],
+            )
+            for p in s.phase_details
+        ]
 
-        # Attempt to read lightweight in-memory counters from KB manager if exposed
-        try:
-            counters = kb_manager.get_runtime_counters(kb_id)
-            metrics.update({
-                'documents_loaded': counters.get('documents_loaded', 0),
-                'chunks_enqueued': counters.get('chunks_enqueued', 0),
-            })
-        except Exception:
-            pass
-
-        # Try to get job state for phase details
-        state = ingest_service.status(kb_id)
-        phase_details = None
-        if state and state.phases:
-            phase_details = []
-            for name, ph in state.phases.items():
-                phase_details.append(PhaseDetail(
-                    name=name,
-                    status=ph.get('status', 'not_started'),
-                    progress=ph.get('progress', 0),
-                    items_processed=ph.get('items_processed', 0),
-                    items_total=ph.get('items_total', 0) or 0,
-                    started_at=ph.get('started_at'),
-                    completed_at=ph.get('completed_at'),
-                    error=ph.get('error'),
-                ).model_dump())
-
-        return {
-            'kb_id': kb_id,
-            'index_ready': index_ready,
-            'metrics': metrics,
-            'status': state.get_overall_status() if state else 'pending',
-            'current_phase': state.get_current_phase() if state else None,
-            'overall_progress': state.get_overall_progress() if state else 0,
-            'phase_details': phase_details,
-        }
+        return KBIngestionDetailsResponse(
+            kb_id=kb_id,
+            current_phase=s.current_phase,
+            overall_progress=s.overall_progress,
+            phase_details=phase_details,
+        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get status: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}")
+        logger.error(f"Failed to get ingestion details: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get ingestion details: {str(e)}")
 
 
 
@@ -189,14 +154,16 @@ async def list_jobs(
             metrics = {}
             if repo:
                 try:
-                    qs = repo.get_queue_stats(job_id=k)
-                    metrics = {
-                        'chunks_pending': qs.get('pending', 0),
-                        'chunks_processing': qs.get('processing', 0),
-                        'chunks_done': qs.get('done', 0),
-                        'chunks_error': qs.get('error', 0),
-                        'chunks_queued': sum(qs.values()) if qs else 0,
-                    }
+                    job_id = repo.get_latest_job_id(k)
+                    if job_id:
+                        qs = repo.get_queue_stats(job_id)
+                        metrics = {
+                            'chunks_pending': qs.get('pending', 0),
+                            'chunks_processing': qs.get('processing', 0),
+                            'chunks_done': qs.get('done', 0),
+                            'chunks_error': qs.get('error', 0),
+                            'chunks_queued': sum(qs.values()) if qs else 0,
+                        }
                 except Exception:
                     pass
             items.append({

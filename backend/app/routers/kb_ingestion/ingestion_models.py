@@ -116,3 +116,11 @@ class StartIngestionResponse(BaseModel):
 class KBListResponse(BaseModel):
     """List of knowledge bases"""
     knowledge_bases: List[Dict[str, Any]]
+
+
+class KBIngestionDetailsResponse(BaseModel):
+    """Persisted ingestion details for a KB (Phase 3)."""
+    kb_id: str
+    current_phase: str
+    overall_progress: int
+    phase_details: List[PhaseDetail]
