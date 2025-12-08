@@ -70,6 +70,29 @@ class DatabaseRepository:
                 return None
             return self._job_to_state(job)
 
+    def get_latest_job_record(self, kb_id: str) -> Optional[IngestionJob]:
+        """Return the latest ORM job record for a KB (raw DB model)."""
+        with get_session() as session:
+            result = session.execute(
+                select(IngestionJob)
+                .where(IngestionJob.kb_id == kb_id)
+                .order_by(IngestionJob.created_at.desc())
+                .limit(1)
+            )
+            return result.scalars().first()
+
+    def get_latest_job_id(self, kb_id: str) -> Optional[str]:
+        """Return the latest job_id (UUID) for a KB."""
+        with get_session() as session:
+            result = session.execute(
+                select(IngestionJob.id)
+                .where(IngestionJob.kb_id == kb_id)
+                .order_by(IngestionJob.created_at.desc())
+                .limit(1)
+            )
+            row = result.first()
+            return row[0] if row else None
+
     def update_job_status(self, job_id: str, status: str) -> None:
         """Update job status and timestamp."""
         # TODO: Rebuild status mapping logic after PhaseStatus aggregation is implemented
