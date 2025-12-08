@@ -94,6 +94,12 @@ async def get_ingestion_details(
         status_service = StatusQueryService()
         s = status_service.get_status(kb_id)
 
+        def to_iso(dt):
+            try:
+                return dt.isoformat() if dt else None
+            except Exception:
+                return dt if isinstance(dt, str) else None
+
         phase_details = [
             PhaseDetail(
                 name=p['name'],
@@ -101,8 +107,8 @@ async def get_ingestion_details(
                 progress=p['progress'],
                 items_processed=p['items_processed'],
                 items_total=p['items_total'],
-                started_at=p['started_at'],
-                completed_at=p['completed_at'],
+                started_at=to_iso(p['started_at']),
+                completed_at=to_iso(p['completed_at']),
                 error=p['error'],
             )
             for p in s.phase_details
