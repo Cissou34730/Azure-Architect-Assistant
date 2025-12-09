@@ -66,13 +66,16 @@ class StatusQueryService:
         if latest is None:
             derived = 'not_ready'
         else:
-            job_status = latest.status  # domain mapping: 'pending'|'running'|'completed'|'failed'
+            job_status = latest.status  # 'not_started'|'running'|'paused'|'completed'|'failed'|'canceled'
             if job_status == 'completed':
                 derived = 'ready'
-            elif job_status in ('pending', 'running'):
+            elif job_status == 'running':
                 derived = 'pending'
+            elif job_status == 'paused':
+                derived = 'paused'
+            elif job_status in ('not_started', 'canceled', 'failed'):
+                derived = 'not_ready'
             else:
-                # 'failed' or any unknown maps to not_ready for KB-level readiness
                 derived = 'not_ready'
 
         # Current phase: first non-completed canonical, else last
