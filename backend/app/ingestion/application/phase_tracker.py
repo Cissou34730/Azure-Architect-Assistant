@@ -70,3 +70,36 @@ class PhaseTracker:
     def _current_status(self, job_id: str, phase_name: str) -> PhaseStatus:
         phase = self.repository.get_phase_status(job_id, phase_name)
         return phase.status if phase else PhaseStatus.NOT_STARTED
+
+    # ---- Helpers expected by pipelines ----
+    def has_phase_started(self, job_id: str, phase_name: str) -> bool:
+        """Return True if phase status is not NOT_STARTED."""
+        status = self._current_status(job_id, phase_name)
+        return status != PhaseStatus.NOT_STARTED
+
+    def is_phase_completed(self, job_id: str, phase_name: str) -> bool:
+        """Return True if phase status is COMPLETED."""
+        status = self._current_status(job_id, phase_name)
+        return status == PhaseStatus.COMPLETED
+
+    def get_overall_progress(self, job_id: str) -> int:
+        """Compute a simple aggregate progress across phases from DB rows."""
+        phases = self.repository.get_all_phase_statuses(job_id)
+        if not phases:
+            return 0
+        # Average progress_percent across phases that have a value
+        values = [p.progress for p in phases.values() if p.progress is not None]
+        return int(sum(values) / len(values)) if values else 0
+
+    def should_run_phase(self, job_id: str, phase_name: str) -> bool:
+        """Return True if the phase is eligible to run (not completed/failed)."""
+        status = self._current_status(job_id, phase_name)
+        return status not in (PhaseStatus.COMPLETED, PhaseStatus.FAILED)
+
+    def get_current_phase(self, job_id: str) -> Optional[str]:
+        """Return the currently running phase name, if any."""
+        phases = self.repository.get_all_phase_statuses(job_id)
+        for name, state in phases.items():
+            if state.status == PhaseStatus.RUNNING:
+                return name
+        return None

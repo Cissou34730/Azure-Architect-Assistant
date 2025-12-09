@@ -13,7 +13,8 @@ from app.ingestion.domain.models import JobRuntime
 from app.ingestion.infrastructure.repository import DatabaseRepository
 from app.ingestion.infrastructure.embedding import EmbedderFactory
 from app.ingestion.infrastructure.indexing import IndexBuilderFactory
-from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase, PhaseStatus
+from app.ingestion.domain.phase_tracker import IngestionPhase, PhaseStatus
+from app.ingestion.application.phase_tracker import PhaseTracker
 from app.ingestion.core.state_manager import aggregate_job_status
 from app.ingestion.core.phase import PhaseStatus as CorePhaseStatus
 
@@ -52,15 +53,7 @@ class ConsumerPipeline:
         self.max_empty_batches = 10
         
         # Phase tracking
-        self.phase_tracker: Optional[PhaseTracker] = None
-        if self.state and self.state.job_id:
-            self.phase_tracker = PhaseTracker(self.state.job_id, self.kb_id)
-            # Load from persisted domain phases if available
-            try:
-                if getattr(self.state, "phases", None):
-                    self.phase_tracker.load_from_dict(self.state.phases)
-            except Exception:
-                pass
+        self.phase_tracker: Optional[PhaseTracker] = PhaseTracker(self.repository) if self.state and self.state.job_id else None
         
         self.total_embedded = 0
         self.total_indexed = 0
@@ -92,7 +85,10 @@ class ConsumerPipeline:
                         # Require upstream dependency readiness and actual input
                         queue_stats = self.repository.get_queue_stats(self.job_id)
                         has_input = (queue_stats['pending'] > 0 or queue_stats['processing'] > 0)
-                        chunking_ready = self.phase_tracker.is_phase_completed(IngestionPhase.CHUNKING) or self.phase_tracker.has_phase_started(IngestionPhase.CHUNKING)
+                        chunking_ready = (
+                            self.phase_tracker.is_phase_completed(self.job_id, 'chunking') or 
+                            self.phase_tracker.has_phase_started(self.job_id, 'chunking')
+                        )
                         if has_input and chunking_ready:
                             logger.info(f"{self.log_prefix} Queue has items, starting EMBEDDING phase")
                             self.phase_tracker.start_phase(IngestionPhase.EMBEDDING)
@@ -466,7 +462,7 @@ class ConsumerPipeline:
                 self.state.phase = current_phase.value
             
             # Calculate overall progress
-            self.state.progress = self.phase_tracker.get_overall_progress()
+            self.state.progress = self.phase_tracker.get_overall_progress(self.job_id)
             
             # Aggregate overall job status from per-phase statuses
             try:

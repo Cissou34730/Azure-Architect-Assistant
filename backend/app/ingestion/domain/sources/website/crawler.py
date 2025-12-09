@@ -174,7 +174,7 @@ class WebsiteCrawler:
             # Per-iteration queue status suppressed
             
             # Rate limiting
-            time.sleep(0.5)atch
+            time.sleep(0.5)
         
         # DEBUG: Log why crawl stopped
         logger.info("="*70)

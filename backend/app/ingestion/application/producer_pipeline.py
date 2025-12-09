@@ -15,7 +15,8 @@ from urllib.parse import urlparse
 from llama_index.core import Document
 from config import get_kb_defaults
 
-from app.ingestion.domain.phase_tracker import PhaseTracker, IngestionPhase, PhaseStatus
+from app.ingestion.domain.phase_tracker import IngestionPhase, PhaseStatus
+from app.ingestion.application.phase_tracker import PhaseTracker
 from app.ingestion.domain.sources import SourceHandlerFactory
 from app.ingestion.domain.chunking import ChunkerFactory
 from app.ingestion.infrastructure.repository import create_database_repository
@@ -58,11 +59,8 @@ class ProducerPipeline:
         self.batch_num = 0
         
         # Phase tracking
-        self.phase_tracker: Optional[PhaseTracker] = None
-        if state and state.job_id:
-            self.phase_tracker = PhaseTracker(state.job_id, self.kb_id)
-            if state.phase_status:
-                self.phase_tracker.load_from_dict(state.phase_status)
+        # Phase tracking will use DB-backed tracker; do not rely on legacy state fields
+        self.phase_tracker: Optional[PhaseTracker] = PhaseTracker(create_database_repository()) if state and state.job_id else None
         
     async def run(self):
         """
@@ -127,9 +125,9 @@ class ProducerPipeline:
             
             # Mark current phase as failed
             if self.phase_tracker:
-                current_phase = self.phase_tracker.get_current_phase()
+                current_phase = self.phase_tracker.get_current_phase(self.state.job_id)
                 if current_phase:
-                    self.phase_tracker.fail_phase(current_phase, str(e))
+                    self.phase_tracker.fail_phase(self.state.job_id, current_phase, str(e))
                 self._persist_phase_tracker()
             
             raise
@@ -138,12 +136,12 @@ class ProducerPipeline:
         """Process document batches from source."""
         # ===== PHASE 1: LOADING (formerly CRAWLING) =====
         # Check if LOADING phase needs to run
-        if self.phase_tracker and not self.phase_tracker.should_run_phase(IngestionPhase.LOADING):
+        if self.phase_tracker and not self.phase_tracker.should_run_phase(self.state.job_id, 'loading'):
             logger.info("LOADING phase already complete, skipping document loading")
         else:
             # Start LOADING phase
             if self.phase_tracker:
-                self.phase_tracker.start_phase(IngestionPhase.LOADING)
+                self.phase_tracker.start_phase(self.state.job_id, 'loading')
                 self._persist_phase_tracker()
             
             self._update_progress(IngestionPhase.LOADING, 0, "Loading documents from source...")
