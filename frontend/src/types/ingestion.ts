@@ -161,8 +161,8 @@ export interface APIError {
   readonly status?: number;
 }
 
-// Phase 3: KB-level status (ready | pending | not_ready)
-export type KBReadyState = "ready" | "pending" | "not_ready";
+// Phase 3: KB-level status (ready | pending | paused | not_ready)
+export type KBReadyState = "ready" | "pending" | "paused" | "not_ready";
 
 export interface KBStatusSimple {
   readonly kb_id: string;

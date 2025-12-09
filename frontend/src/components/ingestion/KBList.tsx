@@ -63,7 +63,29 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
         phase_details: details?.phase_details,
       };
     }
-    // pending
+    // paused
+    if (status.status === 'paused') {
+      return {
+        job_id: `${kbId}-job`,
+        kb_id: kbId,
+        status: 'paused',
+        phase: (details?.current_phase || 'loading'),
+        progress: details?.overall_progress ?? 0,
+        message: 'Ingestion paused',
+        error: null,
+        metrics: {
+          chunks_pending: metrics.pending || 0,
+          chunks_processing: metrics.processing || 0,
+          chunks_embedded: metrics.done || 0,
+          chunks_failed: metrics.error || 0,
+          chunks_queued: (metrics.pending || 0) + (metrics.processing || 0) + (metrics.done || 0) + (metrics.error || 0),
+        },
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        phase_details: details?.phase_details,
+      };
+    }
+    // pending (running)
     return {
       job_id: `${kbId}-job`,
       kb_id: kbId,

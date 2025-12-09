@@ -96,6 +96,32 @@ export function useIngestionJob(
         phase_details: details?.phase_details,
       };
     }
+    // paused
+    if (status.status === "paused") {
+      return {
+        job_id: `${kbIdLocal}-job`,
+        kb_id: kbIdLocal,
+        status: "paused",
+        phase: (details?.current_phase || "loading") as IngestionJob["phase"],
+        progress: details?.overall_progress ?? 0,
+        message: "Ingestion paused",
+        error: null,
+        metrics: {
+          chunks_pending: metrics.pending || 0,
+          chunks_processing: metrics.processing || 0,
+          chunks_embedded: metrics.done || 0,
+          chunks_failed: metrics.error || 0,
+          chunks_queued:
+            (metrics.pending || 0) +
+            (metrics.processing || 0) +
+            (metrics.done || 0) +
+            (metrics.error || 0),
+        },
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        phase_details: details?.phase_details,
+      };
+    }
     // pending
     return {
       job_id: `${kbIdLocal}-job`,
@@ -128,7 +154,7 @@ export function useIngestionJob(
     try {
       const s = await getKBReadyStatus(kbId);
       let details: KBIngestionDetails | undefined;
-      if (s.status === "pending") {
+      if (s.status === "pending" || s.status === "paused") {
         details = await getKBIngestionDetails(kbId);
       }
       const composed = composeJob(kbId, s, details);
@@ -172,7 +198,10 @@ export function useIngestionJob(
         setJob(composed);
 
         // Stop polling if job is completed or not_started
-        if (composed.status === "completed" || composed.status === "not_started") {
+        if (
+          composed.status === "completed" ||
+          composed.status === "not_started"
+        ) {
           if (intervalId) {
             clearInterval(intervalId);
             intervalId = null;
