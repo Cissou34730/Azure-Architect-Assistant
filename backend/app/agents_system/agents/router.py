@@ -4,7 +4,6 @@ FastAPI router for agent chat endpoints and request handling.
 """
 
 import logging
-import re
 import json
 from datetime import datetime
 from typing import List, Optional, Dict, Any
@@ -19,6 +18,7 @@ from ..services.project_context import (
     update_project_state,
     get_project_context_summary
 )
+from ..services.state_update_parser import extract_state_updates
 from ...projects_database import get_db
 from ...models.project import ConversationMessage
 
@@ -222,7 +222,7 @@ async def chat_with_project_context(
         db.add(agent_message)
         
         # Look for state update suggestions in the answer
-        state_updates = _extract_state_updates(answer, request.message, project_state)
+        state_updates = extract_state_updates(answer, request.message, project_state)
         
         if state_updates:
             logger.info(f"Project {project_id}: Detected state updates, applying...")
@@ -266,60 +266,6 @@ async def chat_with_project_context(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process chat request: {str(e)}"
         )
-
-
-def _extract_state_updates(
-    agent_response: str,
-    user_message: str,
-    current_state: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
-    """
-    Extract potential ProjectState updates from agent response.
-    
-    This is a simple heuristic parser. For more robust parsing,
-    we could ask the agent to output structured JSON.
-    """
-    updates = {}
-    
-    # Detect availability requirements
-    availability_match = re.search(
-        r'(\d{2,3}(?:\.\d+)?%)\s+(?:availability|uptime|SLA)',
-        user_message + " " + agent_response,
-        re.IGNORECASE
-    )
-    if availability_match:
-        updates.setdefault("nfrs", {})["availability"] = f"{availability_match.group(1)} SLA requirement"
-    
-    # Detect security requirements
-    security_keywords = ["security", "authentication", "authorization", "encryption", "compliance"]
-    if any(keyword in user_message.lower() for keyword in security_keywords):
-        if "security" not in current_state.get("nfrs", {}) or not current_state["nfrs"]["security"]:
-            # Extract security-related content from agent response
-            security_mentions = []
-            for line in agent_response.split("\n"):
-                if any(kw in line.lower() for kw in security_keywords):
-                    security_mentions.append(line.strip())
-            
-            if security_mentions:
-                updates.setdefault("nfrs", {})["security"] = "; ".join(security_mentions[:3])
-    
-    # Detect performance requirements
-    perf_match = re.search(
-        r'(\d+(?:\.\d+)?)\s*(ms|seconds?|milliseconds?)\s+(?:latency|response time)',
-        user_message + " " + agent_response,
-        re.IGNORECASE
-    )
-    if perf_match:
-        updates.setdefault("nfrs", {})["performance"] = f"{perf_match.group(1)} {perf_match.group(2)} target"
-    
-    # Detect cost constraints
-    if "cost" in user_message.lower() or "budget" in user_message.lower():
-        cost_match = re.search(r'\$[\d,]+(?:\.\d{2})?', user_message)
-        if cost_match:
-            updates.setdefault("nfrs", {})["costConstraints"] = f"Budget: {cost_match.group(0)}"
-    
-    return updates if updates else None
-
 
 @router.get("/projects/{project_id}/history")
 async def get_conversation_history(
