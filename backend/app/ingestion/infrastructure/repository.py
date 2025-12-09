@@ -94,16 +94,16 @@ class DatabaseRepository:
             return row[0] if row else None
 
     def update_job_status(self, job_id: str, status: str) -> None:
-        """Update job status and timestamp."""
-        # TODO: Rebuild status mapping logic after PhaseStatus aggregation is implemented
-        # For now, use direct string values
+        """Update job status and timestamp (expects canonical job statuses)."""
         status_map = {
-            "pending": DBJobStatus.PENDING.value,
+            "not_started": DBJobStatus.NOT_STARTED.value,
             "running": DBJobStatus.RUNNING.value,
+            "paused": DBJobStatus.PAUSED.value,
             "completed": DBJobStatus.COMPLETED.value,
             "failed": DBJobStatus.FAILED.value,
+            "canceled": DBJobStatus.CANCELED.value,
         }
-        db_status = status_map.get(status, DBJobStatus.PENDING.value)
+        db_status = status_map.get(status, DBJobStatus.NOT_STARTED.value)
         
         with get_session() as session:
             session.execute(
@@ -152,11 +152,11 @@ class DatabaseRepository:
                     status=PhaseStatusDB.NOT_STARTED.value,
                 )
                 session.add(phase_status)
-            # After initialization, persist job.status to PENDING (not started)
+            # After initialization, persist job.status to NOT_STARTED
             session.execute(
                 update(IngestionJob)
                 .where(IngestionJob.id == job_id)
-                .values(status=DBJobStatus.PENDING.value, updated_at=datetime.utcnow())
+                .values(status=DBJobStatus.NOT_STARTED.value, updated_at=datetime.utcnow())
             )
 
     def get_phase_status(self, job_id: str, phase_name: str) -> Optional[PhaseState]:
@@ -447,7 +447,7 @@ class DatabaseRepository:
             session.execute(
                 update(IngestionJob)
                 .where(IngestionJob.id == job.id)
-                .values(status=DBJobStatus.PENDING.value, updated_at=datetime.utcnow())
+                .values(status=DBJobStatus.PAUSED.value, updated_at=datetime.utcnow())
             )
 
     def resume_current_phase(self, kb_id: str) -> None:
@@ -522,7 +522,7 @@ class DatabaseRepository:
                 update(IngestionJob)
                 .where(IngestionJob.id == job.id)
                 .values(
-                    status=DBJobStatus.PENDING.value,
+                    status=DBJobStatus.CANCELED.value,
                     current_phase="loading",
                     phase_progress={},
                     updated_at=now,
@@ -560,7 +560,7 @@ class DatabaseRepository:
             .where(IngestionPhaseStatus.job_id == job_id)
         ).scalars().all()
         if not phases:
-            new_status = DBJobStatus.PENDING.value
+            new_status = DBJobStatus.NOT_STARTED.value
         elif all(s == PhaseStatusDB.COMPLETED.value for s in phases):
             new_status = DBJobStatus.COMPLETED.value
         elif any(s == PhaseStatusDB.FAILED.value for s in phases):
@@ -568,10 +568,12 @@ class DatabaseRepository:
         elif any(s == PhaseStatusDB.RUNNING.value for s in phases):
             new_status = DBJobStatus.RUNNING.value
         elif all(s == PhaseStatusDB.NOT_STARTED.value for s in phases):
-            new_status = DBJobStatus.PENDING.value
+            new_status = DBJobStatus.NOT_STARTED.value
+        elif any(s == PhaseStatusDB.PAUSED.value for s in phases) and not any(s == PhaseStatusDB.RUNNING.value for s in phases):
+            new_status = DBJobStatus.PAUSED.value
         else:
-            # paused or mixed completed/not_started defaults to PENDING
-            new_status = DBJobStatus.PENDING.value
+            # mixed states without running default to NOT_STARTED (or remain as last explicit set)
+            new_status = DBJobStatus.NOT_STARTED.value
 
         session.execute(
             update(IngestionJob)
