@@ -24,11 +24,12 @@ Base = declarative_base()
 
 class JobStatus(str, enum.Enum):
     """Lifecycle states for an ingestion job (database model)."""
-
-    PENDING = "PENDING"
+    NOT_STARTED = "NOT_STARTED"
     RUNNING = "RUNNING"
+    PAUSED = "PAUSED"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    CANCELED = "CANCELED"
 
 
 class QueueStatus(str, enum.Enum):
@@ -61,7 +62,7 @@ class IngestionJob(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     kb_id = Column(String(255), nullable=False)
-    status = Column(String(20), nullable=False, default=JobStatus.PENDING.value)
+    status = Column(String(20), nullable=False, default=JobStatus.NOT_STARTED.value)
     source_type = Column(String(50), nullable=False)
     source_config = Column(JSON, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
