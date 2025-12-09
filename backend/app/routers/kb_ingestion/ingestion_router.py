@@ -194,7 +194,7 @@ async def pause_ingestion(
     ingest_service: IngestionService = Depends(get_ingestion_service_dep),
 ) -> Dict[str, Any]:
     try:
-        # Persist pause on current phase
+        # Persist pause on current phase and mark job PAUSED
         from app.ingestion.infrastructure.repository import create_database_repository
         repo = create_database_repository()
         repo.pause_current_phase(kb_id)
@@ -215,7 +215,7 @@ async def resume_ingestion(
     ingest_service: IngestionService = Depends(get_ingestion_service_dep),
 ) -> Dict[str, Any]:
     try:
-        # Persist resume on current phase
+        # Persist resume on current phase and mark job RUNNING
         from app.ingestion.infrastructure.repository import create_database_repository
         repo = create_database_repository()
         repo.resume_current_phase(kb_id)
@@ -236,7 +236,7 @@ async def cancel_ingestion(
     ingest_service: IngestionService = Depends(get_ingestion_service_dep),
 ) -> Dict[str, Any]:
     try:
-        # Persist cancel/reset
+        # Persist cancel/reset and mark job CANCELED
         from app.ingestion.infrastructure.repository import create_database_repository
         repo = create_database_repository()
         repo.cancel_job_and_reset(kb_id)
