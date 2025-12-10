@@ -269,9 +269,10 @@ class ConsumerPipeline:
                     total_items = queue_stats['pending'] + queue_stats['processing'] + queue_stats['done'] + queue_stats['error']
                     if total_items > 0:
                         embed_progress = int((embedding_done / total_items) * 100)
-                        self.phase_tracker.update_phase_progress(
-                            IngestionPhase.EMBEDDING,
-                            embed_progress,
+                        self.phase_tracker.update_progress(
+                            job_id=self.job_id,
+                            phase_name=IngestionPhase.EMBEDDING.value,
+                            progress=embed_progress,
                             items_processed=embedding_done,
                             items_total=total_items
                         )
@@ -279,10 +280,10 @@ class ConsumerPipeline:
             # Progress callback for embedding
             def embedding_progress_cb(phase, prog, msg, metrics=None):
                 if self.phase_tracker:
-                    self.phase_tracker.update_phase_progress(
-                        phase,
-                        prog,
-                        message=msg
+                    self.phase_tracker.update_progress(
+                        job_id=self.job_id,
+                        phase_name=phase.value if hasattr(phase, 'value') else str(phase),
+                        progress=prog
                     )
             
             # Generate embeddings
@@ -314,10 +315,10 @@ class ConsumerPipeline:
             # Progress callback for indexing
             def indexing_progress_cb(phase, prog, msg, metrics=None):
                 if self.phase_tracker:
-                    self.phase_tracker.update_phase_progress(
-                        phase,
-                        prog,
-                        message=msg
+                    self.phase_tracker.update_progress(
+                        job_id=self.job_id,
+                        phase_name=phase.value if hasattr(phase, 'value') else str(phase),
+                        progress=prog
                     )
             
             # Build index from pre-embedded documents
@@ -333,9 +334,10 @@ class ConsumerPipeline:
                 total_to_index = queue_stats['done']
                 if total_to_index > 0:
                     index_progress = int((self.total_indexed / total_to_index) * 100)
-                    self.phase_tracker.update_phase_progress(
-                        IngestionPhase.INDEXING,
-                        index_progress,
+                    self.phase_tracker.update_progress(
+                        job_id=self.job_id,
+                        phase_name=IngestionPhase.INDEXING.value,
+                        progress=index_progress,
                         items_processed=self.total_indexed,
                         items_total=total_to_index
                     )

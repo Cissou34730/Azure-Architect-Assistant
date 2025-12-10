@@ -180,9 +180,10 @@ class ProducerPipeline:
                 
                 if self.phase_tracker:
                     crawl_progress = min(100, (self.batch_num * 10))
-                    self.phase_tracker.update_phase_progress(
-                        IngestionPhase.LOADING, 
-                        crawl_progress,
+                    self.phase_tracker.update_progress(
+                        job_id=self.state.job_id,
+                        phase_name=IngestionPhase.LOADING.value,
+                        progress=crawl_progress,
                         items_processed=len(self.all_documents)
                     )
                 
