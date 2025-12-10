@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 def migrate():
     """Add orchestrator-specific columns to ingestion_jobs table."""
     
-    # Locate database
-    db_path = Path(__file__).parent.parent.parent / "data" / "ingestion.db"
+    # Locate database - go up from migrations to app to backend to root
+    db_path = Path(__file__).parent.parent.parent.parent.parent / "backend" / "data" / "ingestion.db"
     
     if not db_path.exists():
         logger.warning(f"Database not found at {db_path}, skipping migration")
