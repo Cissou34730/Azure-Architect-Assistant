@@ -582,6 +582,136 @@ class DatabaseRepository:
             .where(IngestionJob.id == job_id)
             .values(status=new_status, updated_at=datetime.utcnow())
         )
+    
+    # ========== Orchestrator-specific methods (OrchestratorSpec) ==========
+    
+    def get_job(self, job_id: str):
+        """
+        Get job by ID for orchestrator.
+        Returns job object with checkpoint and counters attributes.
+        """
+        with get_session() as session:
+            result = session.execute(
+                select(IngestionJob).where(IngestionJob.id == job_id)
+            )
+            job = result.scalars().first()
+            if not job:
+                raise JobNotFoundError(f"Job {job_id} not found")
+            
+            # Return object with attributes expected by orchestrator
+            class JobView:
+                def __init__(self, j):
+                    self.id = j.id
+                    self.kb_id = j.kb_id
+                    self.status = j.status
+                    self.checkpoint = j.checkpoint
+                    self.counters = j.counters
+                    self.heartbeat_at = j.heartbeat_at
+                    self.finished_at = j.finished_at
+                    self.last_error = j.last_error
+            
+            return JobView(job)
+    
+    def get_job_status(self, job_id: str) -> str:
+        """Get current job status (lowercase canonical form)."""
+        with get_session() as session:
+            result = session.execute(
+                select(IngestionJob.status).where(IngestionJob.id == job_id)
+            )
+            row = result.first()
+            if not row:
+                raise JobNotFoundError(f"Job {job_id} not found")
+            
+            # Map DB enum to lowercase canonical status
+            status_map = {
+                DBJobStatus.NOT_STARTED.value: "not_started",
+                DBJobStatus.RUNNING.value: "running",
+                DBJobStatus.PAUSED.value: "paused",
+                DBJobStatus.COMPLETED.value: "completed",
+                DBJobStatus.FAILED.value: "failed",
+                DBJobStatus.CANCELED.value: "canceled",
+            }
+            return status_map.get(row[0], "not_started")
+    
+    def update_job(
+        self,
+        job_id: str,
+        checkpoint: Optional[Dict[str, Any]] = None,
+        counters: Optional[Dict[str, Any]] = None,
+        status: Optional[str] = None,
+        finished_at: Optional[datetime] = None,
+        last_error: Optional[str] = None
+    ) -> None:
+        """
+        Update job fields for orchestrator.
+        
+        Args:
+            job_id: Job identifier
+            checkpoint: Optional checkpoint dict {last_batch_id, cursor}
+            counters: Optional counters dict {docs_seen, chunks_seen, ...}
+            status: Optional status update
+            finished_at: Optional completion timestamp
+            last_error: Optional error message
+        """
+        updates = {"updated_at": datetime.utcnow()}
+        
+        if checkpoint is not None:
+            updates["checkpoint"] = checkpoint
+        if counters is not None:
+            updates["counters"] = counters
+        if status is not None:
+            status_map = {
+                "not_started": DBJobStatus.NOT_STARTED.value,
+                "running": DBJobStatus.RUNNING.value,
+                "paused": DBJobStatus.PAUSED.value,
+                "completed": DBJobStatus.COMPLETED.value,
+                "failed": DBJobStatus.FAILED.value,
+                "canceled": DBJobStatus.CANCELED.value,
+            }
+            updates["status"] = status_map.get(status, DBJobStatus.NOT_STARTED.value)
+        if finished_at is not None:
+            updates["finished_at"] = finished_at
+        if last_error is not None:
+            updates["last_error"] = last_error
+        
+        with get_session() as session:
+            session.execute(
+                update(IngestionJob)
+                .where(IngestionJob.id == job_id)
+                .values(**updates)
+            )
+    
+    def update_heartbeat(self, job_id: str) -> None:
+        """Update job heartbeat timestamp."""
+        with get_session() as session:
+            session.execute(
+                update(IngestionJob)
+                .where(IngestionJob.id == job_id)
+                .values(heartbeat_at=datetime.utcnow(), updated_at=datetime.utcnow())
+            )
+    
+    def set_job_status(
+        self,
+        job_id: str,
+        status: str,
+        finished_at: Optional[datetime] = None,
+        last_error: Optional[str] = None
+    ) -> None:
+        """
+        Set job status with optional completion fields.
+        
+        Args:
+            job_id: Job identifier
+            status: Status string (canonical lowercase form)
+            finished_at: Optional completion timestamp
+            last_error: Optional error message
+        """
+        self.update_job(
+            job_id,
+            status=status,
+            finished_at=finished_at,
+            last_error=last_error
+        )
 
 
 # Factory function for dependency injection

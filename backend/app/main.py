@@ -17,6 +17,7 @@ from app.routers.kb_query import router as kb_query_router
 from app.routers.kb_ingestion import router as kb_ingestion_router
 from app.routers.kb_management import router as kb_management_router
 from app.routers.project_management import router as project_router
+from app.routers.ingestion_v2 import router as ingestion_v2_router
 
 # Import lifecycle management
 from app import lifecycle# Load environment variables from root .env (one level up from backend)
@@ -84,6 +85,7 @@ app.include_router(project_router)             # Project management
 app.include_router(kb_query_router)            # KB query endpoints
 app.include_router(kb_management_router)       # KB health/list endpoints
 app.include_router(kb_ingestion_router)        # Generic KB ingestion
+app.include_router(ingestion_v2_router)        # Orchestrator-based ingestion (v2)
 
 
 # Health check

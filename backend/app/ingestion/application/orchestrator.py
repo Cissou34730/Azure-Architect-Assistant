@@ -1,0 +1,369 @@
+"""
+Ingestion Orchestrator
+Sequential orchestrator implementing load → chunk → embed → index pipeline.
+Per backend/docs/ingestion/OrchestratorSpec.md
+"""
+
+import asyncio
+import logging
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Dict, Any, List, Optional
+
+from app.ingestion.domain.loading import fetch_batches
+from app.ingestion.domain.chunking.adapter import (
+    create_chunker_from_config,
+    chunk_documents_to_chunks
+)
+from app.ingestion.domain.embedding import Embedder
+from app.ingestion.domain.indexing import Indexer
+
+logger = logging.getLogger(__name__)
+
+
+class StepName(str, Enum):
+    """Pipeline step identifiers."""
+    LOAD = "load"
+    CHUNK = "chunk"
+    EMBED = "embed"
+    INDEX = "index"
+
+
+@dataclass
+class ProcessingTask:
+    """
+    Task metadata for logging and observability.
+    
+    Attributes:
+        job_id: Job identifier
+        kb_id: Knowledge base identifier
+        step: Current pipeline step
+        payload: Step-specific data
+        batch_id: Optional batch number
+        chunk_index: Optional chunk index within batch
+    """
+    job_id: str
+    kb_id: str
+    step: StepName
+    payload: Dict[str, Any]
+    batch_id: Optional[int] = None
+    chunk_index: Optional[int] = None
+
+
+class WorkflowDefinition:
+    """
+    Defines pipeline step order and transitions.
+    """
+    ORDER: List[StepName] = [StepName.LOAD, StepName.CHUNK, StepName.EMBED, StepName.INDEX]
+    
+    @classmethod
+    def get_first_step(cls) -> StepName:
+        """Get first pipeline step."""
+        return cls.ORDER[0]
+    
+    @classmethod
+    def get_next_step(cls, current: StepName) -> Optional[StepName]:
+        """
+        Get next step after current.
+        
+        Args:
+            current: Current step
+            
+        Returns:
+            Next step or None if current is last
+        """
+        try:
+            idx = cls.ORDER.index(current)
+            return cls.ORDER[idx + 1] if idx + 1 < len(cls.ORDER) else None
+        except ValueError:
+            return None
+
+
+class RetryPolicy:
+    """
+    Configurable retry policy with exponential backoff.
+    """
+    
+    def __init__(self, max_attempts: int = 3, backoff_multiplier: float = 2.0):
+        """
+        Initialize retry policy.
+        
+        Args:
+            max_attempts: Maximum retry attempts
+            backoff_multiplier: Backoff multiplier for exponential delay
+        """
+        self.max_attempts = max_attempts
+        self.backoff_multiplier = backoff_multiplier
+    
+    def should_retry(self, attempt: int, error: Exception) -> bool:
+        """
+        Decide if should retry based on attempt count.
+        
+        Args:
+            attempt: Current attempt number (1-based)
+            error: Exception that occurred
+            
+        Returns:
+            True if should retry, False otherwise
+        """
+        return attempt < self.max_attempts
+    
+    def get_backoff_delay(self, attempt: int) -> float:
+        """
+        Calculate backoff delay for attempt.
+        
+        Args:
+            attempt: Attempt number (1-based)
+            
+        Returns:
+            Delay in seconds (capped at 60s)
+        """
+        return min(2 ** attempt * self.backoff_multiplier, 60.0)
+
+
+class IngestionOrchestrator:
+    """
+    Sequential orchestrator for ingestion pipeline.
+    Implements load → chunk → embed → index with gates, checkpoints, and cleanup.
+    """
+    
+    def __init__(self, repo, workflow: WorkflowDefinition = None, retry_policy: RetryPolicy = None):
+        """
+        Initialize orchestrator.
+        
+        Args:
+            repo: Repository for job persistence
+            workflow: Workflow definition (defaults to standard)
+            retry_policy: Retry policy (defaults to 3 attempts)
+        """
+        self.repo = repo
+        self.workflow = workflow or WorkflowDefinition()
+        self.retry_policy = retry_policy or RetryPolicy()
+        logger.info("IngestionOrchestrator initialized")
+    
+    async def run(self, job_id: str, kb_id: str, kb_config: Dict[str, Any]):
+        """
+        Run ingestion pipeline for a job.
+        
+        Args:
+            job_id: Job identifier
+            kb_id: Knowledge base identifier
+            kb_config: KB configuration dict
+            
+        Raises:
+            Exception: On unrecoverable errors
+        """
+        logger.info(f"Starting ingestion: job_id={job_id}, kb_id={kb_id}")
+        
+        # Load job state
+        job = self.repo.get_job(job_id)
+        checkpoint = job.checkpoint or {}
+        counters = job.counters or {
+            "docs_seen": 0,
+            "chunks_seen": 0,
+            "chunks_processed": 0,
+            "chunks_skipped": 0,
+            "chunks_error": 0
+        }
+        
+        # Initialize components
+        try:
+            loader = fetch_batches(kb_config, checkpoint)
+            chunker = create_chunker_from_config(kb_config)
+            embedder = Embedder(model_name=kb_config.get('embedding_model', 'text-embedding-3-small'))
+            indexer = Indexer(kb_id=kb_id)
+        except Exception as e:
+            logger.error(f"Component initialization failed: {e}")
+            self.repo.set_job_status(
+                job_id,
+                status='failed',
+                finished_at=datetime.utcnow(),
+                last_error=f"Initialization failed: {e}"
+            )
+            raise
+        
+        try:
+            # Main processing loop: batches
+            start_batch_id = checkpoint.get('last_batch_id', -1) + 1
+            
+            for batch_id, batch in enumerate(loader, start=start_batch_id):
+                # Gate check before batch
+                if not await self._check_gate(job_id, kb_id, indexer):
+                    logger.info(f"Pipeline stopped at gate check (batch {batch_id})")
+                    return
+                
+                logger.info(f"Processing batch {batch_id}: {len(batch)} documents")
+                
+                # Step 1: Chunk batch
+                chunks = chunk_documents_to_chunks(batch, chunker, kb_id)
+                counters['docs_seen'] += len(batch)
+                counters['chunks_seen'] += len(chunks)
+                
+                # Step 2: Process each chunk (embed + index)
+                for chunk_idx, chunk in enumerate(chunks):
+                    # Gate check before chunk
+                    if not await self._check_gate(job_id, kb_id, indexer):
+                        logger.info(f"Pipeline stopped at gate check (batch {batch_id}, chunk {chunk_idx})")
+                        # Save progress before stopping
+                        checkpoint['last_batch_id'] = batch_id - 1  # Don't count current incomplete batch
+                        self.repo.update_job(job_id, checkpoint=checkpoint, counters=counters)
+                        return
+                    
+                    # Create task for logging
+                    task = ProcessingTask(
+                        job_id=job_id,
+                        kb_id=kb_id,
+                        step=StepName.EMBED,
+                        payload={"chunk": chunk},
+                        batch_id=batch_id,
+                        chunk_index=chunk_idx
+                    )
+                    
+                    # Process with retry
+                    result = await self._process_chunk_with_retry(task, chunk, embedder, indexer)
+                    
+                    if result["skipped"]:
+                        counters['chunks_skipped'] += 1
+                    elif result["success"]:
+                        counters['chunks_processed'] += 1
+                    else:
+                        counters['chunks_error'] += 1
+                        logger.error(f"Chunk processing failed: {result.get('error')}")
+                
+                # Persist checkpoint and counters after batch
+                checkpoint['last_batch_id'] = batch_id
+                self.repo.update_job(job_id, checkpoint=checkpoint, counters=counters)
+                self.repo.update_heartbeat(job_id)
+                
+                logger.info(f"Batch {batch_id} complete: {counters}")
+            
+            # All batches complete
+            self.repo.set_job_status(
+                job_id,
+                status='completed',
+                finished_at=datetime.utcnow(),
+                last_error=None
+            )
+            logger.info(f"Ingestion completed: job_id={job_id}, counters={counters}")
+            
+        except Exception as e:
+            logger.exception(f"Ingestion failed: job_id={job_id}")
+            self.repo.set_job_status(
+                job_id,
+                status='failed',
+                finished_at=datetime.utcnow(),
+                last_error=str(e)
+            )
+            raise
+    
+    async def _process_chunk_with_retry(
+        self,
+        task: ProcessingTask,
+        chunk,
+        embedder: Embedder,
+        indexer: Indexer
+    ) -> Dict[str, Any]:
+        """
+        Process chunk with embed + index and retry logic.
+        
+        Args:
+            task: Processing task metadata
+            chunk: Chunk dataclass
+            embedder: Embedder instance
+            indexer: Indexer instance
+            
+        Returns:
+            Result dict with keys: success, skipped, error
+        """
+        # Check idempotency first
+        if indexer.exists(task.kb_id, chunk.content_hash):
+            logger.debug(f"Chunk {chunk.content_hash[:8]} already indexed, skipping")
+            return {"success": True, "skipped": True}
+        
+        # Try embed + index with retry
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                # Embed
+                embedding = await embedder.embed(chunk)
+                
+                # Index
+                indexer.index(task.kb_id, embedding)
+                
+                return {"success": True, "skipped": False}
+                
+            except Exception as e:
+                if self.retry_policy.should_retry(attempt, e):
+                    delay = self.retry_policy.get_backoff_delay(attempt)
+                    logger.warning(
+                        f"Chunk {chunk.content_hash[:8]} attempt {attempt} failed: {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(
+                        f"Chunk {chunk.content_hash[:8]} failed after {attempt} attempts: {e}"
+                    )
+                    return {"success": False, "skipped": False, "error": str(e)}
+    
+    async def _check_gate(self, job_id: str, kb_id: str, indexer: Indexer) -> bool:
+        """
+        Check job status gate for pause/resume/cancel.
+        
+        Args:
+            job_id: Job identifier
+            kb_id: Knowledge base identifier
+            indexer: Indexer for cleanup on cancel
+            
+        Returns:
+            True to continue, False to stop
+        """
+        while True:
+            status = self.repo.get_job_status(job_id)
+            
+            if status == 'running':
+                return True
+            elif status == 'paused':
+                logger.info(f"Job {job_id} paused, waiting...")
+                await asyncio.sleep(1)  # Backoff and re-check
+            elif status == 'canceled':
+                logger.info(f"Job {job_id} canceled, running cleanup...")
+                await self._cleanup_job(job_id, kb_id, indexer)
+                return False
+            elif status in ('failed', 'completed'):
+                logger.info(f"Job {job_id} already {status}, stopping")
+                return False
+            else:
+                logger.warning(f"Unknown job status '{status}', treating as failed")
+                return False
+    
+    async def _cleanup_job(self, job_id: str, kb_id: str, indexer: Indexer):
+        """
+        Cleanup workflow for canceled jobs.
+        
+        Args:
+            job_id: Job identifier
+            kb_id: Knowledge base identifier
+            indexer: Indexer for vector store cleanup
+        """
+        try:
+            # Delete all indexed data for this KB
+            indexer.delete_by_job(job_id, kb_id)
+            logger.info(f"Deleted indexed data for job {job_id}")
+            
+            # Reset job state
+            self.repo.update_job(
+                job_id,
+                status='not_started',
+                checkpoint=None,
+                counters=None,
+                finished_at=datetime.utcnow(),
+                last_error='Canceled by user'
+            )
+            logger.info(f"Reset job {job_id} to not_started")
+            
+        except Exception as e:
+            # Log but don't crash
+            logger.error(f"Cleanup failed for job {job_id}: {e}", exc_info=True)

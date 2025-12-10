@@ -71,7 +71,14 @@ class IngestionJob(Base):
     processed_items = Column(Integer, nullable=True, default=0)
     priority = Column(Integer, nullable=False, default=0)
     
-    # Phase-level tracking
+    # Orchestrator-specific fields (OrchestratorSpec)
+    checkpoint = Column(JSON, nullable=True, default=None)  # {last_batch_id, cursor}
+    counters = Column(JSON, nullable=True, default=None)    # {docs_seen, chunks_seen, chunks_processed, chunks_skipped, chunks_error}
+    heartbeat_at = Column(DateTime, nullable=True, default=None)
+    finished_at = Column(DateTime, nullable=True, default=None)
+    last_error = Column(Text, nullable=True, default=None)
+    
+    # Phase-level tracking (legacy, for backward compatibility)
     current_phase = Column(String(50), nullable=True, default="loading")
     phase_progress = Column(JSON, nullable=True, default=dict)
 
