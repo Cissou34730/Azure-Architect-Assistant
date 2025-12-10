@@ -1,9 +1,17 @@
-"""Producer worker - crawls, chunks, and enqueues documents."""
+"""
+Producer worker - crawls, chunks, and enqueues documents.
+
+.. deprecated:: 2025-12-10
+    This producer/consumer worker pattern is deprecated. Use the orchestrator-based
+    implementation with `/ingestion/v2/jobs` API instead.
+    See docs/ingestion/LEGACY_DEPRECATION.md for migration guide.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import warnings
 from datetime import datetime
 from typing import Any
 
@@ -19,7 +27,13 @@ logger = logging.getLogger(__name__)
 
 
 class ProducerWorker:
-    """Worker that runs the producer pipeline in a separate thread."""
+    """
+    Worker that runs the producer pipeline in a separate thread.
+    
+    .. deprecated:: 2025-12-10
+        Use `IngestionOrchestrator` with `/ingestion/v2/jobs` API instead.
+        See docs/ingestion/LEGACY_DEPRECATION.md
+    """
 
     @staticmethod
     def run(runtime: JobRuntime) -> None:
@@ -30,6 +44,12 @@ class ProducerWorker:
         Updates state and handles errors.
         Sets stop_event when done.
         """
+        warnings.warn(
+            "ProducerWorker is deprecated. Use IngestionOrchestrator instead. "
+            "See docs/ingestion/LEGACY_DEPRECATION.md",
+            DeprecationWarning,
+            stacklevel=2
+        )
         settings = get_settings()
         state = runtime.state
         

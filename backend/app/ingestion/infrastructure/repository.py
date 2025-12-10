@@ -113,7 +113,19 @@ class DatabaseRepository:
             )
     
     def update_phase_progress(self, job_id: str, current_phase: str, phase_progress: Dict[str, Any]) -> None:
-        """Update phase progress for a job."""
+        """
+        Update phase progress for a job.
+        
+        .. deprecated:: 2025-12-10
+            Legacy producer/consumer method. Use orchestrator methods instead:
+            `update_job()`, `update_heartbeat()`, `set_job_status()`
+        """
+        import warnings
+        warnings.warn(
+            "update_phase_progress is deprecated. Use update_job() for orchestrator-based jobs.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         with get_session() as session:
             session.execute(
                 update(IngestionJob)
@@ -126,7 +138,19 @@ class DatabaseRepository:
             )
     
     def get_phase_progress(self, job_id: str) -> Optional[Dict[str, Any]]:
-        """Get phase progress for a job."""
+        """
+        Get phase progress for a job.
+        
+        .. deprecated:: 2025-12-10
+            Legacy producer/consumer method. Use orchestrator methods instead:
+            `get_job()` returns checkpoint and counters
+        """
+        import warnings
+        warnings.warn(
+            "get_phase_progress is deprecated. Use get_job() for orchestrator-based jobs.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         with get_session() as session:
             result = session.execute(
                 select(IngestionJob.phase_progress)

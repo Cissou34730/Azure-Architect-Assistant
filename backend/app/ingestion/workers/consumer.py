@@ -1,8 +1,16 @@
-"""Consumer worker - thread executor for consumer pipeline."""
+"""
+Consumer worker - thread executor for consumer pipeline.
+
+.. deprecated:: 2025-12-10
+    This producer/consumer worker pattern is deprecated. Use the orchestrator-based
+    implementation with `/ingestion/v2/jobs` API instead.
+    See docs/ingestion/LEGACY_DEPRECATION.md for migration guide.
+"""
 
 from __future__ import annotations
 
 import logging
+import warnings
 
 from app.ingestion.domain.models import JobRuntime
 from app.ingestion.application.consumer_pipeline import ConsumerPipeline
@@ -13,7 +21,13 @@ logger = logging.getLogger(__name__)
 
 
 class ConsumerWorker:
-    """Worker that runs the consumer pipeline in a separate thread."""
+    """
+    Worker that runs the consumer pipeline in a separate thread.
+    
+    .. deprecated:: 2025-12-10
+        Use `IngestionOrchestrator` with `/ingestion/v2/jobs` API instead.
+        See docs/ingestion/LEGACY_DEPRECATION.md
+    """
 
     @staticmethod
     def run(runtime: JobRuntime) -> None:
@@ -23,6 +37,12 @@ class ConsumerWorker:
         Executes the consumer pipeline (dequeue → embed → index).
         Updates state and handles errors.
         """
+        warnings.warn(
+            "ConsumerWorker is deprecated. Use IngestionOrchestrator instead. "
+            "See docs/ingestion/LEGACY_DEPRECATION.md",
+            DeprecationWarning,
+            stacklevel=2
+        )
         kb_id = runtime.kb_id
         job_id = runtime.job_id
         log_prefix = f"[Consumer|KB={kb_id}|Job={job_id}]"

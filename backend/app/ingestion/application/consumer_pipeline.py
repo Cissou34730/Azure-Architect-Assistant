@@ -2,9 +2,15 @@
 Consumer Pipeline for Ingestion
 Contains all consumer logic for dequeue → embed → index workflow.
 Proper separation from worker layer.
+
+.. deprecated:: 2025-12-10
+    This producer/consumer pipeline is deprecated. Use the orchestrator-based
+    implementation in `app.ingestion.application.orchestrator` instead.
+    See docs/ingestion/LEGACY_DEPRECATION.md for migration guide.
 """
 
 import logging
+import warnings
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -22,15 +28,28 @@ logger = logging.getLogger(__name__)
 
 
 class ConsumerPipeline:
-    """Consumer pipeline: Dequeue → Embed → Index"""
+    """
+    Consumer pipeline: Dequeue → Embed → Index
+    
+    .. deprecated:: 2025-12-10
+        Use `IngestionOrchestrator` from `app.ingestion.application.orchestrator`
+        with the new `/ingestion/v2/jobs` API instead.
+        See docs/ingestion/LEGACY_DEPRECATION.md
+    """
     
     def __init__(self, runtime: JobRuntime):
         """
         Initialize consumer pipeline.
         
         Args:
-            runtime: JobRuntime with configuration and state
+            runtime: Job runtime context
         """
+        warnings.warn(
+            "ConsumerPipeline is deprecated. Use IngestionOrchestrator instead. "
+            "See docs/ingestion/LEGACY_DEPRECATION.md",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.runtime = runtime
         self.kb_id = runtime.kb_id
         self.job_id = runtime.job_id

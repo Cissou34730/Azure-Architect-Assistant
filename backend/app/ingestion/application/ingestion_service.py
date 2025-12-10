@@ -1,9 +1,17 @@
-"""Main ingestion service orchestrating threaded jobs via interfaces."""
+"""
+Main ingestion service orchestrating threaded jobs via interfaces.
+
+.. deprecated:: 2025-12-10
+    This producer/consumer threaded service is deprecated. Use the orchestrator-based
+    implementation with `/ingestion/v2/jobs` API instead.
+    See docs/ingestion/LEGACY_DEPRECATION.md for migration guide.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import warnings
 import threading
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -22,7 +30,13 @@ logger = logging.getLogger(__name__)
 
 
 class IngestionService:
-    """Singleton service orchestrating threaded ingestion jobs via interfaces."""
+    """
+    Singleton service orchestrating threaded ingestion jobs via interfaces.
+    
+    .. deprecated:: 2025-12-10
+        Use `IngestionOrchestrator` with `/ingestion/v2/jobs` API instead.
+        See docs/ingestion/LEGACY_DEPRECATION.md
+    """
 
     _instance: Optional["IngestionService"] = None
 
@@ -38,6 +52,12 @@ class IngestionService:
             repository: Job/queue repository (defaults to DatabaseRepository)
             lifecycle: Thread lifecycle manager (defaults to LifecycleManager)
         """
+        warnings.warn(
+            "IngestionService is deprecated. Use IngestionOrchestrator with /ingestion/v2/jobs API. "
+            "See docs/ingestion/LEGACY_DEPRECATION.md",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.settings = get_settings()
         self.repository = repository or DatabaseRepository()
         self.lifecycle = lifecycle or LifecycleManager()

@@ -1,9 +1,15 @@
 """
 Producer Pipeline - Crawl, Chunk, and Enqueue
 Handles the producer phase of ingestion: document crawling, chunking, and enqueueing for the consumer.
+
+.. deprecated:: 2025-12-10
+    This producer/consumer pipeline is deprecated. Use the orchestrator-based
+    implementation in `app.ingestion.application.orchestrator` instead.
+    See docs/ingestion/LEGACY_DEPRECATION.md for migration guide.
 """
 
 import logging
+import warnings
 import asyncio
 from typing import Dict, Any, List, Optional
 from pathlib import Path
@@ -30,6 +36,11 @@ class ProducerPipeline:
     """
     Producer pipeline: Crawl → Save → Chunk → Enqueue
     Runs in producer thread, feeds work to consumer via DB queue.
+    
+    .. deprecated:: 2025-12-10
+        Use `IngestionOrchestrator` from `app.ingestion.application.orchestrator`
+        with the new `/ingestion/v2/jobs` API instead.
+        See docs/ingestion/LEGACY_DEPRECATION.md
     """
     
     def __init__(self, kb_config: Dict[str, Any], state=None):
@@ -40,6 +51,12 @@ class ProducerPipeline:
             kb_config: Knowledge base configuration
             state: IngestionState for progress tracking
         """
+        warnings.warn(
+            "ProducerPipeline is deprecated. Use IngestionOrchestrator instead. "
+            "See docs/ingestion/LEGACY_DEPRECATION.md",
+            DeprecationWarning,
+            stacklevel=2
+        )
         # Merge KB config with defaults
         defaults = get_kb_defaults()
         self.kb_config = defaults.merge_with_kb_config(kb_config)
