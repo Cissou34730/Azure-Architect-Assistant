@@ -93,6 +93,9 @@ async def start_ingestion(
         
         kb_config = kb_manager.get_kb_config(kb_id)
         
+        # Ensure kb_id is in config (loader expects it)
+        kb_config['kb_id'] = kb_id
+        
         # Extract source information
         source_type = kb_config.get('source_type', 'unknown')
         source_config = kb_config.get('source_config', {})
