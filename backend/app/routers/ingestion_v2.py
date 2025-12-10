@@ -9,15 +9,17 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel
 
 from app.ingestion.application.orchestrator import IngestionOrchestrator, WorkflowDefinition, RetryPolicy
 from app.ingestion.infrastructure.repository import DatabaseRepository
+from app.service_registry import get_kb_manager
+from app.kb.knowledge_base_manager import KBManager
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/ingestion/v2", tags=["ingestion-v2"])
+router = APIRouter(prefix="/api/ingestion", tags=["ingestion"])
 
 
 # Request/Response models
@@ -66,40 +68,42 @@ async def run_orchestrator_background(job_id: str, kb_id: str, kb_config: Dict[s
         logger.exception(f"Orchestrator failed for job {job_id}: {e}")
 
 
-@router.post("/jobs/{kb_id}/start", response_model=JobStatusResponse)
+@router.post("/kb/{kb_id}/start", response_model=JobStatusResponse)
 async def start_ingestion(
     kb_id: str,
-    request: StartIngestionRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    kb_manager: KBManager = Depends(get_kb_manager)
 ):
     """
     Start ingestion for a knowledge base.
+    Fetches KB configuration from KBManager (like legacy endpoint).
     
     Args:
         kb_id: Knowledge base identifier
-        request: Ingestion configuration
         background_tasks: FastAPI background tasks
+        kb_manager: KB manager to fetch configuration
         
     Returns:
         Job status response
     """
     try:
+        # Get KB configuration from manager (like legacy endpoint)
+        if not kb_manager.kb_exists(kb_id):
+            raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+        
+        kb_config = kb_manager.get_kb_config(kb_id)
+        
+        # Extract source information
+        source_type = kb_config.get('source_type', 'unknown')
+        source_config = kb_config.get('source_config', {})
+        
         # Create job
         job_id = repo.create_job(
             kb_id=kb_id,
-            source_type=request.source_type,
-            source_config=request.source_config,
+            source_type=source_type,
+            source_config=source_config,
             priority=0
         )
-        
-        # Build KB config for orchestrator
-        kb_config = {
-            'kb_id': kb_id,
-            'source_type': request.source_type,
-            'source_config': request.source_config,
-            'embedding_model': request.embedding_model,
-            'chunking': request.chunking or {}
-        }
         
         # Spawn orchestrator in background
         background_tasks.add_task(run_orchestrator_background, job_id, kb_id, kb_config)
@@ -118,7 +122,7 @@ async def start_ingestion(
         raise HTTPException(status_code=500, detail=f"Failed to start ingestion: {e}")
 
 
-@router.post("/jobs/{job_id}/pause")
+@router.post("/kb/{job_id}/pause")
 async def pause_ingestion(job_id: str):
     """
     Pause ingestion job.
@@ -138,7 +142,7 @@ async def pause_ingestion(job_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to pause job: {e}")
 
 
-@router.post("/jobs/{job_id}/resume")
+@router.post("/kb/{job_id}/resume")
 async def resume_ingestion(job_id: str):
     """
     Resume paused ingestion job.
@@ -158,7 +162,7 @@ async def resume_ingestion(job_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to resume job: {e}")
 
 
-@router.post("/jobs/{job_id}/cancel")
+@router.post("/kb/{job_id}/cancel")
 async def cancel_ingestion(job_id: str):
     """
     Cancel ingestion job and trigger cleanup.
@@ -181,7 +185,7 @@ async def cancel_ingestion(job_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to cancel job: {e}")
 
 
-@router.get("/jobs/{job_id}/status", response_model=JobStatusResponse)
+@router.get("/kb/{job_id}/status", response_model=JobStatusResponse)
 async def get_job_status(job_id: str):
     """
     Get job status and progress.

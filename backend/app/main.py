@@ -84,7 +84,7 @@ async def shutdown_event():
 app.include_router(project_router)             # Project management
 app.include_router(kb_query_router)            # KB query endpoints
 app.include_router(kb_management_router)       # KB health/list endpoints
-app.include_router(kb_ingestion_router)        # Generic KB ingestion
+# app.include_router(kb_ingestion_router)      # Legacy KB ingestion (DEPRECATED - use ingestion_v2)
 app.include_router(ingestion_v2_router)        # Orchestrator-based ingestion (v2)
 
 
