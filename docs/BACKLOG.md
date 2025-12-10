@@ -14,3 +14,9 @@
 
 - **Optional DI Integration (later)**: At app bootstrap, register handlers via a lightweight DI container; still delegate to the factory registry for resolution.
   - Keeps both approaches compatible; DI provides per-env overrides without changing call sites.
+
+- **Safe Runtime Cleanup before Ingestion Start (deferred)**
+  - Add a scoped, non-destructive `cleanup_runtime(kb_id, runtime)` in `IngestionService` to ensure fresh starts don’t inherit stale thread/stop-event state.
+  - Guardrails: KB-targeted only; no queue/item purge; idempotent; logging-first with opt-in resets.
+  - Controlled actions to consider later: reset stuck `PROCESSING` items to `PENDING` for latest job; cancel previous job via repository `cancel_job_and_reset(job_id)` when explicitly starting fresh; clear in-memory stop events.
+  - Deferred until lifecycle tests and gating stability are validated; not implemented now.

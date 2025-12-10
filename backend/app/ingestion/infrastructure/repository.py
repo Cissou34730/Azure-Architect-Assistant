@@ -387,12 +387,14 @@ class DatabaseRepository:
     def _job_to_state(self, job: IngestionJob) -> IngestionState:
         """Convert persisted job record to domain state."""
         status_map = {
-            DBJobStatus.PENDING.value: "pending",
+            DBJobStatus.NOT_STARTED.value: "not_started",
             DBJobStatus.RUNNING.value: "running",
+            DBJobStatus.PAUSED.value: "paused",
             DBJobStatus.COMPLETED.value: "completed",
             DBJobStatus.FAILED.value: "failed",
+            DBJobStatus.CANCELED.value: "canceled",
         }
-        status = status_map.get(job.status, "pending")
+        status = status_map.get(job.status, "not_started")
         completed_at = (
             job.updated_at
             if job.status in {

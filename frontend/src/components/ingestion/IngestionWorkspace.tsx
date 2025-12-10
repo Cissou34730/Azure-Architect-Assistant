@@ -164,16 +164,6 @@ export function IngestionWorkspace() {
             ) : job ? (
               <IngestionProgress
                 job={job}
-                onCancel={() => {
-                  startTransition(async () => {
-                    await refetch();
-                  });
-                }}
-                onRefresh={() => {
-                  startTransition(async () => {
-                    await refetch();
-                  });
-                }}
                 onStart={() => {
                   if (selectedKbId) {
                     handleStartIngestion(selectedKbId);

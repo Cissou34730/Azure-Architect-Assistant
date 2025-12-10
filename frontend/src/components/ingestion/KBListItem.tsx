@@ -99,7 +99,7 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
                 }`} />
                 <span className="text-sm font-medium text-gray-700">
                   {job.status === 'completed' && 'COMPLETED'}
-                  {job.status !== 'completed' && `${job.phase.toUpperCase()} - ${job.progress.toFixed(0)}%`}
+                  {job.status !== 'completed' && `${(job.phase ? job.phase.toUpperCase() : 'UNKNOWN')} - ${typeof job.progress === 'number' ? job.progress.toFixed(0) : '0'}%`}
                 </span>
                 <span className="text-xs text-gray-500">
                   {job.message}

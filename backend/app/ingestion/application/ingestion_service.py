@@ -111,10 +111,8 @@ class IngestionService:
                 logger.info(f"[IngestionService] KB {kb_id}: Already running")
                 return runtime.state
             
-            # Clean up stale runtime
-            if runtime:
-                logger.warning(f"[IngestionService] KB {kb_id}: Cleaning up stale runtime")
-                self._cleanup_runtime(kb_id, runtime)
+            # Previously attempted to clean stale runtime here. Removed per decision
+            # to avoid unintended side effects. See docs/BACKLOG.md for future work.
 
             # Extract config
             from config.settings import get_kb_defaults
