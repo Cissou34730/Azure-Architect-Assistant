@@ -130,7 +130,6 @@ async def pause_ingestion(job_id: str):
         Success message
     """
     try:
-    try:
         repo.update_job(job_id, status="paused")
         logger.info(f"Paused job {job_id}")
         return {"status": "paused", "job_id": job_id}
