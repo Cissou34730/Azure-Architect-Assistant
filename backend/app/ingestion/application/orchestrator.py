@@ -220,6 +220,12 @@ class IngestionOrchestrator:
         logger.warning("=" * 70)
         _shutdown_event.set()
     
+    @staticmethod
+    def clear_shutdown_flag():
+        """Clear the shutdown flag when starting/resuming a job."""
+        _shutdown_event.clear()
+        logger.info("✅ Shutdown flag cleared - orchestrator ready to run")
+    
     async def run(self, job_id: str, kb_id: str, kb_config: Dict[str, Any]):
         """
         Run ingestion pipeline for a job.

@@ -109,6 +109,9 @@ async def start_ingestion(
         # Ensure kb_id is in config (loader expects it)
         kb_config['kb_id'] = kb_id
         
+        # Clear any stale shutdown flag
+        IngestionOrchestrator.clear_shutdown_flag()
+        
         # Extract source information
         source_type = kb_config.get('source_type', 'unknown')
         source_config = kb_config.get('source_config', {})
@@ -231,6 +234,9 @@ async def resume_ingestion(
         
         kb_config = kb_manager.get_kb_config(kb_id)
         kb_config['kb_id'] = kb_id
+        
+        # Clear any stale shutdown flag before resuming
+        IngestionOrchestrator.clear_shutdown_flag()
         
         # Update status to running
         repo.update_job(job_id, status="running")
