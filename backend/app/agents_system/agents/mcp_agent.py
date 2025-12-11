@@ -94,6 +94,21 @@ class MCPReActAgent:
             },
         )
         
+        # Custom parsing error handler to give LLM specific feedback
+        def handle_parsing_error(error: Exception) -> str:
+            """Provide clear guidance when LLM violates ReAct format."""
+            error_msg = str(error)
+            if "Missing 'Action:' after 'Thought:'" in error_msg:
+                return (
+                    "ERROR: You wrote 'Thought:' but did not follow it with 'Action:' or 'Final Answer:'. "
+                    "You MUST write either:\n"
+                    "Action: [tool_name]\nAction Input: [json]\n"
+                    "OR\n"
+                    "Final Answer: [your answer]\n"
+                    "Please continue with the correct format."
+                )
+            return f"Parsing error: {error_msg}. Please follow the exact format specified."
+        
         # Create ReAct agent
         agent = create_react_agent(
             llm=self.llm,
@@ -108,7 +123,7 @@ class MCPReActAgent:
             verbose=self.verbose,
             max_iterations=self.max_iterations,
             max_execution_time=self.max_execution_time,
-            handle_parsing_errors=True,
+            handle_parsing_errors=handle_parsing_error,
             return_intermediate_steps=True,
         )
         
