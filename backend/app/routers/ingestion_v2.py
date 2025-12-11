@@ -263,36 +263,48 @@ async def cleanup_running_tasks():
     """
     import asyncio
     
-    logger.warning(f"cleanup_running_tasks called - {len(_running_tasks)} tasks running")
+    logger.warning("=" * 80)
+    logger.warning(f"cleanup_running_tasks CALLED - {len(_running_tasks)} tasks running")
+    logger.warning(f"Task job_ids: {list(_running_tasks.keys())}")
+    logger.warning("=" * 80)
     
     if not _running_tasks:
         logger.warning("No running tasks to clean up")
         return
     
-    logger.warning(f"Cancelling {len(_running_tasks)} running ingestion tasks...")
-    
+    logger.warning(f"Step 1: Setting shutdown flag...")
     # Request shutdown flag
     from app.ingestion.application.orchestrator import IngestionOrchestrator
     IngestionOrchestrator.request_shutdown()
+    logger.warning(f"Step 1: Shutdown flag set - orchestrators should detect this")
     
     # Give tasks time to save state gracefully
-    logger.warning("Waiting 2 seconds for tasks to save state...")
+    logger.warning("Step 2: Waiting 2 seconds for tasks to save state gracefully...")
     await asyncio.sleep(2.0)
+    logger.warning("Step 2: Wait complete")
     
     # Cancel any tasks that haven't stopped yet
+    logger.warning("Step 3: Checking which tasks are still running...")
     tasks_cancelled = 0
     for job_id, task in list(_running_tasks.items()):
         if not task.done():
-            logger.warning(f"Cancelling task for job {job_id}: {task.get_name()}")
+            logger.warning(f"  Task for job {job_id} still running - cancelling: {task.get_name()}")
             task.cancel()
             tasks_cancelled += 1
+        else:
+            logger.warning(f"  Task for job {job_id} already finished")
     
     if tasks_cancelled > 0:
-        logger.warning(f"Cancelled {tasks_cancelled} tasks that didn't stop gracefully")
+        logger.warning(f"Step 3: Cancelled {tasks_cancelled} tasks that didn't stop gracefully")
+    else:
+        logger.warning(f"Step 3: All tasks stopped gracefully")
     
     # Wait for all tasks to complete
     if _running_tasks:
-        logger.warning("Waiting for all tasks to complete...")
+        logger.warning("Step 4: Waiting for all tasks to complete...")
         await asyncio.gather(*_running_tasks.values(), return_exceptions=True)
+        logger.warning("Step 4: All tasks completed")
     
-    logger.warning("All ingestion tasks stopped")
+    logger.warning("=" * 80)
+    logger.warning("cleanup_running_tasks COMPLETE - All ingestion tasks stopped")
+    logger.warning("=" * 80)

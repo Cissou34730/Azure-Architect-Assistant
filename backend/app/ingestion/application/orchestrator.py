@@ -150,13 +150,17 @@ class IngestionOrchestrator:
     @staticmethod
     def is_shutdown_requested() -> bool:
         """Check if shutdown has been requested (CTRL-C)."""
-        return _shutdown_event.is_set()
+        is_set = _shutdown_event.is_set()
+        if is_set:
+            logger.warning("⚠️  SHUTDOWN FLAG DETECTED - Orchestrator should pause")
+        return is_set
     
     @staticmethod
     def request_shutdown():
         """Request graceful shutdown (called by signal handler)."""
         logger.warning("=" * 70)
         logger.warning("SHUTDOWN REQUESTED - Setting global shutdown flag")
+        logger.warning("All running orchestrators will pause at next checkpoint")
         logger.warning("=" * 70)
         _shutdown_event.set()
     
