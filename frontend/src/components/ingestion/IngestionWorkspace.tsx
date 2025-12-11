@@ -19,7 +19,7 @@ export function IngestionWorkspace() {
   const [view, setView] = useState<View>('list');
   const [selectedKbId, setSelectedKbId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const { job, loading: jobLoading } = useIngestionJob(
+  const { job, loading: jobLoading, refetch: refetchJob } = useIngestionJob(
     view === 'progress' ? selectedKbId : null,
     {
       onComplete: () => {
@@ -169,6 +169,7 @@ export function IngestionWorkspace() {
                     handleStartIngestion(selectedKbId);
                   }
                 }}
+                onRefresh={refetchJob}
               />
             ) : (
               <div className="bg-blue-50 border border-blue-200 rounded-card p-4">

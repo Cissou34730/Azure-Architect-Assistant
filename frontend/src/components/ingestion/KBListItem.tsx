@@ -15,9 +15,10 @@ interface KBListItemProps {
   onViewProgress: (kbId: string) => void;
   onStartIngestion: (kbId: string) => void;
   onDelete: (kbId: string) => void;
+  onRefresh: () => void;
 }
 
-export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete }: KBListItemProps) {
+export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete, onRefresh }: KBListItemProps) {
   const [showActions, setShowActions] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const isNotStarted = job?.status === 'not_started';
@@ -204,7 +205,13 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
                   variant="ghost"
                   size="sm"
                   onClick={async () => {
-                    try { await pauseIngestion(kb.id); onViewProgress(kb.id); } catch (e) { alert('Failed to pause'); }
+                    try { 
+                      await pauseIngestion(kb.id); 
+                      onRefresh();
+                      onViewProgress(kb.id);
+                    } catch (e) { 
+                      alert('Failed to pause'); 
+                    }
                   }}
                 >
                   Pause
@@ -215,7 +222,13 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
                   variant="success"
                   size="sm"
                   onClick={async () => {
-                    try { await resumeIngestion(kb.id); onViewProgress(kb.id); } catch (e) { alert('Failed to resume'); }
+                    try { 
+                      await resumeIngestion(kb.id); 
+                      onRefresh();
+                      onViewProgress(kb.id);
+                    } catch (e) { 
+                      alert('Failed to resume'); 
+                    }
                   }}
                 >
                   Resume
@@ -226,7 +239,13 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
                 size="sm"
                 onClick={async () => {
                   if (confirm('Cancel current ingestion?')) {
-                    try { await cancelIngestion(kb.id); onViewProgress(kb.id); } catch (e) { alert('Failed to cancel'); }
+                    try { 
+                      await cancelIngestion(kb.id); 
+                      onRefresh();
+                      onViewProgress(kb.id);
+                    } catch (e) { 
+                      alert('Failed to cancel'); 
+                    }
                   }
                 }}
               >

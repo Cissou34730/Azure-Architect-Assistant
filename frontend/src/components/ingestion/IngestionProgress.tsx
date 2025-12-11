@@ -13,6 +13,7 @@ import PhaseStatus from './PhaseStatus';
 interface IngestionProgressProps {
   job: IngestionJob;
   onStart?: () => void;
+  onRefresh?: () => void;
 }
 
 // Align with backend phases (lowercase)
@@ -36,7 +37,7 @@ const PHASE_COLORS: Record<string, string> = {
 
 const PHASE_ORDER: string[] = ['loading', 'chunking', 'embedding', 'indexing', 'completed'];
 
-export function IngestionProgress({ job, onStart }: IngestionProgressProps) {
+export function IngestionProgress({ job, onStart, onRefresh }: IngestionProgressProps) {
 
   const isNotStarted = job.status === 'not_started';
   const isRunning = (job.status === 'running' || job.status === 'pending') && !isNotStarted;
@@ -241,14 +242,38 @@ export function IngestionProgress({ job, onStart }: IngestionProgressProps) {
       <div className="flex justify-end gap-2 pt-4">
         {job.status === 'running' && (
           <>
-            <Button variant="ghost" onClick={async () => { try { await pauseIngestion(job.kb_id); } catch {} }}>Pause</Button>
-            <Button variant="danger" onClick={async () => { if (confirm('Cancel current ingestion?')) { try { await cancelIngestion(job.kb_id); } catch {} } }}>Cancel</Button>
+            <Button variant="ghost" onClick={async () => { 
+              try { 
+                await pauseIngestion(job.kb_id); 
+                onRefresh?.();
+              } catch {} 
+            }}>Pause</Button>
+            <Button variant="danger" onClick={async () => { 
+              if (confirm('Cancel current ingestion?')) { 
+                try { 
+                  await cancelIngestion(job.kb_id); 
+                  onRefresh?.();
+                } catch {} 
+              } 
+            }}>Cancel</Button>
           </>
         )}
         {isPaused && (
           <>
-            <Button variant="success" onClick={async () => { try { await resumeIngestion(job.kb_id); } catch {} }}>Resume</Button>
-            <Button variant="danger" onClick={async () => { if (confirm('Cancel current ingestion?')) { try { await cancelIngestion(job.kb_id); } catch {} } }}>Cancel</Button>
+            <Button variant="success" onClick={async () => { 
+              try { 
+                await resumeIngestion(job.kb_id); 
+                onRefresh?.();
+              } catch {} 
+            }}>Resume</Button>
+            <Button variant="danger" onClick={async () => { 
+              if (confirm('Cancel current ingestion?')) { 
+                try { 
+                  await cancelIngestion(job.kb_id); 
+                  onRefresh?.();
+                } catch {} 
+              } 
+            }}>Cancel</Button>
           </>
         )}
         {isNotStarted && onStart && (

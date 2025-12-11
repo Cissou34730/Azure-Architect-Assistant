@@ -191,7 +191,7 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
           Knowledge Bases ({kbs.length})
         </h2>
         <button
-          onClick={onRefresh}
+          onClick={() => { onRefresh(); void fetchJobs(); }}
           className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-md flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -209,6 +209,7 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
           onViewProgress={onViewProgress}
           onStartIngestion={onStartIngestion}
           onDelete={handleDelete}
+          onRefresh={fetchJobs}
         />
       ))}
     </div>
