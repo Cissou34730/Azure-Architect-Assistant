@@ -6,6 +6,7 @@ Per backend/docs/ingestion/OrchestratorSpec.md
 
 import asyncio
 import logging
+import signal
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -20,6 +21,9 @@ from app.ingestion.domain.embedding import Embedder
 from app.ingestion.domain.indexing import Indexer
 
 logger = logging.getLogger(__name__)
+
+# Global shutdown event for graceful interrupt handling
+_shutdown_event = asyncio.Event()
 
 
 class StepName(str, Enum):
@@ -140,7 +144,19 @@ class IngestionOrchestrator:
         self.repo = repo
         self.workflow = workflow or WorkflowDefinition()
         self.retry_policy = retry_policy or RetryPolicy()
+        self._interrupted = False
         logger.info("IngestionOrchestrator initialized")
+    
+    @staticmethod
+    def is_shutdown_requested() -> bool:
+        """Check if shutdown has been requested (CTRL-C)."""
+        return _shutdown_event.is_set()
+    
+    @staticmethod
+    def request_shutdown():
+        """Request graceful shutdown (called by signal handler)."""
+        logger.warning("Shutdown requested - will pause ingestion gracefully")
+        _shutdown_event.set()
     
     async def run(self, job_id: str, kb_id: str, kb_config: Dict[str, Any]):
         """
@@ -188,6 +204,13 @@ class IngestionOrchestrator:
             start_batch_id = checkpoint.get('last_batch_id', -1) + 1
             
             for batch_id, batch in enumerate(loader, start=start_batch_id):
+                # Check for shutdown request (CTRL-C)
+                if self.is_shutdown_requested():
+                    logger.warning(f"Shutdown requested - pausing job {job_id} at batch {batch_id}")
+                    self.repo.set_job_status(job_id, status='paused')
+                    self.repo.update_job(job_id, checkpoint=checkpoint, counters=counters)
+                    return
+                
                 # Gate check before batch
                 if not await self._check_gate(job_id, kb_id, indexer):
                     logger.info(f"Pipeline stopped at gate check (batch {batch_id})")
@@ -204,6 +227,14 @@ class IngestionOrchestrator:
                 
                 # Step 2: Process each chunk (embed + index)
                 for chunk_idx, chunk in enumerate(chunks):
+                    # Check for shutdown request (CTRL-C)
+                    if self.is_shutdown_requested():
+                        logger.warning(f"Shutdown requested - pausing job {job_id} at batch {batch_id}, chunk {chunk_idx}")
+                        checkpoint['last_batch_id'] = batch_id - 1  # Don't count current incomplete batch
+                        self.repo.set_job_status(job_id, status='paused')
+                        self.repo.update_job(job_id, checkpoint=checkpoint, counters=counters)
+                        return
+                    
                     # Gate check before chunk
                     if not await self._check_gate(job_id, kb_id, indexer):
                         logger.info(f"Pipeline stopped at gate check (batch {batch_id}, chunk {chunk_idx})")

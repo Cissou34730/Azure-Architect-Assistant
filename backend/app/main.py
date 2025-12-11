@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import logging
+import signal
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -20,7 +21,8 @@ from app.routers.project_management import router as project_router
 from app.routers.ingestion_v2 import router as ingestion_v2_router
 
 # Import lifecycle management
-from app import lifecycle# Load environment variables from root .env (one level up from backend)
+from app import lifecycle
+from app.ingestion.application.orchestrator import IngestionOrchestrator# Load environment variables from root .env (one level up from backend)
 backend_root = Path(__file__).parent.parent
 root_dir = backend_root.parent
 env_path = root_dir / ".env"
@@ -65,6 +67,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Signal handler for graceful shutdown
+def handle_sigint(signum, frame):
+    """Handle SIGINT (CTRL-C) to gracefully pause ingestion."""
+    logger.warning("SIGINT received - requesting graceful shutdown of ingestion jobs")
+    IngestionOrchestrator.request_shutdown()
+
+
+# Register signal handler
+signal.signal(signal.SIGINT, handle_sigint)
 
 
 # Startup and shutdown events
