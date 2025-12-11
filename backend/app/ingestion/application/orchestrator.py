@@ -200,6 +200,8 @@ class IngestionOrchestrator:
                 counters['docs_seen'] += len(batch)
                 counters['chunks_seen'] += len(chunks)
                 
+                logger.info(f"Batch {batch_id}: Generated {len(chunks)} chunks, starting embed+index...")
+                
                 # Step 2: Process each chunk (embed + index)
                 for chunk_idx, chunk in enumerate(chunks):
                     # Gate check before chunk

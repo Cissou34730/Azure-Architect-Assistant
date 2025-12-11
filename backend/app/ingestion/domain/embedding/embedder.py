@@ -21,10 +21,12 @@ class EmbeddingResult:
     Attributes:
         vector: Embedding vector (list of floats)
         content_hash: Content hash for idempotency
+        text: Original chunk text
         metadata: Chunk metadata
     """
     vector: List[float]
     content_hash: str
+    text: str
     metadata: Dict[str, Any]
 
 
@@ -65,7 +67,9 @@ class Embedder:
         try:
             # Generate embedding (sync call, but fast enough)
             # LlamaIndex OpenAIEmbedding handles retries internally
+            logger.debug(f"Generating embedding for chunk {chunk.content_hash[:8]} ({len(chunk.text)} chars)")
             vector = self.embedding_client.get_text_embedding(chunk.text)
+            logger.debug(f"Embedding generated: {len(vector)} dimensions")
             
             if not vector:
                 raise RuntimeError("Embedding generation returned empty vector")
@@ -73,6 +77,7 @@ class Embedder:
             return EmbeddingResult(
                 vector=vector,
                 content_hash=chunk.content_hash,
+                text=chunk.text,
                 metadata=chunk.metadata
             )
             

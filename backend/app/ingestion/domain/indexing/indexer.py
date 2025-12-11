@@ -108,7 +108,7 @@ class Indexer:
         
         # Create LlamaIndex Document with embedding
         doc = Document(
-            text=embedding_result.metadata.get('content', ''),  # Store original text
+            text=embedding_result.text,  # Store original chunk text
             metadata=embedding_result.metadata,
             id_=embedding_result.content_hash,  # Use content_hash as document ID
             embedding=embedding_result.vector
