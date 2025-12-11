@@ -47,7 +47,7 @@ class JobStatusResponse(BaseModel):
 repo = DatabaseRepository()
 
 # Track running orchestrator tasks for graceful shutdown
-_running_tasks: set = set()
+_running_tasks: Dict[str, asyncio.Task] = {}  # job_id -> task mapping
 
 
 async def run_orchestrator_background(job_id: str, kb_id: str, kb_config: Dict[str, Any]):
@@ -60,10 +60,6 @@ async def run_orchestrator_background(job_id: str, kb_id: str, kb_config: Dict[s
         kb_config: KB configuration
     """
     import asyncio
-    
-    # Create a task for this orchestrator
-    task = asyncio.current_task()
-    _running_tasks.add(task)
     
     orchestrator = IngestionOrchestrator(
         repo=repo,
@@ -80,7 +76,9 @@ async def run_orchestrator_background(job_id: str, kb_id: str, kb_config: Dict[s
     except Exception as e:
         logger.exception(f"Orchestrator failed for job {job_id}: {e}")
     finally:
-        _running_tasks.discard(task)
+        # Remove from tracking
+        if job_id in _running_tasks:
+            del _running_tasks[job_id]
 
 
 @router.post("/kb/{kb_id}/start", response_model=JobStatusResponse)
@@ -126,6 +124,7 @@ async def start_ingestion(
         # Create asyncio task (not BackgroundTasks)
         task = asyncio.create_task(run_orchestrator_background(job_id, kb_id, kb_config))
         task.set_name(f"ingestion-{kb_id}-{job_id}")
+        _running_tasks[job_id] = task  # Track by job_id for pause/cancel
         
         logger.info(f"Started ingestion job {job_id} for KB {kb_id} (task: {task.get_name()})")
         
@@ -144,7 +143,8 @@ async def start_ingestion(
 @router.post("/kb/{job_id}/pause")
 async def pause_ingestion(job_id: str):
     """
-    Pause ingestion job.
+    Pause ingestion job by cancelling the running task.
+    This mimics the old threading.Event pattern: signal stop, wait for graceful exit.
     
     Args:
         job_id: Job identifier
@@ -153,9 +153,30 @@ async def pause_ingestion(job_id: str):
         Success message
     """
     try:
-        repo.update_job(job_id, status="paused")
-        logger.info(f"Paused job {job_id}")
-        return {"status": "paused", "job_id": job_id}
+        # Check if task is running
+        task = _running_tasks.get(job_id)
+        
+        if not task:
+            # Task not running, just update database
+            repo.update_job(job_id, status="paused")
+            logger.info(f"Job {job_id} not running - marked as paused in database")
+            return {"status": "paused", "job_id": job_id, "message": "Job was not running"}
+        
+        # Cancel the task (this will trigger CancelledError in run_orchestrator_background)
+        logger.info(f"Cancelling task for job {job_id}")
+        task.cancel()
+        
+        # Wait a moment for graceful shutdown (like old system's thread join)
+        try:
+            await asyncio.wait_for(task, timeout=5.0)
+            logger.info(f"Task for job {job_id} stopped gracefully")
+        except asyncio.TimeoutError:
+            logger.warning(f"Task for job {job_id} did not stop within 5 seconds")
+        except asyncio.CancelledError:
+            pass  # Expected
+        
+        return {"status": "paused", "job_id": job_id, "message": "Job paused successfully"}
+        
     except Exception as e:
         logger.exception(f"Failed to pause job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to pause job: {e}")
@@ -260,9 +281,9 @@ async def cleanup_running_tasks():
     
     # Cancel any tasks that haven't stopped yet
     tasks_cancelled = 0
-    for task in list(_running_tasks):
+    for job_id, task in list(_running_tasks.items()):
         if not task.done():
-            logger.warning(f"Cancelling task that didn't stop gracefully: {task.get_name()}")
+            logger.warning(f"Cancelling task for job {job_id}: {task.get_name()}")
             task.cancel()
             tasks_cancelled += 1
     
@@ -272,6 +293,6 @@ async def cleanup_running_tasks():
     # Wait for all tasks to complete
     if _running_tasks:
         logger.warning("Waiting for all tasks to complete...")
-        await asyncio.gather(*_running_tasks, return_exceptions=True)
+        await asyncio.gather(*_running_tasks.values(), return_exceptions=True)
     
     logger.warning("All ingestion tasks stopped")
