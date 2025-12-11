@@ -20,15 +20,15 @@ Write-Host "Looking for process listening on port $port..." -ForegroundColor Cya
 $connection = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
 
 if ($connection) {
-    $pid = $connection.OwningProcess
-    $processName = (Get-Process -Id $pid -ErrorAction SilentlyContinue).ProcessName
+    $processId = $connection.OwningProcess
+    $processName = (Get-Process -Id $processId -ErrorAction SilentlyContinue).ProcessName
     
     try {
-        Stop-Process -Id $pid -Force -ErrorAction Stop
-        Write-Host "  Killed backend process: $processName (PID $pid)" -ForegroundColor Green
+        Stop-Process -Id $processId -Force -ErrorAction Stop
+        Write-Host "  Killed backend process: $processName (PID $processId)" -ForegroundColor Green
         Start-Sleep -Milliseconds 500
     } catch {
-        Write-Host "  Could not kill PID $pid: $_" -ForegroundColor Red
+        Write-Host "  Could not kill PID ${processId}: $($_.Exception.Message)" -ForegroundColor Red
     }
 } else {
     Write-Host "No process found listening on port $port." -ForegroundColor Cyan

@@ -26,12 +26,12 @@ function Stop-BackendProcesses {
         $connection = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
         
         if ($connection) {
-            $pid = $connection.OwningProcess
+            $processId = $connection.OwningProcess
             try {
-                Stop-Process -Id $pid -Force -ErrorAction Stop
-                Write-Host "  Stopped backend process on port $port (PID $pid)" -ForegroundColor Green
+                Stop-Process -Id $processId -Force -ErrorAction Stop
+                Write-Host "  Stopped backend process on port $port (PID $processId)" -ForegroundColor Green
             } catch {
-                Write-Host "  Could not stop PID $pid" -ForegroundColor DarkGray
+                Write-Host "  Could not stop PID $processId" -ForegroundColor DarkGray
             }
         }
     }
