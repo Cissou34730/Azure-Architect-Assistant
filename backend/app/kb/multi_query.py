@@ -77,6 +77,7 @@ class MultiSourceQueryService:
         
         # Query each KB
         all_results = []
+        failed_kbs = []
         for kb_config in kb_configs:
             try:
                 kb_service = self._get_kb_service(kb_config)
@@ -87,15 +88,21 @@ class MultiSourceQueryService:
                 )
                 if result['has_results']:
                     all_results.append(result)
+            except FileNotFoundError as e:
+                logger.warning(f"KB {kb_config.id} not indexed yet: {e}")
+                failed_kbs.append(f"{kb_config.id} (not indexed)")
             except Exception as e:
                 logger.error(f"Failed to query KB {kb_config.id}: {e}")
+                failed_kbs.append(f"{kb_config.id} (error)")
         
         if not all_results:
+            failure_msg = f" ({', '.join(failed_kbs)} not available)" if failed_kbs else ""
             return {
-                'answer': "No relevant information found across knowledge bases.",
+                'answer': f"Knowledge bases are not yet indexed{failure_msg}. Please use microsoft_docs_search for official documentation instead.",
                 'sources': [],
                 'has_results': False,
-                'kbs_queried': [kb.id for kb in kb_configs]
+                'kbs_queried': [kb.id for kb in kb_configs],
+                'kbs_failed': failed_kbs
             }
         
         # Merge results

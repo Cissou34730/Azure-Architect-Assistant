@@ -28,7 +28,7 @@ def tool(monkeypatch):
         def execute(self, query, profile="chat", kb_ids=None, top_k=5, metadata_filters=None):
             return DummyResult().result
 
-    monkeypatch.setattr(t, "agent", DummyAgent())
+    monkeypatch.setattr(t, "_agent", DummyAgent())
     return t
 
 

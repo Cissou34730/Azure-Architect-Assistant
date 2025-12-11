@@ -33,8 +33,11 @@ async def startup():
         
         # Initialize ingestion database (producer/consumer pipeline)
         logger.info("Initializing ingestion persistence...")
-        await asyncio.to_thread(init_ingestion_database)
-        logger.info("✓ Ingestion persistence ready")
+        try:
+            await asyncio.to_thread(init_ingestion_database)
+            logger.info("✓ Ingestion persistence ready")
+        except Exception as e:
+            logger.warning(f"Ingestion persistence init failed: {e}. Continuing startup without ingestion.")
 
         # Load KB manager (configs only, no index preload)
         from app.service_registry import get_kb_manager

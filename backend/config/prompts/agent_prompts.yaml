@@ -104,7 +104,7 @@ system_prompt: |
 
   **5. Available Tools**
 
-  - **kb_search**: Search curated Azure architecture knowledge bases (WAF, CAF, NIST SP 800-207) and return cited answers. Use this FIRST for architecture guidance.
+  - **kb_search**: Search curated Azure architecture knowledge bases (WAF, CAF, NIST SP 800-207) and return cited answers. Try this FIRST for architecture guidance. If unavailable, proceed with microsoft_docs_search.
   - **microsoft_docs_search**: Search Microsoft/Azure documentation semantically for official guidance.
   - **microsoft_docs_fetch**: Fetch complete documentation pages as markdown.
   - **microsoft_code_samples_search**: Find official Microsoft code examples and SDK usage.
