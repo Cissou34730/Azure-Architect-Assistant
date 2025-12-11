@@ -140,19 +140,24 @@ async def start_ingestion(
         raise HTTPException(status_code=500, detail=f"Failed to start ingestion: {e}")
 
 
-@router.post("/kb/{job_id}/pause")
-async def pause_ingestion(job_id: str):
+@router.post("/kb/{kb_id}/pause")
+async def pause_ingestion(kb_id: str):
     """
-    Pause ingestion job by cancelling the running task.
+    Pause ingestion job for a KB by cancelling the running task.
     This mimics the old threading.Event pattern: signal stop, wait for graceful exit.
     
     Args:
-        job_id: Job identifier
+        kb_id: Knowledge base identifier
         
     Returns:
         Success message
     """
     try:
+        # Get latest job for this KB
+        job_id = repo.get_latest_job_id(kb_id)
+        if not job_id:
+            raise HTTPException(status_code=404, detail=f"No job found for KB '{kb_id}'")
+        
         # Check if task is running
         task = _running_tasks.get(job_id)
         
@@ -175,40 +180,81 @@ async def pause_ingestion(job_id: str):
         except asyncio.CancelledError:
             pass  # Expected
         
-        return {"status": "paused", "job_id": job_id, "message": "Job paused successfully"}
+        return {"status": "paused", "job_id": job_id, "kb_id": kb_id, "message": "Job paused successfully"}
         
     except Exception as e:
-        logger.exception(f"Failed to pause job {job_id}: {e}")
+        logger.exception(f"Failed to pause job for KB {kb_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to pause job: {e}")
 
 
-@router.post("/kb/{job_id}/resume")
-async def resume_ingestion(job_id: str):
+@router.post("/kb/{kb_id}/resume")
+async def resume_ingestion(
+    kb_id: str,
+    kb_manager: KBManager = Depends(get_kb_manager)
+):
     """
-    Resume paused ingestion job.
+    Resume paused ingestion job for a KB.
+    Restarts the orchestrator from the saved checkpoint.
     
     Args:
-        job_id: Job identifier
+        kb_id: Knowledge base identifier
+        kb_manager: KB manager to fetch configuration
         
     Returns:
         Success message
     """
+    import asyncio
+    
     try:
+        # Get latest job for this KB
+        job_id = repo.get_latest_job_id(kb_id)
+        if not job_id:
+            raise HTTPException(status_code=404, detail=f"No job found for KB '{kb_id}'")
+        
+        # Get job details
+        job = repo.get_job(job_id)
+        
+        # Verify job is paused
+        status = repo.get_job_status(job_id)
+        if status != 'paused':
+            logger.warning(f"Attempted to resume job {job_id} but status is {status}, not paused")
+            return {"status": status, "job_id": job_id, "kb_id": kb_id, "message": f"Job is {status}, not paused"}
+        
+        # Check if task already running
+        if job_id in _running_tasks:
+            logger.warning(f"Job {job_id} already has a running task")
+            return {"status": "running", "job_id": job_id, "kb_id": kb_id, "message": "Job already running"}
+        
+        # Get KB configuration
+        if not kb_manager.kb_exists(kb_id):
+            raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+        
+        kb_config = kb_manager.get_kb_config(kb_id)
+        kb_config['kb_id'] = kb_id
+        
+        # Update status to running
         repo.update_job(job_id, status="running")
-        logger.info(f"Resumed job {job_id}")
-        return {"status": "running", "job_id": job_id}
+        
+        # Restart orchestrator task from checkpoint
+        task = asyncio.create_task(run_orchestrator_background(job_id, kb_id, kb_config))
+        task.set_name(f"ingestion-{kb_id}-{job_id}-resumed")
+        _running_tasks[job_id] = task
+        
+        logger.info(f"✅ Resumed job {job_id} for KB {kb_id} (task: {task.get_name()})")
+        return {"status": "running", "job_id": job_id, "kb_id": kb_id, "message": "Job resumed successfully"}
+        
     except Exception as e:
-        logger.exception(f"Failed to resume job {job_id}: {e}")
+        logger.exception(f"Failed to resume job for KB {kb_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to resume job: {e}")
 
 
-@router.post("/kb/{job_id}/cancel")
-async def cancel_ingestion(job_id: str):
+@router.post("/kb/{kb_id}/cancel")
+async def cancel_ingestion(kb_id: str):
     """
-    Cancel ingestion job and trigger cleanup.
+    Cancel ingestion job for a KB and trigger cleanup.
     
     Args:
-        job_id: Job identifier
+        kb_id: Knowledge base identifier
         
     Returns:
         Success message
@@ -217,11 +263,17 @@ async def cancel_ingestion(job_id: str):
         Cleanup (delete vectors, reset state) happens in orchestrator on next gate check.
     """
     try:
+        # Get latest job for this KB
+        job_id = repo.get_latest_job_id(kb_id)
+        if not job_id:
+            raise HTTPException(status_code=404, detail=f"No job found for KB '{kb_id}'")
+        
         repo.update_job(job_id, status="canceled")
-        logger.info(f"Canceled job {job_id}")
-        return {"status": "canceled", "job_id": job_id}
+        logger.info(f"Canceled job {job_id} for KB {kb_id}")
+        return {"status": "canceled", "job_id": job_id, "kb_id": kb_id}
     except Exception as e:
-        logger.exception(f"Failed to cancel job {job_id}: {e}")
+        logger.exception(f"Failed to cancel job for KB {kb_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to cancel job: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to cancel job: {e}")
 
 
