@@ -3,47 +3,6 @@
 
 Write-Host "Starting Azure Architect Assistant Backend..." -ForegroundColor Green
 
-# Store the backend process ID globally
-$Global:BackendPID = $null
-
-# Function to cleanup backend process only
-function Stop-BackendProcesses {
-    Write-Host "`nCleaning up backend process..." -ForegroundColor Yellow
-    
-    if ($Global:BackendPID) {
-        try {
-            $process = Get-Process -Id $Global:BackendPID -ErrorAction SilentlyContinue
-            if ($process) {
-                Stop-Process -Id $Global:BackendPID -Force -ErrorAction Stop
-                Write-Host "  Stopped backend process (PID $Global:BackendPID)" -ForegroundColor Green
-            }
-        } catch {
-            Write-Host "  Backend process already stopped" -ForegroundColor DarkGray
-        }
-    } else {
-        # Fallback: find process listening on port 8000
-        $port = 8000
-        $connection = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
-        
-        if ($connection) {
-            $processId = $connection.OwningProcess
-            try {
-                Stop-Process -Id $processId -Force -ErrorAction Stop
-                Write-Host "  Stopped backend process on port $port (PID $processId)" -ForegroundColor Green
-            } catch {
-                Write-Host "  Could not stop PID $processId" -ForegroundColor DarkGray
-            }
-        }
-    }
-    
-    Write-Host "Cleanup complete." -ForegroundColor Green
-}
-
-# Register cleanup on Ctrl+C
-$null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action {
-    Stop-BackendProcesses
-}
-
 try {
     # Read port from .env file (default to 8000)
     $port = "8000"
@@ -57,21 +16,15 @@ try {
     }
     
     Write-Host "Starting uvicorn server on port $port..." -ForegroundColor Cyan
+    Write-Host "Press CTRL+C to gracefully stop the server and pause running jobs" -ForegroundColor Yellow
     
-    # Start the backend process and capture its ID
-    $process = Start-Process -FilePath "$PSScriptRoot\.venv\Scripts\python.exe" `
-        -ArgumentList "-m", "uvicorn", "app.main:app", "--port", $port, "--app-dir", "backend" `
-        -NoNewWindow -PassThru
-    
-    $Global:BackendPID = $process.Id
-    Write-Host "Backend started with PID $($Global:BackendPID)" -ForegroundColor Green
-    
-    # Wait for the process to exit
-    $process.WaitForExit()
+    # Run uvicorn directly in this PowerShell session (not detached)
+    # This allows CTRL-C to properly trigger FastAPI shutdown event
+    & "$PSScriptRoot\.venv\Scripts\python.exe" -m uvicorn app.main:app --port $port --app-dir backend
 }
 catch {
     Write-Host "Error: $_" -ForegroundColor Red
 }
 finally {
-    Stop-BackendProcesses
+    Write-Host "`nServer stopped." -ForegroundColor Green
 }
