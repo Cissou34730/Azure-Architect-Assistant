@@ -176,12 +176,6 @@ class DatabaseRepository:
                     status=PhaseStatusDB.NOT_STARTED.value,
                 )
                 session.add(phase_status)
-            # After initialization, persist job.status to NOT_STARTED
-            session.execute(
-                update(IngestionJob)
-                .where(IngestionJob.id == job_id)
-                .values(status=DBJobStatus.NOT_STARTED.value, updated_at=datetime.utcnow())
-            )
 
     def get_phase_status(self, job_id: str, phase_name: str) -> Optional[PhaseState]:
         """Get status for a specific phase."""

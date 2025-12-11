@@ -53,54 +53,91 @@ def fetch_batches(
         state=None  # Not using old state model
     )
     
-    # Ingest all documents from source
-    # TODO: Source handlers currently return all docs at once;
-    # future enhancement would be streaming/pagination support
+    # Ingest documents from source
+    # Handlers may return a list or a generator of batches
     try:
-        all_documents = handler.ingest(source_config)
+        result = handler.ingest(source_config)
     except Exception as e:
         logger.error(f"Failed to ingest from {source_type}: {e}")
         raise
     
-    if not all_documents:
-        logger.warning(f"No documents returned from {source_type}")
-        return
-    
-    # Validate documents
-    valid_documents = []
-    for i, doc in enumerate(all_documents):
-        if not doc.text or not doc.text.strip():
-            logger.warning(f"Skipping document {i}: empty text")
-            continue
+    # Check if result is a generator (yields batches) or a list (all docs at once)
+    import inspect
+    if inspect.isgenerator(result):
+        # Handler yields batches already - pass them through with validation
+        logger.info("Handler is streaming batches")
+        doc_index = 0
+        for batch in result:
+            # Validate and enrich batch
+            validated_batch = []
+            for doc in batch:
+                if not doc.text or not doc.text.strip():
+                    logger.warning(f"Skipping document {doc_index}: empty text")
+                    doc_index += 1
+                    continue
+                
+                # Ensure document has an ID
+                if not doc.id_:
+                    doc.id_ = f"{kb_id}_doc_{doc_index}"
+                
+                # Ensure metadata has source reference
+                if not doc.metadata:
+                    doc.metadata = {}
+                if 'kb_id' not in doc.metadata:
+                    doc.metadata['kb_id'] = kb_id
+                if 'doc_id' not in doc.metadata:
+                    doc.metadata['doc_id'] = doc_index
+                
+                validated_batch.append(doc)
+                doc_index += 1
+            
+            if validated_batch:
+                yield validated_batch
         
-        # Ensure document has an ID
-        if not doc.id_:
-            doc.id_ = f"{kb_id}_doc_{i}"
+        logger.info(f"Completed loading {doc_index} documents in batches")
+    else:
+        # Handler returned all docs at once - batch them ourselves
+        all_documents = result
         
-        # Ensure metadata has source reference
-        if not doc.metadata:
-            doc.metadata = {}
-        if 'kb_id' not in doc.metadata:
-            doc.metadata['kb_id'] = kb_id
-        if 'doc_id' not in doc.metadata:
-            doc.metadata['doc_id'] = i
+        if not all_documents:
+            logger.warning(f"No documents returned from {source_type}")
+            return
         
-        valid_documents.append(doc)
-    
-    logger.info(f"Validated {len(valid_documents)}/{len(all_documents)} documents")
-    
-    # Handle checkpoint resume
-    start_idx = 0
-    if checkpoint:
-        last_batch_id = checkpoint.get('last_batch_id', 0)
-        start_idx = (last_batch_id + 1) * batch_size
-        logger.info(f"Resuming from batch {last_batch_id + 1}, doc index {start_idx}")
-    
-    # Yield documents in batches
-    for batch_start in range(start_idx, len(valid_documents), batch_size):
-        batch = valid_documents[batch_start:batch_start + batch_size]
-        if batch:
-            logger.debug(f"Yielding batch: docs {batch_start} to {batch_start + len(batch) - 1}")
-            yield batch
-    
-    logger.info(f"Completed loading {len(valid_documents)} documents in batches")
+        # Validate documents
+        valid_documents = []
+        for i, doc in enumerate(all_documents):
+            if not doc.text or not doc.text.strip():
+                logger.warning(f"Skipping document {i}: empty text")
+                continue
+            
+            # Ensure document has an ID
+            if not doc.id_:
+                doc.id_ = f"{kb_id}_doc_{i}"
+            
+            # Ensure metadata has source reference
+            if not doc.metadata:
+                doc.metadata = {}
+            if 'kb_id' not in doc.metadata:
+                doc.metadata['kb_id'] = kb_id
+            if 'doc_id' not in doc.metadata:
+                doc.metadata['doc_id'] = i
+            
+            valid_documents.append(doc)
+        
+        logger.info(f"Validated {len(valid_documents)}/{len(all_documents)} documents")
+        
+        # Handle checkpoint resume
+        start_idx = 0
+        if checkpoint:
+            last_batch_id = checkpoint.get('last_batch_id', 0)
+            start_idx = (last_batch_id + 1) * batch_size
+            logger.info(f"Resuming from batch {last_batch_id + 1}, doc index {start_idx}")
+        
+        # Yield documents in batches
+        for batch_start in range(start_idx, len(valid_documents), batch_size):
+            batch = valid_documents[batch_start:batch_start + batch_size]
+            if batch:
+                logger.debug(f"Yielding batch: docs {batch_start} to {batch_start + len(batch) - 1}")
+                yield batch
+        
+        logger.info(f"Completed loading {len(valid_documents)} documents in batches")
