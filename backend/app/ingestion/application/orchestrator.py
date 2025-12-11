@@ -225,6 +225,10 @@ class IngestionOrchestrator:
                 
                 logger.info(f"Batch {batch_id}: Generated {len(chunks)} chunks, starting embed+index...")
                 
+                # Track batch metrics
+                batch_start_processed = counters['chunks_processed']
+                batch_start_skipped = counters['chunks_skipped']
+                
                 # Step 2: Process each chunk (embed + index)
                 for chunk_idx, chunk in enumerate(chunks):
                     # Check for shutdown request (CTRL-C)
@@ -269,7 +273,11 @@ class IngestionOrchestrator:
                 self.repo.update_job(job_id, checkpoint=checkpoint, counters=counters)
                 self.repo.update_heartbeat(job_id)
                 
-                logger.info(f"Batch {batch_id} complete: {counters}")
+                # Log batch summary
+                batch_processed = counters['chunks_processed'] - batch_start_processed
+                batch_skipped = counters['chunks_skipped'] - batch_start_skipped
+                logger.info(f"Batch {batch_id} complete: {batch_processed} embedded+indexed, {batch_skipped} skipped (already indexed)")
+                logger.info(f"Total progress: {counters}")
             
             # All batches complete
             self.repo.set_job_status(

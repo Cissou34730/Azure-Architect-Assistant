@@ -65,11 +65,15 @@ class Embedder:
             raise ValueError("Cannot embed empty chunk text")
         
         try:
+            # Log OpenAI API call
+            logger.info(f"→ Calling OpenAI API: model={self.model_name}, chunk={chunk.content_hash[:8]}, size={len(chunk.text)} chars")
+            
             # Generate embedding (sync call, but fast enough)
             # LlamaIndex OpenAIEmbedding handles retries internally
-            logger.debug(f"Generating embedding for chunk {chunk.content_hash[:8]} ({len(chunk.text)} chars)")
             vector = self.embedding_client.get_text_embedding(chunk.text)
-            logger.debug(f"Embedding generated: {len(vector)} dimensions")
+            
+            # Log successful response
+            logger.info(f"✓ OpenAI API response: {len(vector)} dimensions, chunk={chunk.content_hash[:8]}")
             
             if not vector:
                 raise RuntimeError("Embedding generation returned empty vector")
@@ -82,5 +86,5 @@ class Embedder:
             )
             
         except Exception as e:
-            logger.error(f"Embedding failed for chunk {chunk.content_hash[:8]}: {e}")
+            logger.error(f"✗ OpenAI API error for chunk {chunk.content_hash[:8]}: {e}")
             raise RuntimeError(f"Embedding generation failed: {e}") from e
