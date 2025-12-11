@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import logging
-import signal
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -22,7 +21,8 @@ from app.routers.ingestion_v2 import router as ingestion_v2_router
 
 # Import lifecycle management
 from app import lifecycle
-from app.ingestion.application.orchestrator import IngestionOrchestrator# Load environment variables from root .env (one level up from backend)
+from app.ingestion.application.orchestrator import IngestionOrchestrator
+from app.routers.ingestion_v2 import cleanup_running_tasks# Load environment variables from root .env (one level up from backend)
 backend_root = Path(__file__).parent.parent
 root_dir = backend_root.parent
 env_path = root_dir / ".env"
@@ -69,17 +69,6 @@ app.add_middleware(
 )
 
 
-# Signal handler for graceful shutdown
-def handle_sigint(signum, frame):
-    """Handle SIGINT (CTRL-C) to gracefully pause ingestion."""
-    logger.warning("SIGINT received - requesting graceful shutdown of ingestion jobs")
-    IngestionOrchestrator.request_shutdown()
-
-
-# Register signal handler
-signal.signal(signal.SIGINT, handle_sigint)
-
-
 # Startup and shutdown events
 @app.on_event("startup")
 async def startup_event():
@@ -89,7 +78,13 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Cleanup application resources"""
+    """Cleanup application resources - called on CTRL-C or server shutdown"""
+    logger.warning("Server shutting down - requesting graceful pause of all ingestion jobs")
+    
+    # Stop running ingestion tasks gracefully
+    await cleanup_running_tasks()
+    
+    # Cleanup other resources
     await lifecycle.shutdown()
 
 
