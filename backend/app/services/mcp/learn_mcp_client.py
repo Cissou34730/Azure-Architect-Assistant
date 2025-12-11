@@ -206,24 +206,32 @@ class MicrosoftLearnMCPClient:
         logger.info("Microsoft Learn MCP client closed")
 
     async def _cleanup(self) -> None:
-        """Internal cleanup of connection resources."""
+        """
+        Internal cleanup of connection resources.
+        
+        IMPORTANT: During app shutdown, asyncio tasks are cancelled and the event loop
+        is being torn down. Calling __aexit__ on context managers (session, transport)
+        can trigger anyio's "Attempted to exit cancel scope in a different task" RuntimeError
+        because the context was entered in a different task/context than it's being exited in.
+        
+        Solution: Drop all references and let Python's garbage collection and process exit
+        handle resource cleanup. This is safe because:
+        1. HTTP connections will be closed when the process exits
+        2. anyio background tasks will be cancelled by asyncio shutdown
+        3. File descriptors and sockets will be released by the OS
+        """
         try:
-            # Shield cleanup from task cancellation during app shutdown
+            # Drop all references without calling __aexit__ to avoid anyio cancel scope errors
             if self._session:
-                try:
-                    await asyncio.shield(self._session.__aexit__(None, None, None))
-                except asyncio.CancelledError:
-                    # Suppress cancellation to avoid anyio cancel scope mismatch
-                    logger.debug("Session cleanup cancelled; suppressing during shutdown")
-                finally:
-                    self._session = None
-
-            # IMPORTANT: Avoid closing streamable_http transport context during app shutdown.
-            # Calling __aexit__ on the transport from a different task than __aenter__ can
-            # trigger anyio's "Attempted to exit cancel scope in a different task" RuntimeError.
-            # Instead, drop references and let process shutdown reclaim resources safely.
-            if self._connection_context or self._streams:
+                logger.debug("Dropping session reference during cleanup")
+                self._session = None
+            
+            if self._connection_context:
+                logger.debug("Dropping connection context reference during cleanup")
                 self._connection_context = None
+            
+            if self._streams:
+                logger.debug("Dropping streams reference during cleanup")
                 self._streams = None
 
         except Exception as e:
