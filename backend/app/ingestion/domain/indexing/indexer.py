@@ -20,16 +20,16 @@ class Indexer:
     Uses LlamaIndex VectorStoreIndex with disk persistence.
     """
     
-    def __init__(self, kb_id: str, storage_base_dir: str = "backend/data/indexes"):
+    def __init__(self, kb_id: str, storage_base_dir: str = "backend/data/knowledge_bases"):
         """
         Initialize indexer.
         
         Args:
             kb_id: Knowledge base identifier
-            storage_base_dir: Base directory for index storage
+            storage_base_dir: Base directory for knowledge bases storage
         """
         self.kb_id = kb_id
-        self.storage_dir = os.path.join(storage_base_dir, kb_id)
+        self.storage_dir = os.path.join(storage_base_dir, kb_id, "index")
         self._index: Optional[VectorStoreIndex] = None
         self._indexed_hashes = set()  # In-memory cache of indexed content_hashes
         
