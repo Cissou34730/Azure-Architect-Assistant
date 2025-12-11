@@ -21,18 +21,17 @@ function Stop-BackendProcesses {
             Write-Host "  Backend process already stopped" -ForegroundColor DarkGray
         }
     } else {
-        # Fallback: find uvicorn process by command line
-        $uvicornProcs = Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" | 
-            Where-Object { $_.CommandLine -like "*uvicorn*app.main:app*" }
+        # Fallback: find process listening on port 8000
+        $port = 8000
+        $connection = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
         
-        if ($uvicornProcs) {
-            $uvicornProcs | ForEach-Object {
-                try {
-                    Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop
-                    Write-Host "  Stopped backend process (PID $($_.ProcessId))" -ForegroundColor Green
-                } catch {
-                    Write-Host "  Could not stop PID $($_.ProcessId)" -ForegroundColor DarkGray
-                }
+        if ($connection) {
+            $pid = $connection.OwningProcess
+            try {
+                Stop-Process -Id $pid -Force -ErrorAction Stop
+                Write-Host "  Stopped backend process on port $port (PID $pid)" -ForegroundColor Green
+            } catch {
+                Write-Host "  Could not stop PID $pid" -ForegroundColor DarkGray
             }
         }
     }

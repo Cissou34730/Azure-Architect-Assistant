@@ -1,41 +1,45 @@
-# Kill backend process only (not all Python)
+# Kill backend process only (by port)
 # Usage: .\kill-backend.ps1
 
 Write-Host "Killing backend process..." -ForegroundColor Yellow
 
-# Find uvicorn backend process by command line
-$backendProcesses = Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" | 
-    Where-Object { $_.CommandLine -like "*uvicorn*app.main:app*" }
-
-if ($backendProcesses) {
-    $count = 0
-    $backendProcesses | ForEach-Object {
-        try {
-            Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop
-            Write-Host "  Killed backend process (PID $($_.ProcessId))" -ForegroundColor Green
-            $count++
-        } catch {
-            Write-Host "  Could not kill PID $($_.ProcessId): $_" -ForegroundColor Red
-        }
+# Read port from .env file (default to 8000)
+$port = 8000
+$envFile = Join-Path $PSScriptRoot ".env"
+if (Test-Path $envFile) {
+    $envContent = Get-Content $envFile
+    $portLine = $envContent | Where-Object { $_ -match "^BACKEND_PORT=(\d+)" }
+    if ($portLine) {
+        $port = [int]$Matches[1]
     }
-    
-    if ($count -gt 0) {
-        Write-Host "Killed $count backend process(es)." -ForegroundColor Green
-        Start-Sleep -Milliseconds 500
-    }
-} else {
-    Write-Host "No backend process found." -ForegroundColor Cyan
 }
 
-# Double-check for any remaining backend processes
-$remaining = Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" | 
-    Where-Object { $_.CommandLine -like "*uvicorn*app.main:app*" }
+Write-Host "Looking for process listening on port $port..." -ForegroundColor Cyan
 
-if ($remaining) {
-    Write-Host "Force killing remaining backend processes..." -ForegroundColor Yellow
-    $remaining | ForEach-Object {
-        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+# Find process listening on the backend port
+$connection = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+
+if ($connection) {
+    $pid = $connection.OwningProcess
+    $processName = (Get-Process -Id $pid -ErrorAction SilentlyContinue).ProcessName
+    
+    try {
+        Stop-Process -Id $pid -Force -ErrorAction Stop
+        Write-Host "  Killed backend process: $processName (PID $pid)" -ForegroundColor Green
+        Start-Sleep -Milliseconds 500
+    } catch {
+        Write-Host "  Could not kill PID $pid: $_" -ForegroundColor Red
     }
+} else {
+    Write-Host "No process found listening on port $port." -ForegroundColor Cyan
+}
+
+# Double-check
+$remaining = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+if ($remaining) {
+    Write-Host "Force killing remaining process..." -ForegroundColor Yellow
+    $remainingPid = $remaining.OwningProcess
+    Stop-Process -Id $remainingPid -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host "Cleanup complete. Backend is stopped." -ForegroundColor Green
