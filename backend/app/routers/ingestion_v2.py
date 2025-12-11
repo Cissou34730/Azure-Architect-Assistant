@@ -256,6 +256,48 @@ async def get_job_status(job_id: str):
         raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
 
 
+@router.get("/kb/{kb_id}/details")
+async def get_kb_ingestion_details(kb_id: str):
+    """
+    Get detailed ingestion status for a KB including phase details.
+    This endpoint provides comprehensive status information for the frontend.
+    
+    Args:
+        kb_id: Knowledge base identifier
+        
+    Returns:
+        Detailed ingestion status with phase breakdown
+    """
+    from app.ingestion.application.status_query_service import StatusQueryService
+    
+    try:
+        status_service = StatusQueryService()
+        status = status_service.get_status(kb_id)
+        
+        # Get job counters if available
+        try:
+            job_id = repo.get_latest_job_id(kb_id)
+            if job_id:
+                job = repo.get_job(job_id)
+                counters = job.counters
+            else:
+                counters = {}
+        except Exception:
+            counters = {}
+        
+        return {
+            "kb_id": kb_id,
+            "status": status.status,
+            "current_phase": status.current_phase,
+            "overall_progress": status.overall_progress,
+            "phase_details": status.phase_details,
+            "counters": counters
+        }
+    except Exception as e:
+        logger.exception(f"Failed to get ingestion details for KB {kb_id}: {e}")
+        raise HTTPException(status_code=404, detail=f"KB details not found: {kb_id}")
+
+
 async def cleanup_running_tasks():
     """
     Cleanup function to gracefully stop all running ingestion tasks.
