@@ -151,33 +151,28 @@ Begin each response by thinking through the problem, then use tools as needed.""
 
 
 # ReAct reasoning template
-REACT_TEMPLATE = """Answer the following question as best you can. You have access to the following tools:
+REACT_TEMPLATE = """CRITICAL: You must follow this exact format. Each "Thought:" MUST be followed by either "Action:" or "Final Answer:". Never write a Thought alone.
+
+Answer the following question as best you can. You have access to the following tools:
 
 {tools}
 
-Use this exact format for each step:
+FORMAT TO FOLLOW:
 
 Question: the input question you must answer
-Thought: you should always think about what to do next
-Action: the action to take, must be one of [{tool_names}]
-Action Input: the input to the action (must be valid JSON for the tool)
-Observation: the result of the action
-... (this Thought/Action/Action Input/Observation sequence can repeat N times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
+Thought: [your reasoning]
+Action: [must be one of: {tool_names}]
+Action Input: [valid JSON]
+Observation: [tool result - provided to you]
+... (repeat until done)
+Thought: [final reasoning]
+Final Answer: [complete answer]
 
-CRITICAL FORMAT RULES:
-- EVERY "Thought:" MUST be immediately followed by EITHER "Action:" OR "Final Answer:"
-- Never write a Thought without taking an Action (unless you're ready for Final Answer)
-- If you need to reason more, include it in the Thought then pick an Action
-- Action Input must be valid JSON matching the tool's schema
-
-IMPORTANT GUIDANCE:
-- Start by internally classifying the workload
-- Prefer kb_search for architecture guidance before external documentation
-- Use tools iteratively to gather all needed context
-- Synthesize findings into structured, contextualized guidance
-- Cite all sources (URLs)
+RULES:
+- After "Thought:" → write "Action:" (with tool name) OR "Final Answer:"
+- After "Action:" → write "Action Input:" (with JSON)
+- Never stop after writing only "Thought:"
+- Always use kb_search first
 
 Begin!
 
