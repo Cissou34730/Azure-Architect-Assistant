@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from app.ingestion.application.orchestrator import IngestionOrchestrator, WorkflowDefinition, RetryPolicy
@@ -86,7 +86,6 @@ async def run_orchestrator_background(job_id: str, kb_id: str, kb_config: Dict[s
 @router.post("/kb/{kb_id}/start", response_model=JobStatusResponse)
 async def start_ingestion(
     kb_id: str,
-    background_tasks: BackgroundTasks,
     kb_manager: KBManager = Depends(get_kb_manager)
 ):
     """
@@ -95,12 +94,13 @@ async def start_ingestion(
     
     Args:
         kb_id: Knowledge base identifier
-        background_tasks: FastAPI background tasks
         kb_manager: KB manager to fetch configuration
         
     Returns:
         Job status response
     """
+    import asyncio
+    
     try:
         # Get KB configuration from manager (like legacy endpoint)
         if not kb_manager.kb_exists(kb_id):
@@ -123,10 +123,11 @@ async def start_ingestion(
             priority=0
         )
         
-        # Spawn orchestrator in background
-        background_tasks.add_task(run_orchestrator_background, job_id, kb_id, kb_config)
+        # Create asyncio task (not BackgroundTasks)
+        task = asyncio.create_task(run_orchestrator_background(job_id, kb_id, kb_config))
+        task.set_name(f"ingestion-{kb_id}-{job_id}")
         
-        logger.info(f"Started ingestion job {job_id} for KB {kb_id}")
+        logger.info(f"Started ingestion job {job_id} for KB {kb_id} (task: {task.get_name()})")
         
         return JobStatusResponse(
             job_id=job_id,
