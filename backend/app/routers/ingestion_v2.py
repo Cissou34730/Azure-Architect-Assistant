@@ -241,7 +241,10 @@ async def cleanup_running_tasks():
     """
     import asyncio
     
+    logger.warning(f"cleanup_running_tasks called - {len(_running_tasks)} tasks running")
+    
     if not _running_tasks:
+        logger.warning("No running tasks to clean up")
         return
     
     logger.warning(f"Cancelling {len(_running_tasks)} running ingestion tasks...")
@@ -251,15 +254,23 @@ async def cleanup_running_tasks():
     IngestionOrchestrator.request_shutdown()
     
     # Give tasks time to save state gracefully
+    logger.warning("Waiting 2 seconds for tasks to save state...")
     await asyncio.sleep(2.0)
     
     # Cancel any tasks that haven't stopped yet
+    tasks_cancelled = 0
     for task in list(_running_tasks):
         if not task.done():
+            logger.warning(f"Cancelling task that didn't stop gracefully: {task.get_name()}")
             task.cancel()
+            tasks_cancelled += 1
+    
+    if tasks_cancelled > 0:
+        logger.warning(f"Cancelled {tasks_cancelled} tasks that didn't stop gracefully")
     
     # Wait for all tasks to complete
     if _running_tasks:
+        logger.warning("Waiting for all tasks to complete...")
         await asyncio.gather(*_running_tasks, return_exceptions=True)
     
-    logger.info("All ingestion tasks stopped")
+    logger.warning("All ingestion tasks stopped")

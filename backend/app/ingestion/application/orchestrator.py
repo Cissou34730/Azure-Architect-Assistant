@@ -155,7 +155,9 @@ class IngestionOrchestrator:
     @staticmethod
     def request_shutdown():
         """Request graceful shutdown (called by signal handler)."""
-        logger.warning("Shutdown requested - will pause ingestion gracefully")
+        logger.warning("=" * 70)
+        logger.warning("SHUTDOWN REQUESTED - Setting global shutdown flag")
+        logger.warning("=" * 70)
         _shutdown_event.set()
     
     async def run(self, job_id: str, kb_id: str, kb_config: Dict[str, Any]):

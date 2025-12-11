@@ -79,13 +79,20 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup application resources - called on CTRL-C or server shutdown"""
-    logger.warning("Server shutting down - requesting graceful pause of all ingestion jobs")
+    logger.warning("=" * 70)
+    logger.warning("SHUTDOWN EVENT TRIGGERED - Server is shutting down")
+    logger.warning("=" * 70)
+    logger.warning("Requesting graceful pause of all ingestion jobs...")
     
     # Stop running ingestion tasks gracefully
     await cleanup_running_tasks()
     
+    logger.warning("Cleaning up other resources...")
     # Cleanup other resources
     await lifecycle.shutdown()
+    
+    logger.warning("Shutdown complete")
+    logger.warning("=" * 70)
 
 
 # Include routers
