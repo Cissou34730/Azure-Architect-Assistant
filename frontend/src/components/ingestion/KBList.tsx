@@ -114,7 +114,7 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
         try {
           const s = await getKBReadyStatus(kb.id);
           let details: KBIngestionDetails | undefined;
-          if (s.status === 'pending') {
+          if (s.status === 'pending' || s.status === 'paused') {
             details = await getKBIngestionDetails(kb.id);
           }
           jobsMap.set(kb.id, composeJob(kb.id, s, details));
