@@ -40,6 +40,7 @@ export function IngestionProgress({ job, onStart }: IngestionProgressProps) {
 
   const isNotStarted = job.status === 'not_started';
   const isRunning = (job.status === 'running' || job.status === 'pending') && !isNotStarted;
+  const isPaused = job.status === 'paused';
   const progressPercent = Math.min(Math.max(job.progress, 0), 100);
   
   // Determine which phases are completed
@@ -81,7 +82,7 @@ export function IngestionProgress({ job, onStart }: IngestionProgressProps) {
         <h3 className="text-lg font-semibold text-gray-900">
           Ingestion Progress
         </h3>
-        <StatusBadge variant={job.status as 'running' | 'completed' | 'failed'}>
+        <StatusBadge variant={isPaused ? 'paused' : job.status as 'running' | 'completed' | 'failed'}>
           {job.status.toUpperCase()}
         </StatusBadge>
       </div>
@@ -241,7 +242,12 @@ export function IngestionProgress({ job, onStart }: IngestionProgressProps) {
         {job.status === 'running' && (
           <>
             <Button variant="ghost" onClick={async () => { try { await pauseIngestion(job.kb_id); } catch {} }}>Pause</Button>
-            <Button variant="ghost" onClick={async () => { try { await resumeIngestion(job.kb_id); } catch {} }}>Resume</Button>
+            <Button variant="danger" onClick={async () => { if (confirm('Cancel current ingestion?')) { try { await cancelIngestion(job.kb_id); } catch {} } }}>Cancel</Button>
+          </>
+        )}
+        {isPaused && (
+          <>
+            <Button variant="success" onClick={async () => { try { await resumeIngestion(job.kb_id); } catch {} }}>Resume</Button>
             <Button variant="danger" onClick={async () => { if (confirm('Cancel current ingestion?')) { try { await cancelIngestion(job.kb_id); } catch {} } }}>Cancel</Button>
           </>
         )}

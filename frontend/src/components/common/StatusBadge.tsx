@@ -7,6 +7,7 @@ import { ReactNode } from 'react';
 
 export type StatusVariant = 
   | 'running' 
+  | 'paused'
   | 'completed' 
   | 'failed' 
   | 'active' 
@@ -20,6 +21,7 @@ interface StatusBadgeProps {
 
 const variantClasses: Record<StatusVariant, string> = {
   running: 'bg-status-running text-white',
+  paused: 'bg-yellow-500 text-white',
   completed: 'bg-status-completed text-white',
   failed: 'bg-status-failed text-white',
   active: 'bg-accent-success text-white',

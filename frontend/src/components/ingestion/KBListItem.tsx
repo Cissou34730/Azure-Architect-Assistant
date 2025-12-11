@@ -22,8 +22,9 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
   const dropdownRef = useRef<HTMLDivElement>(null);
   const isNotStarted = job?.status === 'not_started';
   const isIngesting = (job?.status === 'running' || job?.status === 'pending') && !isNotStarted;
+  const isPaused = job?.status === 'paused';
   const isCompleted = job?.status === 'completed';
-  const canStartIngestion = isNotStarted || (!isIngesting && !isCompleted); // Show Start for not_started or no job/idle
+  const canStartIngestion = isNotStarted || (!isIngesting && !isCompleted && !isPaused); // Show Start for not_started or no job/idle
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -93,13 +94,15 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-pill ${
                   job.status === 'running' ? 'bg-status-running animate-pulse' :
+                  job.status === 'paused' ? 'bg-yellow-500' :
                   job.status === 'completed' ? 'bg-status-completed' :
                   job.status === 'failed' ? 'bg-status-failed' :
                   'bg-gray-500'
                 }`} />
                 <span className="text-sm font-medium text-gray-700">
                   {job.status === 'completed' && 'COMPLETED'}
-                  {job.status !== 'completed' && `${(job.phase ? job.phase.toUpperCase() : 'UNKNOWN')} - ${typeof job.progress === 'number' ? job.progress.toFixed(0) : '0'}%`}
+                  {job.status === 'paused' && 'PAUSED'}
+                  {(job.status !== 'completed' && job.status !== 'paused') && `${(job.phase ? job.phase.toUpperCase() : 'UNKNOWN')} - ${typeof job.progress === 'number' ? job.progress.toFixed(0) : '0'}%`}
                 </span>
                 <span className="text-xs text-gray-500">
                   {job.message}
@@ -175,6 +178,14 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
             >
               View Progress
             </Button>
+          ) : isPaused ? (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onViewProgress(kb.id)}
+            >
+              View Progress
+            </Button>
           ) : canStartIngestion ? (
             <Button
               variant="success"
@@ -186,26 +197,30 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
           ) : null}
 
           {/* Controls: Pause/Resume/Cancel */}
-          {isIngesting && (
+          {(isIngesting || isPaused) && (
             <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  try { await pauseIngestion(kb.id); onViewProgress(kb.id); } catch (e) { alert('Failed to pause'); }
-                }}
-              >
-                Pause
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  try { await resumeIngestion(kb.id); onViewProgress(kb.id); } catch (e) { alert('Failed to resume'); }
-                }}
-              >
-                Resume
-              </Button>
+              {isIngesting && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    try { await pauseIngestion(kb.id); onViewProgress(kb.id); } catch (e) { alert('Failed to pause'); }
+                  }}
+                >
+                  Pause
+                </Button>
+              )}
+              {isPaused && (
+                <Button
+                  variant="success"
+                  size="sm"
+                  onClick={async () => {
+                    try { await resumeIngestion(kb.id); onViewProgress(kb.id); } catch (e) { alert('Failed to resume'); }
+                  }}
+                >
+                  Resume
+                </Button>
+              )}
               <Button
                 variant="danger"
                 size="sm"
