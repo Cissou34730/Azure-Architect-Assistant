@@ -362,49 +362,66 @@ async def cleanup_running_tasks():
     Called during application shutdown.
     """
     import asyncio
-    
+
     logger.warning("=" * 80)
     logger.warning(f"cleanup_running_tasks CALLED - {len(_running_tasks)} tasks running")
     logger.warning(f"Task job_ids: {list(_running_tasks.keys())}")
     logger.warning("=" * 80)
-    
+
     if not _running_tasks:
         logger.warning("No running tasks to clean up")
         return
-    
-    logger.warning(f"Step 1: Setting shutdown flag...")
-    # Request shutdown flag
+
+    # Snapshot tasks to avoid race conditions while we manipulate the dict
+    tasks_snapshot = list(_running_tasks.items())
+
+    logger.warning("Step 1: Setting shutdown flag on orchestrators...")
     from app.ingestion.application.orchestrator import IngestionOrchestrator
     IngestionOrchestrator.request_shutdown()
-    logger.warning(f"Step 1: Shutdown flag set - orchestrators should detect this")
-    
-    # Give tasks time to save state gracefully
-    logger.warning("Step 2: Waiting 2 seconds for tasks to save state gracefully...")
+
+    # Proactively mark jobs as paused so they can be resumed even if tasks ignore cancellation
+    logger.warning("Step 1b: Marking jobs as paused in the repository...")
+    for job_id, _ in tasks_snapshot:
+        try:
+            repo.set_job_status(job_id, status="paused")
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning(f"Could not mark job {job_id} as paused: {exc}")
+
+    # Give tasks time to checkpoint on their own before we cancel them
+    logger.warning("Step 2: Waiting 2 seconds for tasks to checkpoint gracefully...")
     await asyncio.sleep(2.0)
-    logger.warning("Step 2: Wait complete")
-    
+
     # Cancel any tasks that haven't stopped yet
-    logger.warning("Step 3: Checking which tasks are still running...")
-    tasks_cancelled = 0
-    for job_id, task in list(_running_tasks.items()):
-        if not task.done():
-            logger.warning(f"  Task for job {job_id} still running - cancelling: {task.get_name()}")
-            task.cancel()
-            tasks_cancelled += 1
-        else:
+    logger.warning("Step 3: Cancelling tasks that are still running...")
+    pending = []
+    for job_id, task in tasks_snapshot:
+        if task.done():
             logger.warning(f"  Task for job {job_id} already finished")
-    
-    if tasks_cancelled > 0:
-        logger.warning(f"Step 3: Cancelled {tasks_cancelled} tasks that didn't stop gracefully")
+            _running_tasks.pop(job_id, None)
+            continue
+
+        logger.warning(f"  Cancelling task for job {job_id}: {task.get_name()}")
+        task.cancel()
+        pending.append((job_id, task))
+
+    if pending:
+        logger.warning(f"Step 4: Waiting for up to 5 seconds for {len(pending)} task(s) to stop...")
+        done, still_running = await asyncio.wait(
+            [t for _, t in pending],
+            timeout=5.0,
+            return_when=asyncio.ALL_COMPLETED,
+        )
+
+        for job_id, task in pending:
+            if task in done:
+                _running_tasks.pop(job_id, None)
+                logger.warning(f"  Task for job {job_id} stopped")
+        if still_running:
+            hanging = [t.get_name() for t in still_running]
+            logger.warning(f"  Tasks still running after timeout: {hanging} - allowing shutdown to continue")
     else:
-        logger.warning(f"Step 3: All tasks stopped gracefully")
-    
-    # Wait for all tasks to complete
-    if _running_tasks:
-        logger.warning("Step 4: Waiting for all tasks to complete...")
-        await asyncio.gather(*_running_tasks.values(), return_exceptions=True)
-        logger.warning("Step 4: All tasks completed")
-    
+        logger.warning("Step 4: All tasks stopped gracefully")
+
     logger.warning("=" * 80)
-    logger.warning("cleanup_running_tasks COMPLETE - All ingestion tasks stopped")
+    logger.warning("cleanup_running_tasks COMPLETE - All ingestion tasks stopped (or marked paused)")
     logger.warning("=" * 80)

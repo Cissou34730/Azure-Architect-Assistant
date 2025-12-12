@@ -22,7 +22,9 @@ from app.routers.ingestion_v2 import router as ingestion_v2_router
 # Import lifecycle management
 from app import lifecycle
 from app.ingestion.application.orchestrator import IngestionOrchestrator
-from app.routers.ingestion_v2 import cleanup_running_tasks# Load environment variables from root .env (one level up from backend)
+from app.routers.ingestion_v2 import cleanup_running_tasks
+
+# Load environment variables from root .env (one level up from backend)
 backend_root = Path(__file__).parent.parent
 root_dir = backend_root.parent
 env_path = root_dir / ".env"
@@ -69,6 +71,69 @@ app.add_middleware(
 )
 
 
+def _install_ingestion_signal_handlers():
+    """
+    Ensure SIGINT/SIGTERM immediately request ingestion shutdown so CTRL-C
+    pauses jobs instead of continuing to run embeds/indexing, while still
+    letting uvicorn exit normally.
+    """
+    import signal
+    import asyncio
+    from app.routers import ingestion_v2
+    from app.ingestion.application.orchestrator import IngestionOrchestrator
+
+    loop = None
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        pass  # no running loop yet
+
+    prev_handlers = {}
+
+    def _handler(sig, frame):
+        logger.warning(f"Signal {sig} received - requesting ingestion shutdown")
+        IngestionOrchestrator.request_shutdown()
+        # Mark jobs paused and cancel running tasks promptly
+        try:
+            for job_id, task in list(ingestion_v2._running_tasks.items()):
+                ingestion_v2.repo.set_job_status(job_id, status="paused")
+                if loop and not task.done():
+                    loop.call_soon_threadsafe(task.cancel)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(f"Failed to cancel running ingestion tasks on signal: {exc}")
+
+        # Chain to the previous handler so uvicorn still stops
+        prev = prev_handlers.get(sig)
+        if prev in (None, signal.SIG_IGN):
+            return
+        if prev == signal.SIG_DFL:
+            if sig == signal.SIGINT:
+                raise KeyboardInterrupt()
+            return
+        if prev is _handler:
+            return
+        try:
+            prev(sig, frame)
+        except KeyboardInterrupt:
+            raise
+        except Exception:  # pragma: no cover - avoid masking shutdown
+            logger.debug("Previous signal handler raised; continuing shutdown", exc_info=True)
+
+    signals_to_install = [signal.SIGINT]
+    if hasattr(signal, "SIGTERM"):
+        signals_to_install.append(signal.SIGTERM)
+
+    for sig in signals_to_install:
+        try:
+            prev_handlers[sig] = signal.getsignal(sig)
+            signal.signal(sig, _handler)
+        except Exception as exc:  # pragma: no cover - Windows/host limitations
+            logger.debug(f"Could not register signal handler for {sig}: {exc}")
+
+
+_install_ingestion_signal_handlers()
+
+
 # Startup and shutdown events
 @app.on_event("startup")
 async def startup_event():
@@ -85,11 +150,17 @@ async def shutdown_event():
     logger.warning("Requesting graceful pause of all ingestion jobs...")
     
     # Stop running ingestion tasks gracefully
-    await cleanup_running_tasks()
+    try:
+        await cleanup_running_tasks()
+    except Exception as exc:
+        logger.exception(f"cleanup_running_tasks failed: {exc}")
     
     logger.warning("Cleaning up other resources...")
     # Cleanup other resources
-    await lifecycle.shutdown()
+    try:
+        await lifecycle.shutdown()
+    except Exception as exc:
+        logger.exception(f"lifecycle.shutdown failed: {exc}")
     
     logger.warning("Shutdown complete")
     logger.warning("=" * 70)
@@ -125,4 +196,3 @@ if __name__ == "__main__":
     port = int(os.getenv("BACKEND_PORT", "8000"))
     logger.info(f"Starting server on port {port}")
     uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)
-

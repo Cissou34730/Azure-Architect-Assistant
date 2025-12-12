@@ -80,6 +80,39 @@ class IngestionService:
         except Exception as exc:
             logger.warning(f"Failed to recover inflight jobs: {exc}")
 
+    async def pause_all(self, timeout: Optional[float] = None) -> None:
+        """
+        Pause all running runtimes for shutdown.
+
+        Args:
+            timeout: Optional join timeout per runtime (defaults to settings.thread_join_timeout)
+        """
+        join_timeout = timeout or self.settings.thread_join_timeout
+
+        with self._lock:
+            runtimes = list(self._runtimes_by_kb.values())
+
+        if not runtimes:
+            logger.info("[IngestionService] No ingestion runtimes to pause")
+            return
+
+        logger.info(f"[IngestionService] Pausing {len(runtimes)} runtime(s) for shutdown")
+
+        # Signal threads to stop work cooperatively
+        for runtime in runtimes:
+            runtime.pause_event.set()
+            runtime.stop_event.set()
+
+        # Join threads and persist paused status
+        for runtime in runtimes:
+            try:
+                await asyncio.to_thread(self.lifecycle.stop_threads, runtime, join_timeout)
+                self.repository.update_job_status(runtime.job_id, "paused")
+            except Exception as exc:
+                logger.warning(f"[IngestionService] Failed to pause runtime for KB {runtime.kb_id}: {exc}")
+
+        logger.info("[IngestionService] All runtimes paused")
+
     @classmethod
     def instance(cls) -> "IngestionService":
         """Get singleton instance."""
