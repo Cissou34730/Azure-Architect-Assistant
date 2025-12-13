@@ -31,9 +31,14 @@ export type KBStatus = "active" | "inactive" | "archived";
 
 // Type guard functions
 export const isJobStatus = (value: string): value is JobStatus => {
-  return ["not_started", "pending", "running", "paused", "completed", "failed"].includes(
-    value
-  );
+  return [
+    "not_started",
+    "pending",
+    "running",
+    "paused",
+    "completed",
+    "failed",
+  ].includes(value);
 };
 
 export const isIngestionPhase = (value: string): value is IngestionPhase => {
