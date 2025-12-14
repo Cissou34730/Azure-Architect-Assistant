@@ -36,6 +36,8 @@ pnpm-debug.log*
 lerna-debug.log*
 dist-ssr/
 *.local
+frontend/node_modules/
+frontend/dist/
 
 # PyInstaller
 *.manifest
@@ -111,7 +113,8 @@ celerybeat.pid
 .env
 .env.local
 .env.*.local
-.venv
+.venv/
+.venv-*/
 env/
 venv/
 ENV/
