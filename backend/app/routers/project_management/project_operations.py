@@ -13,7 +13,7 @@ from sqlalchemy import select, delete
 
 from app.models import Project, ProjectDocument, ProjectState, ConversationMessage
 from app.services.llm_service import get_llm_service
-from services.kb_query import QueryProfile
+from app.services.kb import QueryProfile
 from app.service_registry import get_multi_query_service
 
 from .project_models import CreateProjectRequest, UpdateRequirementsRequest, ChatMessageRequest

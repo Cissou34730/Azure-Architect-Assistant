@@ -1,6 +1,6 @@
 """
 Knowledge Base Index Service
-Manages index loading/caching only. Query logic lives in services/kb_query.
+Manages index loading/caching only; query logic lives in app.services.kb.
 """
 
 import os
