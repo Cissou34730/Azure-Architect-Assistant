@@ -7,6 +7,15 @@ from functools import lru_cache
 from pathlib import Path
 from typing import List
 
+from config import (
+    get_settings as get_ingestion_settings,
+    get_kb_defaults,
+    get_openai_settings,
+    KBDefaults,
+    OpenAISettings,
+    IngestionSettings,
+)
+
 from dotenv import load_dotenv
 from pydantic import BaseSettings, Field, validator
 
@@ -46,3 +55,17 @@ def get_app_settings() -> AppSettings:
 def get_backend_root() -> Path:
     """Backend root directory path."""
     return Path(__file__).resolve().parents[2]
+
+
+# Convenience re-exports for legacy ingestion settings
+__all__ = [
+    "AppSettings",
+    "get_app_settings",
+    "get_backend_root",
+    "get_ingestion_settings",
+    "get_kb_defaults",
+    "get_openai_settings",
+    "KBDefaults",
+    "OpenAISettings",
+    "IngestionSettings",
+]
