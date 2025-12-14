@@ -188,6 +188,11 @@ class JobRepository:
                 raise JobNotFoundError(f"Job not found: {job_id}")
             return job
 
+    def get_job_status(self, job_id: str) -> str:
+        """Return job status string (lowercased)."""
+        job = self.get_job(job_id)
+        return job.status.lower()
+
     def _job_to_state(self, job: IngestionJob) -> IngestionState:
         """Convert ORM job to domain state."""
         return IngestionState(

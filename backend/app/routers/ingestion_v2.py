@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from app.ingestion.application.orchestrator import IngestionOrchestrator, WorkflowDefinition, RetryPolicy
-from app.ingestion.infrastructure.repository import DatabaseRepository
+from app.ingestion.infrastructure import create_job_repository
 from app.service_registry import get_kb_manager
 from app.kb import KBManager
 
@@ -44,7 +44,7 @@ class JobStatusResponse(BaseModel):
 
 
 # Global repository instance
-repo = DatabaseRepository()
+repo = create_job_repository()
 
 # Track running orchestrator tasks for graceful shutdown
 _running_tasks: Dict[str, asyncio.Task] = {}  # job_id -> task mapping
