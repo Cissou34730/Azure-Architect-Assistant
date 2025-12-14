@@ -145,10 +145,8 @@ export async function listJobs(
  * List all knowledge bases
  */
 export async function listKBs(): Promise<KnowledgeBase[]> {
-  const data = await fetchWithErrorHandling<{ knowledge_bases: KnowledgeBase[] }>(
-    `${API_BASE}/kb/list`,
-    { method: "GET" },
-    "list KBs"
-  );
+  const data = await fetchWithErrorHandling<{
+    knowledge_bases: KnowledgeBase[];
+  }>(`${API_BASE}/kb/list`, { method: "GET" }, "list KBs");
   return data.knowledge_bases || [];
 }

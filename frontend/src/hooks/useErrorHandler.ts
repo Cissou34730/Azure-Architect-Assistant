@@ -3,27 +3,27 @@
  * Standardized error handling with toast notifications
  */
 
-import { useCallback } from 'react';
-import { useToast } from './useToast';
+import { useCallback } from "react";
+import { useToast } from "./useToast";
 
 export interface ErrorHandlerOptions {
   /**
    * Custom error message to display instead of the error's message
    */
   message?: string;
-  
+
   /**
    * Whether to log the error to console
    * @default true
    */
   logToConsole?: boolean;
-  
+
   /**
    * Toast duration in milliseconds
    * @default 5000
    */
   duration?: number;
-  
+
   /**
    * Whether to show toast notification
    * @default true
@@ -44,19 +44,19 @@ export function useErrorHandler() {
       } = options;
 
       // Extract error message
-      let errorMessage = 'An unexpected error occurred';
-      
+      let errorMessage = "An unexpected error occurred";
+
       if (error instanceof Error) {
         errorMessage = error.message;
-      } else if (typeof error === 'string') {
+      } else if (typeof error === "string") {
         errorMessage = error;
-      } else if (error && typeof error === 'object' && 'message' in error) {
+      } else if (error && typeof error === "object" && "message" in error) {
         errorMessage = String(error.message);
       }
 
       // Log to console if enabled
       if (logToConsole) {
-        console.error('Error:', error);
+        console.error("Error:", error);
       }
 
       // Show toast notification

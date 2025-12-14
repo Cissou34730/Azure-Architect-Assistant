@@ -3,13 +3,13 @@
  */
 
 import { useState } from "react";
-import { 
-  SourceType, 
+import {
+  SourceType,
   CreateKBRequest,
   WebsiteSourceConfig,
   YoutubeSourceConfig,
   PDFSourceConfig,
-  MarkdownSourceConfig
+  MarkdownSourceConfig,
 } from "../../../types/ingestion";
 import { createKB, startIngestion } from "../../../services/ingestionApi";
 
@@ -69,7 +69,11 @@ export function useKBWizardForm() {
 
     try {
       // Build source config based on type
-      let sourceConfig: WebsiteSourceConfig | YoutubeSourceConfig | PDFSourceConfig | MarkdownSourceConfig;
+      let sourceConfig:
+        | WebsiteSourceConfig
+        | YoutubeSourceConfig
+        | PDFSourceConfig
+        | MarkdownSourceConfig;
 
       if (sourceType === "website") {
         sourceConfig = sitemapUrl

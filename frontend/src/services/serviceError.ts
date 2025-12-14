@@ -10,14 +10,17 @@ export class ServiceError extends Error {
     public readonly detail?: string
   ) {
     super(message);
-    this.name = 'ServiceError';
+    this.name = "ServiceError";
   }
 }
 
 /**
  * Handle fetch response errors consistently
  */
-export async function handleResponseError(response: Response, operation: string): Promise<never> {
+export async function handleResponseError(
+  response: Response,
+  operation: string
+): Promise<never> {
   let errorMessage = `Failed to ${operation}`;
   let detail: string | undefined;
 
@@ -48,11 +51,11 @@ export async function fetchWithErrorHandling<T>(
 ): Promise<T> {
   try {
     const response = await fetch(url, options);
-    
+
     if (!response.ok) {
       await handleResponseError(response, operation);
     }
-    
+
     return await response.json();
   } catch (error) {
     if (error instanceof ServiceError) {
@@ -60,7 +63,9 @@ export async function fetchWithErrorHandling<T>(
     }
     // Network error or other fetch failure
     throw new ServiceError(
-      `Network error during ${operation}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      `Network error during ${operation}: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
       undefined,
       error instanceof Error ? error.message : undefined
     );

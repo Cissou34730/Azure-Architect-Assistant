@@ -27,10 +27,13 @@ export function useProjectWorkspace() {
   const loadingMessage = chatHook.loadingMessage;
 
   // Logging helper (disabled for production)
-  const logAction = useCallback((_action: string, _details?: Record<string, unknown>) => {
-    // Logging disabled - enable for debugging if needed
-    // console.log(`[${new Date().toISOString()}] ${action}`, details || "");
-  }, []);
+  const logAction = useCallback(
+    (_action: string, _details?: Record<string, unknown>) => {
+      // Logging disabled - enable for debugging if needed
+      // console.log(`[${new Date().toISOString()}] ${action}`, details || "");
+    },
+    []
+  );
 
   // Update text requirements when project changes
   useEffect(() => {
@@ -120,7 +123,8 @@ export function useProjectWorkspace() {
       setActiveTab("state");
       alert("Analysis complete!");
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to analyze documents";
+      const message =
+        error instanceof Error ? error.message : "Failed to analyze documents";
       alert(`Error: ${message}`);
     }
   };
