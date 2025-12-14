@@ -6,14 +6,10 @@ Per backend/docs/ingestion/OrchestratorSpec.md
 
 import asyncio
 import logging
-import re
 import signal
-from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from urllib.parse import urlparse
 
 from llama_index.core import Document
 
@@ -24,111 +20,14 @@ from app.ingestion.domain.chunking.adapter import (
 )
 from app.ingestion.domain.embedding import Embedder
 from app.ingestion.domain.indexing import Indexer
+from app.ingestion.application.policies import WorkflowDefinition, RetryPolicy, StepName
+from app.ingestion.application.tasks import ProcessingTask
+from app.ingestion.application.storage import save_documents_to_disk
 
 logger = logging.getLogger(__name__)
 
 # Global shutdown event for graceful interrupt handling
 _shutdown_event = asyncio.Event()
-
-
-class StepName(str, Enum):
-    """Pipeline step identifiers."""
-    LOAD = "load"
-    CHUNK = "chunk"
-    EMBED = "embed"
-    INDEX = "index"
-
-
-@dataclass
-class ProcessingTask:
-    """
-    Task metadata for logging and observability.
-    
-    Attributes:
-        job_id: Job identifier
-        kb_id: Knowledge base identifier
-        step: Current pipeline step
-        payload: Step-specific data
-        batch_id: Optional batch number
-        chunk_index: Optional chunk index within batch
-    """
-    job_id: str
-    kb_id: str
-    step: StepName
-    payload: Dict[str, Any]
-    batch_id: Optional[int] = None
-    chunk_index: Optional[int] = None
-
-
-class WorkflowDefinition:
-    """
-    Defines pipeline step order and transitions.
-    """
-    ORDER: List[StepName] = [StepName.LOAD, StepName.CHUNK, StepName.EMBED, StepName.INDEX]
-    
-    @classmethod
-    def get_first_step(cls) -> StepName:
-        """Get first pipeline step."""
-        return cls.ORDER[0]
-    
-    @classmethod
-    def get_next_step(cls, current: StepName) -> Optional[StepName]:
-        """
-        Get next step after current.
-        
-        Args:
-            current: Current step
-            
-        Returns:
-            Next step or None if current is last
-        """
-        try:
-            idx = cls.ORDER.index(current)
-            return cls.ORDER[idx + 1] if idx + 1 < len(cls.ORDER) else None
-        except ValueError:
-            return None
-
-
-class RetryPolicy:
-    """
-    Configurable retry policy with exponential backoff.
-    """
-    
-    def __init__(self, max_attempts: int = 3, backoff_multiplier: float = 2.0):
-        """
-        Initialize retry policy.
-        
-        Args:
-            max_attempts: Maximum retry attempts
-            backoff_multiplier: Backoff multiplier for exponential delay
-        """
-        self.max_attempts = max_attempts
-        self.backoff_multiplier = backoff_multiplier
-    
-    def should_retry(self, attempt: int, error: Exception) -> bool:
-        """
-        Decide if should retry based on attempt count.
-        
-        Args:
-            attempt: Current attempt number (1-based)
-            error: Exception that occurred
-            
-        Returns:
-            True if should retry, False otherwise
-        """
-        return attempt < self.max_attempts
-    
-    def get_backoff_delay(self, attempt: int) -> float:
-        """
-        Calculate backoff delay for attempt.
-        
-        Args:
-            attempt: Attempt number (1-based)
-            
-        Returns:
-            Delay in seconds (capped at 60s)
-        """
-        return min(2 ** attempt * self.backoff_multiplier, 60.0)
 
 
 class IngestionOrchestrator:
@@ -151,57 +50,6 @@ class IngestionOrchestrator:
         self.retry_policy = retry_policy or RetryPolicy()
         self._interrupted = False
         logger.info("IngestionOrchestrator initialized")
-    
-    @staticmethod
-    def _save_documents_to_disk(kb_id: str, documents: List[Document]):
-        """
-        Save documents to disk with ID-based naming.
-        
-        Args:
-            kb_id: Knowledge base identifier
-            documents: List of documents to save
-        """
-        backend_root = Path(__file__).parent.parent.parent.parent
-        doc_dir = backend_root / "data" / "knowledge_bases" / kb_id / "documents"
-        doc_dir.mkdir(parents=True, exist_ok=True)
-        
-        for doc in documents:
-            meta = doc.metadata or {}
-            doc_id = meta.get('doc_id', 0)
-            url = meta.get('url', '')
-            
-            # Extract page name from URL
-            if url:
-                parsed = urlparse(url)
-                path = parsed.path.rstrip('/')
-                page_name = path.split('/')[-1] if path else 'index'
-                page_name = re.sub(r'\.(html?|php|asp)$', '', page_name)
-            else:
-                page_name = 'document'
-            
-            # Sanitize for Windows
-            page_name = re.sub(r'[<>:"/\\|?*]', '_', page_name)
-            page_name = re.sub(r'\s+', '_', page_name)
-            page_name = page_name.strip('._')
-            
-            if not page_name or page_name == '_':
-                page_name = 'document'
-            
-            if len(page_name) > 100:
-                page_name = page_name[:100]
-            
-            # Format: {id:04d}_{page-name}.md
-            filename = f"{doc_id:04d}_{page_name}.md"
-            doc_path = doc_dir / filename
-            
-            try:
-                with open(doc_path, 'w', encoding='utf-8') as f:
-                    f.write(f"# Doc ID: {doc_id}\n")
-                    f.write(f"# URL: {url}\n\n")
-                    f.write(doc.text or "")
-                logger.debug(f"Saved document {doc_id} to {filename}")
-            except Exception as e:
-                logger.error(f"Failed to save document {doc_id}: {e}")
     
     @staticmethod
     def is_shutdown_requested() -> bool:
@@ -287,7 +135,7 @@ class IngestionOrchestrator:
                 logger.info(f"Processing batch {batch_id}: {len(batch)} documents")
                 
                 # Save documents to disk
-                self._save_documents_to_disk(kb_id, batch)
+                save_documents_to_disk(kb_id, batch)
                 
                 # Step 1: Chunk batch
                 chunks = chunk_documents_to_chunks(batch, chunker, kb_id)

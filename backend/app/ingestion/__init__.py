@@ -14,7 +14,8 @@ from app.ingestion.models import (
     PhaseStatusDB,
 )
 
-from app.ingestion.application.orchestrator import IngestionOrchestrator, RetryPolicy, WorkflowDefinition
+from app.ingestion.application.orchestrator import IngestionOrchestrator
+from app.ingestion.application.policies import RetryPolicy, WorkflowDefinition
 from app.ingestion.domain.models import IngestionState, IngestionStateSchema, JobRuntime
 from app.ingestion.domain.enums import JobPhase, PhaseStatus
 from config import get_settings, set_settings, IngestionSettings
