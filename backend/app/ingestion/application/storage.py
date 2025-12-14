@@ -10,6 +10,8 @@ from urllib.parse import urlparse
 
 from llama_index.core import Document
 
+from config import get_kb_storage_root
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,8 +23,8 @@ def save_documents_to_disk(kb_id: str, documents: List[Document]) -> None:
         kb_id: Knowledge base identifier
         documents: List of documents to save
     """
-    backend_root = Path(__file__).parent.parent.parent.parent
-    doc_dir = backend_root / "data" / "knowledge_bases" / kb_id / "documents"
+    kb_root: Path = Path(get_kb_storage_root())
+    doc_dir = kb_root / kb_id / "documents"
     doc_dir.mkdir(parents=True, exist_ok=True)
 
     for doc in documents:
