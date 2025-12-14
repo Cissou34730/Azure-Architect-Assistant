@@ -22,7 +22,7 @@ from .management_models import (
     KBStatusResponse,
 )
 from .management_operations import KBManagementService, get_management_service
-from app.ingestion.infrastructure.repository import create_database_repository
+from app.ingestion.infrastructure import create_job_repository
 from app.ingestion.application.status_query_service import StatusQueryService
 
 logger = logging.getLogger(__name__)
@@ -102,8 +102,8 @@ async def delete_kb(
         
         # Persist cancel/reset prior to deletion
         try:
-            repo = create_database_repository()
-            repo.cancel_job_and_reset(kb_id)
+            repo = create_job_repository()
+            repo.update_job_status(job_id=repo.get_latest_job_id(kb_id) or "", status="canceled")
         except Exception:
             pass
         

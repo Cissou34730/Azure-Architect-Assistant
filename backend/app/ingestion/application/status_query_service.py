@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Dict, Any, List
 from dataclasses import dataclass
 
-from app.ingestion.infrastructure.repository import create_database_repository
+from app.ingestion.infrastructure import create_job_repository, create_phase_repository
 from app.ingestion.domain.models import PhaseState
 
 
@@ -23,17 +23,18 @@ class StatusQueryService:
     """Persisted-only KB status derivation (no runtime, no index_ready)."""
 
     def __init__(self):
-        self.repo = create_database_repository()
+        self.job_repo = create_job_repository()
+        self.phase_repo = create_phase_repository()
 
     def get_status(self, kb_id: str) -> KBPersistedStatus:
         # Resolve latest job record to obtain job_id and DB job.status
-        latest = self.repo.get_latest_job(kb_id)
+        latest = self.job_repo.get_latest_job(kb_id)
         job_id = latest.job_id if latest else None
 
         # Load phases by job_id
         phase_map: Dict[str, PhaseState] = {}
         if job_id:
-            phase_map = self.repo.get_all_phase_statuses(job_id)
+            phase_map = self.phase_repo.get_all_phase_statuses(job_id)
 
         # Build phase_details in canonical order
         phase_details: List[Dict[str, Any]] = []
