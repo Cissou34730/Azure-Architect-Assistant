@@ -14,7 +14,6 @@ from pydantic import BaseModel
 
 # Import routers
 from app.routers.kb_query import router as kb_query_router
-from app.routers.kb_ingestion import router as kb_ingestion_router
 from app.routers.kb_management import router as kb_management_router
 from app.routers.project_management import router as project_router
 from app.routers.ingestion_v2 import router as ingestion_v2_router
@@ -153,7 +152,6 @@ async def shutdown_event():
 app.include_router(project_router)             # Project management
 app.include_router(kb_query_router)            # KB query endpoints
 app.include_router(kb_management_router)       # KB health/list endpoints
-# app.include_router(kb_ingestion_router)      # Legacy KB ingestion (DEPRECATED - use ingestion_v2)
 app.include_router(ingestion_v2_router)        # Orchestrator-based ingestion (v2)
 
 

@@ -8,7 +8,6 @@ import logging
 
 from app.core.config import get_app_settings
 from app.core.logging import configure_logging
-from app.ingestion.application.ingestion_service import IngestionService
 from app.ingestion.ingestion_database import init_ingestion_database
 from app.projects_database import close_database, init_database
 
@@ -45,13 +44,6 @@ async def startup():
         logger.info(f"KB Manager ready ({len(kb_mgr.list_kbs())} knowledge bases)")
         logger.info("  Note: KB indices will be loaded lazily on first query")
 
-        # Initialize ingestion service (loads persisted states automatically)
-        try:
-            ingest_service = IngestionService.instance()
-            logger.info("Ingestion service initialized")
-        except Exception as exc:
-            logger.warning(f"Failed to initialize ingestion service: {exc}")
-
         logger.info("=" * 60)
         logger.info("STARTUP COMPLETE: Ready to accept requests")
         logger.info("=" * 60)
@@ -68,19 +60,6 @@ async def shutdown():
     logger.info("=" * 60)
     logger.info("SHUTDOWN: Stopping running ingestion jobs...")
     logger.info("=" * 60)
-
-    # Cancel asyncio-based ingestion tasks
-    try:
-        ingest_service = IngestionService.instance()
-
-        try:
-            await asyncio.wait_for(ingest_service.pause_all(), timeout=5.0)
-            logger.info("All ingestion jobs stopped")
-        except asyncio.TimeoutError:
-            logger.warning("Timeout stopping ingestion jobs (5s exceeded)")
-
-    except Exception as exc:
-        logger.warning(f"Error cancelling ingestion tasks: {exc}")
 
     # Close database connections
     await close_database()

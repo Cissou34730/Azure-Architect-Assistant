@@ -8,7 +8,6 @@ from fastapi import APIRouter, HTTPException, Depends
 import logging
 import asyncio
 
-from app.ingestion.application.ingestion_service import IngestionService
 from app.service_registry import get_kb_manager, get_multi_query_service, invalidate_kb_manager
 from app.kb import KBManager
 from app.services.kb import MultiKBQueryService, QueryProfile
@@ -23,9 +22,8 @@ from .management_models import (
     KBStatusResponse,
 )
 from .management_operations import KBManagementService, get_management_service
-from app.ingestion.application.status_query_service import StatusQueryService
 from app.ingestion.infrastructure.repository import create_database_repository
-from app.kb.service import clear_index_cache
+from app.ingestion.application.status_query_service import StatusQueryService
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +42,6 @@ def get_kb_manager_dep() -> KBManager:
 def get_multi_query_service_dep() -> MultiKBQueryService:
     """Dependency for Multi Query Service - allows mocking in tests"""
     return get_multi_query_service()
-
-
-def get_ingestion_service_dep() -> IngestionService:
-    """Dependency for Ingestion Service - allows mocking in tests"""
-    return IngestionService.instance()
 
 
 def get_management_service_dep() -> KBManagementService:
@@ -85,7 +78,6 @@ async def create_kb(
 async def delete_kb(
     kb_id: str,
     kb_manager: KBManager = Depends(get_kb_manager_dep),
-    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
 ) -> Dict[str, str]:
     """
     Delete a knowledge base and all its data.
@@ -112,13 +104,6 @@ async def delete_kb(
         try:
             repo = create_database_repository()
             repo.cancel_job_and_reset(kb_id)
-        except Exception:
-            pass
-        # Best-effort runtime cancel
-        try:
-            await ingest_service.cancel(kb_id)
-            logger.info(f"Cancelled ingestion for KB before deletion: {kb_id}")
-            await asyncio.sleep(1.0)
         except Exception:
             pass
         
