@@ -6,7 +6,7 @@ Abstract base class for index building strategies.
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional, Callable
-from config import get_openai_settings
+from app.core.config import get_openai_settings
 
 logger = logging.getLogger(__name__)
 

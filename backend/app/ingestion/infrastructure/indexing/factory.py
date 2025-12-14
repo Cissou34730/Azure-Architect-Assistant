@@ -5,7 +5,7 @@ Creates appropriate index builder based on type.
 
 import logging
 from typing import Dict, Any, Optional
-from config import get_openai_settings
+from app.core.config import get_openai_settings
 
 from .builder_base import BaseIndexBuilder
 from .vector import VectorIndexBuilder

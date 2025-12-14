@@ -18,7 +18,7 @@ from app.ingestion.application.orchestrator import IngestionOrchestrator
 from app.ingestion.application.policies import RetryPolicy, WorkflowDefinition
 from app.ingestion.domain.models import IngestionState, IngestionStateSchema, JobRuntime
 from app.ingestion.domain.enums import JobPhase, PhaseStatus
-from config import get_settings, set_settings, IngestionSettings
+from app.core.config import get_ingestion_settings, IngestionSettings
 
 __all__ = [
     "IngestionJob",
@@ -35,8 +35,7 @@ __all__ = [
     "JobRuntime",
     "JobPhase",
     "PhaseStatus",
-    "get_settings",
-    "set_settings",
+    "get_ingestion_settings",
     "IngestionSettings",
 ]
 

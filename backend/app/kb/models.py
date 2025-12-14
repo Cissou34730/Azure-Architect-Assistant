@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 from typing import List
-from config import get_openai_settings, get_kb_defaults
+from app.core.config import get_openai_settings, get_kb_defaults
 
 class KBConfig:
     """Knowledge base configuration."""

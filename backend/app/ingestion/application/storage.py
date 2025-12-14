@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 from llama_index.core import Document
 
-from config import get_kb_storage_root
+from app.core.config import get_kb_storage_root
 
 logger = logging.getLogger(__name__)
 

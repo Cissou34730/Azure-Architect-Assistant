@@ -6,7 +6,7 @@ Request and response models for KB endpoints.
 from pydantic import BaseModel, HttpUrl, Field
 from typing import List, Optional, Dict, Any
 from enum import Enum
-from config import get_openai_settings, get_kb_defaults
+from app.core.config import get_openai_settings, get_kb_defaults
 
 
 class SourceType(str, Enum):

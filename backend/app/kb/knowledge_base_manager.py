@@ -8,7 +8,7 @@ import os
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
-from config import get_openai_settings, get_kb_defaults, get_kb_storage_root
+from app.core.config import get_openai_settings, get_kb_defaults, get_kb_storage_root
 
 logger = logging.getLogger(__name__)
 
