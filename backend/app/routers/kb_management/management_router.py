@@ -22,7 +22,7 @@ from .management_models import (
     KBStatusResponse,
 )
 from .management_operations import KBManagementService, get_management_service
-from app.ingestion.infrastructure import create_job_repository
+from app.ingestion.infrastructure import create_job_repository, create_queue_repository
 from app.ingestion.application.status_query_service import StatusQueryService
 
 logger = logging.getLogger(__name__)
@@ -219,15 +219,16 @@ async def get_kb_status(
         # Minimal persisted counters from queue using correct job_id
         metrics = None
         try:
-            repo = create_database_repository()
-            job_id = repo.get_latest_job_id(kb_id)
+            queue_repo = create_queue_repository()
+            job_repo = create_job_repository()
+            job_id = job_repo.get_latest_job_id(kb_id)
             if job_id:
-                qs = repo.get_queue_stats(job_id)
+                qs = queue_repo.get_queue_stats(job_id)
                 metrics = {
-                    'pending': qs.get('pending', 0),
-                    'processing': qs.get('processing', 0),
-                    'done': qs.get('done', 0),
-                    'error': qs.get('error', 0),
+                    "pending": qs.get("pending", 0),
+                    "processing": qs.get("processing", 0),
+                    "done": qs.get("done", 0),
+                    "error": qs.get("error", 0),
                 }
         except Exception:
             metrics = None
