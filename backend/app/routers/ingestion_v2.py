@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from app.ingestion.application.orchestrator import IngestionOrchestrator, WorkflowDefinition, RetryPolicy
 from app.ingestion.infrastructure.repository import DatabaseRepository
 from app.service_registry import get_kb_manager
-from app.kb.knowledge_base_manager import KBManager
+from app.kb import KBManager
 
 logger = logging.getLogger(__name__)
 

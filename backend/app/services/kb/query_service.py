@@ -7,7 +7,7 @@ import logging
 from typing import Dict, List, Optional
 from enum import Enum
 
-from app.kb.manager import KBManager
+from app.kb import KBManager
 from app.kb.models import KBConfig
 from app.kb.service import KnowledgeBaseService
 from llama_index.core import Settings
