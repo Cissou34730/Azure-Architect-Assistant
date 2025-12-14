@@ -3,7 +3,14 @@
  */
 
 import { useState } from "react";
-import { SourceType, CreateKBRequest } from "../../../types/ingestion";
+import { 
+  SourceType, 
+  CreateKBRequest,
+  WebsiteSourceConfig,
+  YoutubeSourceConfig,
+  PDFSourceConfig,
+  MarkdownSourceConfig
+} from "../../../types/ingestion";
 import { createKB, startIngestion } from "../../../services/ingestionApi";
 
 export type WizardStep = "basic" | "source" | "config" | "review";
@@ -62,7 +69,7 @@ export function useKBWizardForm() {
 
     try {
       // Build source config based on type
-      let sourceConfig: any;
+      let sourceConfig: WebsiteSourceConfig | YoutubeSourceConfig | PDFSourceConfig | MarkdownSourceConfig;
 
       if (sourceType === "website") {
         sourceConfig = sitemapUrl
@@ -88,7 +95,8 @@ export function useKBWizardForm() {
         // Remove empty arrays
         if (!sourceConfig.local_paths.length) delete sourceConfig.local_paths;
         if (!sourceConfig.pdf_urls.length) delete sourceConfig.pdf_urls;
-      } else if (sourceType === "markdown") {
+      } else {
+        // markdown
         sourceConfig = {
           folder_path: markdownFolderPath,
         };

@@ -9,51 +9,17 @@ import {
   IngestionJob,
   JobListResponse,
   KnowledgeBase,
-  APIError,
   KBStatusSimple,
   KBIngestionDetails,
 } from "../types/ingestion";
+import { ServiceError, fetchWithErrorHandling } from "./serviceError";
 
 const API_BASE = `${
   import.meta.env.BACKEND_URL || "http://localhost:8000"
 }/api`;
 
-/**
- * Custom error class for API errors
- */
-class IngestionAPIError extends Error {
-  constructor(
-    message: string,
-    public readonly status?: number,
-    public readonly detail?: string
-  ) {
-    super(message);
-    this.name = "IngestionAPIError";
-  }
-}
-
-/**
- * Handle API response errors consistently
- */
-async function handleResponse<T>(
-  response: Response,
-  defaultError: string
-): Promise<T> {
-  if (!response.ok) {
-    let errorData: Partial<APIError> = {};
-    try {
-      errorData = await response.json();
-    } catch {
-      errorData = { detail: defaultError };
-    }
-    throw new IngestionAPIError(
-      errorData.detail || errorData.message || defaultError,
-      response.status,
-      errorData.detail
-    );
-  }
-  return response.json();
-}
+// Re-export ServiceError as IngestionAPIError for backward compatibility
+export { ServiceError as IngestionAPIError };
 
 /**
  * Create a new knowledge base
@@ -61,13 +27,15 @@ async function handleResponse<T>(
 export async function createKB(
   request: CreateKBRequest
 ): Promise<CreateKBResponse> {
-  const response = await fetch(`${API_BASE}/kb/create`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(request),
-  });
-
-  return handleResponse<CreateKBResponse>(response, "Failed to create KB");
+  return fetchWithErrorHandling<CreateKBResponse>(
+    `${API_BASE}/kb/create`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    },
+    "create KB"
+  );
 }
 
 /**
@@ -76,15 +44,14 @@ export async function createKB(
 export async function startIngestion(
   kbId: string
 ): Promise<StartIngestionResponse> {
-  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/start`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kb_id: kbId }),
-  });
-
-  return handleResponse<StartIngestionResponse>(
-    response,
-    "Failed to start ingestion"
+  return fetchWithErrorHandling<StartIngestionResponse>(
+    `${API_BASE}/ingestion/kb/${kbId}/start`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kb_id: kbId }),
+    },
+    "start ingestion"
   );
 }
 
@@ -93,54 +60,51 @@ export async function startIngestion(
  */
 // Phase 3: KB-level status (ready | pending | not_ready)
 export async function getKBReadyStatus(kbId: string): Promise<KBStatusSimple> {
-  const response = await fetch(`${API_BASE}/kb/${kbId}/status`);
-  return handleResponse<KBStatusSimple>(response, "Failed to get KB status");
+  return fetchWithErrorHandling<KBStatusSimple>(
+    `${API_BASE}/kb/${kbId}/status`,
+    { method: "GET" },
+    "get KB status"
+  );
 }
 
 // Phase 3: Ingestion details for pending state
 export async function getKBIngestionDetails(
   kbId: string
 ): Promise<KBIngestionDetails> {
-  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/details`);
-  return handleResponse<KBIngestionDetails>(
-    response,
-    "Failed to get ingestion details"
+  return fetchWithErrorHandling<KBIngestionDetails>(
+    `${API_BASE}/ingestion/kb/${kbId}/details`,
+    { method: "GET" },
+    "get ingestion details"
   );
 }
 
 export async function pauseIngestion(
   kbId: string
 ): Promise<{ message: string; kb_id: string }> {
-  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/pause`, {
-    method: "POST",
-  });
-  return handleResponse<{ message: string; kb_id: string }>(
-    response,
-    "Failed to pause ingestion"
+  return fetchWithErrorHandling<{ message: string; kb_id: string }>(
+    `${API_BASE}/ingestion/kb/${kbId}/pause`,
+    { method: "POST" },
+    "pause ingestion"
   );
 }
 
 export async function resumeIngestion(
   kbId: string
 ): Promise<{ message: string; kb_id: string }> {
-  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/resume`, {
-    method: "POST",
-  });
-  return handleResponse<{ message: string; kb_id: string }>(
-    response,
-    "Failed to resume ingestion"
+  return fetchWithErrorHandling<{ message: string; kb_id: string }>(
+    `${API_BASE}/ingestion/kb/${kbId}/resume`,
+    { method: "POST" },
+    "resume ingestion"
   );
 }
 
 export async function cancelIngestion(
   kbId: string
 ): Promise<{ message: string; kb_id: string }> {
-  const response = await fetch(`${API_BASE}/ingestion/kb/${kbId}/cancel`, {
-    method: "POST",
-  });
-  return handleResponse<{ message: string; kb_id: string }>(
-    response,
-    "Failed to cancel ingestion"
+  return fetchWithErrorHandling<{ message: string; kb_id: string }>(
+    `${API_BASE}/ingestion/kb/${kbId}/cancel`,
+    { method: "POST" },
+    "cancel ingestion"
   );
 }
 
@@ -148,11 +112,11 @@ export async function cancelIngestion(
  * Delete a knowledge base and all its data
  */
 export async function deleteKB(kbId: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/kb/${kbId}`, {
-    method: "DELETE",
-  });
-
-  await handleResponse<void>(response, "Failed to delete KB");
+  await fetchWithErrorHandling<void>(
+    `${API_BASE}/kb/${kbId}`,
+    { method: "DELETE" },
+    "delete KB"
+  );
 }
 
 /**
@@ -169,21 +133,22 @@ export async function listJobs(
   const url = `${API_BASE}/ingestion/jobs${
     params.toString() ? `?${params.toString()}` : ""
   }`;
-  const response = await fetch(url);
 
-  return handleResponse<JobListResponse>(response, "Failed to list jobs");
+  return fetchWithErrorHandling<JobListResponse>(
+    url,
+    { method: "GET" },
+    "list jobs"
+  );
 }
 
 /**
  * List all knowledge bases
  */
 export async function listKBs(): Promise<KnowledgeBase[]> {
-  const response = await fetch(`${API_BASE}/kb/list`);
-  const data = await handleResponse<{ knowledge_bases: KnowledgeBase[] }>(
-    response,
-    "Failed to list KBs"
+  const data = await fetchWithErrorHandling<{ knowledge_bases: KnowledgeBase[] }>(
+    `${API_BASE}/kb/list`,
+    { method: "GET" },
+    "list KBs"
   );
   return data.knowledge_bases || [];
 }
-
-export { IngestionAPIError };

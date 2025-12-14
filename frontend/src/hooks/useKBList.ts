@@ -77,10 +77,6 @@ export function useKBList() {
         )
         .map((kb) => kb.id);
       setSelectedKBs(autoSelect);
-
-      console.log(
-        `[KB List] Loaded ${mergedKBs.length} KBs, auto-selected ${autoSelect.length}`
-      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(message);

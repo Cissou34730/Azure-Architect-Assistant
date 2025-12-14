@@ -26,10 +26,10 @@ export function useProjectWorkspace() {
     proposalHook.loading;
   const loadingMessage = chatHook.loadingMessage;
 
-  // Logging helper
-  const logAction = useCallback((action: string, details?: any) => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] ${action}`, details || "");
+  // Logging helper (disabled for production)
+  const logAction = useCallback((_action: string, _details?: Record<string, unknown>) => {
+    // Logging disabled - enable for debugging if needed
+    // console.log(`[${new Date().toISOString()}] ${action}`, details || "");
   }, []);
 
   // Update text requirements when project changes
@@ -119,8 +119,9 @@ export function useProjectWorkspace() {
       await stateHook.analyzeDocuments();
       setActiveTab("state");
       alert("Analysis complete!");
-    } catch (error: any) {
-      alert(`Error: ${error.message || "Failed to analyze documents"}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to analyze documents";
+      alert(`Error: ${message}`);
     }
   };
 
@@ -136,9 +137,10 @@ export function useProjectWorkspace() {
 
     try {
       await chatHook.sendMessage(userMessage);
-    } catch (error: any) {
-      logAction("Chat message failed", { error: error.message });
-      alert(`Error: ${error.message}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      logAction("Chat message failed", { error: message });
+      alert(`Error: ${message}`);
     }
   };
 
