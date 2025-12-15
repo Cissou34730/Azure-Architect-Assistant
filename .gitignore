@@ -188,3 +188,6 @@ Thumbs.db
 .cache/
 
 *.tmp
+
+# Archive folder (legacy code, not for version control)
+archive/
