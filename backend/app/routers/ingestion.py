@@ -465,18 +465,44 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
     else:
         job_status = "not_started"
 
+    # Rebuild phase details with clear status relative to current phase
+    canonical = ["loading", "chunking", "embedding", "indexing"]
+    current_phase = status.current_phase or "loading"
+    phase_details = []
+    for name in canonical:
+        base = next((p for p in status.phase_details if p.get("name") == name), {})
+        if name == current_phase and job_status in ("pending", "paused"):
+            phase_status = "running" if job_status == "pending" else "paused"
+        elif canonical.index(name) < canonical.index(current_phase):
+            phase_status = "completed"
+        else:
+            phase_status = base.get("status", "not_started")
+
+        phase_details.append(
+            {
+                "name": name,
+                "status": phase_status,
+                "progress": base.get("progress", 0),
+                "items_processed": base.get("items_processed", 0),
+                "items_total": base.get("items_total", 0),
+                "started_at": base.get("started_at"),
+                "completed_at": base.get("completed_at"),
+                "error": base.get("error"),
+            }
+        )
+
     return JobViewResponse(
         job_id=job_id,
         kb_id=kb_id,
         status=job_status,
-        phase=status.current_phase or "loading",
+        phase=current_phase or "loading",
         progress=status.overall_progress,
         message="Ingestion in progress" if job_status == "pending" else "Waiting",
         error=None,
         metrics=metrics_normalized,
         started_at=latest_job_state.created_at,
         completed_at=latest_job_view.finished_at if latest_job_view else None,
-        phase_details=status.phase_details,
+        phase_details=phase_details,
     )
 
 
