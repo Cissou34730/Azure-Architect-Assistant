@@ -26,3 +26,14 @@
   - Guardrails: KB-targeted only; no queue/item purge; idempotent; logging-first with opt-in resets.
   - Controlled actions to consider later: reset stuck `PROCESSING` items to `PENDING` for latest job; cancel previous job via repository `cancel_job_and_reset(job_id)` when explicitly starting fresh; clear in-memory stop events.
   - Deferred until lifecycle tests and gating stability are validated; not implemented now.
+
+- **Ingestion phase status not updating across resume**
+  - **Problem**: When ingestion restarts/resumes, per-phase statuses (loading/chunking/embedding/indexing) in `ingestion_phase_status` stop reflecting live work. UI shows phases completed while crawling/chunking continues; only KPIs move.
+  - **Likely causes**: Orchestrator does not consistently start/update phases on resumed batches; phase rows may be left completed or not_started; job-view endpoint only surfaces persisted rows (no inference).
+  - **Goal**: Reliable real-time phase state and overall status derived from persisted phase rows across fresh runs and resumes.
+  - **Plan**:
+    - Audit orchestrator phase writes on resume: ensure start/update_progress/complete are called idempotently for each phase on every batch/chunk (including resumed batches).
+    - Add lightweight phase-status reporter wrapper to centralize updates instead of scattered calls.
+    - Add a small test/diagnostic to fetch `ingestion_phase_status` during a resumed run to verify transitions.
+    - Keep job-view passive: return persisted phase rows; no counter/queue inference.
+  - **Priority**: Medium – correctness of status reporting; does not block ingestion output but misleads operators.
