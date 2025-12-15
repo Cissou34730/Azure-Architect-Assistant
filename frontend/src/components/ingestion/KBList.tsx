@@ -4,9 +4,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { KnowledgeBase, IngestionJob, KBStatusSimple, KBIngestionDetails } from '../../types/ingestion';
+import { KnowledgeBase, IngestionJob } from '../../types/ingestion';
 import { KBListItem } from './KBListItem';
-import { getKBReadyStatus, getKBIngestionDetails, deleteKB } from '../../services/ingestionApi';
+import { getKBJobView, deleteKB } from '../../services/ingestionApi';
 
 interface KBListProps {
   kbs: KnowledgeBase[];
@@ -21,94 +21,6 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inFlightRef = useRef(false);
 
-  function composeJob(kbId: string, status: KBStatusSimple, details?: KBIngestionDetails): IngestionJob {
-    const metrics = status.metrics || {};
-    if (status.status === 'not_ready') {
-      return {
-        job_id: `${kbId}-job`,
-        kb_id: kbId,
-        status: 'not_started',
-        phase: 'loading',
-        progress: 0,
-        message: 'Waiting to start',
-        error: null,
-        metrics: {
-          chunks_pending: metrics.pending || 0,
-          chunks_processing: metrics.processing || 0,
-          chunks_embedded: metrics.done || 0,
-          chunks_failed: metrics.error || 0,
-          chunks_queued: (metrics.pending || 0) + (metrics.processing || 0) + (metrics.done || 0) + (metrics.error || 0),
-        },
-        started_at: new Date().toISOString(),
-        completed_at: null,
-        phase_details: details?.phase_details,
-      };
-    }
-    if (status.status === 'ready') {
-      return {
-        job_id: `${kbId}-job`,
-        kb_id: kbId,
-        status: 'completed',
-        phase: 'completed',
-        progress: 100,
-        message: 'Completed',
-        error: null,
-        metrics: {
-          chunks_pending: metrics.pending || 0,
-          chunks_processing: metrics.processing || 0,
-          chunks_embedded: metrics.done || 0,
-          chunks_failed: metrics.error || 0,
-          chunks_queued: (metrics.pending || 0) + (metrics.processing || 0) + (metrics.done || 0) + (metrics.error || 0),
-        },
-        started_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-        phase_details: details?.phase_details,
-      };
-    }
-    // paused
-    if (status.status === 'paused') {
-      return {
-        job_id: `${kbId}-job`,
-        kb_id: kbId,
-        status: 'paused',
-        phase: (details?.current_phase || 'loading'),
-        progress: details?.overall_progress ?? 0,
-        message: 'Ingestion paused',
-        error: null,
-        metrics: {
-          chunks_pending: metrics.pending || 0,
-          chunks_processing: metrics.processing || 0,
-          chunks_embedded: metrics.done || 0,
-          chunks_failed: metrics.error || 0,
-          chunks_queued: (metrics.pending || 0) + (metrics.processing || 0) + (metrics.done || 0) + (metrics.error || 0),
-        },
-        started_at: new Date().toISOString(),
-        completed_at: null,
-        phase_details: details?.phase_details,
-      };
-    }
-    // pending (running)
-    return {
-      job_id: `${kbId}-job`,
-      kb_id: kbId,
-      status: 'pending',
-      phase: (details?.current_phase || 'loading'),
-      progress: details?.overall_progress ?? 0,
-      message: 'Ingestion in progress',
-      error: null,
-      metrics: {
-        chunks_pending: metrics.pending || 0,
-        chunks_processing: metrics.processing || 0,
-        chunks_embedded: metrics.done || 0,
-        chunks_failed: metrics.error || 0,
-        chunks_queued: (metrics.pending || 0) + (metrics.processing || 0) + (metrics.done || 0) + (metrics.error || 0),
-      },
-      started_at: new Date().toISOString(),
-      completed_at: null,
-      phase_details: details?.phase_details,
-    };
-  }
-
   const fetchJobs = useCallback(async () => {
     if (inFlightRef.current) {
       return false;
@@ -119,16 +31,11 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
       let hasActive = false;
       for (const kb of kbs) {
         try {
-          const s = await getKBReadyStatus(kb.id);
-          let details: KBIngestionDetails | undefined;
-          if (s.status === 'pending' || s.status === 'paused') {
-            details = await getKBIngestionDetails(kb.id);
+          const jobView = await getKBJobView(kb.id);
+          if (jobView.status === 'pending' || jobView.status === 'paused') {
             hasActive = true;
           }
-          if (s.status === 'pending') {
-            hasActive = true;
-          }
-          jobsMap.set(kb.id, composeJob(kb.id, s, details));
+          jobsMap.set(kb.id, jobView);
         } catch (e) {
           // No status yet for this KB; ignore
         }

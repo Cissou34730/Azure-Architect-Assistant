@@ -13,7 +13,12 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from app.ingestion.application.orchestrator import IngestionOrchestrator, WorkflowDefinition, RetryPolicy
-from app.ingestion.infrastructure import create_job_repository
+from app.ingestion.application.status_query_service import StatusQueryService
+from app.ingestion.infrastructure import (
+    create_job_repository,
+    create_queue_repository,
+)
+from app.ingestion.domain.enums import PhaseStatus
 from app.service_registry import get_kb_manager
 from app.kb import KBManager
 
@@ -41,6 +46,21 @@ class JobStatusResponse(BaseModel):
     last_error: Optional[str] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
+
+
+class JobViewResponse(BaseModel):
+    """Full job view for frontend (aligned with IngestionJob type)."""
+    job_id: str
+    kb_id: str
+    status: str
+    phase: str
+    progress: int
+    message: str
+    error: Optional[str]
+    metrics: Dict[str, Any]
+    started_at: Optional[datetime]
+    completed_at: Optional[datetime]
+    phase_details: Optional[Any] = None
 
 
 # Global repository instance
@@ -354,6 +374,101 @@ async def get_kb_ingestion_details(kb_id: str):
     except Exception as e:
         logger.exception(f"Failed to get ingestion details for KB {kb_id}: {e}")
         raise HTTPException(status_code=404, detail=f"KB details not found: {kb_id}")
+
+
+@router.get("/kb/{kb_id}/job-view", response_model=JobViewResponse)
+async def get_kb_job_view(kb_id: str) -> JobViewResponse:
+    """
+    Return a full ingestion job view for a KB (single call for frontend).
+    Combines persisted job, phases, and queue metrics into a unified shape.
+    """
+    status_service = StatusQueryService()
+    job_repo = create_job_repository()
+    queue_repo = create_queue_repository()
+
+    status = status_service.get_status(kb_id)
+    latest_job = job_repo.get_latest_job_record(kb_id)
+
+    # No job yet; synthesize a not_started view
+    if not latest_job:
+        return JobViewResponse(
+            job_id=f"{kb_id}-job",
+            kb_id=kb_id,
+            status="not_started",
+            phase="loading",
+            progress=status.overall_progress,
+            message="Waiting to start",
+            error=None,
+            metrics={},
+            started_at=None,
+            completed_at=None,
+            phase_details=status.phase_details,
+        )
+
+    job_id = latest_job.id
+
+    # Queue metrics (pending/processing/done/error)
+    raw_metrics: Dict[str, Any] = {}
+    try:
+        qs = queue_repo.get_queue_stats(job_id)
+        raw_metrics = {
+            "pending": qs.get("pending", 0),
+            "processing": qs.get("processing", 0),
+            "done": qs.get("done", 0),
+            "error": qs.get("error", 0),
+        }
+    except Exception:
+        raw_metrics = {}
+
+    # Phase-derived counts
+    def phase_items(name: str, key: str = "items_processed") -> int:
+        for pd in status.phase_details:
+            if pd.get("name") == name:
+                return pd.get(key, 0) or 0
+        return 0
+
+    chunks_queued = (
+        raw_metrics.get("pending", 0)
+        + raw_metrics.get("processing", 0)
+        + raw_metrics.get("done", 0)
+        + raw_metrics.get("error", 0)
+    )
+
+    metrics_normalized = {
+        "chunks_pending": raw_metrics.get("pending", 0),
+        "chunks_processing": raw_metrics.get("processing", 0),
+        "chunks_embedded": raw_metrics.get("done", 0) or phase_items("indexing"),
+        "chunks_failed": raw_metrics.get("error", 0),
+        "chunks_queued": chunks_queued or phase_items("chunking", "items_total"),
+        "documents_crawled": phase_items("loading"),
+        "documents_cleaned": phase_items("chunking"),
+        "chunks_created": phase_items("chunking"),
+    }
+
+    # Map persisted status to job-level status
+    derived_status = status.status
+    if derived_status == "ready":
+        job_status = "completed"
+    elif derived_status == "pending":
+        job_status = "pending"
+    elif derived_status == "paused":
+        job_status = "paused"
+    else:
+        job_status = "not_started"
+
+    return JobViewResponse(
+        job_id=job_id,
+        kb_id=kb_id,
+        status=job_status,
+        phase=status.current_phase or "loading",
+        progress=status.overall_progress,
+        message="Ingestion in progress" if job_status == "pending" else "Waiting",
+        error=latest_job.last_error,
+        metrics=metrics_normalized,
+        started_at=latest_job.created_at,
+        completed_at=latest_job.finished_at,
+        phase_details=status.phase_details,
+    )
 
 
 async def cleanup_running_tasks():

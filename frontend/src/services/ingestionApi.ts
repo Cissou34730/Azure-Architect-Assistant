@@ -11,6 +11,7 @@ import {
   KnowledgeBase,
   KBStatusSimple,
   KBIngestionDetails,
+  IngestionJob,
 } from "../types/ingestion";
 import { ServiceError, fetchWithErrorHandling } from "./serviceError";
 
@@ -75,6 +76,17 @@ export async function getKBIngestionDetails(
     `${API_BASE}/ingestion/kb/${kbId}/details`,
     { method: "GET" },
     "get ingestion details"
+  );
+}
+
+/**
+ * Get full ingestion job view for a KB (single-call shape for frontend)
+ */
+export async function getKBJobView(kbId: string): Promise<IngestionJob> {
+  return fetchWithErrorHandling<IngestionJob>(
+    `${API_BASE}/ingestion/kb/${kbId}/job-view`,
+    { method: "GET" },
+    "get KB job view"
   );
 }
 
