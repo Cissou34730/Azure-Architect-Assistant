@@ -24,11 +24,14 @@ from .project_models import (
     MessagesResponse,
     ChatResponse
 )
-from .project_operations import get_project_service
+from .services import ProjectService, DocumentService, ChatService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["projects"])
+project_service = ProjectService()
+document_service = DocumentService()
+chat_service = ChatService()
 
 
 # ============================================================================
@@ -42,8 +45,7 @@ async def create_project(
 ):
     """Create a new project"""
     try:
-        service = get_project_service()
-        project = await service.create_project(request, db)
+        project = await project_service.create_project(request, db)
         return {"project": project}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -56,8 +58,7 @@ async def create_project(
 async def list_projects(db: AsyncSession = Depends(get_db)):
     """List all projects"""
     try:
-        service = get_project_service()
-        projects = await service.list_projects(db)
+        projects = await project_service.list_projects(db)
         return {"projects": projects}
     except Exception as e:
         logger.error(f"Failed to list projects: {e}", exc_info=True)
@@ -72,8 +73,7 @@ async def update_requirements(
 ):
     """Update project requirements"""
     try:
-        service = get_project_service()
-        project = await service.update_requirements(project_id, request, db)
+        project = await project_service.update_requirements(project_id, request, db)
         return {"project": project}
     except ValueError as e:
         raise HTTPException(status_code=404 if "not found" in str(e).lower() else 400, detail=str(e))
@@ -94,8 +94,7 @@ async def upload_documents(
 ):
     """Upload documents for a project"""
     try:
-        service = get_project_service()
-        documents = await service.upload_documents(project_id, files, db)
+        documents = await document_service.upload_documents(project_id, files, db)
         return {"documents": documents}
     except ValueError as e:
         raise HTTPException(status_code=404 if "not found" in str(e).lower() else 400, detail=str(e))
@@ -111,8 +110,7 @@ async def analyze_documents(
 ):
     """Analyze documents and generate initial ProjectState"""
     try:
-        service = get_project_service()
-        state = await service.analyze_documents(project_id, db)
+        state = await document_service.analyze_documents(project_id, db)
         return {"projectState": state}
     except ValueError as e:
         raise HTTPException(status_code=404 if "not found" in str(e).lower() else 400, detail=str(e))
@@ -133,8 +131,7 @@ async def chat_message(
 ):
     """Send a chat message and get response with updated state"""
     try:
-        service = get_project_service()
-        result = await service.process_chat_message(project_id, request, db)
+        result = await chat_service.process_chat_message(project_id, request.message, db)
         return result
     except ValueError as e:
         raise HTTPException(status_code=404 if "not found" in str(e).lower() else 400, detail=str(e))
@@ -150,8 +147,7 @@ async def get_project_state(
 ):
     """Get current project state"""
     try:
-        service = get_project_service()
-        state = await service.get_project_state(project_id, db)
+        state = await chat_service.get_project_state(project_id, db)
         return {"projectState": state}
     except ValueError as e:
         raise HTTPException(status_code=404 if "not found" in str(e).lower() else 400, detail=str(e))
@@ -167,8 +163,7 @@ async def get_messages(
 ):
     """Get conversation history"""
     try:
-        service = get_project_service()
-        messages = await service.get_conversation_messages(project_id, db)
+        messages = await chat_service.get_conversation_messages(project_id, db)
         return {"messages": messages}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -201,8 +196,6 @@ async def generate_proposal(
         yield send_progress("started", "Initializing proposal generation")
         
         try:
-            service = get_project_service()
-            
             # Track progress events
             progress_events = []
             
@@ -210,7 +203,7 @@ async def generate_proposal(
                 progress_events.append((stage, detail))
             
             # Generate proposal
-            proposal = await service.generate_proposal(project_id, db, on_progress)
+            proposal = await document_service.generate_proposal(project_id, db, on_progress)
             
             # Send accumulated progress
             for stage, detail in progress_events:

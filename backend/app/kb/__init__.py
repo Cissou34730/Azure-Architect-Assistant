@@ -4,12 +4,9 @@ Generic RAG pipeline supporting multiple knowledge bases with profile-based quer
 """
 
 from .knowledge_base_manager import KBManager
-from .service import KnowledgeBaseService
-from .multi_query import MultiSourceQueryService, QueryProfile
+from .models import KBConfig
 
 __all__ = [
     'KBManager',
-    'KnowledgeBaseService', 
-    'MultiSourceQueryService',
-    'QueryProfile'
+    'KBConfig',
 ]

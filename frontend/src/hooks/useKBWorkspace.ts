@@ -8,14 +8,9 @@ export function useKBWorkspace() {
   const queryHook = useKBQuery();
   const kbListHook = useKBList();
 
-  // Optionally log actions here like in useProjectWorkspace
+  // Monitor KB health status
   useEffect(() => {
-    if (healthHook.healthStatus) {
-      const readyCount =
-        healthHook.healthStatus.knowledge_bases?.filter((kb) => kb.index_ready)
-          .length ?? 0;
-      console.log(`[KB Workspace] ${readyCount} knowledge bases ready`);
-    }
+    // Health status is available, ready for queries
   }, [healthHook.healthStatus]);
 
   // Handler for submitting query with selected KBs

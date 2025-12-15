@@ -129,17 +129,22 @@ Atomic write via temp files prevents corruption.
   - `website`, `youtube`, `pdf`, `markdown`.
 - Injects `job`/`state` for cooperative controls.
 
-### 5.2 Website Source (`website/__init__.py`)
+### 5.2 Website Source (`website`)
 - Components:
   - `WebsiteCrawler`: streaming crawl with checkpointing and semantic path filtering.
   - `ContentFetcher`: retrying HTTP fetch + Trafilatura extraction.
   - `SitemapParser`: recursive sitemap parsing.
+  - `link_extractor`: HTML anchor-based link extraction used to complement crawling when sitemap coverage is partial or absent.
 - Modes:
   1. Explicit `sitemap_url`.
   2. `start_url` (auto sitemap discovery via `trafilatura.sitemaps.sitemap_search`; falls back to crawler).
   3. Direct `urls`.
 - Batch yielding: crawler writes to `state.json` (`crawl` section) every `checkpoint_interval`.
 - Metadata: each `Document` includes `doc_id`, `url`, `kb_id`, `date_ingested`.
+
+Implementation notes:
+- Prefer sitemap-first discovery when available via `trafilatura`.
+- When sitemaps are missing/incomplete, rely on crawler traversal and HTML link extraction to expand coverage.
 
 ### 5.3 PDF Source (`pdf.py`)
 - Uses `llama_index.readers.file.PyMuPDFReader`.

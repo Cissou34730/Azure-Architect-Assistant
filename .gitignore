@@ -36,6 +36,8 @@ pnpm-debug.log*
 lerna-debug.log*
 dist-ssr/
 *.local
+frontend/node_modules/
+frontend/dist/
 
 # PyInstaller
 *.manifest
@@ -111,7 +113,8 @@ celerybeat.pid
 .env
 .env.local
 .env.*.local
-.venv
+.venv/
+.venv-*/
 env/
 venv/
 ENV/
@@ -159,6 +162,8 @@ backend/data/knowledge_bases/*/manifest.json
 backend/data/knowledge_bases/**/state.json
 backend/data/knowledge_bases/*/state.json
 backend/data/knowledge_bases/**/raw/
+backend/app/data/knowledge_bases/*/index/
+backend/app/data/knowledge_bases/*/documents/
 
 # Legacy files (to be removed)
 backend/src/python/
@@ -188,3 +193,6 @@ Thumbs.db
 .cache/
 
 *.tmp
+
+# Archive folder (legacy code, not for version control)
+archive/

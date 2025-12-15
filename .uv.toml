@@ -1,0 +1,3 @@
+[install]
+# Ensure packages are copied into the venv (no hardlinks)
+link-mode = "copy"

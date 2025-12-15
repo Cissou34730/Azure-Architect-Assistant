@@ -1,12 +1,13 @@
 /**
  * KB List Item Component
- * Single row in the KB list
+ * Single row in the KB list - refactored for Single Responsibility Principle
  */
 
-import { KnowledgeBase } from '../../types/ingestion';
-import { IngestionJob } from '../../types/ingestion';
+import { KnowledgeBase, IngestionJob } from '../../types/ingestion';
 import { useState, useRef, useEffect } from 'react';
 import { Button, StatusBadge } from '../common';
+import { KBJobStatus } from './KBJobStatus';
+import { KBJobControls } from './KBJobControls';
 
 interface KBListItemProps {
   kb: KnowledgeBase;
@@ -14,18 +15,19 @@ interface KBListItemProps {
   onViewProgress: (kbId: string) => void;
   onStartIngestion: (kbId: string) => void;
   onDelete: (kbId: string) => void;
-  onCancel: (kbId: string) => void;
-  onPause: (kbId: string) => void;
-  onResume: (kbId: string) => void;
+  onRefresh: () => void;
 }
 
-export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete, onCancel, onPause, onResume }: KBListItemProps) {
+export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete, onRefresh }: KBListItemProps) {
   const [showActions, setShowActions] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const isIngesting = job?.status === 'running' || job?.status === 'pending';
+  
+  // Job status helpers
+  const isNotStarted = job?.status === 'not_started';
+  const isIngesting = (job?.status === 'running' || job?.status === 'pending') && !isNotStarted;
   const isPaused = job?.status === 'paused';
   const isCompleted = job?.status === 'completed';
-  const canStartIngestion = !isIngesting && !isPaused && !isCompleted; // Only show Start for pending/failed/cancelled or no job
+  const canStartIngestion = isNotStarted || (!isIngesting && !isCompleted && !isPaused);
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -48,32 +50,34 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
       setShowActions(false);
     }
   };
-  
-  // Debug: Log metrics data
-  if (job && job.metrics) {
-    console.log(`KB ${kb.id} metrics:`, job.metrics);
-  }
+
+  const handleDelete = () => {
+    setShowActions(false);
+    onDelete(kb.id);
+  };
 
   return (
     <div className="card hover:shadow-lg transition-shadow" role="article" aria-label={`Knowledge base: ${kb.name}`}>
       <div className="flex items-start justify-between">
+        {/* Left: KB Information */}
         <div className="flex-1">
+          {/* KB Header */}
           <div className="flex items-center gap-3">
             <h3 className="text-lg font-semibold text-gray-900">{kb.name}</h3>
             <StatusBadge variant={kb.status === 'active' ? 'active' : 'inactive'}>
               {kb.status}
             </StatusBadge>
             {kb.indexed && (
-              <StatusBadge variant="active">
-                Indexed
-              </StatusBadge>
+              <StatusBadge variant="active">Indexed</StatusBadge>
             )}
           </div>
 
+          {/* KB Description */}
           {kb.description && (
             <p className="mt-1 text-sm text-gray-600">{kb.description}</p>
           )}
 
+          {/* KB Metadata */}
           <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
             <span>ID: {kb.id}</span>
             {kb.source_type && (
@@ -83,128 +87,28 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
             <span>Profiles: {kb.profiles.join(', ')}</span>
           </div>
 
+          {/* Last Indexed Timestamp */}
           {kb.last_indexed_at && (
             <div className="mt-1 text-xs text-gray-500">
               Last indexed: {new Date(kb.last_indexed_at).toLocaleString()}
             </div>
           )}
 
-          {/* Job Status */}
-          {job && (
-            <div className="mt-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-pill ${
-                  job.status === 'running' ? 'bg-status-running animate-pulse' :
-                  job.status === 'paused' ? 'bg-status-paused' :
-                  job.status === 'completed' ? 'bg-status-completed' :
-                  job.status === 'failed' ? 'bg-status-failed' :
-                  'bg-gray-500'
-                }`} />
-                <span className="text-sm font-medium text-gray-700">
-                  {job.status === 'paused' ? 'PAUSED' : `${job.phase.toUpperCase()} - ${job.progress.toFixed(0)}%`}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {job.message}
-                </span>
-              </div>
-
-              {/* Inline Metrics */}
-              {job.metrics && (
-                <div className="flex items-center gap-4 text-xs">
-                  {job.metrics.documents_crawled !== undefined && job.metrics.documents_crawled > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-500">Docs:</span>
-                      <span className="font-semibold text-gray-700">{job.metrics.documents_crawled}</span>
-                    </div>
-                  )}
-                  {job.metrics.chunks_queued !== undefined && job.metrics.chunks_queued > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-500">Chunks:</span>
-                      <span className="font-semibold text-gray-700">{job.metrics.chunks_queued}</span>
-                    </div>
-                  )}
-                  {job.metrics.chunks_embedded !== undefined && job.metrics.chunks_embedded > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-500">Indexed:</span>
-                      <span className="font-semibold text-gray-700">
-                        {job.metrics.chunks_embedded}
-                        {job.metrics.chunks_queued && job.metrics.chunks_queued > 0 && (
-                          <>
-                            {' / '}
-                            {job.metrics.chunks_queued}
-                            <span className="text-gray-500 ml-1">
-                              ({((job.metrics.chunks_embedded / job.metrics.chunks_queued) * 100).toFixed(0)}%)
-                            </span>
-                          </>
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  {job.metrics.chunks_pending !== undefined && job.metrics.chunks_pending > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-500">Pending:</span>
-                      <span className="font-semibold text-yellow-600">{job.metrics.chunks_pending}</span>
-                    </div>
-                  )}
-                  {job.metrics.chunks_failed !== undefined && job.metrics.chunks_failed > 0 && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-500">Failed:</span>
-                      <span className="font-semibold text-red-600">{job.metrics.chunks_failed}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Job Status and Metrics */}
+          {job && <KBJobStatus job={job} />}
         </div>
 
-        {/* Actions */}
+        {/* Right: Actions */}
         <div className="flex gap-2 ml-4">
-          {isPaused ? (
-            <>
-              <Button
-                variant="success"
-                size="sm"
-                onClick={() => onResume(kb.id)}
-                aria-label="Resume ingestion"
-              >
-                Resume
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => onCancel(kb.id)}
-                aria-label="Cancel ingestion"
-              >
-                Cancel
-              </Button>
-            </>
-          ) : isIngesting ? (
-            <>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => onViewProgress(kb.id)}
-              >
-                View Progress
-              </Button>
-              <Button
-                variant="warning"
-                size="sm"
-                onClick={() => onPause(kb.id)}
-                aria-label="Pause ingestion"
-              >
-                Pause
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => onCancel(kb.id)}
-                aria-label="Cancel ingestion"
-              >
-                Cancel
-              </Button>
-            </>
+          {/* Primary Action Button */}
+          {isIngesting || isPaused ? (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onViewProgress(kb.id)}
+            >
+              View Progress
+            </Button>
           ) : canStartIngestion ? (
             <Button
               variant="success"
@@ -214,6 +118,17 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
               Start Ingestion
             </Button>
           ) : null}
+
+          {/* Job Controls */}
+          {(isIngesting || isPaused) && (
+            <KBJobControls
+              kbId={kb.id}
+              isRunning={isIngesting}
+              isPaused={isPaused}
+              onRefresh={onRefresh}
+              onViewProgress={onViewProgress}
+            />
+          )}
           
           {/* More Actions Menu */}
           <div className="relative" ref={dropdownRef}>
@@ -237,12 +152,7 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
                 aria-orientation="vertical"
               >
                 <button
-                  onClick={() => {
-                    setShowActions(false);
-                    if (window.confirm(`Are you sure you want to delete "${kb.name}"?\n\nThis will:\n- Cancel any running jobs\n- Delete all indexed data\n- Remove the knowledge base\n\nThis action cannot be undone.`)) {
-                      onDelete(kb.id);
-                    }
-                  }}
+                  onClick={handleDelete}
                   className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-button"
                   role="menuitem"
                 >
@@ -256,3 +166,4 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
     </div>
   );
 }
+

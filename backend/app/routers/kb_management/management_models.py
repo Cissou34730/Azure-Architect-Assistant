@@ -6,7 +6,7 @@ Request and response models for KB endpoints.
 from pydantic import BaseModel, HttpUrl, Field
 from typing import List, Optional, Dict, Any
 from enum import Enum
-from config import get_openai_settings, get_kb_defaults
+from app.core.config import get_openai_settings, get_kb_defaults
 
 
 class SourceType(str, Enum):
@@ -65,3 +65,10 @@ class KBHealthResponse(BaseModel):
     """Response for KB health check endpoint"""
     overall_status: str
     knowledge_bases: List[KBHealthInfo]
+
+
+class KBStatusResponse(BaseModel):
+    """KB-level persisted status response (Phase 3)."""
+    kb_id: str
+    status: str  # ready | pending | not_ready
+    metrics: Optional[Dict[str, int]] = None  # minimal persisted counters

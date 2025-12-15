@@ -4,23 +4,20 @@
 
 // Enums for better type safety
 export type JobStatus =
+  | "not_started"
   | "pending"
   | "running"
   | "paused"
   | "completed"
-  | "failed"
-  | "cancelled";
+  | "failed";
 
 export type IngestionPhase =
-  | "pending"
-  | "crawling"
-  | "cleaning"
+  | "loading"
+  | "chunking"
   | "embedding"
   | "indexing"
   | "completed"
-  | "failed"
-  | "cancelled"
-  | "paused";
+  | "failed";
 
 export type SourceType =
   | "web_documentation"
@@ -35,26 +32,23 @@ export type KBStatus = "active" | "inactive" | "archived";
 // Type guard functions
 export const isJobStatus = (value: string): value is JobStatus => {
   return [
+    "not_started",
     "pending",
     "running",
     "paused",
     "completed",
     "failed",
-    "cancelled",
   ].includes(value);
 };
 
 export const isIngestionPhase = (value: string): value is IngestionPhase => {
   return [
-    "pending",
-    "crawling",
-    "cleaning",
+    "loading",
+    "chunking",
     "embedding",
     "indexing",
     "completed",
     "failed",
-    "cancelled",
-    "paused",
   ].includes(value);
 };
 
@@ -90,6 +84,18 @@ export interface IngestionJob {
   readonly metrics: JobMetrics;
   readonly started_at: string;
   readonly completed_at: string | null;
+  readonly phase_details?: readonly PhaseDetail[];
+}
+
+export interface PhaseDetail {
+  readonly name: IngestionPhase;
+  readonly status: JobStatus;
+  readonly progress: number;
+  readonly items_processed?: number;
+  readonly items_total?: number;
+  readonly started_at?: string | null;
+  readonly completed_at?: string | null;
+  readonly error?: string | null;
 }
 
 export interface KnowledgeBase {
@@ -159,4 +165,26 @@ export interface APIError {
   readonly message: string;
   readonly detail?: string;
   readonly status?: number;
+}
+
+// Phase 3: KB-level status (ready | pending | paused | not_ready)
+export type KBReadyState = "ready" | "pending" | "paused" | "not_ready";
+
+export interface KBStatusSimple {
+  readonly kb_id: string;
+  readonly status: KBReadyState;
+  readonly metrics?: {
+    readonly pending?: number;
+    readonly processing?: number;
+    readonly done?: number;
+    readonly error?: number;
+  };
+}
+
+// Phase 3: Persisted ingestion details
+export interface KBIngestionDetails {
+  readonly kb_id: string;
+  readonly current_phase: IngestionPhase;
+  readonly overall_progress: number;
+  readonly phase_details: readonly PhaseDetail[];
 }

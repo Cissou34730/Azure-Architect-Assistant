@@ -3,22 +3,23 @@
  * Displays real-time progress for an ingestion job
  */
 
-import { useTransition } from 'react';
+/* eslint-disable */
 import { IngestionJob } from '../../types/ingestion';
-import { cancelJob, pauseJob, resumeJob } from '../../services/ingestionApi';
 import { MetricCard } from './MetricCard';
 import { Button, StatusBadge } from '../common';
+import { pauseIngestion, resumeIngestion, cancelIngestion } from '../../services/ingestionApi';
+import PhaseStatus from './PhaseStatus';
 
 interface IngestionProgressProps {
   job: IngestionJob;
-  onCancel?: () => void;
+  onStart?: () => void;
   onRefresh?: () => void;
 }
 
 // Align with backend phases (lowercase)
 const PHASE_LABELS: Record<string, string> = {
-  crawling: 'Crawling Documents',
-  cleaning: 'Cleaning Content',
+  loading: 'Loading Documents',
+  chunking: 'Chunking Content',
   embedding: 'Generating Embeddings',
   indexing: 'Building Index',
   completed: 'Completed',
@@ -26,62 +27,23 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 const PHASE_COLORS: Record<string, string> = {
-  crawling: 'bg-blue-500',
-  cleaning: 'bg-indigo-500',
+  loading: 'bg-blue-500',
+  chunking: 'bg-indigo-500',
   embedding: 'bg-purple-500',
   indexing: 'bg-pink-500',
   completed: 'bg-green-500',
   failed: 'bg-red-500',
 };
 
-const PHASE_ORDER: string[] = ['crawling', 'cleaning', 'embedding', 'indexing', 'completed'];
+const PHASE_ORDER: string[] = ['loading', 'chunking', 'embedding', 'indexing', 'completed'];
 
-export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgressProps) {
-  const [isPending, startTransition] = useTransition();
-
-  const handleCancel = () => {
-    if (!window.confirm('Are you sure you want to cancel this ingestion job?')) {
-      return;
-    }
-
-    startTransition(async () => {
-      try {
-        await cancelJob(job.kb_id);
-        onCancel?.();
-      } catch (error) {
-        console.error('Failed to cancel job:', error);
-        alert(`Failed to cancel job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    });
-  };
-
-  const handlePause = () => {
-    startTransition(async () => {
-      try {
-        await pauseJob(job.kb_id);
-        onRefresh?.();
-      } catch (error) {
-        console.error('Failed to pause job:', error);
-        alert(`Failed to pause job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    });
-  };
-
-  const handleResume = () => {
-    startTransition(async () => {
-      try {
-        await resumeJob(job.kb_id);
-        onRefresh?.();
-      } catch (error) {
-        console.error('Failed to resume job:', error);
-        alert(`Failed to resume job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    });
-  };
-
-  const isRunning = job.status === 'running' || job.status === 'pending';
+export function IngestionProgress({ job, onStart, onRefresh }: IngestionProgressProps) {
+  const isNotStarted = job.status === 'not_started';
+  const isRunning = (job.status === 'running' || job.status === 'pending') && !isNotStarted;
   const isPaused = job.status === 'paused';
   const progressPercent = Math.min(Math.max(job.progress, 0), 100);
+  const metrics = job.metrics || {};
+  const hasMetrics = Object.values(metrics ?? {}).some((v) => v !== undefined);
   
   // Determine which phases are completed
   const currentPhaseIndex = PHASE_ORDER.indexOf(job.phase);
@@ -93,6 +55,28 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
   };
   const isPhaseActive = (phase: string) => phase === job.phase && isRunning;
 
+  // Render explicit Not Started state
+  if (isNotStarted) {
+    return (
+      <div className="card space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Ingestion Progress</h3>
+          <StatusBadge variant={'inactive'}>NOT STARTED</StatusBadge>
+        </div>
+
+        <div className="p-3 bg-gray-50 border rounded-md text-sm text-gray-700">Ingestion has not started yet.</div>
+
+        <div className="flex justify-end gap-3 pt-2">
+          {onStart && (
+            <Button variant="primary" onClick={onStart}>
+              Start Ingestion
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="card space-y-6">
       {/* Header */}
@@ -100,10 +84,7 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
         <h3 className="text-lg font-semibold text-gray-900">
           Ingestion Progress
         </h3>
-        <StatusBadge 
-          variant={job.status as 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'}
-          pulse={job.status === 'running'}
-        >
+        <StatusBadge variant={isPaused ? 'paused' : job.status as 'running' | 'completed' | 'failed'}>
           {job.status.toUpperCase()}
         </StatusBadge>
       </div>
@@ -156,8 +137,8 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
                     <div className="w-full bg-gray-200 rounded-pill h-2 overflow-hidden">
                       <div
                         className={`h-full transition-all duration-300 ${
-                          phase === 'crawling' ? 'bg-phase-crawling' :
-                          phase === 'cleaning' ? 'bg-phase-cleaning' :
+                          phase === 'loading' ? 'bg-phase-crawling' :
+                          phase === 'chunking' ? 'bg-phase-cleaning' :
                           phase === 'embedding' ? 'bg-phase-embedding' :
                           phase === 'indexing' ? 'bg-phase-indexing' :
                           'bg-accent-success'
@@ -170,7 +151,7 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
                 
                 {/* Show completion checkmark */}
                 {isComplete && phase !== 'completed' && (
-                  <div className="text-xs text-gray-500 mt-1">✓ Complete</div>
+                  <div className="text-xs text-gray-500 mt-1">Completed</div>
                 )}
               </div>
             </div>
@@ -178,77 +159,144 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
         })}
       </div>
 
+      {/* Phase Details from backend */}
+      {job.phase_details && job.phase_details.length > 0 && (
+        <div className="pt-4 border-t">
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">Phases</h4>
+          <PhaseStatus phases={job.phase_details} />
+        </div>
+      )}
+
       {/* Metrics */}
-      {job.metrics && Object.keys(job.metrics).length > 0 && (
+      {hasMetrics && (
         <div className="space-y-3 pt-4 border-t">
           <h4 className="text-sm font-semibold text-gray-700">Pipeline Metrics</h4>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {/* Crawling Phase */}
-            {job.metrics.documents_crawled !== undefined && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {metrics.chunks_queued !== undefined && (
+              <MetricCard
+                label="Chunks Queued"
+                value={metrics.chunks_queued}
+                subtext={
+                  metrics.chunks_pending
+                    ? `${metrics.chunks_pending} pending`
+                    : undefined
+                }
+                icon="[QUEUE]"
+                color="purple"
+              />
+            )}
+
+            {metrics.documents_crawled !== undefined && (
               <MetricCard
                 label="Documents Crawled"
-                value={job.metrics.documents_crawled}
-                icon="📄"
+                value={metrics.documents_crawled}
+                icon="[DOC]"
                 color="blue"
               />
             )}
-            
-            {/* Chunking Phase */}
-            {job.metrics.chunks_created !== undefined && (
+
+            {metrics.documents_cleaned !== undefined && (
               <MetricCard
-                label="Chunks Created"
-                value={job.metrics.chunks_created}
-                icon="✂️"
+                label="Documents Cleaned"
+                value={metrics.documents_cleaned}
+                icon="[CLEAN]"
                 color="indigo"
               />
             )}
             
-            {/* Queue Status */}
-            {job.metrics.chunks_queued !== undefined && (
+            {metrics.chunks_created !== undefined && (
               <MetricCard
-                label="Total Queued"
-                value={job.metrics.chunks_queued}
-                subtext={job.metrics.chunks_pending ? `${job.metrics.chunks_pending} pending` : undefined}
-                icon="📋"
-                color="purple"
+                label="Chunks Created"
+                value={metrics.chunks_created}
+                icon="[CHNK]"
+                color="indigo"
               />
             )}
             
-            {/* Embedding Progress */}
-            {job.metrics.chunks_embedded !== undefined && job.metrics.chunks_queued !== undefined && (
+            {metrics.chunks_pending !== undefined && (
               <MetricCard
-                label="Vectors Indexed"
-                value={job.metrics.chunks_embedded}
-                total={job.metrics.chunks_queued}
-                progress={(job.metrics.chunks_embedded / job.metrics.chunks_queued) * 100}
-                icon="🔢"
-                color="pink"
+                label="Pending"
+                value={metrics.chunks_pending}
+                icon="[PEND]"
+                color="yellow"
               />
             )}
-            
-            {/* Processing Status */}
-            {job.metrics.chunks_processing !== undefined && job.metrics.chunks_processing > 0 && (
+
+            {metrics.chunks_processing !== undefined && metrics.chunks_processing > 0 && (
               <MetricCard
                 label="Processing"
-                value={job.metrics.chunks_processing}
-                icon="⚙️"
+                value={metrics.chunks_processing}
+                icon="[PROC]"
                 color="yellow"
               />
             )}
             
-            {/* Errors */}
-            {job.metrics.chunks_failed !== undefined && job.metrics.chunks_failed > 0 && (
+            {metrics.chunks_embedded !== undefined && metrics.chunks_queued !== undefined && (
+              <MetricCard
+                label="Vectors Indexed"
+                value={metrics.chunks_embedded}
+                total={metrics.chunks_queued}
+                progress={
+                  metrics.chunks_queued > 0
+                    ? (metrics.chunks_embedded / metrics.chunks_queued) * 100
+                    : 0
+                }
+                icon="[VEC]"
+                color="pink"
+              />
+            )}
+            
+            {metrics.chunks_failed !== undefined && metrics.chunks_failed > 0 && (
               <MetricCard
                 label="Failed Chunks"
-                value={job.metrics.chunks_failed}
-                icon="⚠️"
+                value={metrics.chunks_failed}
+                icon="[ERR]"
                 color="red"
               />
             )}
           </div>
         </div>
       )}
+
+      {/* Controls */}
+      <div className="flex justify-end gap-2 pt-4">
+        {job.status === 'running' && (
+          <>
+            <Button variant="ghost" onClick={async () => { 
+              try { 
+                await pauseIngestion(job.kb_id); 
+                onRefresh?.();
+              } catch {} 
+            }}>Pause</Button>
+            <Button variant="danger" onClick={async () => { 
+              try { 
+                await cancelIngestion(job.kb_id); 
+                onRefresh?.();
+              } catch {} 
+            }}>Cancel</Button>
+          </>
+        )}
+        {isPaused && (
+          <>
+            <Button variant="success" onClick={async () => { 
+              try { 
+                await resumeIngestion(job.kb_id); 
+                onRefresh?.();
+              } catch {} 
+            }}>Resume</Button>
+            <Button variant="danger" onClick={async () => { 
+              try { 
+                await cancelIngestion(job.kb_id); 
+                onRefresh?.();
+              } catch {} 
+            }}>Cancel</Button>
+          </>
+        )}
+        {isNotStarted && onStart && (
+          <Button variant="primary" onClick={onStart}>Start</Button>
+        )}
+      </div>
 
       {/* Error Display */}
       {job.error && (
@@ -269,37 +317,6 @@ export function IngestionProgress({ job, onCancel, onRefresh }: IngestionProgres
           </div>
         )}
       </div>
-
-      {/* Actions */}
-      {(isRunning || isPaused) && (
-        <div className="flex justify-end gap-3 pt-2">
-          {isPaused && (
-            <Button
-              variant="success"
-              onClick={handleResume}
-              isLoading={isPending}
-            >
-              Resume Job
-            </Button>
-          )}
-          {isRunning && (
-            <Button
-              variant="warning"
-              onClick={handlePause}
-              isLoading={isPending}
-            >
-              Pause Job
-            </Button>
-          )}
-          <Button
-            variant="danger"
-            onClick={handleCancel}
-            isLoading={isPending}
-          >
-            Cancel Job
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

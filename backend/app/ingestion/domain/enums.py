@@ -1,20 +1,8 @@
-"""Domain enums and state machine for ingestion lifecycle."""
+"""Domain enums for ingestion phases and status."""
 
 from __future__ import annotations
 
 import enum
-from typing import Dict, Set, Optional
-
-
-class JobStatus(str, enum.Enum):
-    """Lifecycle states for an ingestion job."""
-
-    PENDING = "pending"
-    RUNNING = "running"
-    PAUSED = "paused"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
 
 
 class JobPhase(str, enum.Enum):
@@ -24,51 +12,16 @@ class JobPhase(str, enum.Enum):
     CHUNKING = "chunking"
     EMBEDDING = "embedding"
     INDEXING = "indexing"
+
+
+class PhaseStatus(str, enum.Enum):
+    """Status for individual ingestion phases."""
+
+    NOT_STARTED = "not_started"
+    RUNNING = "running"
+    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
-    CANCELLED = "cancelled"
 
 
-# State transition map: current_status -> allowed_next_statuses
-_TRANSITION_MAP: Dict[JobStatus, Set[JobStatus]] = {
-    JobStatus.PENDING: {JobStatus.RUNNING, JobStatus.CANCELLED},
-    JobStatus.RUNNING: {JobStatus.PAUSED, JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED},
-    JobStatus.PAUSED: {JobStatus.RUNNING, JobStatus.CANCELLED},
-    JobStatus.COMPLETED: set(),  # Terminal state
-    JobStatus.FAILED: set(),  # Terminal state
-    JobStatus.CANCELLED: set(),  # Terminal state
-}
 
-
-class StateTransitionError(Exception):
-    """Raised when an invalid state transition is attempted."""
-
-    def __init__(self, current: JobStatus, target: JobStatus):
-        self.current = current
-        self.target = target
-        super().__init__(
-            f"Invalid transition from {current.value} to {target.value}. "
-            f"Allowed: {[s.value for s in _TRANSITION_MAP.get(current, set())]}"
-        )
-
-
-def validate_transition(current: JobStatus, target: JobStatus) -> bool:
-    """Check if transition from current to target status is valid."""
-    allowed = _TRANSITION_MAP.get(current, set())
-    return target in allowed
-
-
-def transition_or_raise(current: JobStatus, target: JobStatus) -> None:
-    """Validate transition and raise StateTransitionError if invalid."""
-    if not validate_transition(current, target):
-        raise StateTransitionError(current, target)
-
-
-def get_allowed_transitions(status: JobStatus) -> Set[JobStatus]:
-    """Return set of allowed next statuses from current status."""
-    return _TRANSITION_MAP.get(status, set()).copy()
-
-
-def is_terminal_status(status: JobStatus) -> bool:
-    """Check if status is a terminal state (no further transitions)."""
-    return len(_TRANSITION_MAP.get(status, set())) == 0

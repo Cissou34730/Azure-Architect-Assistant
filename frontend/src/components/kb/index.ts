@@ -5,3 +5,4 @@ export { KBQueryForm } from "./KBQueryForm";
 export { KBQueryResults } from "./KBQueryResults";
 export { KBStatusNotReady } from "./KBStatusNotReady";
 export { KBSelector } from "./KBSelector";
+export { default as PhaseStatus } from "../ingestion/PhaseStatus";

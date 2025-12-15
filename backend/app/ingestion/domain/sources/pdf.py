@@ -44,14 +44,7 @@ class PDFSourceHandler(BaseSourceHandler):
         # Local PDFs
         if 'local_paths' in config:
             for path in config['local_paths']:
-                # Cooperative pause/cancel check
-                if self.state:
-                    if self.state.cancel_requested:
-                        logger.info(f"PDF ingestion cancelled at {len(all_docs)} documents")
-                        return all_docs
-                    if self.state.paused:
-                        logger.info(f"PDF ingestion paused at {len(all_docs)} documents")
-                        return all_docs
+                # State check removed - run to completion model
                 
                 docs = self.ingest_local_pdf(path, metadata)
                 all_docs.extend(docs)
@@ -59,14 +52,7 @@ class PDFSourceHandler(BaseSourceHandler):
         # Online PDFs
         if 'pdf_urls' in config:
             for url in config['pdf_urls']:
-                # Cooperative pause/cancel check
-                if self.state:
-                    if self.state.cancel_requested:
-                        logger.info(f"PDF ingestion cancelled at {len(all_docs)} documents")
-                        return all_docs
-                    if self.state.paused:
-                        logger.info(f"PDF ingestion paused at {len(all_docs)} documents")
-                        return all_docs
+                # State check removed - run to completion model
                 
                 docs = self.ingest_online_pdf(url, metadata)
                 all_docs.extend(docs)

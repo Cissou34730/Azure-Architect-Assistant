@@ -8,10 +8,9 @@ from fastapi import APIRouter, HTTPException, Depends
 import logging
 import asyncio
 
-from app.ingestion.application.ingestion_service import IngestionService
 from app.service_registry import get_kb_manager, get_multi_query_service, invalidate_kb_manager
-from app.kb.knowledge_base_manager import KBManager
-from app.kb.multi_query import MultiSourceQueryService
+from app.kb import KBManager
+from app.services.kb import MultiKBQueryService, QueryProfile
 from app.kb.service import clear_index_cache
 from .management_models import (
     KBInfo, 
@@ -19,9 +18,12 @@ from .management_models import (
     KBHealthInfo, 
     KBHealthResponse,
     CreateKBRequest,
-    CreateKBResponse
+    CreateKBResponse,
+    KBStatusResponse,
 )
 from .management_operations import KBManagementService, get_management_service
+from app.ingestion.infrastructure import create_job_repository, create_queue_repository
+from app.ingestion.application.status_query_service import StatusQueryService
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +39,9 @@ def get_kb_manager_dep() -> KBManager:
     return get_kb_manager()
 
 
-def get_multi_query_service_dep() -> MultiSourceQueryService:
+def get_multi_query_service_dep() -> MultiKBQueryService:
     """Dependency for Multi Query Service - allows mocking in tests"""
     return get_multi_query_service()
-
-
-def get_ingestion_service_dep() -> IngestionService:
-    """Dependency for Ingestion Service - allows mocking in tests"""
-    return IngestionService.instance()
 
 
 def get_management_service_dep() -> KBManagementService:
@@ -81,7 +78,6 @@ async def create_kb(
 async def delete_kb(
     kb_id: str,
     kb_manager: KBManager = Depends(get_kb_manager_dep),
-    ingest_service: IngestionService = Depends(get_ingestion_service_dep)
 ) -> Dict[str, str]:
     """
     Delete a knowledge base and all its data.
@@ -104,10 +100,12 @@ async def delete_kb(
         kb_config = kb_manager.get_kb(kb_id)
         storage_dir = kb_config.index_path if kb_config else None
         
-        # Cancel any running ingestion via IngestionService
-        await ingest_service.cancel(kb_id)
-        logger.info(f"Cancelled ingestion for KB before deletion: {kb_id}")
-        await asyncio.sleep(1.0)
+        # Persist cancel/reset prior to deletion
+        try:
+            repo = create_job_repository()
+            repo.update_job_status(job_id=repo.get_latest_job_id(kb_id) or "", status="canceled")
+        except Exception:
+            pass
         
         # Clear index from memory cache
         if storage_dir:
@@ -173,7 +171,7 @@ async def list_knowledge_bases(
 
 @router.get("/health", response_model=KBHealthResponse)
 async def check_kb_health(
-    multi_query_service: MultiSourceQueryService = Depends(get_multi_query_service_dep),
+    kb_manager: KBManager = Depends(get_kb_manager_dep),
     operations: KBManagementService = Depends(get_management_service_dep)
 ) -> KBHealthResponse:
     """
@@ -181,7 +179,7 @@ async def check_kb_health(
     Returns per-KB status including index readiness.
     """
     try:
-        result = operations.check_health(multi_query_service)
+        result = operations.check_health(kb_manager)
         
         kb_health = [
             KBHealthInfo(**kb_info)
@@ -199,3 +197,45 @@ async def check_kb_health(
             status_code=500,
             detail=f"Health check failed: {str(e)}"
         )
+
+
+# ============================================================================
+# Phase 3: KB-level persisted status
+# ============================================================================
+
+@router.get("/{kb_id}/status", response_model=KBStatusResponse)
+async def get_kb_status(
+    kb_id: str,
+    kb_manager: KBManager = Depends(get_kb_manager_dep),
+) -> KBStatusResponse:
+    """Persisted-only KB status derived from phase rows; no runtime calls."""
+    try:
+        if not kb_manager.kb_exists(kb_id):
+            raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+
+        status_service = StatusQueryService()
+        status = status_service.get_status(kb_id)
+
+        # Minimal persisted counters from queue using correct job_id
+        metrics = None
+        try:
+            queue_repo = create_queue_repository()
+            job_repo = create_job_repository()
+            job_id = job_repo.get_latest_job_id(kb_id)
+            if job_id:
+                qs = queue_repo.get_queue_stats(job_id)
+                metrics = {
+                    "pending": qs.get("pending", 0),
+                    "processing": qs.get("processing", 0),
+                    "done": qs.get("done", 0),
+                    "error": qs.get("error", 0),
+                }
+        except Exception:
+            metrics = None
+
+        return KBStatusResponse(kb_id=kb_id, status=status.status, metrics=metrics)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get KB status: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get KB status: {str(e)}")

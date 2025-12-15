@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { kbApi, KBQueryResponse } from "../services/apiService";
+import { useToast } from "./useToast";
 
 export function useKBQuery() {
+  const { error: showError } = useToast();
   const [question, setQuestion] = useState("");
   const [response, setResponse] = useState<KBQueryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +29,7 @@ export function useKBQuery() {
       setResponse(data);
     } catch (error) {
       console.error("Error querying knowledge bases:", error);
-      alert("Error querying knowledge bases");
+      showError("Error querying knowledge bases");
     } finally {
       setIsLoading(false);
     }

@@ -5,7 +5,7 @@ Creates appropriate embedder based on type.
 
 import logging
 from typing import Dict, Any, Optional
-from config import get_openai_settings
+from app.core.config import get_openai_settings
 
 from .embedder_base import BaseEmbedder
 from .openai_embedder import OpenAIEmbedder

@@ -3,10 +3,11 @@
  * Displays list of all knowledge bases
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { KnowledgeBase, IngestionJob } from '../../types/ingestion';
 import { KBListItem } from './KBListItem';
-import { getKBStatus, deleteKB, cancelJob, pauseJob, resumeJob } from '../../services/ingestionApi';
+import { getKBJobView, deleteKB } from '../../services/ingestionApi';
+import { useToast } from '../../hooks/useToast';
 
 interface KBListProps {
   kbs: KnowledgeBase[];
@@ -16,35 +17,73 @@ interface KBListProps {
 }
 
 export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBListProps) {
+  const { error: showError } = useToast();
   const [jobs, setJobs] = useState<Map<string, IngestionJob>>(new Map());
   const [loading, setLoading] = useState(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const inFlightRef = useRef(false);
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
+    if (inFlightRef.current) {
+      return false;
+    }
+    inFlightRef.current = true;
     try {
       const jobsMap = new Map<string, IngestionJob>();
+      let hasActive = false;
       for (const kb of kbs) {
         try {
-          const status = await getKBStatus(kb.id);
-          jobsMap.set(kb.id, status);
+          const jobView = await getKBJobView(kb.id);
+          if (jobView.status === 'pending' || jobView.status === 'paused') {
+            hasActive = true;
+          }
+          jobsMap.set(kb.id, jobView);
         } catch (e) {
           // No status yet for this KB; ignore
         }
       }
       setJobs(jobsMap);
+      return hasActive;
     } catch (error) {
       console.error('Failed to fetch KB statuses:', error);
+      return false;
     } finally {
       setLoading(false);
+      inFlightRef.current = false;
     }
-  };
+  }, [kbs]);
 
   useEffect(() => {
-    void fetchJobs();
+    let cancelled = false;
 
-    // Refresh jobs every 5 seconds
-    const interval = setInterval(() => void fetchJobs(), 5000);
-    return () => clearInterval(interval);
-  }, []);
+    // clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    const loop = async () => {
+      if (cancelled) {
+        return;
+      }
+      const hasActive = await fetchJobs();
+      if (cancelled) {
+        return;
+      }
+      const delay = hasActive ? 5000 : 10000;
+      timeoutRef.current = setTimeout(loop, delay);
+    };
+
+    void loop();
+
+    return () => {
+      cancelled = true;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [fetchJobs]);
 
   const handleDelete = async (kbId: string) => {
     try {
@@ -56,54 +95,13 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
       
       // Provide helpful message for permission errors
       if (errorMsg.includes('Access is denied') || errorMsg.includes('in use')) {
-        alert(
-          `Failed to delete KB: Files are currently in use.\n\n` +
-          `Please try:\n` +
-          `1. Wait a few seconds and try again\n` +
-          `2. Cancel any running ingestion jobs first\n` +
-          `3. Restart the backend server if the issue persists\n\n` +
-          `Technical details: ${errorMsg}`
+        showError(
+          `Failed to delete KB: Files are currently in use. Please wait a few seconds and try again or restart the backend server. (${errorMsg})`,
+          10000
         );
       } else {
-        alert(`Failed to delete KB: ${errorMsg}`);
+        showError(`Failed to delete KB: ${errorMsg}`);
       }
-    }
-  };
-
-  const handleCancel = async (kbId: string) => {
-    if (!window.confirm('Are you sure you want to cancel this ingestion job?')) {
-      return;
-    }
-
-    try {
-      await cancelJob(kbId);
-      // Refresh jobs list
-      await fetchJobs();
-    } catch (error) {
-      console.error('Failed to cancel job:', error);
-      alert(`Failed to cancel job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  const handlePause = async (kbId: string) => {
-    try {
-      await pauseJob(kbId);
-      // Refresh jobs list
-      await fetchJobs();
-    } catch (error) {
-      console.error('Failed to pause job:', error);
-      alert(`Failed to pause job: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  const handleResume = async (kbId: string) => {
-    try {
-      await resumeJob(kbId);
-      // Refresh jobs list
-      await fetchJobs();
-    } catch (error) {
-      console.error('Failed to resume job:', error);
-      alert(`Failed to resume job: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -136,7 +134,7 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
           Knowledge Bases ({kbs.length})
         </h2>
         <button
-          onClick={onRefresh}
+          onClick={() => { onRefresh(); void fetchJobs(); }}
           className="px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-md flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -154,9 +152,7 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
           onViewProgress={onViewProgress}
           onStartIngestion={onStartIngestion}
           onDelete={handleDelete}
-          onCancel={handleCancel}
-          onPause={handlePause}
-          onResume={handleResume}
+          onRefresh={fetchJobs}
         />
       ))}
     </div>

@@ -40,9 +40,9 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 
 def init_ingestion_database() -> None:
     """Ensure ingestion tables exist and migrations are applied."""
-    from app.ingestion import migrations
+    from app.ingestion import ingestion_schema
 
-    migrations.run_migrations(engine)
+    ingestion_schema.run_migrations(engine)
 
 
 @contextmanager

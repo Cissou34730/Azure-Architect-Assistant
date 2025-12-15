@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class IngestionPhase(str, Enum):
     """Phases of the ingestion process."""
+    NOT_STARTED = "not_started"  # Explicit pre-ingestion phase
     LOADING = "loading"  # Source-specific: crawling, PDF reading, etc.
     CHUNKING = "chunking"
     EMBEDDING = "embedding"
@@ -22,12 +23,11 @@ class IngestionPhase(str, Enum):
 
 class PhaseStatus(str, Enum):
     """Status of each phase - mirrors job status."""
-    PENDING = "pending"  # Waiting for upstream phases or queued items
+    NOT_STARTED = "not_started"  # Explicitly not begun yet
+    PENDING = "pending"          # Waiting for upstream phases or queued items
     RUNNING = "running"
-    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
-    CANCELLED = "cancelled"
 
 
 class PhaseTracker:
@@ -38,6 +38,7 @@ class PhaseTracker:
     
     # Phase order for validation
     PHASE_ORDER = [
+        IngestionPhase.NOT_STARTED,
         IngestionPhase.LOADING,
         IngestionPhase.CHUNKING,
         IngestionPhase.EMBEDDING,
@@ -52,10 +53,10 @@ class PhaseTracker:
         self._initialize_phases()
     
     def _initialize_phases(self):
-        """Initialize all phases as pending."""
+        """Initialize all phases as not_started."""
         for phase in self.PHASE_ORDER:
             self.phases[phase.value] = {
-                "status": PhaseStatus.PENDING.value,
+                "status": PhaseStatus.NOT_STARTED.value,
                 "started_at": None,
                 "completed_at": None,
                 "progress": 0,
@@ -84,8 +85,8 @@ class PhaseTracker:
             logger.debug(f"[PhaseTracker|Job={self.job_id}] Phase {phase_key} already COMPLETED, skipping start")
             return
         
-        # Validate phase order only if starting fresh (PENDING or PAUSED)
-        if current_status in [PhaseStatus.PENDING.value, PhaseStatus.PAUSED.value]:
+        # Validate phase order only if starting fresh (PENDING)
+        if current_status == PhaseStatus.PENDING.value:
             if not self._can_start_phase(phase):
                 prev_phase = self._get_previous_phase(phase)
                 raise ValueError(
@@ -138,25 +139,7 @@ class PhaseTracker:
         
         logger.error(f"[PhaseTracker|Job={self.job_id}] Phase {phase_key} FAILED: {error}")
     
-    def pause_phase(self, phase: IngestionPhase) -> None:
-        """Mark a phase as paused."""
-        phase_key = phase.value
-        if self.phases[phase_key]["status"] == PhaseStatus.RUNNING.value:
-            self.phases[phase_key]["status"] = PhaseStatus.PAUSED.value
-            logger.info(f"[PhaseTracker|Job={self.job_id}] Phase {phase_key} PAUSED")
-    
-    def resume_phase(self, phase: IngestionPhase) -> None:
-        """Resume a paused phase."""
-        phase_key = phase.value
-        if self.phases[phase_key]["status"] == PhaseStatus.PAUSED.value:
-            self.phases[phase_key]["status"] = PhaseStatus.RUNNING.value
-            logger.info(f"[PhaseTracker|Job={self.job_id}] Phase {phase_key} RESUMED")
-    
-    def cancel_phase(self, phase: IngestionPhase) -> None:
-        """Mark a phase as cancelled."""
-        phase_key = phase.value
-        self.phases[phase_key]["status"] = PhaseStatus.CANCELLED.value
-        logger.info(f"[PhaseTracker|Job={self.job_id}] Phase {phase_key} CANCELLED")
+
     
     def get_current_phase(self) -> Optional[IngestionPhase]:
         """Get the currently running or last incomplete phase."""
@@ -165,15 +148,10 @@ class PhaseTracker:
             if self.phases[phase.value]["status"] == PhaseStatus.RUNNING.value:
                 return phase
         
-        # Find first paused phase
-        for phase in self.PHASE_ORDER:
-            if self.phases[phase.value]["status"] == PhaseStatus.PAUSED.value:
-                return phase
-        
         # Find first pending/incomplete phase
         for phase in self.PHASE_ORDER:
             status = self.phases[phase.value]["status"]
-            if status not in [PhaseStatus.COMPLETED.value, PhaseStatus.FAILED.value, PhaseStatus.CANCELLED.value]:
+            if status not in [PhaseStatus.COMPLETED.value, PhaseStatus.FAILED.value]:
                 return phase
         
         return None

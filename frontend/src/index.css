@@ -3,10 +3,8 @@
 @theme {
   /* Status Colors */
   --color-status-running: oklch(0.6 0.15 230);
-  --color-status-paused: oklch(0.7 0.12 90);
   --color-status-completed: oklch(0.65 0.15 145);
   --color-status-failed: oklch(0.55 0.2 25);
-  --color-status-cancelled: oklch(0.5 0.02 270);
   
   /* Phase Colors */
   --color-phase-crawling: oklch(0.6 0.15 230);
@@ -61,5 +59,22 @@
   
   .status-badge {
     @apply px-3 py-1 rounded-pill text-sm font-medium;
+  }
+}
+
+@layer utilities {
+  @keyframes slide-in {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-slide-in {
+    animation: slide-in 0.3s ease-out;
   }
 }

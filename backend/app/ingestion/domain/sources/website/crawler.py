@@ -78,44 +78,11 @@ class WebsiteCrawler:
         pages_since_checkpoint = 0
         failed_count = 0
         
-        state_path = self._get_state_path()
-        
-        # Try to load existing state
-        if state_path.exists():
-            try:
-                with open(state_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    crawl_state = data.get('crawl', {})
-                    last_id = crawl_state.get('last_doc_id', 0)
-                    visited = set(crawl_state.get('visited_urls', []))  # Restore visited URLs
-                    failed_count = crawl_state.get('pages_failed', 0)
-                    to_visit = crawl_state.get('pending_urls', [start_url])
-                    # Resume summary only (verbosity reduced)
-                    logger.info(f"Resuming crawl: visited={len(visited)}, queued={len(to_visit)}")
-            except Exception as e:
-                logger.warning(f"Could not load state: {e}, starting fresh")
-        
         logger.info(f"Crawler start: {start_url} (limit={max_pages})")
         
         while to_visit and len(visited) < max_pages:
             # Cooperative pause/cancel check using shared state
-            if self.state:
-                if self.state.cancel_requested:
-                    logger.info(f"Crawler cancelled at {len(visited)} pages")
-                    # Save state before exiting
-                    self._save_state(visited, failed_count, to_visit, last_id)
-                    if current_batch:
-                        yield current_batch
-                    return
-                
-                # Return immediately on pause - pipeline will handle resume from state
-                if self.state.paused:
-                    logger.info(f"Crawler paused at {len(visited)} pages")
-                    # Save state before pausing
-                    self._save_state(visited, failed_count, to_visit, last_id)
-                    if current_batch:
-                        yield current_batch
-                    return
+            # State check removed - run to completion model
             
             url = to_visit.pop(0)
             
@@ -201,16 +168,16 @@ class WebsiteCrawler:
                 # Queue growth summary omitted for verbosity reduction
             
             # Per-iteration queue status suppressed
+                
+                # Queue growth summary omitted for verbosity reduction
             
-            # Save state periodically
-            pages_since_checkpoint += 1
-            if pages_since_checkpoint >= checkpoint_interval:
-                self._save_state(visited, failed_count, to_visit, last_id)
-                pages_since_checkpoint = 0
+            # Per-iteration queue status suppressed
             
             # Rate limiting
             time.sleep(0.5)
         
+        # DEBUG: Log why crawl stopped
+        logger.info("="*70)
         # Yield any remaining documents in final batch
         if current_batch:
             yield current_batch
@@ -223,15 +190,6 @@ class WebsiteCrawler:
         logger.info(f"  Queue empty: {len(to_visit) == 0}")
         logger.info(f"  Hit max pages: {len(visited) >= max_pages}")
         logger.info("="*70)
-        
-        # Final state save
-        self._save_state(visited, failed_count, to_visit, last_id)
-        
-        logger.info("="*70)
-        logger.info("CRAWLER COMPLETE")
-        logger.info("="*70)
-        logger.info(f"Visited: {len(visited)} pages")
-        logger.info(f"Ingested: {total_documents} documents")
         logger.info(f"Failed: {failed_count} pages")
         logger.info("="*70)
     
@@ -377,47 +335,7 @@ class WebsiteCrawler:
             return url
         except Exception:
             return ''
-    
-    def _get_state_path(self) -> Path:
-        """Get path to unified state file."""
-        backend_root = Path(__file__).parent.parent.parent.parent.parent.parent
-        state_dir = backend_root / "data" / "knowledge_bases" / self.kb_id
-        state_dir.mkdir(parents=True, exist_ok=True)
-        return state_dir / "state.json"
-    
-    def _save_state(self, visited: Set[str], failed_count: int, to_visit: List[str], last_id: int):
-        """Save crawler state to unified state.json."""
-        try:
-            state_path = self._get_state_path()
-            
-            # Load existing state (preserve other sections like job, processing)
-            state = {}
-            if state_path.exists():
-                try:
-                    with open(state_path, 'r', encoding='utf-8') as f:
-                        state = json.load(f)
-                except Exception:
-                    state = {}
-            
-            # Update only crawl section
-            state['kb_id'] = self.kb_id
-            state['version'] = 1
-            state['updated_at'] = datetime.now().isoformat()
-            state['crawl'] = {
-                'last_doc_id': last_id,
-                'pages_crawled': len(visited),
-                'pages_queued': len(to_visit),
-                'pages_failed': failed_count,
-                'visited_urls': list(visited),  # Critical: prevents infinite loops
-                'pending_urls': to_visit[:200],  # Only first 200 URLs for resume
-                'start_url': getattr(self, 'start_url', ''),
-                'url_prefix': getattr(self, 'url_prefix', '')
-            }
-            
-            # Atomic write using tempfile
-            import tempfile
-            import os
-            tmp_fd, tmp_name = tempfile.mkstemp(dir=str(state_path.parent), suffix='.tmp')
+
             with os.fdopen(tmp_fd, 'w', encoding='utf-8') as f:
                 json.dump(state, f, indent=2)
             os.replace(tmp_name, str(state_path))

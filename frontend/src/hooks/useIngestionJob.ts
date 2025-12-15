@@ -2,12 +2,12 @@
  * React hook for polling ingestion job status
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { IngestionJob } from "../types/ingestion";
-import { getKBStatus } from "../services/ingestionApi";
+import { getKBJobView } from "../services/ingestionApi";
 
 interface UseIngestionJobOptions {
-  pollInterval?: number; // milliseconds
+  pollInterval?: number; // milliseconds for active jobs
   onComplete?: (job: IngestionJob) => void;
   onError?: (error: Error) => void;
   enabled?: boolean; // Whether to poll
@@ -27,75 +27,93 @@ export function useIngestionJob(
   kbId: string | null,
   options: UseIngestionJobOptions = {}
 ): UseIngestionJobReturn {
-  const { pollInterval = 2000, onComplete, onError, enabled = true } = options;
+  const DEFAULT_ACTIVE_POLL_MS = 5000;
+  const IDLE_POLL_INTERVAL = 10000; // 10s health-check when idle
+  const { pollInterval = DEFAULT_ACTIVE_POLL_MS, onComplete, onError, enabled = true } = options;
 
   const [job, setJob] = useState<IngestionJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const onCompleteRef = useRef<typeof onComplete>(onComplete);
+  const onErrorRef = useRef<typeof onError>(onError);
 
-  const fetchStatus = useCallback(async () => {
-    if (!kbId || !enabled) return;
+  // Keep callback refs in sync without recreating effects
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  const fetchStatus = useCallback(async (): Promise<IngestionJob | null> => {
+    if (!kbId || !enabled) return null;
 
     try {
-      const data = await getKBStatus(kbId);
-      setJob(data);
+      const jobView = await getKBJobView(kbId);
+      setJob(jobView);
       setError(null);
 
       // Check if job completed
-      if (data.status === "completed" && onComplete) {
-        onComplete(data);
-      } else if (data.status === "failed" && onError && data.error) {
-        onError(new Error(data.error));
+      if (jobView.status === "completed" && onCompleteRef.current) {
+        onCompleteRef.current(jobView);
       }
+      return jobView;
     } catch (err) {
       const error =
         err instanceof Error ? err : new Error("Failed to fetch job status");
       setError(error);
-      if (onError) onError(error);
+      if (onErrorRef.current) onErrorRef.current(error);
+      return null;
     } finally {
       setLoading(false);
     }
-  }, [kbId, enabled, onComplete, onError]);
+  }, [kbId, enabled]);
 
   useEffect(() => {
-    if (!kbId || !enabled) {
-      setLoading(false);
-      return;
-    }
+    const run = async () => {
+      if (!kbId || !enabled) {
+        setLoading(false);
+        return;
+      }
 
-    let intervalId: NodeJS.Timeout | null = null;
+      // Clear any existing timer before starting a new loop
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
 
-    const startPolling = async () => {
-      // Initial fetch
-      await fetchStatus();
-
-      // Set up polling only if job is running or pending
-      intervalId = setInterval(async () => {
-        const data = await getKBStatus(kbId);
-        setJob(data);
-
-        // Stop polling if job is completed, failed, or cancelled
-        if (
-          data.status === "completed" ||
-          data.status === "failed" ||
-          data.status === "cancelled"
-        ) {
-          if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-          }
+      const scheduleNext = async () => {
+        // If polling disabled or kbId missing, bail
+        if (!kbId || !enabled) {
+          return;
         }
-      }, pollInterval);
+
+        const composed = await fetchStatus();
+        // Decide next delay: fast while running/paused, slow otherwise
+        const active =
+          composed?.status === "pending" || composed?.status === "paused";
+        const nextDelay = active ? pollInterval : IDLE_POLL_INTERVAL;
+
+        timeoutRef.current = setTimeout(() => {
+          void scheduleNext();
+        }, nextDelay);
+      };
+
+      // Kick off polling loop
+      void scheduleNext();
     };
 
-    void startPolling();
+    void run();
 
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     };
-  }, [kbId, enabled, pollInterval]);
+  }, [kbId, enabled, pollInterval, fetchStatus]);
 
   return {
     job,

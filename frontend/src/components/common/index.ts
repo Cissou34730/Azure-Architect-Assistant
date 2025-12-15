@@ -4,3 +4,5 @@ export { Button } from "./Button";
 export { StatusBadge } from "./StatusBadge";
 export { LoadingSpinner } from "./LoadingSpinner";
 export { Banner } from "./Banner";
+export { ToastContainer } from "./Toast";
+export type { Toast, ToastType } from "./Toast";

@@ -49,5 +49,5 @@ class RepositoryProtocol(Protocol):
         ...
 
     def recover_inflight_jobs(self) -> None:
-        """Reset processing items and mark running jobs as paused on startup."""
+        """Reset processing items and mark running jobs as failed on startup."""
         ...

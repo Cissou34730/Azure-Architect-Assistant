@@ -1,5 +1,16 @@
 # Generic Ingestion API Documentation
 
+## Phase Status Management (Phases 3–7)
+
+- Phase 3: Infrastructure repository exposes CRUD for per-phase status and metrics.
+- Phase 4: PhaseTracker service manages phase lifecycle and persists via repository.
+- Phase 5: Workers call PhaseTracker to start/update/complete phases:
+  - Producer: loading, chunking
+  - Consumer: embedding, indexing
+- Phase 6: Lifecycle supports pause/resume/cancel by updating current phase:
+  - Pause marks phase PAUSED, Resume marks RUNNING, Cancel marks FAILED with reason.
+- Phase 7: API adds control endpoints and enhances status output.
+
 ## Overview
 The Generic Ingestion API provides endpoints for creating, managing, and monitoring knowledge base ingestion jobs. It supports multiple source types (web documentation, generic web, local files) with real-time progress tracking.
 

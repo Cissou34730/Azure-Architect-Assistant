@@ -11,15 +11,17 @@ import { CreateKBWizard } from './CreateKBWizard';
 import { IngestionProgress } from './IngestionProgress';
 import { startIngestion } from '../../services/ingestionApi';
 import { Button, LoadingSpinner } from '../common';
+import { useToast } from '../../hooks/useToast';
 
 type View = 'list' | 'create' | 'progress';
 
 export function IngestionWorkspace() {
+  const { error: showError } = useToast();
   const { kbs, loading, error, refetch } = useKnowledgeBases();
   const [view, setView] = useState<View>('list');
   const [selectedKbId, setSelectedKbId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const { job, loading: jobLoading } = useIngestionJob(
+  const { job, loading: jobLoading, refetch: refetchJob } = useIngestionJob(
     view === 'progress' ? selectedKbId : null,
     {
       onComplete: () => {
@@ -59,7 +61,7 @@ export function IngestionWorkspace() {
         setView('progress');
         await refetch();
       } catch (error) {
-        alert(`Failed to start ingestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        showError(`Failed to start ingestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
   };
@@ -164,28 +166,35 @@ export function IngestionWorkspace() {
             ) : job ? (
               <IngestionProgress
                 job={job}
-                onCancel={() => {
-                  startTransition(async () => {
-                    await refetch();
-                  });
+                onStart={() => {
+                  if (selectedKbId) {
+                    handleStartIngestion(selectedKbId);
+                  }
                 }}
-                onRefresh={() => {
-                  startTransition(async () => {
-                    await refetch();
-                  });
-                }}
+                onRefresh={refetchJob}
               />
             ) : (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-card p-4">
-                <div className="text-yellow-800">No job found for this knowledge base.</div>
-                <Button
-                  variant="warning"
-                  size="sm"
-                  onClick={handleBackToList}
-                  className="mt-3"
-                >
-                  Back to List
-                </Button>
+              <div className="bg-blue-50 border border-blue-200 rounded-card p-4">
+                <div className="text-blue-800 font-medium">KB created; ingestion not started yet.</div>
+                <p className="text-blue-700 text-sm mt-1">Click Start to begin loading and processing.</p>
+                <div className="mt-3 flex gap-3">
+                  {selectedKbId && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => handleStartIngestion(selectedKbId)}
+                    >
+                      Start Ingestion
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBackToList}
+                  >
+                    Back to List
+                  </Button>
+                </div>
               </div>
             )}
           </div>

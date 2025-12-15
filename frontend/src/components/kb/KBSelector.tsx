@@ -3,6 +3,7 @@ interface KB {
   name: string
   status: string
   profiles: string[]
+  index_ready?: boolean
 }
 
 interface Props {
@@ -22,7 +23,9 @@ export function KBSelector({ availableKBs, selectedKBs, onSelectionChange, disab
   }
 
   const handleSelectAll = () => {
-    const activeKBs = availableKBs.filter(kb => kb.status === 'active').map(kb => kb.id)
+    const activeKBs = availableKBs
+      .filter(kb => kb.status === 'active' && kb.index_ready !== false)
+      .map(kb => kb.id)
     onSelectionChange(activeKBs)
   }
 
@@ -66,13 +69,13 @@ export function KBSelector({ availableKBs, selectedKBs, onSelectionChange, disab
                 selectedKBs.includes(kb.id)
                   ? 'bg-blue-50 border-blue-300'
                   : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-              } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${(disabled || kb.index_ready === false) ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <input
                 type="checkbox"
                 checked={selectedKBs.includes(kb.id)}
                 onChange={() => handleToggle(kb.id)}
-                disabled={disabled || kb.status !== 'active'}
+                disabled={disabled || kb.status !== 'active' || kb.index_ready === false}
                 className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
               />
               <div className="ml-3 flex-1">
@@ -80,12 +83,12 @@ export function KBSelector({ availableKBs, selectedKBs, onSelectionChange, disab
                   <span className="font-medium text-gray-900">{kb.name}</span>
                   <span
                     className={`text-xs px-2 py-1 rounded ${
-                      kb.status === 'active'
+                      kb.status === 'active' && kb.index_ready !== false
                         ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
+                        : 'bg-yellow-100 text-yellow-800'
                     }`}
                   >
-                    {kb.status}
+                    {kb.index_ready === false ? 'not-indexed' : kb.status}
                   </span>
                 </div>
                 {kb.profiles.length > 0 && (

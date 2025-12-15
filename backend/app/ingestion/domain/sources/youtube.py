@@ -123,14 +123,7 @@ class YouTubeSourceHandler(BaseSourceHandler):
         
         all_docs = []
         for url in video_urls:
-            # Cooperative pause/cancel check
-            if self.state:
-                if self.state.cancel_requested:
-                    logger.info(f"YouTube ingestion cancelled at {len(all_docs)} videos")
-                    return all_docs
-                if self.state.paused:
-                    logger.info(f"YouTube ingestion paused at {len(all_docs)} videos")
-                    return all_docs
+            # State check removed - run to completion model
             
             docs = self.ingest_video(url, metadata)
             all_docs.extend(docs)

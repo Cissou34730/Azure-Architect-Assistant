@@ -34,12 +34,12 @@ class SemanticChunker(BaseChunker):
         )
         logger.info(f"SemanticChunker initialized: size={chunk_size}, overlap={chunk_overlap}")
     
-    def chunk_documents(self, documents: List[Dict[str, Any]], state=None) -> List[Dict[str, Any]]:
+    def chunk_documents(self, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        Chunk documents using sentence-aware splitting.
+        Chunk documents with semantic boundaries.
         
         Args:
-            documents: List of documents with 'content' and 'metadata' keys
+            documents: List of LlamaIndex Document objects or dicts with 'content' and 'metadata' keys
             state: Optional IngestionState for cooperative pause/cancel checking
             
         Returns:
@@ -49,8 +49,16 @@ class SemanticChunker(BaseChunker):
         
         for doc_idx, doc in enumerate(documents):
             # Pause/cancel handled at pipeline level (batch boundaries)
-            content = doc.get('content', '')
-            metadata = doc.get('metadata', {})
+            
+            # Handle both LlamaIndex Document objects and dicts
+            if hasattr(doc, 'text'):
+                # LlamaIndex Document object
+                content = doc.text
+                metadata = doc.metadata or {}
+            else:
+                # Dictionary format
+                content = doc.get('content', '')
+                metadata = doc.get('metadata', {})
             
             if not content:
                 logger.warning(f"Skipping document {doc_idx}: empty content")

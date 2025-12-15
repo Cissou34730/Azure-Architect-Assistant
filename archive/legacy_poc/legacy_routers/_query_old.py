@@ -9,7 +9,7 @@ from typing import Optional, List
 import logging
 
 from app.service_registry import get_query_service, get_multi_query_service
-from app.kb import QueryProfile
+from services.kb_query import QueryProfile
 
 logger = logging.getLogger(__name__)
 

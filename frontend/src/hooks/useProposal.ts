@@ -4,8 +4,10 @@
 
 import { useState, useCallback } from "react";
 import { proposalApi } from "../services/apiService";
+import { useToast } from "./useToast";
 
 export const useProposal = () => {
+  const { error: showError } = useToast();
   const [architectureProposal, setArchitectureProposal] = useState("");
   const [proposalStage, setProposalStage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,7 @@ export const useProposal = () => {
         },
         // onError
         (error) => {
-          alert(`Error: ${error}`);
+          showError(`Error: ${error}`);
           setProposalStage("");
           setLoading(false);
         }

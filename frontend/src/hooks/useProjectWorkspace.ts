@@ -3,6 +3,7 @@ import { useProjects } from "./useProjects";
 import { useProjectState } from "./useProjectState";
 import { useChat } from "./useChat";
 import { useProposal } from "./useProposal";
+import { useToast } from "./useToast";
 
 export function useProjectWorkspace() {
   const [activeTab, setActiveTab] = useState<
@@ -11,6 +12,7 @@ export function useProjectWorkspace() {
   const [projectName, setProjectName] = useState("");
   const [textRequirements, setTextRequirements] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
+  const { success, error: showError, warning } = useToast();
 
   const projectsHook = useProjects();
   const { selectedProject } = projectsHook;
@@ -26,11 +28,14 @@ export function useProjectWorkspace() {
     proposalHook.loading;
   const loadingMessage = chatHook.loadingMessage;
 
-  // Logging helper
-  const logAction = useCallback((action: string, details?: any) => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] ${action}`, details || "");
-  }, []);
+  // Logging helper (disabled for production)
+  const logAction = useCallback(
+    (_action: string, _details?: Record<string, unknown>) => {
+      // Logging disabled - enable for debugging if needed
+      // console.log(`[${new Date().toISOString()}] ${action}`, details || "");
+    },
+    []
+  );
 
   // Update text requirements when project changes
   useEffect(() => {
@@ -71,7 +76,11 @@ export function useProjectWorkspace() {
     try {
       await projectsHook.createProject(projectName);
       setProjectName("");
+      success(`Project "${projectName}" created successfully`);
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to create project";
+      showError(message);
       console.error("Error creating project:", error);
     }
   };
@@ -82,7 +91,7 @@ export function useProjectWorkspace() {
 
     try {
       await projectsHook.uploadDocuments(files);
-      alert("Documents uploaded successfully!");
+      success("Documents uploaded successfully!");
       setFiles(null);
       const fileInput = document.getElementById(
         "file-input"
@@ -96,7 +105,7 @@ export function useProjectWorkspace() {
   const handleSaveTextRequirements = async (): Promise<void> => {
     try {
       await projectsHook.saveTextRequirements(textRequirements);
-      alert("Requirements saved successfully!");
+      success("Requirements saved successfully!");
     } catch (error) {
       console.error("Error saving requirements:", error);
     }
@@ -109,18 +118,24 @@ export function useProjectWorkspace() {
       !selectedProject.textRequirements?.trim() &&
       (!files || files.length === 0)
     ) {
-      alert(
+      warning(
         "Please provide either text requirements or upload documents before analyzing."
       );
       return;
     }
 
     try {
-      await stateHook.analyzeDocuments();
-      setActiveTab("state");
-      alert("Analysis complete!");
-    } catch (error: any) {
-      alert(`Error: ${error.message || "Failed to analyze documents"}`);
+      const state = await stateHook.analyzeDocuments();
+      if (state) {
+        setActiveTab("state");
+        success("Analysis complete!");
+      } else {
+        showError("Analysis completed but no state was returned");
+      }
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Failed to analyze documents";
+      showError(`Error: ${message}`);
     }
   };
 
@@ -136,9 +151,10 @@ export function useProjectWorkspace() {
 
     try {
       await chatHook.sendMessage(userMessage);
-    } catch (error: any) {
-      logAction("Chat message failed", { error: error.message });
-      alert(`Error: ${error.message}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      logAction("Chat message failed", { error: message });
+      showError(`Error: ${message}`);
     }
   };
 
