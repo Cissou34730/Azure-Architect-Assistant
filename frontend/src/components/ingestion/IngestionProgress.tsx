@@ -270,12 +270,10 @@ export function IngestionProgress({ job, onStart, onRefresh }: IngestionProgress
               } catch {} 
             }}>Pause</Button>
             <Button variant="danger" onClick={async () => { 
-              if (confirm('Cancel current ingestion?')) { 
-                try { 
-                  await cancelIngestion(job.kb_id); 
-                  onRefresh?.();
-                } catch {} 
-              } 
+              try { 
+                await cancelIngestion(job.kb_id); 
+                onRefresh?.();
+              } catch {} 
             }}>Cancel</Button>
           </>
         )}
@@ -288,12 +286,10 @@ export function IngestionProgress({ job, onStart, onRefresh }: IngestionProgress
               } catch {} 
             }}>Resume</Button>
             <Button variant="danger" onClick={async () => { 
-              if (confirm('Cancel current ingestion?')) { 
-                try { 
-                  await cancelIngestion(job.kb_id); 
-                  onRefresh?.();
-                } catch {} 
-              } 
+              try { 
+                await cancelIngestion(job.kb_id); 
+                onRefresh?.();
+              } catch {} 
             }}>Cancel</Button>
           </>
         )}

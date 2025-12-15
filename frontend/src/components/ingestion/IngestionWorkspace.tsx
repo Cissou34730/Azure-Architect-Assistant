@@ -11,10 +11,12 @@ import { CreateKBWizard } from './CreateKBWizard';
 import { IngestionProgress } from './IngestionProgress';
 import { startIngestion } from '../../services/ingestionApi';
 import { Button, LoadingSpinner } from '../common';
+import { useToast } from '../../hooks/useToast';
 
 type View = 'list' | 'create' | 'progress';
 
 export function IngestionWorkspace() {
+  const { error: showError } = useToast();
   const { kbs, loading, error, refetch } = useKnowledgeBases();
   const [view, setView] = useState<View>('list');
   const [selectedKbId, setSelectedKbId] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export function IngestionWorkspace() {
         setView('progress');
         await refetch();
       } catch (error) {
-        alert(`Failed to start ingestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        showError(`Failed to start ingestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     });
   };

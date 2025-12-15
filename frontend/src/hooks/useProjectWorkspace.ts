@@ -12,7 +12,7 @@ export function useProjectWorkspace() {
   const [projectName, setProjectName] = useState("");
   const [textRequirements, setTextRequirements] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
-  const { addToast } = useToast();
+  const { success, error: showError, warning } = useToast();
 
   const projectsHook = useProjects();
   const { selectedProject } = projectsHook;
@@ -76,11 +76,11 @@ export function useProjectWorkspace() {
     try {
       await projectsHook.createProject(projectName);
       setProjectName("");
-      addToast("success", `Project "${projectName}" created successfully`);
+      success(`Project "${projectName}" created successfully`);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to create project";
-      addToast("error", message);
+      showError(message);
       console.error("Error creating project:", error);
     }
   };
@@ -91,7 +91,7 @@ export function useProjectWorkspace() {
 
     try {
       await projectsHook.uploadDocuments(files);
-      alert("Documents uploaded successfully!");
+      success("Documents uploaded successfully!");
       setFiles(null);
       const fileInput = document.getElementById(
         "file-input"
@@ -105,7 +105,7 @@ export function useProjectWorkspace() {
   const handleSaveTextRequirements = async (): Promise<void> => {
     try {
       await projectsHook.saveTextRequirements(textRequirements);
-      alert("Requirements saved successfully!");
+      success("Requirements saved successfully!");
     } catch (error) {
       console.error("Error saving requirements:", error);
     }
@@ -118,7 +118,7 @@ export function useProjectWorkspace() {
       !selectedProject.textRequirements?.trim() &&
       (!files || files.length === 0)
     ) {
-      alert(
+      warning(
         "Please provide either text requirements or upload documents before analyzing."
       );
       return;
@@ -127,11 +127,11 @@ export function useProjectWorkspace() {
     try {
       await stateHook.analyzeDocuments();
       setActiveTab("state");
-      alert("Analysis complete!");
+      success("Analysis complete!");
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Failed to analyze documents";
-      alert(`Error: ${message}`);
+      showError(`Error: ${message}`);
     }
   };
 
@@ -150,7 +150,7 @@ export function useProjectWorkspace() {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
       logAction("Chat message failed", { error: message });
-      alert(`Error: ${message}`);
+      showError(`Error: ${message}`);
     }
   };
 

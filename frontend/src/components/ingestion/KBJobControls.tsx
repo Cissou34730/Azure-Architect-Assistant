@@ -41,10 +41,6 @@ export function KBJobControls({ kbId, isRunning, isPaused, onRefresh, onViewProg
   };
 
   const handleCancel = async () => {
-    if (!window.confirm('Cancel current ingestion?')) {
-      return;
-    }
-
     try {
       await cancelIngestion(kbId);
       toast.success('Job cancelled successfully');

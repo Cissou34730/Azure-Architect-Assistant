@@ -53,16 +53,7 @@ export function KBListItem({ kb, job, onViewProgress, onStartIngestion, onDelete
 
   const handleDelete = () => {
     setShowActions(false);
-    if (window.confirm(
-      `Are you sure you want to delete "${kb.name}"?\n\n` +
-      `This will:\n` +
-      `- Stop any running jobs\n` +
-      `- Delete all indexed data\n` +
-      `- Remove the knowledge base\n\n` +
-      `This action cannot be undone.`
-    )) {
-      onDelete(kb.id);
-    }
+    onDelete(kb.id);
   };
 
   return (

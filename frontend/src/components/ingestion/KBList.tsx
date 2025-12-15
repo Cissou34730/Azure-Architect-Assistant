@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { KnowledgeBase, IngestionJob } from '../../types/ingestion';
 import { KBListItem } from './KBListItem';
 import { getKBJobView, deleteKB } from '../../services/ingestionApi';
+import { useToast } from '../../hooks/useToast';
 
 interface KBListProps {
   kbs: KnowledgeBase[];
@@ -16,6 +17,7 @@ interface KBListProps {
 }
 
 export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBListProps) {
+  const { error: showError } = useToast();
   const [jobs, setJobs] = useState<Map<string, IngestionJob>>(new Map());
   const [loading, setLoading] = useState(true);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -93,15 +95,12 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
       
       // Provide helpful message for permission errors
       if (errorMsg.includes('Access is denied') || errorMsg.includes('in use')) {
-        alert(
-          `Failed to delete KB: Files are currently in use.\n\n` +
-          `Please try:\n` +
-          `1. Wait a few seconds and try again\n` +
-          `2. Restart the backend server if the issue persists\n\n` +
-          `Technical details: ${errorMsg}`
+        showError(
+          `Failed to delete KB: Files are currently in use. Please wait a few seconds and try again or restart the backend server. (${errorMsg})`,
+          10000
         );
       } else {
-        alert(`Failed to delete KB: ${errorMsg}`);
+        showError(`Failed to delete KB: ${errorMsg}`);
       }
     }
   };
