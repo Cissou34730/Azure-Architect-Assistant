@@ -8,6 +8,7 @@ import os
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -36,11 +37,32 @@ configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 logger.info(f"Loading environment from: {env_path}")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle application startup and shutdown using FastAPI lifespan."""
+    await lifecycle.startup()
+    try:
+        yield
+    finally:
+        # Stop running ingestion tasks gracefully
+        try:
+            await cleanup_running_tasks()
+        except Exception as exc:
+            logger.exception(f"cleanup_running_tasks failed: {exc}")
+
+        # Cleanup other resources
+        try:
+            await lifecycle.shutdown()
+        except Exception as exc:
+            logger.exception(f"lifecycle.shutdown failed: {exc}")
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Azure Architect Assistant - Full Stack Backend",
     description="Unified Python backend for project management, RAG queries, and architecture generation",
-    version="3.0.0"
+    version="3.0.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -114,38 +136,6 @@ def _install_ingestion_signal_handlers():
 
 
 _install_ingestion_signal_handlers()
-
-
-# Startup and shutdown events
-@app.on_event("startup")
-async def startup_event():
-    """Initialize application services"""
-    await lifecycle.startup()
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup application resources - called on CTRL-C or server shutdown"""
-    logger.warning("=" * 70)
-    logger.warning("SHUTDOWN EVENT TRIGGERED - Server is shutting down")
-    logger.warning("=" * 70)
-    logger.warning("Requesting graceful pause of all ingestion jobs...")
-    
-    # Stop running ingestion tasks gracefully
-    try:
-        await cleanup_running_tasks()
-    except Exception as exc:
-        logger.exception(f"cleanup_running_tasks failed: {exc}")
-    
-    logger.warning("Cleaning up other resources...")
-    # Cleanup other resources
-    try:
-        await lifecycle.shutdown()
-    except Exception as exc:
-        logger.exception(f"lifecycle.shutdown failed: {exc}")
-    
-    logger.warning("Shutdown complete")
-    logger.warning("=" * 70)
 
 
 # Include routers
