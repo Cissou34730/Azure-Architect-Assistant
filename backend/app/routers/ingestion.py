@@ -387,10 +387,12 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
     queue_repo = create_queue_repository()
 
     status = status_service.get_status(kb_id)
-    latest_job = job_repo.get_latest_job(kb_id)
+    latest_job_state = job_repo.get_latest_job(kb_id)
+    latest_job_id = job_repo.get_latest_job_id(kb_id)
+    latest_job_view = job_repo.get_job(latest_job_id) if latest_job_id else None
 
     # No job yet; synthesize a not_started view
-    if not latest_job:
+    if not latest_job_state:
         return JobViewResponse(
             job_id=f"{kb_id}-job",
             kb_id=kb_id,
@@ -405,7 +407,7 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
             phase_details=status.phase_details,
         )
 
-    job_id = latest_job.job_id
+    job_id = latest_job_state.job_id
 
     # Queue metrics (pending/processing/done/error)
     raw_metrics: Dict[str, Any] = {}
@@ -445,6 +447,13 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
         "chunks_created": phase_items("chunking"),
     }
 
+    # Merge any persisted counters (docs_seen/chunks_seen/etc.) for richer metrics
+    if latest_job_view and latest_job_view.counters:
+        counters = latest_job_view.counters or {}
+        metrics_normalized["documents_crawled"] = counters.get("docs_seen", metrics_normalized["documents_crawled"])
+        metrics_normalized["chunks_created"] = counters.get("chunks_seen", metrics_normalized["chunks_created"])
+        metrics_normalized["chunks_embedded"] = counters.get("chunks_processed", metrics_normalized["chunks_embedded"])
+
     # Map persisted status to job-level status
     derived_status = status.status
     if derived_status == "ready":
@@ -463,10 +472,10 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
         phase=status.current_phase or "loading",
         progress=status.overall_progress,
         message="Ingestion in progress" if job_status == "pending" else "Waiting",
-        error=None,
+        error=latest_job_view.last_error if latest_job_view else None,
         metrics=metrics_normalized,
-        started_at=latest_job.created_at,
-        completed_at=None,
+        started_at=latest_job_view.created_at if latest_job_view else None,
+        completed_at=latest_job_view.finished_at if latest_job_view else None,
         phase_details=status.phase_details,
     )
 
