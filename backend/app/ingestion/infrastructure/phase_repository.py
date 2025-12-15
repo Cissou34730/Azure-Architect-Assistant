@@ -61,6 +61,37 @@ class PhaseRepository:
                 phase.completed_at = datetime.utcnow()
                 phase.progress_percent = 100
 
+    def update_progress(
+        self,
+        job_id: str,
+        phase_name: str,
+        *,
+        progress: Optional[int] = None,
+        items_processed: Optional[int] = None,
+        items_total: Optional[int] = None,
+    ) -> None:
+        """
+        Update phase progress and mark status as running.
+        """
+        with get_session() as session:
+            phase = session.execute(
+                select(IngestionPhaseStatus).where(
+                    IngestionPhaseStatus.job_id == job_id, IngestionPhaseStatus.phase_name == phase_name
+                )
+            ).scalars().first()
+            if not phase:
+                return
+
+            phase.status = PhaseStatusDB.RUNNING.value
+            if progress is not None:
+                phase.progress_percent = progress
+            if items_processed is not None:
+                phase.items_processed = items_processed
+            if items_total is not None:
+                phase.items_total = items_total
+            if phase.started_at is None:
+                phase.started_at = datetime.utcnow()
+
     def fail_phase(self, job_id: str, phase_name: str, error_message: str) -> None:
         with get_session() as session:
             phase = session.execute(

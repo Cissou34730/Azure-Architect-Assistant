@@ -121,6 +121,7 @@ class IngestionOrchestrator:
         try:
             # Main processing loop: batches
             start_batch_id = checkpoint.get('last_batch_id', -1) + 1
+            self.phase_repo.start_phase(job_id, "loading")
             
             batch_iter = iter(loader)
             batch_id = start_batch_id
@@ -143,19 +144,39 @@ class IngestionOrchestrator:
                 if not await self._check_gate(job_id, kb_id, indexer):
                     logger.info(f"Pipeline stopped at gate check (batch {batch_id})")
                     return
-                
+
                 logger.info(f"Processing batch {batch_id}: {len(batch)} documents")
                 
                 # Save documents to disk
                 await asyncio.to_thread(save_documents_to_disk, kb_id, batch)
+                # Update loading progress
+                try:
+                    self.phase_repo.update_progress(
+                        job_id,
+                        "loading",
+                        items_processed=counters['docs_seen'],
+                    )
+                except Exception:
+                    pass
                 
                 # Step 1: Chunk batch
                 chunks = await asyncio.to_thread(chunk_documents_to_chunks, batch, chunker, kb_id)
                 counters['docs_seen'] += len(batch)
                 counters['chunks_seen'] += len(chunks)
-                self.phase_repo.complete_phase(job_id, "loading")
-                self.phase_repo.start_phase(job_id, "chunking")
-                self.phase_repo.complete_phase(job_id, "chunking")
+                try:
+                    self.phase_repo.update_progress(
+                        job_id,
+                        "loading",
+                        items_processed=counters['docs_seen'],
+                    )
+                    self.phase_repo.start_phase(job_id, "chunking")
+                    self.phase_repo.update_progress(
+                        job_id,
+                        "chunking",
+                        items_processed=counters['chunks_seen'],
+                    )
+                except Exception:
+                    pass
                 
                 logger.info(f"Batch {batch_id}: Generated {len(chunks)} chunks, starting embed+index...")
                 
@@ -206,8 +227,16 @@ class IngestionOrchestrator:
                         logger.error(f"Chunk processing failed: {result.get('error')}")
                     # Update phase progress optimistic
                     try:
-                        self.phase_repo.complete_phase(job_id, "embedding")
-                        self.phase_repo.complete_phase(job_id, "indexing")
+                        self.phase_repo.update_progress(
+                            job_id,
+                            "embedding",
+                            items_processed=counters['chunks_processed'],
+                        )
+                        self.phase_repo.update_progress(
+                            job_id,
+                            "indexing",
+                            items_processed=counters['chunks_processed'],
+                        )
                     except Exception:
                         pass
                 
@@ -223,6 +252,13 @@ class IngestionOrchestrator:
                 logger.info(f"Total progress: {counters}")
             
             # All batches complete
+            try:
+                self.phase_repo.complete_phase(job_id, "loading")
+                self.phase_repo.complete_phase(job_id, "chunking")
+                self.phase_repo.complete_phase(job_id, "embedding")
+                self.phase_repo.complete_phase(job_id, "indexing")
+            except Exception:
+                pass
             self.repo.set_job_status(
                 job_id,
                 status='completed',
