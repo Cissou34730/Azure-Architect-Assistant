@@ -3,7 +3,7 @@
  * Displays list of all knowledge bases
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { KnowledgeBase, IngestionJob, KBStatusSimple, KBIngestionDetails } from '../../types/ingestion';
 import { KBListItem } from './KBListItem';
 import { getKBReadyStatus, getKBIngestionDetails, deleteKB } from '../../services/ingestionApi';
@@ -18,6 +18,8 @@ interface KBListProps {
 export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBListProps) {
   const [jobs, setJobs] = useState<Map<string, IngestionJob>>(new Map());
   const [loading, setLoading] = useState(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const inFlightRef = useRef(false);
 
   function composeJob(kbId: string, status: KBStatusSimple, details?: KBIngestionDetails): IngestionJob {
     const metrics = status.metrics || {};
@@ -107,15 +109,24 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
     };
   }
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
+    if (inFlightRef.current) {
+      return false;
+    }
+    inFlightRef.current = true;
     try {
       const jobsMap = new Map<string, IngestionJob>();
+      let hasActive = false;
       for (const kb of kbs) {
         try {
           const s = await getKBReadyStatus(kb.id);
           let details: KBIngestionDetails | undefined;
           if (s.status === 'pending' || s.status === 'paused') {
             details = await getKBIngestionDetails(kb.id);
+            hasActive = true;
+          }
+          if (s.status === 'pending') {
+            hasActive = true;
           }
           jobsMap.set(kb.id, composeJob(kb.id, s, details));
         } catch (e) {
@@ -123,21 +134,47 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
         }
       }
       setJobs(jobsMap);
+      return hasActive;
     } catch (error) {
       console.error('Failed to fetch KB statuses:', error);
+      return false;
     } finally {
       setLoading(false);
+      inFlightRef.current = false;
     }
-  };
+  }, [kbs]);
 
   useEffect(() => {
-    void fetchJobs();
+    let cancelled = false;
 
-    // Refresh jobs every 5 seconds
-    const interval = setInterval(() => void fetchJobs(), 5000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    const loop = async () => {
+      if (cancelled) {
+        return;
+      }
+      const hasActive = await fetchJobs();
+      if (cancelled) {
+        return;
+      }
+      const delay = hasActive ? 5000 : 10000;
+      timeoutRef.current = setTimeout(loop, delay);
+    };
+
+    void loop();
+
+    return () => {
+      cancelled = true;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [fetchJobs]);
 
   const handleDelete = async (kbId: string) => {
     try {
