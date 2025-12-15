@@ -17,12 +17,12 @@ from pydantic import BaseModel
 from app.routers.kb_query import router as kb_query_router
 from app.routers.kb_management import router as kb_management_router
 from app.routers.project_management import router as project_router
-from app.routers.ingestion_v2 import router as ingestion_v2_router
+from app.routers.ingestion import router as ingestion_router
 
 # Import lifecycle management
 from app import lifecycle
 from app.ingestion.application.orchestrator import IngestionOrchestrator
-from app.routers.ingestion_v2 import cleanup_running_tasks
+from app.routers.ingestion import cleanup_running_tasks
 from app.core.config import get_app_settings
 from app.core.logging import configure_logging
 
@@ -83,7 +83,7 @@ def _install_ingestion_signal_handlers():
     """
     import signal
     import asyncio
-    from app.routers import ingestion_v2
+    from app.routers import ingestion
     from app.ingestion.application.orchestrator import IngestionOrchestrator
 
     loop = None
@@ -99,8 +99,8 @@ def _install_ingestion_signal_handlers():
         IngestionOrchestrator.request_shutdown()
         # Mark jobs paused and cancel running tasks promptly
         try:
-            for job_id, task in list(ingestion_v2._running_tasks.items()):
-                ingestion_v2.repo.set_job_status(job_id, status="paused")
+            for job_id, task in list(ingestion._running_tasks.items()):
+                ingestion.repo.set_job_status(job_id, status="paused")
                 if loop and not task.done():
                     loop.call_soon_threadsafe(task.cancel)
         except Exception as exc:  # pragma: no cover - defensive
@@ -142,7 +142,7 @@ _install_ingestion_signal_handlers()
 app.include_router(project_router)             # Project management
 app.include_router(kb_query_router)            # KB query endpoints
 app.include_router(kb_management_router)       # KB health/list endpoints
-app.include_router(ingestion_v2_router)        # Orchestrator-based ingestion (v2)
+app.include_router(ingestion_router)           # Orchestrator-based ingestion
 
 
 # Health check
