@@ -119,7 +119,14 @@ class IngestionOrchestrator:
             # Main processing loop: batches
             start_batch_id = checkpoint.get('last_batch_id', -1) + 1
             
-            for batch_id, batch in enumerate(loader, start=start_batch_id):
+            batch_iter = iter(loader)
+            batch_id = start_batch_id
+            while True:
+                try:
+                    batch = await asyncio.to_thread(lambda: next(batch_iter))
+                except StopIteration:
+                    break
+
                 # Check for shutdown request (CTRL-C)
                 if self.is_shutdown_requested():
                     logger.warning(f"Shutdown requested - pausing job {job_id} at batch {batch_id}")
@@ -135,10 +142,10 @@ class IngestionOrchestrator:
                 logger.info(f"Processing batch {batch_id}: {len(batch)} documents")
                 
                 # Save documents to disk
-                save_documents_to_disk(kb_id, batch)
+                await asyncio.to_thread(save_documents_to_disk, kb_id, batch)
                 
                 # Step 1: Chunk batch
-                chunks = chunk_documents_to_chunks(batch, chunker, kb_id)
+                chunks = await asyncio.to_thread(chunk_documents_to_chunks, batch, chunker, kb_id)
                 counters['docs_seen'] += len(batch)
                 counters['chunks_seen'] += len(chunks)
                 
@@ -237,7 +244,8 @@ class IngestionOrchestrator:
             Result dict with keys: success, skipped, error
         """
         # Check idempotency first
-        if indexer.exists(task.kb_id, chunk.content_hash):
+        exists = await asyncio.to_thread(indexer.exists, task.kb_id, chunk.content_hash)
+        if exists:
             logger.debug(f"Chunk {chunk.content_hash[:8]} already indexed, skipping")
             return {"success": True, "skipped": True}
         
@@ -250,7 +258,7 @@ class IngestionOrchestrator:
                 embedding = await embedder.embed(chunk)
                 
                 # Index
-                indexer.index(task.kb_id, embedding)
+                await asyncio.to_thread(indexer.index, task.kb_id, embedding)
                 
                 return {"success": True, "skipped": False}
                 
