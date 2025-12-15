@@ -52,11 +52,20 @@ async def startup():
         try:
             global _mcp_client_instance
             from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+            from app.agents_system.config.settings import settings as agent_settings
+            
             logger.info("Initializing MCP client for agent system...")
-            mcp_config = {
-                "endpoint": "https://learn.microsoft.com/api/mcp",
-                "timeout": 30,
-            }
+            # Load MCP config from centralized settings
+            try:
+                mcp_config = agent_settings.get_mcp_server_config("microsoft_learn")
+                mcp_config["timeout"] = agent_settings.MCP_DEFAULT_TIMEOUT
+            except (FileNotFoundError, KeyError) as e:
+                logger.warning(f"MCP config not found, using defaults: {e}")
+                mcp_config = {
+                    "endpoint": "https://learn.microsoft.com/api/mcp",
+                    "timeout": agent_settings.MCP_DEFAULT_TIMEOUT,
+                }
+            
             mcp_client = MicrosoftLearnMCPClient(mcp_config)
             await mcp_client.initialize()
             _mcp_client_instance = mcp_client  # Store for cleanup
