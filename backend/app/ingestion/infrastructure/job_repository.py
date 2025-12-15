@@ -4,6 +4,7 @@ Job repository for orchestrator-based ingestion.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -18,6 +19,18 @@ from app.ingestion.models import (
 from app.ingestion.domain.models import IngestionState, PhaseState
 from app.ingestion.domain.enums import JobPhase, PhaseStatus
 from app.ingestion.domain.errors import JobNotFoundError
+
+
+@dataclass
+class JobView:
+    """Snapshot of a job record detached from the DB session."""
+
+    id: str
+    kb_id: str
+    status: str
+    checkpoint: Optional[Dict[str, Any]]
+    counters: Optional[Dict[str, Any]]
+    finished_at: Optional[datetime]
 
 
 class JobRepository:
@@ -180,13 +193,20 @@ class JobRepository:
                 .values(heartbeat_at=datetime.utcnow())
             )
 
-    def get_job(self, job_id: str) -> IngestionJob:
-        """Fetch job by id."""
+    def get_job(self, job_id: str) -> JobView:
+        """Fetch job by id as a detached snapshot."""
         with get_session() as session:
             job = session.get(IngestionJob, job_id)
             if not job:
                 raise JobNotFoundError(f"Job not found: {job_id}")
-            return job
+            return JobView(
+                id=job.id,
+                kb_id=job.kb_id,
+                status=job.status.lower(),
+                checkpoint=job.checkpoint,
+                counters=job.counters,
+                finished_at=job.finished_at,
+            )
 
     def get_job_status(self, job_id: str) -> str:
         """Return job status string (lowercased)."""
