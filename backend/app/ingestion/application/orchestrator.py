@@ -20,6 +20,8 @@ from app.ingestion.domain.chunking.adapter import (
 )
 from app.ingestion.domain.embedding import Embedder
 from app.ingestion.domain.indexing import Indexer
+from app.ingestion.infrastructure.phase_repository import create_phase_repository
+from app.ingestion.infrastructure.job_repository import create_job_repository
 from app.ingestion.application.policies import WorkflowDefinition, RetryPolicy, StepName
 from app.ingestion.application.tasks import ProcessingTask
 from app.ingestion.application.storage import save_documents_to_disk
@@ -36,7 +38,7 @@ class IngestionOrchestrator:
     Implements load → chunk → embed → index with gates, checkpoints, and cleanup.
     """
     
-    def __init__(self, repo, workflow: WorkflowDefinition = None, retry_policy: RetryPolicy = None):
+    def __init__(self, repo=None, workflow: WorkflowDefinition = None, retry_policy: RetryPolicy = None):
         """
         Initialize orchestrator.
         
@@ -45,7 +47,8 @@ class IngestionOrchestrator:
             workflow: Workflow definition (defaults to standard)
             retry_policy: Retry policy (defaults to 3 attempts)
         """
-        self.repo = repo
+        self.repo = repo or create_job_repository()
+        self.phase_repo = create_phase_repository()
         self.workflow = workflow or WorkflowDefinition()
         self.retry_policy = retry_policy or RetryPolicy()
         self._interrupted = False
@@ -127,6 +130,8 @@ class IngestionOrchestrator:
                 except StopIteration:
                     break
 
+                # Mark phase loading/chunking as running
+                self.phase_repo.start_phase(job_id, "loading")
                 # Check for shutdown request (CTRL-C)
                 if self.is_shutdown_requested():
                     logger.warning(f"Shutdown requested - pausing job {job_id} at batch {batch_id}")
@@ -148,12 +153,18 @@ class IngestionOrchestrator:
                 chunks = await asyncio.to_thread(chunk_documents_to_chunks, batch, chunker, kb_id)
                 counters['docs_seen'] += len(batch)
                 counters['chunks_seen'] += len(chunks)
+                self.phase_repo.complete_phase(job_id, "loading")
+                self.phase_repo.start_phase(job_id, "chunking")
+                self.phase_repo.complete_phase(job_id, "chunking")
                 
                 logger.info(f"Batch {batch_id}: Generated {len(chunks)} chunks, starting embed+index...")
                 
                 # Track batch metrics
                 batch_start_processed = counters['chunks_processed']
                 batch_start_skipped = counters['chunks_skipped']
+                # Start embedding/indexing phases
+                self.phase_repo.start_phase(job_id, "embedding")
+                self.phase_repo.start_phase(job_id, "indexing")
                 
                 # Step 2: Process each chunk (embed + index)
                 for chunk_idx, chunk in enumerate(chunks):
@@ -193,6 +204,12 @@ class IngestionOrchestrator:
                     else:
                         counters['chunks_error'] += 1
                         logger.error(f"Chunk processing failed: {result.get('error')}")
+                    # Update phase progress optimistic
+                    try:
+                        self.phase_repo.complete_phase(job_id, "embedding")
+                        self.phase_repo.complete_phase(job_id, "indexing")
+                    except Exception:
+                        pass
                 
                 # Persist checkpoint and counters after batch
                 checkpoint['last_batch_id'] = batch_id
