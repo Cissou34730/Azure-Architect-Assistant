@@ -448,8 +448,8 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
     }
 
     # Merge any persisted counters (docs_seen/chunks_seen/etc.) for richer metrics
-    if latest_job_view and latest_job_view.counters:
-        counters = latest_job_view.counters or {}
+    counters = latest_job_view.counters or {} if latest_job_view else {}
+    if counters:
         metrics_normalized["documents_crawled"] = counters.get("docs_seen", metrics_normalized["documents_crawled"])
         metrics_normalized["chunks_created"] = counters.get("chunks_seen", metrics_normalized["chunks_created"])
         metrics_normalized["chunks_embedded"] = counters.get("chunks_processed", metrics_normalized["chunks_embedded"])
@@ -465,12 +465,20 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
     else:
         job_status = "not_started"
 
-    # Derive current phase from persisted phase plus live queue (if any pending/processing)
+    # Derive current phase from persisted phase plus live counters/queue activity
     canonical = ["loading", "chunking", "embedding", "indexing"]
     queue_active = raw_metrics.get("pending", 0) + raw_metrics.get("processing", 0) > 0
-    current_phase = status.current_phase or "loading"
+    inferred_phase = status.current_phase or "loading"
+
+    # If queue has work, embedding/indexing is running; else fall back to counters
     if queue_active:
-        current_phase = "embedding"  # queue represents embedding/indexing work items
+        inferred_phase = "embedding"
+    elif counters.get("chunks_seen", 0) > 0:
+        inferred_phase = "chunking"
+    elif counters.get("docs_seen", 0) > 0:
+        inferred_phase = "loading"
+
+    current_phase = inferred_phase
 
     # Rebuild phase details with clear status relative to current phase
     phase_details = []
