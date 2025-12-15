@@ -465,9 +465,14 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
     else:
         job_status = "not_started"
 
-    # Rebuild phase details with clear status relative to current phase
+    # Derive current phase from persisted phase plus live queue (if any pending/processing)
     canonical = ["loading", "chunking", "embedding", "indexing"]
+    queue_active = raw_metrics.get("pending", 0) + raw_metrics.get("processing", 0) > 0
     current_phase = status.current_phase or "loading"
+    if queue_active:
+        current_phase = "embedding"  # queue represents embedding/indexing work items
+
+    # Rebuild phase details with clear status relative to current phase
     phase_details = []
     for name in canonical:
         base = next((p for p in status.phase_details if p.get("name") == name), {})
