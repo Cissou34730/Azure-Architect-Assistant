@@ -472,9 +472,9 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
         phase=status.current_phase or "loading",
         progress=status.overall_progress,
         message="Ingestion in progress" if job_status == "pending" else "Waiting",
-        error=latest_job_view.last_error if latest_job_view else None,
+        error=None,
         metrics=metrics_normalized,
-        started_at=latest_job_view.created_at if latest_job_view else None,
+        started_at=latest_job_state.created_at,
         completed_at=latest_job_view.finished_at if latest_job_view else None,
         phase_details=status.phase_details,
     )
