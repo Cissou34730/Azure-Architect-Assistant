@@ -122,6 +122,9 @@ class IngestionOrchestrator:
             # Main processing loop: batches
             start_batch_id = checkpoint.get('last_batch_id', -1) + 1
             self.phase_repo.start_phase(job_id, "loading")
+            chunking_started = False
+            embedding_started = False
+            indexing_started = False
             
             batch_iter = iter(loader)
             batch_id = start_batch_id
@@ -175,6 +178,7 @@ class IngestionOrchestrator:
                         "chunking",
                         items_processed=counters['chunks_seen'],
                     )
+                    chunking_started = True
                 except Exception:
                     pass
                 
@@ -184,8 +188,15 @@ class IngestionOrchestrator:
                 batch_start_processed = counters['chunks_processed']
                 batch_start_skipped = counters['chunks_skipped']
                 # Start embedding/indexing phases
-                self.phase_repo.start_phase(job_id, "embedding")
-                self.phase_repo.start_phase(job_id, "indexing")
+                try:
+                    if not embedding_started:
+                        self.phase_repo.start_phase(job_id, "embedding")
+                        embedding_started = True
+                    if not indexing_started:
+                        self.phase_repo.start_phase(job_id, "indexing")
+                        indexing_started = True
+                except Exception:
+                    pass
                 
                 # Step 2: Process each chunk (embed + index)
                 for chunk_idx, chunk in enumerate(chunks):
@@ -254,9 +265,12 @@ class IngestionOrchestrator:
             # All batches complete
             try:
                 self.phase_repo.complete_phase(job_id, "loading")
-                self.phase_repo.complete_phase(job_id, "chunking")
-                self.phase_repo.complete_phase(job_id, "embedding")
-                self.phase_repo.complete_phase(job_id, "indexing")
+                if chunking_started:
+                    self.phase_repo.complete_phase(job_id, "chunking")
+                if embedding_started:
+                    self.phase_repo.complete_phase(job_id, "embedding")
+                if indexing_started:
+                    self.phase_repo.complete_phase(job_id, "indexing")
             except Exception:
                 pass
             self.repo.set_job_status(

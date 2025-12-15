@@ -1,5 +1,11 @@
 **Architecture Backlog**
 
+- **Fix Toast Notifications Not Showing**: Toast notifications replaced alert() calls but don't appear visually in UI.
+  - **Problem**: useToast hook called successfully, ToastContainer rendered in App.tsx, but toasts don't display on screen.
+  - **Status**: Analyze button works (no black page), StatePanel renders correctly, but user feedback missing.
+  - **Priority**: Low - core functionality works, UX improvement only.
+  - **Investigation needed**: Check ToastContainer styling, z-index, positioning, or missing CSS imports.
+
 - **Refactor `SourceHandlerFactory` resolution**: Replace hardcoded `if/elif` lazy imports with a clean registry-based factory (or DI at composition root).
   - **Problem**: `register_handler`/`list_handlers` exist but `HANDLERS` is undefined and `create_handler` ignores any registry. Hardcoded branches limit extensibility and testability.
   - **Goal**: Support runtime handler registration (e.g., plugins like `confluence`) while keeping call sites simple.
