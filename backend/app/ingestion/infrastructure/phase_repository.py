@@ -75,7 +75,7 @@ class PhaseRepository:
 
     def _db_phase_to_domain(self, db_phase: IngestionPhaseStatus) -> PhaseState:
         return PhaseState(
-            name=db_phase.phase_name,
+            phase_name=db_phase.phase_name,
             status=PhaseStatus(db_phase.status),
             progress=db_phase.progress_percent,
             items_processed=db_phase.items_processed,
