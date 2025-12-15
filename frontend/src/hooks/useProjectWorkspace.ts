@@ -125,9 +125,13 @@ export function useProjectWorkspace() {
     }
 
     try {
-      await stateHook.analyzeDocuments();
-      setActiveTab("state");
-      success("Analysis complete!");
+      const state = await stateHook.analyzeDocuments();
+      if (state) {
+        setActiveTab("state");
+        success("Analysis complete!");
+      } else {
+        showError("Analysis completed but no state was returned");
+      }
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Failed to analyze documents";
