@@ -387,7 +387,7 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
     queue_repo = create_queue_repository()
 
     status = status_service.get_status(kb_id)
-    latest_job = job_repo.get_latest_job_record(kb_id)
+    latest_job = job_repo.get_latest_job(kb_id)
 
     # No job yet; synthesize a not_started view
     if not latest_job:
@@ -405,7 +405,7 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
             phase_details=status.phase_details,
         )
 
-    job_id = latest_job.id
+    job_id = latest_job.job_id
 
     # Queue metrics (pending/processing/done/error)
     raw_metrics: Dict[str, Any] = {}
@@ -463,10 +463,10 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
         phase=status.current_phase or "loading",
         progress=status.overall_progress,
         message="Ingestion in progress" if job_status == "pending" else "Waiting",
-        error=latest_job.last_error,
+        error=None,
         metrics=metrics_normalized,
         started_at=latest_job.created_at,
-        completed_at=latest_job.finished_at,
+        completed_at=None,
         phase_details=status.phase_details,
     )
 
