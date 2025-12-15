@@ -200,7 +200,6 @@ class JobRepository:
             kb_id=job.kb_id,
             status=job.status.lower(),
             created_at=job.created_at,
-            updated_at=job.updated_at,
             phase=job.current_phase,
             progress=job.processed_items,
         )
