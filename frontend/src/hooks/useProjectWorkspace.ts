@@ -3,6 +3,7 @@ import { useProjects } from "./useProjects";
 import { useProjectState } from "./useProjectState";
 import { useChat } from "./useChat";
 import { useProposal } from "./useProposal";
+import { useToast } from "./useToast";
 
 export function useProjectWorkspace() {
   const [activeTab, setActiveTab] = useState<
@@ -11,6 +12,7 @@ export function useProjectWorkspace() {
   const [projectName, setProjectName] = useState("");
   const [textRequirements, setTextRequirements] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
+  const { addToast } = useToast();
 
   const projectsHook = useProjects();
   const { selectedProject } = projectsHook;
@@ -74,7 +76,11 @@ export function useProjectWorkspace() {
     try {
       await projectsHook.createProject(projectName);
       setProjectName("");
+      addToast("success", `Project "${projectName}" created successfully`);
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to create project";
+      addToast("error", message);
       console.error("Error creating project:", error);
     }
   };

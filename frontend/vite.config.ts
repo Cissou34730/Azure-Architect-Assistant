@@ -13,12 +13,6 @@ export default defineConfig(({ mode }) => {
     envDir: "../",
     server: {
       port: frontendPort,
-      proxy: {
-        "/api": {
-          target: apiBaseUrl,
-          changeOrigin: true,
-        },
-      },
     },
     define: {
       "import.meta.env.BACKEND_URL": JSON.stringify(apiBaseUrl),
