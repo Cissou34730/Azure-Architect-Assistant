@@ -52,11 +52,11 @@ async def startup():
         try:
             global _mcp_client_instance
             from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
-            from app.agents_system.config.settings import settings as agent_settings
             
             logger.info("Initializing MCP client for agent system...")
-            # Load MCP config from centralized settings
-            mcp_config = agent_settings.get_mcp_server_config("microsoft_learn")
+            # Load MCP config from centralized core settings
+            app_settings = get_app_settings()
+            mcp_config = app_settings.get_mcp_server_config("microsoft_learn")
             
             mcp_client = MicrosoftLearnMCPClient(mcp_config)
             await mcp_client.initialize()
