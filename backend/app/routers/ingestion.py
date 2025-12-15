@@ -465,44 +465,9 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
     else:
         job_status = "not_started"
 
-    # Derive current phase from persisted phase plus live counters/queue activity
-    canonical = ["loading", "chunking", "embedding", "indexing"]
-    queue_active = raw_metrics.get("pending", 0) + raw_metrics.get("processing", 0) > 0
-    inferred_phase = status.current_phase or "loading"
-
-    # If queue has work, embedding/indexing is running; else fall back to counters
-    if queue_active:
-        inferred_phase = "embedding"
-    elif counters.get("chunks_seen", 0) > 0:
-        inferred_phase = "chunking"
-    elif counters.get("docs_seen", 0) > 0:
-        inferred_phase = "loading"
-
-    current_phase = inferred_phase
-
-    # Rebuild phase details with clear status relative to current phase
-    phase_details = []
-    for name in canonical:
-        base = next((p for p in status.phase_details if p.get("name") == name), {})
-        if name == current_phase and job_status in ("pending", "paused"):
-            phase_status = "running" if job_status == "pending" else "paused"
-        elif canonical.index(name) < canonical.index(current_phase):
-            phase_status = "completed"
-        else:
-            phase_status = base.get("status", "not_started")
-
-        phase_details.append(
-            {
-                "name": name,
-                "status": phase_status,
-                "progress": base.get("progress", 0),
-                "items_processed": base.get("items_processed", 0),
-                "items_total": base.get("items_total", 0),
-                "started_at": base.get("started_at"),
-                "completed_at": base.get("completed_at"),
-                "error": base.get("error"),
-            }
-        )
+    # Use persisted phase/current_phase directly (no inference)
+    current_phase = status.current_phase or "loading"
+    phase_details = status.phase_details
 
     return JobViewResponse(
         job_id=job_id,
