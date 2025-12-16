@@ -196,3 +196,9 @@ Thumbs.db
 
 # Archive folder (legacy code, not for version control)
 archive/
+
+# Backups (created by backup script)
+backups/
+
+# Analysis and temporary notes
+merge-analysis.txt
