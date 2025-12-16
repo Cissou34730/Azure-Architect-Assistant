@@ -101,11 +101,17 @@ async def shutdown():
     if _mcp_client_instance:
         try:
             logger.info("Closing MCP client...")
-            await _mcp_client_instance.close()
+            # Use asyncio.wait_for with timeout to prevent hanging during shutdown
+            await asyncio.wait_for(_mcp_client_instance.close(), timeout=2.0)
             _mcp_client_instance = None
             logger.info("✓ MCP client closed")
+        except (asyncio.TimeoutError, asyncio.CancelledError, RuntimeError) as e:
+            # These are expected during shutdown when tasks are being cancelled
+            logger.debug(f"MCP client cleanup cancelled (expected during shutdown): {type(e).__name__}")
+            _mcp_client_instance = None
         except Exception as e:
-            logger.debug(f"MCP client cleanup (expected during shutdown): {e}")
+            logger.warning(f"Error closing MCP client: {e}")
+            _mcp_client_instance = None
 
     # Close database connections
     await close_database()
