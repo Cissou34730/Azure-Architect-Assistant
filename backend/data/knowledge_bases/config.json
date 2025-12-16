@@ -6,11 +6,7 @@
       "description": "Microsoft Azure Well-Architected Framework documentation covering reliability, security, cost optimization, operational excellence, and performance efficiency",
       "version": "1.0.0",
       "status": "active",
-      "profiles": [
-        "chat",
-        "proposal",
-        "kb-query"
-      ],
+      "profiles": ["chat", "proposal", "kb-query"],
       "priority": 1,
       "storage_type": "file",
       "embedding_model": "text-embedding-3-small",
@@ -22,10 +18,10 @@
       "chunks": 1556,
       "last_updated": "2025-11-24T11:28:00Z",
       "paths": {
-        "documents": "data/knowledge_bases/waf/documents",
-        "index": "data/knowledge_bases/waf/index",
-        "manifest": "data/knowledge_bases/waf/manifest.json",
-        "urls": "data/knowledge_bases/waf/urls.txt"
+        "documents": "waf/documents",
+        "index": "waf/index",
+        "manifest": "waf/manifest.json",
+        "urls": "waf/urls.txt"
       }
     },
     {
@@ -41,15 +37,12 @@
       "embedding_model": "text-embedding-3-small",
       "chunk_size": 1024,
       "chunk_overlap": 200,
-      "profiles": [
-        "chat",
-        "kb-query"
-      ],
+      "profiles": ["chat", "kb-query"],
       "priority": 2,
       "indexed": false,
       "paths": {
-        "index": "data/knowledge_bases/caf/index",
-        "documents": "data/knowledge_bases/caf/documents"
+        "index": "caf/index",
+        "documents": "caf/documents"
       }
     }
   ]
