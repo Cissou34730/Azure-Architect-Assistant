@@ -6,11 +6,7 @@
       "description": "Microsoft Azure Well-Architected Framework documentation covering reliability, security, cost optimization, operational excellence, and performance efficiency",
       "version": "1.0.0",
       "status": "active",
-      "profiles": [
-        "chat",
-        "proposal",
-        "kb-query"
-      ],
+      "profiles": ["chat", "proposal", "kb-query"],
       "priority": 1,
       "storage_type": "file",
       "embedding_model": "text-embedding-3-small",
@@ -41,10 +37,7 @@
       "embedding_model": "text-embedding-3-small",
       "chunk_size": 1024,
       "chunk_overlap": 200,
-      "profiles": [
-        "chat",
-        "kb-query"
-      ],
+      "profiles": ["chat", "kb-query"],
       "priority": 2,
       "indexed": false,
       "paths": {
