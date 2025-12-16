@@ -34,8 +34,9 @@ class KBConfig:
             index_path = self.paths["index"]
             if os.path.isabs(index_path):
                 return index_path
-            backend_root = Path(__file__).parent.parent.parent
-            return str(backend_root / index_path)
+            from app.core.config import get_kb_storage_root
+            kb_root = get_kb_storage_root()
+            return str(kb_root / index_path)
         return ""
 
     @property
