@@ -18,6 +18,7 @@ from app.routers.kb_query import router as kb_query_router
 from app.routers.kb_management import router as kb_management_router
 from app.routers.project_management import router as project_router
 from app.routers.ingestion import router as ingestion_router
+from app.agents_system.agents.router import router as agent_router
 
 # Import lifecycle management
 from app import lifecycle
@@ -143,6 +144,7 @@ app.include_router(project_router)             # Project management
 app.include_router(kb_query_router)            # KB query endpoints
 app.include_router(kb_management_router)       # KB health/list endpoints
 app.include_router(ingestion_router)           # Orchestrator-based ingestion
+app.include_router(agent_router)               # Agent chat endpoints
 
 
 # Health check

@@ -244,31 +244,45 @@ Queries are handled by the `MultiSourceQueryService` which supports different pr
 
 ## Prerequisites
 
-- **Python 3.10+** (for unified backend)
+- **Python 3.10-3.12** (for unified backend)
+- **uv** (fast Python package manager) - [Install uv](https://docs.astral.sh/uv/)
 - **Node.js 18+** and npm (for frontend only)
 - **React 19.2.0**
 - **FastAPI 0.115.5**
-- **LlamaIndex >= 0.14.0**
+- **LlamaIndex >= 0.12.0**
 - **OpenAI API key** or Azure OpenAI credentials
 
 ## Setup
 
-### 1. Clone and Install Dependencies
+### 1. Install uv (if not already installed)
+
+```powershell
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Linux/macOS
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+After installation, restart your terminal or add uv to your PATH.
+
+### 2. Clone and Install Dependencies
 
 ```bash
-# Install Python dependencies in virtual environment
-python -m venv .venv
-.venv\Scripts\Activate.ps1  # Windows
-# source .venv/bin/activate  # Linux/Mac
+# Install all dependencies using uv (automatically creates virtual environment)
+uv sync
 
-cd backend
-pip install -r requirements.txt
-cd ..
+# OR use the npm script
+npm run installAll
+```
 
-# Install frontend dependencies
-cd frontend
-npm install
-cd ..
+This will:
+- Create a `.venv` virtual environment (if it doesn't exist)
+- Install all Python dependencies from `pyproject.toml`
+- Create a `uv.lock` file for reproducible builds
+- Install frontend dependencies
+
+**Note:** uv is 10-100x faster than pip and provides better dependency resolution.
 ```
 
 ### 2. Configure Environment Variables
@@ -296,9 +310,11 @@ OPENAI_API_ENDPOINT=https://your-resource.openai.azure.com/
 **Development Mode (Recommended):**
 
 ```powershell
-# Terminal 1 - Start Python backend
+# Terminal 1 - Start Python backend with uv
+uv run uvicorn app.main:app --reload --port 8000
+# OR navigate to backend directory first
 cd backend
-python -m uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8000
 
 # Terminal 2 - Start React frontend
 cd frontend
@@ -307,15 +323,17 @@ npm run dev
 
 Access the application at `http://localhost:5173`
 
-**Using NPM Scripts (from project root):**
+**Using NPM Scripts (from project root - uses uv automatically):**
 
 ```powershell
-# Start Python backend
+# Start Python backend (uses uv run internally)
 npm run backend
 
 # Start frontend (separate terminal)
 npm run frontend
 ```
+
+**Note:** The `npm run backend` script automatically uses `uv run` to execute uvicorn in the managed virtual environment. No need to manually activate the virtual environment!
 
 ## Usage Workflow
 
@@ -592,10 +610,12 @@ npm run frontend
 
 **Problem**: Python dependencies not found
 ```powershell
-# Solution: Install in virtual environment
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-pip install -r backend/requirements.txt
+# Solution: Reinstall with uv
+uv sync
+
+# If uv is not found, install it first:
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+# Then restart your terminal and run: uv sync
 ```
 
 **Problem**: `OPENAI_API_KEY` not found
@@ -611,6 +631,13 @@ OPENAI_MODEL=gpt-4o-mini
 # Check what's using the port
 netstat -ano | findstr :8000
 # Kill the process or change PYTHON_PORT in .env
+```
+
+**Problem**: Dependency conflicts or resolution issues
+```powershell
+# Solution: Remove lockfile and resync
+rm uv.lock
+uv sync
 ```
 
 ### Frontend Issues
@@ -761,6 +788,52 @@ Azure-Architect-Assistant/
 - **[Backend Refactoring Analysis](docs/BACKEND_REFACTORING_ANALYSIS.md)** - Comprehensive code review and improvements (Nov 2024)
 - **[Refactoring Summary](docs/REFACTORING_SUMMARY.md)** - v4.0 changes
 - **[Component Structure](frontend/COMPONENTS_STRUCTURE.md)** - Frontend organization
+
+## Development Guide
+
+### Adding Python Dependencies
+
+```powershell
+# Add a new dependency
+uv add package-name
+
+# Add a development dependency
+uv add --dev pytest
+
+# Add with version constraints
+uv add "fastapi>=0.100.0"
+
+# Remove a dependency
+uv remove package-name
+
+# Update all dependencies
+uv sync --upgrade
+```
+
+Dependencies are automatically added to `pyproject.toml` and the lockfile is updated.
+
+### Running Tests
+
+```powershell
+# Run all tests
+uv run pytest
+
+# Run specific test file
+uv run pytest backend/tests/test_example.py
+
+# Run with coverage
+uv run pytest --cov=backend
+```
+
+### Code Quality
+
+```powershell
+# Type checking with mypy
+uv run mypy backend
+
+# Linting with flake8
+uv run flake8 backend
+```
   
 ## Contributing
 

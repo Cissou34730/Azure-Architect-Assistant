@@ -3,10 +3,11 @@ import { Navigation, Banner, ToastContainer } from './components/common'
 import { ProjectWorkspace } from './components/projects'
 import { KBWorkspace } from './components/kb'
 import { IngestionWorkspace } from './components/ingestion/IngestionWorkspace'
+import { AgentChatWorkspace } from './components/agent'
 import { useToast } from './hooks/useToast'
 
 function App() {
-  const [currentView, setCurrentView] = useState<'projects' | 'kb' | 'kb-management'>('projects')
+  const [currentView, setCurrentView] = useState<'projects' | 'kb' | 'kb-management' | 'agent-chat'>('projects')
   const { toasts, close } = useToast()
 
   return (
@@ -15,7 +16,9 @@ function App() {
       <Navigation currentView={currentView} onViewChange={setCurrentView} />
       
       <main role="main" aria-label={`${currentView} workspace`}>
-        {currentView === 'kb-management' ? (
+        {currentView === 'agent-chat' ? (
+          <AgentChatWorkspace />
+        ) : currentView === 'kb-management' ? (
           <IngestionWorkspace />
         ) : currentView === 'kb' ? (
           <KBWorkspace />
@@ -23,7 +26,7 @@ function App() {
           <ProjectWorkspace />
         )}
       </main>
-      
+
       <ToastContainer toasts={toasts} onClose={close} />
     </div>
   )
