@@ -116,6 +116,7 @@ class MCPReActAgent:
             max_iterations=self.max_iterations,
             max_execution_time=self.max_execution_time,
             handle_parsing_errors=handle_parsing_error,
+            early_stopping_method="generate",
             return_intermediate_steps=True,
         )
 
