@@ -10,10 +10,11 @@ from datetime import datetime
 
 from llama_index.core import Document
 from llama_index.readers.youtube_transcript import YoutubeTranscriptReader
-from llama_index.llms.openai import OpenAI
 from pydantic import BaseModel, Field
 
 from .handler_base import BaseSourceHandler
+from app.services.ai import get_ai_service
+from app.services.ai.adapters import AIServiceLLM
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,9 @@ class YouTubeSourceHandler(BaseSourceHandler):
     def __init__(self, kb_id: str, job=None, state=None):
         super().__init__(kb_id, job=job, state=state)
         self.reader = YoutubeTranscriptReader()
-        self.llm = OpenAI(model="gpt-4o-mini", temperature=0.1)
+        # Use AIService adapter for LlamaIndex compatibility
+        ai_service = get_ai_service()
+        self.llm = AIServiceLLM(ai_service, model_name="gpt-4o-mini", temperature=0.1)
         logger.info(f"YouTubeSourceHandler initialized for KB: {kb_id}")
     
     def ingest(self, config: Dict[str, Any]) -> List[Document]:
