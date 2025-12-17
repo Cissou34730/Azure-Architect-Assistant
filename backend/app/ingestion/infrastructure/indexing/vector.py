@@ -13,9 +13,10 @@ from pathlib import Path
 
 from llama_index.core import VectorStoreIndex, Settings, StorageContext, load_index_from_storage
 from llama_index.core import Document as LlamaDocument
-from llama_index.llms.openai import OpenAI
 
 from .builder_base import BaseIndexBuilder
+from app.services.ai import get_ai_service
+from app.services.ai.adapters import AIServiceLLM
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +46,13 @@ class VectorIndexBuilder(BaseIndexBuilder):
         """
         super().__init__(kb_id, storage_dir, embedding_model, generation_model)
         
-        # Initialize LlamaIndex LLM only (embedding done separately)
-        Settings.llm = OpenAI(model=generation_model, temperature=0.1)
+        # Initialize LlamaIndex LLM using AIService adapter
+        ai_service = get_ai_service()
+        Settings.llm = AIServiceLLM(
+            ai_service,
+            model_name=generation_model,
+            temperature=0.1
+        )
         
         self.logger.info(f"VectorIndexBuilder ready KB={kb_id} storage={storage_dir}")
     
