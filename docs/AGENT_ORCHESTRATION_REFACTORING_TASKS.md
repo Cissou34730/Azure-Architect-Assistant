@@ -31,11 +31,10 @@ Goal: Separate orchestration (lifecycle, routing, DI, budgets, telemetry) from a
 - [x] Add compatibility shim in `agents/mcp_agent.py` (deprecated re-export) to avoid breaking imports
 
 ## Phase 3 — Tools & Prompts Assembly
-- [ ] Keep tools in place: `tools/mcp_tool.py`, `tools/kb_tool.py`
-- [ ] Move tool assembly into orchestrator; retain existing factories (`create_mcp_tools()`, `create_kb_tools()`)
-- [ ] Centralize prompt composition
-  - Option A: keep `..config.react_prompts` and inject via orchestrator
-  - Option B: create `agents_system/prompts/react.py` and import from orchestrator
+- [x] Keep tools in place: `tools/mcp_tool.py`, `tools/kb_tool.py`
+- [x] Move tool assembly into orchestrator; retain existing factories (`create_mcp_tools()`, `create_kb_tools()`)
+- [x] Centralize prompt composition
+  - Using `agents_system/config/react_prompts` injected via orchestrator
 
 ## Phase 4 — Runner Wiring
 - [ ] Refactor `backend/app/agents_system/runner.py` to own `AgentOrchestrator`
