@@ -6,7 +6,7 @@ Keeps behavior stable while moving composition concerns out of the agent.
 """
 
 import logging
-from typing import Optional
+from typing import Optional, Callable, Dict, Any
 
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
@@ -16,6 +16,7 @@ from ..tools.mcp_tool import create_mcp_tools
 from ..tools.kb_tool import create_kb_tools
 from ..config.react_prompts import SYSTEM_PROMPT, REACT_TEMPLATE
 from ..services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from ..conversation.summary_chain import SummaryChain
 from config.settings import OpenAISettings
 
 logger = logging.getLogger(__name__)
@@ -36,11 +37,19 @@ class AgentOrchestrator:
         max_iterations: int = 10,
         max_execution_time: int = 60,
         verbose: bool = True,
+        summary_chain: Optional[SummaryChain] = None,
+        on_start: Optional[Callable[[str, Optional[str], list], None]] = None,
+        on_end: Optional[Callable[[Dict[str, Any]], None]] = None,
+        on_error: Optional[Callable[[Exception], None]] = None,
     ) -> None:
         self.openai_settings = openai_settings or OpenAISettings()
         self.max_iterations = max_iterations
         self.max_execution_time = max_execution_time
         self.verbose = verbose
+        self._summary_chain = summary_chain or SummaryChain.disabled()
+        self._on_start = on_start
+        self._on_end = on_end
+        self._on_error = on_error
 
         self._mcp_client: Optional[MicrosoftLearnMCPClient] = None
         self._agent: Optional[MCPReActAgent] = None
@@ -98,9 +107,33 @@ class AgentOrchestrator:
             raise RuntimeError("AgentOrchestrator not initialized")
 
         logger.info("AgentOrchestrator: executing query...")
-        result = await self._agent.execute(user_query, project_context=project_context)
-        logger.info("AgentOrchestrator: execution complete")
-        return result
+        try:
+            if self._on_start:
+                tools = []
+                if hasattr(self._agent, "tools") and self._agent.tools:
+                    tools = self._agent.tools
+                self._on_start(user_query, project_context, tools)
+
+            result = await self._agent.execute(user_query, project_context=project_context)
+
+            # Optional summarization
+            if self._summary_chain and self._summary_chain.enabled:
+                summary = self._summary_chain.summarize([
+                    {"role": "user", "content": user_query},
+                    {"role": "assistant", "content": str(result.get("output", ""))},
+                ])
+                if summary:
+                    result["summary"] = summary.summary
+
+            if self._on_end:
+                self._on_end(result)
+
+            logger.info("AgentOrchestrator: execution complete")
+            return result
+        except Exception as e:
+            if self._on_error:
+                self._on_error(e)
+            raise
 
     async def shutdown(self) -> None:
         """Shutdown orchestrator and release references."""

@@ -44,9 +44,9 @@ Goal: Separate orchestration (lifecycle, routing, DI, budgets, telemetry) from a
   - Note: Phase 1 keeps existing wiring unchanged (verified)
 
 ## Phase 5 — Cross-Cutting Concerns
-- [ ] Implement summarization hook contract in `conversation/summary_chain.py` and call from orchestrator (no-op if stub)
-- [ ] Add telemetry/tracing hooks (start/end, tool usage, errors) in orchestrator
-- [ ] Ensure error handling, parsing hints remain intact (from current ReAct agent)
+[x] Implement summarization hook contract in `conversation/summary_chain.py` and call from orchestrator (no-op if stub)
+[x] Add telemetry/tracing hooks (start/end, tool usage, errors) in orchestrator
+[x] Ensure error handling, parsing hints remain intact (from current ReAct agent)
 
 ## Phase 6 — Safety & QA
 - [ ] Verify imports and avoid circular dependencies (orchestrator → agents/tools/services; tools → services)
