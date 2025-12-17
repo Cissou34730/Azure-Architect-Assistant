@@ -23,12 +23,12 @@ Goal: Separate orchestration (lifecycle, routing, DI, budgets, telemetry) from a
 - [x] Define execution budgets (iterations/timeouts) and context injection in orchestrator
 
 ## Phase 2 — Agent Extraction & Interface
-- [ ] Create `backend/app/agents_system/agents/mcp_react_agent.py`
+- [x] Create `backend/app/agents_system/agents/mcp_react_agent.py`
   - Accept injected `llm`, `prompt`, `tools`, and limits via constructor
   - Implement `initialize()` and `execute()` using LangChain `AgentExecutor`
-- [ ] Define minimal `Agent` protocol (initialize/execute) for consistency
-- [ ] Keep existing `rag_agent.py` unchanged (already a service wrapper)
-- [ ] Add compatibility shim in `agents/mcp_agent.py` (deprecated re-export) to avoid breaking imports
+- [x] Define minimal `Agent` protocol (initialize/execute) for consistency
+- [x] Keep existing `rag_agent.py` unchanged (already a service wrapper)
+- [x] Add compatibility shim in `agents/mcp_agent.py` (deprecated re-export) to avoid breaking imports
 
 ## Phase 3 — Tools & Prompts Assembly
 - [ ] Keep tools in place: `tools/mcp_tool.py`, `tools/kb_tool.py`
