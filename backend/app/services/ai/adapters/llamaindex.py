@@ -227,10 +227,13 @@ class AIServiceEmbedding(BaseEmbedding):
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                # Already in event loop, use nest_asyncio or create task
+                # Already in event loop, apply nest_asyncio and use run_until_complete
                 import nest_asyncio
                 nest_asyncio.apply()
-            return asyncio.run(self.ai_service.embed_text(query))
+                return loop.run_until_complete(self.ai_service.embed_text(query))
+            else:
+                # No running loop, use asyncio.run
+                return asyncio.run(self.ai_service.embed_text(query))
         except RuntimeError:
             # Fallback: create new loop
             loop = asyncio.new_event_loop()
@@ -252,10 +255,13 @@ class AIServiceEmbedding(BaseEmbedding):
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                # Already in event loop, use nest_asyncio
+                # Already in event loop, apply nest_asyncio and use run_until_complete
                 import nest_asyncio
                 nest_asyncio.apply()
-            return asyncio.run(self.ai_service.embed_text(text))
+                return loop.run_until_complete(self.ai_service.embed_text(text))
+            else:
+                # No running loop, use asyncio.run
+                return asyncio.run(self.ai_service.embed_text(text))
         except RuntimeError:
             # Fallback: create new loop
             loop = asyncio.new_event_loop()
@@ -285,10 +291,13 @@ class AIServiceEmbedding(BaseEmbedding):
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                # Already in event loop, use nest_asyncio
+                # Already in event loop, apply nest_asyncio and use run_until_complete
                 import nest_asyncio
                 nest_asyncio.apply()
-            return asyncio.run(self.ai_service.embed_batch(texts))
+                return loop.run_until_complete(self.ai_service.embed_batch(texts))
+            else:
+                # No running loop, use asyncio.run
+                return asyncio.run(self.ai_service.embed_batch(texts))
         except RuntimeError:
             # Fallback: create new loop
             loop = asyncio.new_event_loop()
