@@ -49,9 +49,9 @@ Goal: Separate orchestration (lifecycle, routing, DI, budgets, telemetry) from a
 [x] Ensure error handling, parsing hints remain intact (from current ReAct agent)
 
 ## Phase 6 — Safety & QA
-- [ ] Verify imports and avoid circular dependencies (orchestrator → agents/tools/services; tools → services)
-- [ ] Add smoke test: instantiate orchestrator with mocked MCP client, run `execute()` on a simple query, assert result shape
-- [ ] Run lint/type checks (`ruff`, `mypy`, `pyright`) and fix issues
+[x] Verify imports and avoid circular dependencies (orchestrator → agents/tools/services; tools → services)
+[x] Add smoke test: instantiate orchestrator with mocked MCP client, run `execute()` on a simple query, assert result shape
+[x] Run lint/type checks (`ruff`, `mypy`, `pyright`) and fix issues
 
 ## Phase 7 — Documentation & Commits
 - [ ] Add docs: `docs/AGENT_ARCHITECTURE.md` explaining boundaries, dependencies, runtime flow
