@@ -36,9 +36,9 @@ class AIServiceLLM(CustomLLM):
     """
     
     ai_service: AIService
-    model_name: str = "gpt-4o-mini"
-    temperature: float = 0.1
-    max_tokens: int = 1000
+    model_name: str
+    temperature: float
+    max_tokens: int
     
     model_config = {"arbitrary_types_allowed": True}
     
@@ -46,8 +46,8 @@ class AIServiceLLM(CustomLLM):
         self,
         ai_service: AIService,
         model_name: Optional[str] = None,
-        temperature: float = 0.1,
-        max_tokens: int = 1000,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
         **kwargs: Any
     ):
         """
@@ -55,15 +55,15 @@ class AIServiceLLM(CustomLLM):
         
         Args:
             ai_service: The unified AIService instance
-            model_name: Override model name (optional)
-            temperature: Temperature for generation
-            max_tokens: Maximum tokens to generate
+            model_name: Override model name (uses config default if not provided)
+            temperature: Temperature for generation (uses config default if not provided)
+            max_tokens: Maximum tokens to generate (uses config default if not provided)
         """
         super().__init__(
             ai_service=ai_service,
-            model_name=model_name or "gpt-4o-mini",
-            temperature=temperature,
-            max_tokens=max_tokens,
+            model_name=model_name or ai_service.config.openai_llm_model,
+            temperature=temperature if temperature is not None else ai_service.config.default_temperature,
+            max_tokens=max_tokens if max_tokens is not None else ai_service.config.default_max_tokens,
             **kwargs
         )
         logger.info(f"AIServiceLLM adapter initialized: model={self.model_name}")
@@ -185,7 +185,7 @@ class AIServiceEmbedding(BaseEmbedding):
     """
     
     ai_service: AIService
-    model_name: str = "text-embedding-3-small"
+    model_name: str
     
     model_config = {"arbitrary_types_allowed": True}
     
@@ -200,11 +200,11 @@ class AIServiceEmbedding(BaseEmbedding):
         
         Args:
             ai_service: The unified AIService instance
-            model_name: Override model name (optional)
+            model_name: Override model name (uses config default if not provided)
         """
         super().__init__(
             ai_service=ai_service,
-            model_name=model_name or "text-embedding-3-small",
+            model_name=model_name or ai_service.config.openai_embedding_model,
             **kwargs
         )
         logger.info(f"AIServiceEmbedding adapter initialized: model={self.model_name}")

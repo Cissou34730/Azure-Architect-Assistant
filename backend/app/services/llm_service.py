@@ -184,7 +184,7 @@ Use clear headings, bullet points, and technical details. Reference Azure Well-A
         
         response = await self.ai_service.chat(
             messages=messages,
-            temperature=0.1,
+            temperature=self.ai_service.config.default_temperature,
             max_tokens=max_tokens
         )
         

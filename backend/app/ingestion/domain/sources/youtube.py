@@ -108,7 +108,7 @@ class YouTubeSourceHandler(BaseSourceHandler):
         self.reader = YoutubeTranscriptReader()
         # Use AIService adapter for LlamaIndex compatibility
         ai_service = get_ai_service()
-        self.llm = AIServiceLLM(ai_service, model_name="gpt-4o-mini", temperature=0.1)
+        self.llm = AIServiceLLM(ai_service)
         logger.info(f"YouTubeSourceHandler initialized for KB: {kb_id}")
     
     def ingest(self, config: Dict[str, Any]) -> List[Document]:

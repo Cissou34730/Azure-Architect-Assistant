@@ -32,8 +32,8 @@ class VectorIndexBuilder(BaseIndexBuilder):
         self,
         kb_id: str,
         storage_dir: str,
-        embedding_model: str = "text-embedding-3-small",
-        generation_model: str = "gpt-4o-mini"
+        embedding_model: str = None,
+        generation_model: str = None
     ):
         """
         Initialize vector index builder.
@@ -41,17 +41,20 @@ class VectorIndexBuilder(BaseIndexBuilder):
         Args:
             kb_id: Knowledge base identifier
             storage_dir: Directory for index storage
-            embedding_model: Model name (for metadata only)
-            generation_model: Model for LLM/generation tasks
+            embedding_model: Model name (for metadata only, uses config default if not provided)
+            generation_model: Model for LLM/generation tasks (uses config default if not provided)
         """
+        # Get config defaults if not provided
+        ai_service = get_ai_service()
+        embedding_model = embedding_model or ai_service.config.openai_embedding_model
+        generation_model = generation_model or ai_service.config.openai_llm_model
+        
         super().__init__(kb_id, storage_dir, embedding_model, generation_model)
         
         # Initialize LlamaIndex LLM using AIService adapter
-        ai_service = get_ai_service()
         Settings.llm = AIServiceLLM(
             ai_service,
-            model_name=generation_model,
-            temperature=0.1
+            model_name=generation_model
         )
         
         self.logger.info(f"VectorIndexBuilder ready KB={kb_id} storage={storage_dir}")

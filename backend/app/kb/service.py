@@ -51,9 +51,7 @@ class KnowledgeBaseService:
             )
             Settings.llm = AIServiceLLM(
                 ai_service,
-                model_name=self.kb_config.generation_model,
-                temperature=0.1,
-                max_tokens=1000
+                model_name=self.kb_config.generation_model
             )
             self._settings_configured = True
     
