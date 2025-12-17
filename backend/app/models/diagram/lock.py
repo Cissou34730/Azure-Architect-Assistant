@@ -1,5 +1,6 @@
 """Lock model for pessimistic locking of diagram updates."""
 
+import uuid
 from datetime import datetime, timedelta
 
 from sqlalchemy import Column, String, DateTime, ForeignKey
@@ -18,7 +19,7 @@ class Lock(Base):
     
     __tablename__ = "locks"
     
-    id = Column(String(36), primary_key=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     diagram_set_id = Column(String(36), ForeignKey("diagram_sets.id", ondelete="CASCADE"), unique=True, nullable=False)
     lock_held_by = Column(String(255), nullable=False)
     lock_acquired_at = Column(DateTime, default=datetime.utcnow, nullable=False)

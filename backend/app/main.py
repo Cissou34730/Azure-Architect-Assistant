@@ -44,7 +44,6 @@ logger.info(f"Loading environment from: {env_path}")
 async def lifespan(app: FastAPI):
     """Handle application startup and shutdown using FastAPI lifespan."""
     await lifecycle.startup()
-    init_diagram_database()  # Initialize diagram database
     try:
         yield
     finally:

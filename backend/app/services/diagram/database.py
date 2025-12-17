@@ -14,12 +14,12 @@ _diagram_engine = None
 _diagram_session_factory = None
 
 
-def init_diagram_database() -> None:
+async def init_diagram_database() -> None:
     """
     Initialize diagram database engine and session factory.
     
     Call this during application startup.
-    Creates the database file if it doesn't exist.
+    Creates the database file and tables if they don't exist.
     """
     global _diagram_engine, _diagram_session_factory
     
@@ -43,6 +43,10 @@ def init_diagram_database() -> None:
         class_=AsyncSession,
         expire_on_commit=False,
     )
+    
+    # Create all tables
+    async with _diagram_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 async def get_diagram_session() -> AsyncGenerator[AsyncSession, None]:

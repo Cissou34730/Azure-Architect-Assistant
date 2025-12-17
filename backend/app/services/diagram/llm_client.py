@@ -87,8 +87,10 @@ class DiagramLLMClient:
             content = response.choices[0].message.content
             if not content:
                 raise ValueError("LLM returned empty response")
-                
-            return content.strip()
+            
+            # Strip markdown code fences if present
+            cleaned_content = self._strip_code_fences(content.strip())
+            return cleaned_content
             
         except RateLimitError as e:
             logger.warning(f"Rate limit hit, retrying: {e}")
@@ -221,4 +223,36 @@ Focus on:
             
         except Exception as e:
             logger.error(f"Ambiguity detection error: {e}")
-            return {"ambiguities": []}  # Non-fatal, return empty list
+            return {"ambiguities": []}
+    
+    @staticmethod
+    def _strip_code_fences(content: str) -> str:
+        """
+        Strip markdown code fences from LLM output.
+        
+        Handles:
+        - ```mermaid ... ```
+        - ```plantuml ... ```
+        - ``` ... ```
+        - Leading/trailing explanations
+        
+        Args:
+            content: Raw LLM output
+            
+        Returns:
+            Cleaned diagram code
+        """
+        content = content.strip()
+        
+        # Remove markdown code fences
+        if content.startswith("```"):
+            # Find first newline after opening fence
+            first_newline = content.find("\n")
+            if first_newline != -1:
+                content = content[first_newline + 1:]
+            
+            # Remove closing fence
+            if content.endswith("```"):
+                content = content[:-3]
+        
+        return content.strip()  # Non-fatal, return empty list

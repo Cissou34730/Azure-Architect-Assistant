@@ -1,5 +1,6 @@
 """DiagramSet model for storing diagram collections."""
 
+import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -19,7 +20,7 @@ class DiagramSet(Base):
     
     __tablename__ = "diagram_sets"
     
-    id = Column(String(36), primary_key=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     adr_id = Column(String(255), nullable=True, index=True)
     input_description = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

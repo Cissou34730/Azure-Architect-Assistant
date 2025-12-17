@@ -1,5 +1,6 @@
 """AmbiguityReport model for tracking unclear elements in descriptions."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Boolean
@@ -17,7 +18,7 @@ class AmbiguityReport(Base):
     
     __tablename__ = "ambiguity_reports"
     
-    id = Column(String(36), primary_key=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     diagram_set_id = Column(String(36), ForeignKey("diagram_sets.id", ondelete="CASCADE"), nullable=False, index=True)
     ambiguous_text = Column(Text, nullable=False)
     suggested_clarification = Column(Text, nullable=False)

@@ -1,5 +1,6 @@
 """Diagram model for individual diagram instances."""
 
+import uuid
 from datetime import datetime
 from enum import Enum
 
@@ -28,7 +29,7 @@ class Diagram(Base):
     
     __tablename__ = "diagrams"
     
-    id = Column(String(36), primary_key=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     diagram_set_id = Column(String(36), ForeignKey("diagram_sets.id", ondelete="CASCADE"), nullable=False, index=True)
     diagram_type = Column(String(50), nullable=False)
     source_code = Column(Text, nullable=False)

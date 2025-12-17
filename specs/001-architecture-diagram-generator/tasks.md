@@ -67,26 +67,26 @@
 
 ### Ambiguity Detection (US1 Required)
 
-- [ ] T022 [P] [US1] Implement ambiguity detector service in backend/app/services/diagram/ambiguity_detector.py (analyze_description method using LLM to identify unclear elements)
-- [ ] T023 [US1] Create POST /api/v1/diagram-sets/{id}/ambiguities endpoint in backend/app/routers/diagram_generation/ambiguities.py (list ambiguities for diagram set)
-- [ ] T024 [US1] Create PATCH /api/v1/ambiguities/{id} endpoint to mark ambiguity as resolved
+- [X] T022 [P] [US1] Implement ambiguity detector service in backend/app/services/diagram/ambiguity_detector.py (analyze_description method using LLM to identify unclear elements)
+- [X] T023 [US1] Create POST /api/v1/diagram-sets/{id}/ambiguities endpoint in backend/app/routers/diagram_generation/ambiguities.py (list ambiguities for diagram set)
+- [X] T024 [US1] Create PATCH /api/v1/ambiguities/{id} endpoint to mark ambiguity as resolved
 
 ### Mermaid Functional Diagram Generation (US1 Core)
 
-- [ ] T025 [P] [US1] Implement syntax validator in backend/app/services/diagram/syntax_validator.py (validate_mermaid_syntax using pyproject-mermaid)
-- [ ] T026 [P] [US1] Implement semantic validator in backend/app/services/diagram/semantic_validator.py (validate_diagram_semantics using LLM to verify diagram matches description)
-- [ ] T027 [P] [US1] Implement visual quality checker in backend/app/services/diagram/visual_quality_checker.py (check_mermaid_visual_quality: node count ≤20, edge count ≤30, orphan detection)
-- [ ] T028 [US1] Implement validation pipeline orchestrator in backend/app/services/diagram/validation_pipeline.py (validate_diagram method coordinating all 5 layers)
-- [ ] T029 [US1] Implement diagram generator service in backend/app/services/diagram/diagram_generator.py (generate_mermaid_functional method: LLM generation → validation pipeline → retry up to 3 times)
-- [ ] T030 [US1] Create POST /api/v1/diagram-sets endpoint in backend/app/routers/diagram_generation/diagram_sets.py (accepts input_description, optional adr_id → generates functional Mermaid diagram + detects ambiguities)
-- [ ] T031 [US1] Create GET /api/v1/diagram-sets/{id} endpoint to retrieve diagram set with all diagrams and ambiguities
-- [ ] T032 [US1] Register diagram_generation router in backend/app/main.py with prefix="/api/v1"
+- [X] T025 [P] [US1] Implement syntax validator in backend/app/services/diagram/syntax_validator.py (validate_mermaid_syntax using pyproject-mermaid)
+- [X] T026 [P] [US1] Implement semantic validator in backend/app/services/diagram/semantic_validator.py (validate_diagram_semantics using LLM to verify diagram matches description)
+- [X] T027 [P] [US1] Implement visual quality checker in backend/app/services/diagram/visual_quality_checker.py (check_mermaid_visual_quality: node count ≤20, edge count ≤30, orphan detection)
+- [X] T028 [US1] Implement validation pipeline orchestrator in backend/app/services/diagram/validation_pipeline.py (validate_diagram method coordinating all 5 layers)
+- [X] T029 [US1] Implement diagram generator service in backend/app/services/diagram/diagram_generator.py (generate_mermaid_functional method: LLM generation → validation pipeline → retry up to 3 times)
+- [X] T030 [US1] Create POST /api/v1/diagram-sets endpoint in backend/app/routers/diagram_generation/diagram_sets.py (accepts input_description, optional adr_id → generates functional Mermaid diagram + detects ambiguities)
+- [X] T031 [US1] Create GET /api/v1/diagram-sets/{id} endpoint to retrieve diagram set with all diagrams and ambiguities
+- [X] T032 [US1] Register diagram_generation router in backend/app/main.py with prefix="/api/v1"
 
 ### Frontend Mermaid Rendering (US1 Required)
 
-- [ ] T033 [P] [US1] Create MermaidRenderer component in frontend/src/components/diagrams/MermaidRenderer.tsx (props: diagramSetId, diagramType; uses mermaid.js for client-side rendering with Tailwind CSS v4 syntax)
-- [ ] T034 [US1] Install mermaid.js dependency in frontend: `npm install mermaid`
-- [ ] T035 [US1] Implement error handling in MermaidRenderer for invalid syntax (show error message, don't crash)
+- [X] T033 [P] [US1] Create MermaidRenderer component in frontend/src/components/diagrams/MermaidRenderer.tsx (props: diagramSetId, diagramType; uses mermaid.js for client-side rendering with Tailwind CSS v4 syntax)
+- [X] T034 [US1] Install mermaid.js dependency in frontend: `npm install mermaid`
+- [X] T035 [US1] Implement error handling in MermaidRenderer for invalid syntax (show error message, don't crash)
 
 **Checkpoint US1**: Can submit functional requirements description → receive Mermaid diagram + ambiguity list → view rendered diagram in frontend
 
