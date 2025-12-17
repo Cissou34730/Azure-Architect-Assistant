@@ -40,6 +40,7 @@ class AIConfig(BaseSettings):
     class Config:
         env_prefix = "AI_"
         env_file = ".env"
+        extra = "ignore"  # Ignore extra environment variables
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
