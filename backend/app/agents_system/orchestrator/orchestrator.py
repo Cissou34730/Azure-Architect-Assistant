@@ -15,7 +15,7 @@ from ..agents.mcp_react_agent import MCPReActAgent
 from ..tools.mcp_tool import create_mcp_tools
 from ..tools.kb_tool import create_kb_tools
 from ..config.react_prompts import SYSTEM_PROMPT, REACT_TEMPLATE
-from ..services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from ..conversation.summary_chain import SummaryChain
 from config.settings import OpenAISettings
 

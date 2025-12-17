@@ -19,15 +19,4 @@ class SummaryChain:
         if not self.enabled:
             return None
         # No-op stub: return None to avoid changing behavior by default
-        return None"""
-Conversation summarization chain.
-Implements progressive summarization for long conversations.
-"""
-
-
-# TODO: Implement summarization chain
-# - Progressive summarization strategy
-# - Context window management
-# - Important information preservation
-# - Summary regeneration on context updates
-# - Integration with memory store
+        return None

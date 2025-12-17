@@ -30,6 +30,15 @@ async def test_orchestrator_execute_smoke(monkeypatch):
         DummyAgent,
     )
 
+    # Avoid building real MCP tools (type validation on client)
+    async def _dummy_create_mcp_tools(_):
+        return []
+
+    monkeypatch.setattr(
+        "app.agents_system.orchestrator.orchestrator.create_mcp_tools",
+        _dummy_create_mcp_tools,
+    )
+
     # Minimal fake MCP client (tools won't be invoked in dummy agent)
     class FakeMCPClient:
         async def initialize(self):
