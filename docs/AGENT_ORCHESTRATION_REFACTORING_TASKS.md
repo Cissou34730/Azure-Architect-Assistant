@@ -37,10 +37,10 @@ Goal: Separate orchestration (lifecycle, routing, DI, budgets, telemetry) from a
   - Using `agents_system/config/react_prompts` injected via orchestrator
 
 ## Phase 4 — Runner Wiring
-- [ ] Refactor `backend/app/agents_system/runner.py` to own `AgentOrchestrator`
+[x] Refactor `backend/app/agents_system/runner.py` to own `AgentOrchestrator`
   - Replace direct `MCPReActAgent` usage with orchestrator
   - Keep public methods: `initialize()`, `execute_query()`, `shutdown()`
-- [ ] Ensure `backend/app/lifecycle.py` remains unchanged in wiring (initializes MCP client, then runner)
+[x] Ensure `backend/app/lifecycle.py` remains unchanged in wiring (initializes MCP client, then runner)
   - Note: Phase 1 keeps existing wiring unchanged (verified)
 
 ## Phase 5 — Cross-Cutting Concerns
