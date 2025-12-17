@@ -225,12 +225,19 @@ class AIServiceEmbedding(BaseEmbedding):
             List of float values representing the embedding vector
         """
         try:
-            # Run async method in sync context
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Already in event loop, use nest_asyncio or create task
+                import nest_asyncio
+                nest_asyncio.apply()
             return asyncio.run(self.ai_service.embed_text(query))
         except RuntimeError:
-            # Already in event loop
-            loop = asyncio.get_event_loop()
-            return loop.run_until_complete(self.ai_service.embed_text(query))
+            # Fallback: create new loop
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(self.ai_service.embed_text(query))
+            finally:
+                loop.close()
     
     def _get_text_embedding(self, text: str) -> List[float]:
         """
@@ -243,12 +250,19 @@ class AIServiceEmbedding(BaseEmbedding):
             List of float values representing the embedding vector
         """
         try:
-            # Run async method in sync context
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Already in event loop, use nest_asyncio
+                import nest_asyncio
+                nest_asyncio.apply()
             return asyncio.run(self.ai_service.embed_text(text))
         except RuntimeError:
-            # Already in event loop
-            loop = asyncio.get_event_loop()
-            return loop.run_until_complete(self.ai_service.embed_text(text))
+            # Fallback: create new loop
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(self.ai_service.embed_text(text))
+            finally:
+                loop.close()
     
     async def _aget_query_embedding(self, query: str) -> List[float]:
         """Async get query embedding."""
@@ -269,9 +283,16 @@ class AIServiceEmbedding(BaseEmbedding):
             List of embedding vectors
         """
         try:
-            # Run async method in sync context
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Already in event loop, use nest_asyncio
+                import nest_asyncio
+                nest_asyncio.apply()
             return asyncio.run(self.ai_service.embed_batch(texts))
         except RuntimeError:
-            # Already in event loop
-            loop = asyncio.get_event_loop()
-            return loop.run_until_complete(self.ai_service.embed_batch(texts))
+            # Fallback: create new loop
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(self.ai_service.embed_batch(texts))
+            finally:
+                loop.close()
