@@ -35,6 +35,7 @@ class AIServiceLLM(CustomLLM):
     maintaining full compatibility with LlamaIndex's LLM interface.
     """
     
+    ai_service: AIService
     model_name: str = "gpt-4o-mini"
     temperature: float = 0.1
     max_tokens: int = 1000
@@ -58,12 +59,13 @@ class AIServiceLLM(CustomLLM):
             temperature: Temperature for generation
             max_tokens: Maximum tokens to generate
         """
-        super().__init__(**kwargs)
-        self.ai_service = ai_service
-        if model_name:
-            self.model_name = model_name
-        self.temperature = temperature
-        self.max_tokens = max_tokens
+        super().__init__(
+            ai_service=ai_service,
+            model_name=model_name or "gpt-4o-mini",
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs
+        )
         logger.info(f"AIServiceLLM adapter initialized: model={self.model_name}")
     
     @property
@@ -182,6 +184,7 @@ class AIServiceEmbedding(BaseEmbedding):
     while maintaining full compatibility with LlamaIndex's embedding interface.
     """
     
+    ai_service: AIService
     model_name: str = "text-embedding-3-small"
     
     model_config = {"arbitrary_types_allowed": True}
@@ -199,10 +202,11 @@ class AIServiceEmbedding(BaseEmbedding):
             ai_service: The unified AIService instance
             model_name: Override model name (optional)
         """
-        super().__init__(**kwargs)
-        self.ai_service = ai_service
-        if model_name:
-            self.model_name = model_name
+        super().__init__(
+            ai_service=ai_service,
+            model_name=model_name or "text-embedding-3-small",
+            **kwargs
+        )
         logger.info(f"AIServiceEmbedding adapter initialized: model={self.model_name}")
     
     @classmethod
