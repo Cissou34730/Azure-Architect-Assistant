@@ -39,6 +39,8 @@ class AIServiceLLM(CustomLLM):
     temperature: float = 0.1
     max_tokens: int = 1000
     
+    model_config = {"arbitrary_types_allowed": True}
+    
     def __init__(
         self,
         ai_service: AIService,
@@ -181,6 +183,8 @@ class AIServiceEmbedding(BaseEmbedding):
     """
     
     model_name: str = "text-embedding-3-small"
+    
+    model_config = {"arbitrary_types_allowed": True}
     
     def __init__(
         self,
