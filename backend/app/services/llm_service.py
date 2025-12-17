@@ -1,38 +1,25 @@
 """
 LLM Service for document analysis, chat, and proposal generation.
-Migrated from TypeScript backend.
+Uses unified AI service layer for provider abstraction.
 """
 
 import logging
 import json
 import re
 from typing import Dict, List, Any, Optional, Callable
-from openai import AsyncOpenAI
-import os
+
+from app.services.ai import get_ai_service, ChatMessage
 
 logger = logging.getLogger(__name__)
-
-# Lazy-initialize OpenAI client
-_openai_client: Optional[AsyncOpenAI] = None
-
-
-def get_openai_client() -> AsyncOpenAI:
-    """Get or create OpenAI client."""
-    global _openai_client
-    if _openai_client is None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is not set")
-        _openai_client = AsyncOpenAI(api_key=api_key)
-    return _openai_client
 
 
 class LLMService:
     """Service for LLM operations in project workflow."""
     
     def __init__(self):
-        self.model = "gpt-4o-mini"
-        logger.info("LLMService ready")
+        self.ai_service = get_ai_service()
+        self.model = self.ai_service.get_llm_model()
+        logger.info(f"LLMService ready with model: {self.model}")
     
     async def analyze_documents(self, document_texts: List[str]) -> Dict[str, Any]:
         """
@@ -189,18 +176,19 @@ Use clear headings, bullet points, and technical details. Reference Azure Well-A
         return proposal
     
     async def _complete(self, system_prompt: str, user_prompt: str, max_tokens: int = 2000) -> str:
-        """Make OpenAI API call."""
-        client = get_openai_client()
-        response = await client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
+        """Make LLM API call via unified AI service."""
+        messages = [
+            ChatMessage(role="system", content=system_prompt),
+            ChatMessage(role="user", content=user_prompt)
+        ]
+        
+        response = await self.ai_service.chat(
+            messages=messages,
             temperature=0.1,
             max_tokens=max_tokens
         )
-        return response.choices[0].message.content or ""
+        
+        return response.content
     
     def _parse_project_state(self, response: str) -> Dict[str, Any]:
         """Parse ProjectState from LLM response."""
