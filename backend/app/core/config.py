@@ -44,6 +44,19 @@ class AppSettings(BaseSettings):
     mcp_default_timeout: int = Field(30, env="MCP_DEFAULT_TIMEOUT")
     mcp_max_retries: int = Field(3, env="MCP_MAX_RETRIES")
 
+    # Diagram generation settings
+    diagrams_database: str = Field(
+        default="sqlite+aiosqlite:///backend/data/diagrams.db",
+        env="DIAGRAMS_DATABASE"
+    )
+    plantuml_jar_path: Path = Field(
+        default_factory=lambda: Path(__file__).resolve().parents[2] / "lib" / "plantuml.jar",
+        env="PLANTUML_JAR_PATH"
+    )
+    diagram_openai_model: str = Field("gpt-4-turbo-preview", env="DIAGRAM_OPENAI_MODEL")
+    diagram_max_retries: int = Field(3, env="DIAGRAM_MAX_RETRIES")
+    diagram_generation_timeout: int = Field(30, env="DIAGRAM_GENERATION_TIMEOUT")
+
     @validator("cors_allow_origins", pre=True)
     def _split_origins(cls, value):
         if isinstance(value, str):
