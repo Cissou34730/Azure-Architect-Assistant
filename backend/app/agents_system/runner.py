@@ -64,7 +64,7 @@ class AgentRunner:
             openai_api_key=self.openai_settings.api_key,
             mcp_client=self.mcp_client,
             model=self.openai_settings.model,
-            temperature=0.1,  # Low temperature for consistent architectural guidance
+            temperature=self.openai_settings.temperature if hasattr(self.openai_settings, 'temperature') else 0.7,
             max_iterations=10,
             verbose=True,
         )
