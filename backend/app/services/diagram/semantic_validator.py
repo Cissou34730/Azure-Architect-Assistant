@@ -68,11 +68,8 @@ class SemanticValidator:
         prompt = self._build_validation_prompt(input_description, diagram_source, diagram_type)
         
         try:
-            # Call LLM for semantic validation
-            validation_result = await self.llm_client.validate_semantics(prompt, temperature=0.2)
-            
-            # Parse LLM response (should be JSON)
-            result_data = self._parse_validation_result(validation_result)
+            # Call LLM for semantic validation (returns dict already parsed)
+            result_data = await self.llm_client.validate_semantics(prompt, temperature=0.2)
             
             is_valid = result_data.get("is_valid", False)
             missing_elements = result_data.get("missing_elements", [])

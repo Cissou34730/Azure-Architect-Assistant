@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { ProjectList, DocumentsPanel, ChatPanel, StatePanel, ProposalPanel } from '.'
 import { TabNavigation } from '../common'
+import { DiagramSetViewer } from '../diagrams/DiagramSetViewer'
 import { useProjectWorkspace } from '../../hooks/useProjectWorkspace'
 
 export function ProjectWorkspace() {
@@ -48,6 +49,7 @@ export function ProjectWorkspace() {
     { id: 'chat', label: 'Chat' },
     { id: 'state', label: 'State' },
     { id: 'proposal', label: 'Proposal' },
+    { id: 'diagrams', label: 'Diagrams' },
   ]
 
   return (
@@ -78,7 +80,7 @@ export function ProjectWorkspace() {
                 <TabNavigation
                   tabs={tabs}
                   activeTab={activeTab}
-                  onTabChange={(tabId) => setActiveTab(tabId as 'documents' | 'chat' | 'state' | 'proposal')}
+                  onTabChange={(tabId) => setActiveTab(tabId as 'documents' | 'chat' | 'state' | 'proposal' | 'diagrams')}
                 />
 
                 <div className="p-6">
@@ -123,6 +125,10 @@ export function ProjectWorkspace() {
                       onGenerateProposal={handleGenerateProposal}
                       loading={loading}
                     />
+                  )}
+
+                  {activeTab === 'diagrams' && (
+                    <DiagramSetViewer diagramSetId="aa57f645-e736-430e-bab0-e8c6a953a047" />
                   )}
                 </div>
               </div>

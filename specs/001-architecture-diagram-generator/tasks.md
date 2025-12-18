@@ -100,20 +100,20 @@
 
 ### C4 Compliance Validation (US2 Required)
 
-- [ ] T036 [P] [US2] Implement C4 compliance validator in backend/app/services/diagram/c4_compliance_validator.py (validate_c4_compliance: check Context diagrams have Person+System only, Container diagrams have Container elements, no abstraction level violations)
+- [X] T036 [P] [US2] Implement C4 compliance validator in backend/app/services/diagram/c4_compliance_validator.py (validate_c4_compliance: check Context diagrams have Person+System only, Container diagrams have Container elements, no abstraction level violations)
 
 ### C4 Diagram Generation (US2 Core)
 
-- [ ] T037 [P] [US2] Add generate_c4_context method to diagram_generator.py (uses Mermaid C4Context syntax with Person, System, Boundary elements)
-- [ ] T038 [P] [US2] Add generate_c4_container method to diagram_generator.py (uses Mermaid C4Container syntax with Container, ContainerDb, Boundary elements)
-- [ ] T039 [US2] Update POST /api/v1/diagram-sets endpoint to generate 3 Mermaid diagram types in parallel (functional, C4 Context, C4 Container) using diagram_generator methods
-- [ ] T040 [US2] Update validation_pipeline.py to apply C4 compliance validation (Layer 4) for C4 diagram types only
-- [ ] T041 [US2] Update PromptBuilder to include C4-specific prompt templates (system context vs container abstraction levels)
+- [X] T037 [P] [US2] Add generate_c4_context method to diagram_generator.py (uses Mermaid C4Context syntax with Person, System, Boundary elements)
+- [X] T038 [P] [US2] Add generate_c4_container method to diagram_generator.py (uses Mermaid C4Container syntax with Container, ContainerDb, Boundary elements)
+- [X] T039 [US2] Update POST /api/v1/diagram-sets endpoint to generate 3 Mermaid diagram types in parallel (functional, C4 Context, C4 Container) using diagram_generator methods
+- [X] T040 [US2] Update validation_pipeline.py to apply C4 compliance validation (Layer 4) for C4 diagram types only
+- [X] T041 [US2] Update PromptBuilder to include C4-specific prompt templates (system context vs container abstraction levels)
 
 ### Frontend C4 Rendering (US2 Required)
 
-- [ ] T042 [US2] Update MermaidRenderer.tsx to handle C4Context and C4Container diagram types (initialize mermaid with C4 support)
-- [ ] T043 [US2] Create DiagramSetViewer component in frontend/src/components/diagrams/DiagramSetViewer.tsx (displays multiple diagrams side-by-side: functional, C4 Context, C4 Container)
+- [X] T042 [US2] Update MermaidRenderer.tsx to handle C4Context and C4Container diagram types (initialize mermaid with C4 support)
+- [X] T043 [US2] Create DiagramSetViewer component in frontend/src/components/diagrams/DiagramSetViewer.tsx (displays multiple diagrams side-by-side: functional, C4 Context, C4 Container)
 
 **Checkpoint US2**: Can submit architecture description → receive 3 Mermaid diagrams (functional + C4 Context + C4 Container) → view all rendered in frontend side-by-side
 

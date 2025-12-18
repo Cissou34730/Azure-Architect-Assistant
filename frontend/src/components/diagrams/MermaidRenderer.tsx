@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
+import { diagramApi } from '../../services/apiService';
 
 interface MermaidRendererProps {
   diagramSetId: string;
@@ -75,16 +76,7 @@ export default function MermaidRenderer({ diagramSetId, diagramType }: MermaidRe
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`/api/v1/diagram-sets/${diagramSetId}`);
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('Diagram set not found');
-          }
-          throw new Error(`Failed to fetch diagram set: ${response.statusText}`);
-        }
-
-        const data: DiagramSetResponse = await response.json();
+        const data: DiagramSetResponse = await diagramApi.getDiagramSet(diagramSetId);
         setDiagramSet(data);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -95,7 +87,7 @@ export default function MermaidRenderer({ diagramSetId, diagramType }: MermaidRe
       }
     };
 
-    fetchDiagramSet();
+    void fetchDiagramSet();
   }, [diagramSetId]);
 
   // Render the mermaid diagram
@@ -145,7 +137,7 @@ ${diagram.source_code}
       }
     };
 
-    renderDiagram();
+    void renderDiagram();
   }, [diagramSet, diagramType, diagramSetId, isRendered]);
 
   // Re-render when diagram set or type changes

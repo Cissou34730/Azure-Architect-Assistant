@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from .syntax_validator import SyntaxValidator, ValidationResult
 from .semantic_validator import SemanticValidator, SemanticValidationResult
 from .visual_quality_checker import VisualQualityChecker, QualityReport
+from .c4_compliance_validator import C4ComplianceValidator, C4ValidationResult
 from .llm_client import DiagramLLMClient
 from app.models.diagram import DiagramType
 
@@ -23,6 +24,7 @@ class PipelineValidationResult:
     syntax_result: Optional[ValidationResult] = None
     semantic_result: Optional[SemanticValidationResult] = None
     quality_report: Optional[QualityReport] = None
+    c4_result: Optional[C4ValidationResult] = None
     error_message: Optional[str] = None
     retry_feedback: Optional[str] = None  # Feedback for LLM retry
     
@@ -42,6 +44,7 @@ class ValidationPipeline:
         """
         self.syntax_validator: SyntaxValidator = SyntaxValidator()
         self.semantic_validator: SemanticValidator = SemanticValidator(llm_client)
+        self.c4_validator: C4ComplianceValidator = C4ComplianceValidator()
         self.quality_checker: VisualQualityChecker = VisualQualityChecker()
         self.plantuml_jar_path: Optional[str] = plantuml_jar_path
 
@@ -109,8 +112,22 @@ class ValidationPipeline:
         if quality_report.issues:
             logger.warning("Layer 3 (Quality) issues: %s", "; ".join(quality_report.issues))
         
-        # Layer 4: C4 Compliance - deferred to Phase 4 (US2)
-        # TODO T040: Add C4 compliance validation for c4_context and c4_container types
+        # Layer 4: C4 Compliance (BLOCKING for C4 diagrams)
+        c4_result = await self.c4_validator.validate_c4_compliance(
+            diagram_source=diagram_source,
+            diagram_type=diagram_type
+        )
+        if not c4_result.is_valid:
+            logger.error("Layer 4 (C4 Compliance) failed: %s", c4_result.violations)
+            return PipelineValidationResult(
+                is_valid=False,
+                syntax_result=syntax_result,
+                semantic_result=semantic_result,
+                quality_report=quality_report,
+                c4_result=c4_result,
+                error_message=f"C4 compliance violations: {'; '.join(c4_result.violations)}",
+                retry_feedback=self._build_c4_retry_feedback(c4_result)
+            )
         
         # Layer 5: Azure Icon Validation - deferred to Phase 5 (US3)
         # TODO T050: Add Azure icon validation for plantuml_azure type
@@ -120,7 +137,8 @@ class ValidationPipeline:
             is_valid=True,
             syntax_result=syntax_result,
             semantic_result=semantic_result,
-            quality_report=quality_report
+            quality_report=quality_report,
+            c4_result=c4_result
         )
 
     async def _validate_syntax(
@@ -212,3 +230,20 @@ class ValidationPipeline:
             feedback_parts.append(f"Suggestions: {semantic_result.suggestions}")
         
         return "; ".join(feedback_parts)
+
+    def _build_c4_retry_feedback(self, c4_result: C4ValidationResult) -> str:
+        """Build retry feedback for C4 compliance violations.
+        
+        Args:
+            c4_result: Failed C4 validation
+            
+        Returns:
+            Feedback string for LLM retry prompt
+        """
+        if not c4_result.violations:
+            return "C4 compliance validation failed"
+        
+        feedback = "C4 compliance violations:\n" + "\n".join(
+            f"- {violation}" for violation in c4_result.violations
+        )
+        return feedback

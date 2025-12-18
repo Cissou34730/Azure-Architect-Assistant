@@ -3,6 +3,7 @@
 Main entry point for diagram generation from architecture descriptions.
 """
 
+import asyncio
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -15,7 +16,7 @@ from app.models.diagram import DiagramSet, Diagram, AmbiguityReport, DiagramType
 from app.services.diagram.database import get_diagram_session
 from app.services.diagram.llm_client import DiagramLLMClient
 from app.services.diagram.ambiguity_detector import AmbiguityDetector
-from app.services.diagram.diagram_generator import DiagramGenerator
+from app.services.diagram.diagram_generator import DiagramGenerator, GenerationResult
 from app.core.config import get_app_settings
 
 logger = logging.getLogger(__name__)
@@ -113,7 +114,8 @@ async def _store_ambiguities(
 async def _store_generated_diagram(
     session: AsyncSession,
     diagram_set_id: str,
-    gen_result: Any
+    gen_result: GenerationResult,
+    diagram_type: DiagramType
 ) -> None:
     """Store generated diagram in database.
     
@@ -121,21 +123,22 @@ async def _store_generated_diagram(
         session: Database session
         diagram_set_id: ID of parent diagram set
         gen_result: Generation result from diagram generator
+        diagram_type: Type of diagram being stored
         
     Raises:
         HTTPException: If generation failed
     """
     if not gen_result.success:
-        logger.error("Diagram generation failed: %s", gen_result.error)
+        logger.error("Diagram generation failed for %s: %s", diagram_type.value, gen_result.error)
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Diagram generation failed after {gen_result.attempts} attempts: {gen_result.error}"
+            detail=f"{diagram_type.value} generation failed after {gen_result.attempts} attempts: {gen_result.error}"
         )
     
     diagram = Diagram(
         diagram_set_id=diagram_set_id,
-        diagram_type=DiagramType.MERMAID_FUNCTIONAL,
+        diagram_type=diagram_type.value,  # Convert enum to string
         source_code=gen_result.source_code,
         rendered_svg=None,  # Mermaid rendered client-side
         rendered_png=None,
@@ -143,7 +146,7 @@ async def _store_generated_diagram(
         created_at=datetime.utcnow()
     )
     session.add(diagram)
-    logger.info("Generated Mermaid functional diagram (version 1.0.0)")
+    logger.info("Generated %s diagram (version 1.0.0)", diagram_type.value)
 
 
 async def _build_response(
@@ -184,7 +187,7 @@ async def _build_response(
             DiagramResponse(
                 id=d.id,
                 diagram_set_id=d.diagram_set_id,
-                diagram_type=d.diagram_type.value,
+                diagram_type=d.diagram_type,  # Already a string from DB
                 source_code=d.source_code,
                 version=d.version,
                 created_at=d.created_at.isoformat()
@@ -212,7 +215,7 @@ async def _build_response(
     response_model=DiagramSetResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create new diagram set with generation",
-    description="Generate diagrams from input description. Creates DiagramSet, detects ambiguities, generates Mermaid functional diagram (FR-001, FR-002, FR-003)"
+    description="Generate diagrams from input description. Creates DiagramSet, detects ambiguities, generates 3 Mermaid diagrams in parallel: functional flow, C4 Context, and C4 Container (FR-001, FR-002, FR-003, FR-004)"
 )
 async def create_diagram_set(
     request: CreateDiagramSetRequest,
@@ -222,8 +225,11 @@ async def create_diagram_set(
     
     Flow:
     1. Create DiagramSet record
-    2. Detect ambiguities in parallel with diagram generation
-    3. Generate Mermaid functional diagram (US1)
+    2. Detect ambiguities
+    3. Generate 3 diagrams in parallel (US1 + US2):
+       - Mermaid functional flow diagram
+       - C4 Context diagram (system boundaries)
+       - C4 Container diagram (application architecture)
     4. Store results in database
     5. Return complete diagram set
     
@@ -232,14 +238,14 @@ async def create_diagram_set(
         session: Database session
         
     Returns:
-        DiagramSetResponse with generated diagrams and detected ambiguities
+        DiagramSetResponse with 3 generated diagrams and detected ambiguities
         
     Raises:
         400: Invalid input description
         500: Generation failed after retries
     """
     logger.info(
-        "Creating diagram set (description: %d chars, adr_id: %s)",
+        "Creating diagram set with 3 parallel diagrams (description: %d chars, adr_id: %s)",
         len(request.input_description), request.adr_id
     )
     
@@ -264,11 +270,24 @@ async def create_diagram_set(
         ambiguities_data = await ambiguity_detector.analyze_description(request.input_description)
         await _store_ambiguities(session, diagram_set.id, ambiguities_data)
         
-        # Generate and store diagram
-        gen_result = await diagram_generator.generate_mermaid_functional(
-            description=request.input_description
+        # Generate 3 diagrams in parallel (Phase 4: US2)
+        logger.info("Generating 3 diagrams in parallel")
+        functional_result, c4_context_result, c4_container_result = await asyncio.gather(
+            diagram_generator.generate_mermaid_functional(description=request.input_description),
+            diagram_generator.generate_c4_context(description=request.input_description),
+            diagram_generator.generate_c4_container(description=request.input_description)
         )
-        await _store_generated_diagram(session, diagram_set.id, gen_result)
+        
+        # Store all 3 diagrams
+        await _store_generated_diagram(
+            session, diagram_set.id, functional_result, DiagramType.MERMAID_FUNCTIONAL
+        )
+        await _store_generated_diagram(
+            session, diagram_set.id, c4_context_result, DiagramType.C4_CONTEXT
+        )
+        await _store_generated_diagram(
+            session, diagram_set.id, c4_container_result, DiagramType.C4_CONTAINER
+        )
         
         # Commit and return response
         await session.commit()
@@ -347,7 +366,7 @@ async def get_diagram_set(
             DiagramResponse(
                 id=d.id,
                 diagram_set_id=d.diagram_set_id,
-                diagram_type=d.diagram_type.value,
+                diagram_type=d.diagram_type,  # Already a string from DB
                 source_code=d.source_code,
                 version=d.version,
                 created_at=d.created_at.isoformat()

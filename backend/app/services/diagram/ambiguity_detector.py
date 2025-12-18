@@ -62,8 +62,9 @@ class AmbiguityDetector:
             # Build ambiguity detection prompt
             prompt = self.prompt_builder.build_ambiguity_prompt(description)
             
-            # Call LLM to detect ambiguities
-            ambiguities = await self.llm_client.detect_ambiguities(prompt, temperature=0.4)
+            # Call LLM to detect ambiguities (returns {"ambiguities": [...]})
+            result = await self.llm_client.detect_ambiguities(prompt, temperature=0.4)
+            ambiguities = result.get("ambiguities", [])
             
             logger.info("Detected %d ambiguities in description", len(ambiguities))
             
@@ -100,9 +101,19 @@ class AmbiguityDetector:
         seen_texts: Set[str] = set()
         
         for ambiguity in ambiguities:
+            # Map LLM field names to expected field names
+            # LLM returns: text, issue, clarification
+            # We expect: ambiguous_text, reason, suggested_clarification
+            if "text" in ambiguity and "ambiguous_text" not in ambiguity:
+                ambiguity["ambiguous_text"] = ambiguity["text"]
+            if "issue" in ambiguity and "reason" not in ambiguity:
+                ambiguity["reason"] = ambiguity["issue"]
+            if "clarification" in ambiguity and "suggested_clarification" not in ambiguity:
+                ambiguity["suggested_clarification"] = ambiguity["clarification"]
+            
             # Check required fields
             if not all(k in ambiguity for k in ["ambiguous_text", "suggested_clarification"]):
-                logger.warning("Skipping ambiguity with missing fields: %s", ambiguity)
+                logger.warning("Skipping ambiguity with missing fields. Has: %s", list(ambiguity.keys()))
                 continue
             
             ambiguous_text = ambiguity.get("ambiguous_text", "").strip()

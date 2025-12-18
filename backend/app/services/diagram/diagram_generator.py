@@ -71,6 +71,58 @@ class DiagramGenerator:
             max_retries=max_retries or self.MAX_RETRIES
         )
 
+    async def generate_c4_context(
+        self,
+        description: str,
+        max_retries: Optional[int] = None
+    ) -> GenerationResult:
+        """Generate C4 Context diagram (Level 1).
+        
+        Shows system boundaries, external actors (Person), and systems.
+        Uses Mermaid C4Context syntax.
+        
+        Args:
+            description: Architecture description
+            max_retries: Override default max retries (default: 3)
+            
+        Returns:
+            GenerationResult with source code or error
+        """
+        logger.info("Generating C4 Context diagram (description: %d chars)", len(description))
+        
+        diagram_type = DiagramType.C4_CONTEXT
+        return await self._generate_with_retry(
+            description=description,
+            diagram_type=diagram_type,
+            max_retries=max_retries or self.MAX_RETRIES
+        )
+
+    async def generate_c4_container(
+        self,
+        description: str,
+        max_retries: Optional[int] = None
+    ) -> GenerationResult:
+        """Generate C4 Container diagram (Level 2).
+        
+        Shows application containers, databases, and internal architecture.
+        Uses Mermaid C4Container syntax.
+        
+        Args:
+            description: Architecture description
+            max_retries: Override default max retries (default: 3)
+            
+        Returns:
+            GenerationResult with source code or error
+        """
+        logger.info("Generating C4 Container diagram (description: %d chars)", len(description))
+        
+        diagram_type = DiagramType.C4_CONTAINER
+        return await self._generate_with_retry(
+            description=description,
+            diagram_type=diagram_type,
+            max_retries=max_retries or self.MAX_RETRIES
+        )
+
     async def _execute_generation_attempt(
         self,
         description: str,
