@@ -200,10 +200,18 @@ class MicrosoftLearnMCPClient:
         if not self._initialized:
             return
 
-        logger.info("Closing Microsoft Learn MCP client...")
-        await self._cleanup()
-        self._initialized = False
-        logger.info("Microsoft Learn MCP client closed")
+        try:
+            logger.debug("Closing Microsoft Learn MCP client...")
+            await self._cleanup()
+            logger.debug("Microsoft Learn MCP client closed")
+        except (asyncio.CancelledError, RuntimeError) as e:
+            # Swallow expected shutdown-time cancellation/runtime errors quietly
+            logger.debug(f"MCP client close suppressed during shutdown: {type(e).__name__}")
+        except Exception as e:
+            # Avoid noisy logs on shutdown for benign errors
+            logger.debug(f"MCP client close encountered non-fatal error: {e}")
+        finally:
+            self._initialized = False
 
     async def _cleanup(self) -> None:
         """

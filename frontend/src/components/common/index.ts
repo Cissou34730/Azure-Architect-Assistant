@@ -3,6 +3,7 @@ export { TabNavigation } from "./TabNavigation";
 export { Button } from "./Button";
 export { StatusBadge } from "./StatusBadge";
 export { LoadingSpinner } from "./LoadingSpinner";
+export { LoadingIndicator } from "./LoadingIndicator";
 export { Banner } from "./Banner";
 export { ToastContainer } from "./Toast";
 export type { Toast, ToastType } from "./Toast";
