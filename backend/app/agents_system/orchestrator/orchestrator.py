@@ -143,7 +143,7 @@ class AgentOrchestrator:
 
     def health(self) -> dict:
         return {
-            "status": "initialized" if self._agent else "not_initialized",
+            "status": "healthy" if self._agent else "not_initialized",
             "openai_configured": bool(self.openai_settings.api_key),
             "max_iterations": self.max_iterations,
             "max_execution_time": self.max_execution_time,

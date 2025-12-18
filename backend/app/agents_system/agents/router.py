@@ -84,7 +84,7 @@ class ProjectAgentChatResponse(BaseModel):
 
 class AgentHealthResponse(BaseModel):
     """Agent system health status."""
-    status: str = Field(description="Health status: 'healthy', 'degraded', 'unhealthy'")
+    status: str = Field(description="Health status: 'healthy', 'not_initialized', or 'unknown'")
     mcp_client_connected: bool
     openai_configured: bool
 
