@@ -204,12 +204,8 @@ class MicrosoftLearnMCPClient:
             logger.debug("Closing Microsoft Learn MCP client...")
             await self._cleanup()
             logger.debug("Microsoft Learn MCP client closed")
-        except (asyncio.CancelledError, RuntimeError) as e:
-            # Swallow expected shutdown-time cancellation/runtime errors quietly
-            logger.debug(f"MCP client close suppressed during shutdown: {type(e).__name__}")
         except Exception as e:
-            # Avoid noisy logs on shutdown for benign errors
-            logger.debug(f"MCP client close encountered non-fatal error: {e}")
+            logger.warning(f"Error during MCP client close: {e}")
         finally:
             self._initialized = False
 
@@ -217,30 +213,40 @@ class MicrosoftLearnMCPClient:
         """
         Internal cleanup of connection resources.
         
-        IMPORTANT: During app shutdown, asyncio tasks are cancelled and the event loop
-        is being torn down. Calling __aexit__ on context managers (session, transport)
-        can trigger anyio's "Attempted to exit cancel scope in a different task" RuntimeError
-        because the context was entered in a different task/context than it's being exited in.
-        
-        Solution: Drop all references and let Python's garbage collection and process exit
-        handle resource cleanup. This is safe because:
-        1. HTTP connections will be closed when the process exits
-        2. anyio background tasks will be cancelled by asyncio shutdown
-        3. File descriptors and sockets will be released by the OS
+        Properly closes session and connection context managers in reverse order
+        of initialization to ensure clean shutdown.
         """
         try:
-            # Drop all references without calling __aexit__ to avoid anyio cancel scope errors
+            # Close session first (innermost context manager)
             if self._session:
-                logger.debug("Dropping session reference during cleanup")
-                self._session = None
+                try:
+                    logger.debug("Closing MCP session")
+                    await asyncio.wait_for(
+                        self._session.__aexit__(None, None, None),
+                        timeout=5.0
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("Session close timed out")
+                except Exception as e:
+                    logger.warning(f"Error closing session: {e}")
+                finally:
+                    self._session = None
             
-            if self._connection_context:
-                logger.debug("Dropping connection context reference during cleanup")
-                self._connection_context = None
-            
-            if self._streams:
-                logger.debug("Dropping streams reference during cleanup")
-                self._streams = None
+            # Close connection context (outermost context manager)
+            if self._connection_context and self._streams:
+                try:
+                    logger.debug("Closing MCP connection context")
+                    await asyncio.wait_for(
+                        self._connection_context.__aexit__(None, None, None),
+                        timeout=5.0
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("Connection context close timed out")
+                except Exception as e:
+                    logger.warning(f"Error closing connection context: {e}")
+                finally:
+                    self._connection_context = None
+                    self._streams = None
 
         except Exception as e:
             logger.warning(f"Error during cleanup: {e}")

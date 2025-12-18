@@ -6,7 +6,6 @@ Migrated from split TypeScript/Python architecture to unified Python backend.
 
 import os
 import logging
-import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
@@ -39,39 +38,9 @@ configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 logger.info(f"Loading environment from: {env_path}")
 
-
-def custom_exception_handler(loop, context):
-    """
-    Custom asyncio exception handler to suppress known shutdown errors.
-    
-    During application shutdown, MCP client cleanup can trigger benign errors
-    like "Attempted to exit cancel scope in a different task" from anyio.
-    These are expected and safe to suppress as the process is exiting anyway.
-    """
-    exception = context.get('exception')
-    message = context.get('message', '')
-    
-    # Suppress known shutdown-related errors
-    if exception:
-        # anyio cancel scope errors during MCP client cleanup
-        if isinstance(exception, RuntimeError) and 'cancel scope' in str(exception):
-            logger.debug(f"Suppressed shutdown error: {exception}")
-            return
-        # Cancelled errors during shutdown
-        if isinstance(exception, asyncio.CancelledError):
-            logger.debug("Suppressed CancelledError during shutdown")
-            return
-    
-    # Log all other exceptions normally
-    logger.error(f"Unhandled exception in asyncio: {message}", exc_info=exception)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle application startup and shutdown using FastAPI lifespan."""
-    # Install custom exception handler for shutdown errors
-    loop = asyncio.get_event_loop()
-    loop.set_exception_handler(custom_exception_handler)
-    
     await lifecycle.startup()
     try:
         yield
@@ -82,7 +51,7 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             logger.exception(f"cleanup_running_tasks failed: {exc}")
 
-        # Cleanup other resources
+        # Cleanup other resources (includes MCP client shutdown)
         try:
             await lifecycle.shutdown()
         except Exception as exc:

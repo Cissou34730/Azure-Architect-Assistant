@@ -86,10 +86,10 @@ async def shutdown():
     global _mcp_client_instance
 
     logger.info("=" * 60)
-    logger.info("SHUTDOWN: Stopping running ingestion jobs...")
+    logger.info("SHUTDOWN: Cleaning up services...")
     logger.info("=" * 60)
 
-    # Shutdown agent system
+    # Shutdown agent system first (which uses MCP client)
     try:
         logger.info("Shutting down agent system...")
         await shutdown_agent_runner()
@@ -97,17 +97,16 @@ async def shutdown():
     except Exception as e:
         logger.warning(f"Error shutting down agent system: {e}")
 
-    # Close MCP client explicitly to avoid asyncio context errors
+    # Close MCP client in the same event loop where it was initialized
     if _mcp_client_instance:
         try:
             logger.info("Closing MCP client...")
-            # Use asyncio.wait_for with timeout to prevent hanging during shutdown
-            await asyncio.wait_for(_mcp_client_instance.close(), timeout=2.0)
+            # Properly close with reasonable timeout
+            await asyncio.wait_for(_mcp_client_instance.close(), timeout=5.0)
             _mcp_client_instance = None
-            logger.info("✓ MCP client closed")
-        except (asyncio.TimeoutError, asyncio.CancelledError, RuntimeError) as e:
-            # These are expected during shutdown when tasks are being cancelled
-            logger.debug(f"MCP client cleanup cancelled (expected during shutdown): {type(e).__name__}")
+            logger.info("✓ MCP client closed cleanly")
+        except asyncio.TimeoutError:
+            logger.warning("MCP client close timed out after 5s")
             _mcp_client_instance = None
         except Exception as e:
             logger.warning(f"Error closing MCP client: {e}")
