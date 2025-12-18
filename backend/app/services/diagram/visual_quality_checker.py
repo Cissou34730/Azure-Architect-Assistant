@@ -128,7 +128,7 @@ class VisualQualityChecker:
         Returns:
             Set of node IDs
         """
-        nodes = set()
+        nodes: Set[str] = set()
         
         # Pattern for flowchart nodes: ID[text] or ID(text) or ID{text}
         flowchart_pattern = r'\b([A-Za-z0-9_]+)[\[\(\{]'
@@ -139,7 +139,7 @@ class VisualQualityChecker:
         nodes.update(re.findall(c4_pattern, source_code))
         
         # Filter out Mermaid keywords
-        keywords = {'graph', 'flowchart', 'TB', 'TD', 'LR', 'RL', 'BT', 'subgraph', 'end', 'style', 'class'}
+        keywords: Set[str] = {'graph', 'flowchart', 'TB', 'TD', 'LR', 'RL', 'BT', 'subgraph', 'end', 'style', 'class'}
         nodes = {n for n in nodes if n not in keywords}
         
         return nodes
@@ -159,7 +159,7 @@ class VisualQualityChecker:
         Returns:
             List of (from_node, to_node) tuples
         """
-        edges = []
+        edges: List[Tuple[str, str]] = []
         
         # Pattern for flowchart arrows: A --> B
         arrow_pattern = r'\b([A-Za-z0-9_]+)\s*(?:-->|---|-\.-|==>|===)\s*([A-Za-z0-9_]+)'
@@ -181,7 +181,7 @@ class VisualQualityChecker:
         Returns:
             Set of orphan node IDs
         """
-        connected_nodes = set()
+        connected_nodes: Set[str] = set()
         for from_node, to_node in edges:
             connected_nodes.add(from_node)
             connected_nodes.add(to_node)
@@ -200,10 +200,10 @@ class VisualQualityChecker:
         Returns:
             Maximum nesting depth
         """
-        max_depth = 0
-        current_depth = 0
+        max_depth: int = 0
+        current_depth: int = 0
         
-        lines = source_code.split('\n')
+        lines: List[str] = source_code.split('\n')
         for line in lines:
             line = line.strip()
             

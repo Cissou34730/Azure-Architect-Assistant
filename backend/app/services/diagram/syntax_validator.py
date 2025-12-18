@@ -7,7 +7,7 @@ import logging
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -45,11 +45,11 @@ class SyntaxValidator:
             return ValidationResult(is_valid=False, error="Empty source code")
         
         # Basic syntax checks (expand as needed)
-        errors = []
+        errors: List[str] = []
         
         # Check for required diagram type declaration
-        first_line = source_code.strip().split('\n')[0].strip()
-        valid_types = [
+        first_line: str = source_code.strip().split('\n')[0].strip()
+        valid_types: List[str] = [
             'flowchart', 'graph', 'sequenceDiagram', 'classDiagram',
             'stateDiagram', 'erDiagram', 'journey', 'gantt', 'pie',
             'C4Context', 'C4Container', 'C4Component', 'C4Dynamic', 'C4Deployment'
@@ -61,8 +61,8 @@ class SyntaxValidator:
             )
         
         # Check for balanced brackets/parentheses
-        brackets = {'[': ']', '(': ')', '{': '}'}
-        stack = []
+        brackets: Dict[str, str] = {'[': ']', '(': ')', '{': '}'}
+        stack: List[Tuple[str, int]] = []
         for i, char in enumerate(source_code):
             if char in brackets.keys():
                 stack.append((char, i))

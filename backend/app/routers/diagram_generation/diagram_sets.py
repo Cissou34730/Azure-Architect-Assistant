@@ -4,7 +4,7 @@ Main entry point for diagram generation from architecture descriptions.
 """
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -85,6 +85,126 @@ def _get_llm_client() -> DiagramLLMClient:
     return DiagramLLMClient()
 
 
+async def _store_ambiguities(
+    session: AsyncSession,
+    diagram_set_id: str,
+    ambiguities_data: List[Dict[str, Any]]
+) -> None:
+    """Store detected ambiguities in database.
+    
+    Args:
+        session: Database session
+        diagram_set_id: ID of parent diagram set
+        ambiguities_data: List of ambiguity dictionaries from detector
+    """
+    for amb_data in ambiguities_data:
+        ambiguity = AmbiguityReport(
+            diagram_set_id=diagram_set_id,
+            ambiguous_text=amb_data["ambiguous_text"],
+            suggested_clarification=amb_data.get("suggested_clarification"),
+            resolved=False,
+            created_at=datetime.utcnow()
+        )
+        session.add(ambiguity)
+    
+    logger.info("Created %d ambiguity reports", len(ambiguities_data))
+
+
+async def _store_generated_diagram(
+    session: AsyncSession,
+    diagram_set_id: str,
+    gen_result: Any
+) -> None:
+    """Store generated diagram in database.
+    
+    Args:
+        session: Database session
+        diagram_set_id: ID of parent diagram set
+        gen_result: Generation result from diagram generator
+        
+    Raises:
+        HTTPException: If generation failed
+    """
+    if not gen_result.success:
+        logger.error("Diagram generation failed: %s", gen_result.error)
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Diagram generation failed after {gen_result.attempts} attempts: {gen_result.error}"
+        )
+    
+    diagram = Diagram(
+        diagram_set_id=diagram_set_id,
+        diagram_type=DiagramType.MERMAID_FUNCTIONAL,
+        source_code=gen_result.source_code,
+        rendered_svg=None,  # Mermaid rendered client-side
+        rendered_png=None,
+        version="1.0.0",  # Initial version
+        created_at=datetime.utcnow()
+    )
+    session.add(diagram)
+    logger.info("Generated Mermaid functional diagram (version 1.0.0)")
+
+
+async def _build_response(
+    session: AsyncSession,
+    diagram_set: DiagramSet
+) -> DiagramSetResponse:
+    """Build complete diagram set response with diagrams and ambiguities.
+    
+    Args:
+        session: Database session
+        diagram_set: DiagramSet entity
+        
+    Returns:
+        Complete DiagramSetResponse
+    """
+    # Fetch diagrams
+    diagrams_stmt = select(Diagram).where(Diagram.diagram_set_id == diagram_set.id)
+    diagrams_result = await session.execute(diagrams_stmt)
+    diagrams = diagrams_result.scalars().all()
+    
+    # Fetch ambiguities
+    ambiguities_stmt = select(AmbiguityReport).where(AmbiguityReport.diagram_set_id == diagram_set.id)
+    ambiguities_result = await session.execute(ambiguities_stmt)
+    ambiguities = ambiguities_result.scalars().all()
+    
+    logger.info(
+        "DiagramSet created successfully: id=%s, diagrams=%d, ambiguities=%d",
+        diagram_set.id, len(diagrams), len(ambiguities)
+    )
+    
+    return DiagramSetResponse(
+        id=diagram_set.id,
+        adr_id=diagram_set.adr_id,
+        input_description=diagram_set.input_description,
+        created_at=diagram_set.created_at.isoformat(),
+        updated_at=diagram_set.updated_at.isoformat(),
+        diagrams=[
+            DiagramResponse(
+                id=d.id,
+                diagram_set_id=d.diagram_set_id,
+                diagram_type=d.diagram_type.value,
+                source_code=d.source_code,
+                version=d.version,
+                created_at=d.created_at.isoformat()
+            )
+            for d in diagrams
+        ],
+        ambiguities=[
+            AmbiguityReportResponse(
+                id=a.id,
+                diagram_set_id=a.diagram_set_id,
+                ambiguous_text=a.ambiguous_text,
+                suggested_clarification=a.suggested_clarification,
+                resolved=a.resolved,
+                created_at=a.created_at.isoformat()
+            )
+            for a in ambiguities
+        ]
+    )
+
+
 # --- Endpoints ---
 
 @router.post(
@@ -129,7 +249,7 @@ async def create_diagram_set(
     diagram_generator = DiagramGenerator(llm_client)
     
     try:
-        # Step 1: Create DiagramSet
+        # Create DiagramSet record
         diagram_set = DiagramSet(
             adr_id=request.adr_id,
             input_description=request.input_description,
@@ -138,100 +258,22 @@ async def create_diagram_set(
         )
         session.add(diagram_set)
         await session.flush()  # Get ID without committing
-        
         logger.info("Created DiagramSet with id=%s", diagram_set.id)
         
-        # Step 2: Detect ambiguities (non-blocking)
+        # Detect and store ambiguities
         ambiguities_data = await ambiguity_detector.analyze_description(request.input_description)
+        await _store_ambiguities(session, diagram_set.id, ambiguities_data)
         
-        # Store ambiguity reports
-        for amb_data in ambiguities_data:
-            ambiguity = AmbiguityReport(
-                diagram_set_id=diagram_set.id,
-                ambiguous_text=amb_data["ambiguous_text"],
-                suggested_clarification=amb_data.get("suggested_clarification"),
-                resolved=False,
-                created_at=datetime.utcnow()
-            )
-            session.add(ambiguity)
-        
-        logger.info("Created %d ambiguity reports", len(ambiguities_data))
-        
-        # Step 3: Generate Mermaid functional diagram (US1)
+        # Generate and store diagram
         gen_result = await diagram_generator.generate_mermaid_functional(
             description=request.input_description
         )
+        await _store_generated_diagram(session, diagram_set.id, gen_result)
         
-        if not gen_result.success:
-            logger.error("Diagram generation failed: %s", gen_result.error)
-            await session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Diagram generation failed after {gen_result.attempts} attempts: {gen_result.error}"
-            )
-        
-        # Store generated diagram
-        diagram = Diagram(
-            diagram_set_id=diagram_set.id,
-            diagram_type=DiagramType.MERMAID_FUNCTIONAL,
-            source_code=gen_result.source_code,
-            rendered_svg=None,  # Mermaid rendered client-side
-            rendered_png=None,
-            version="1.0.0",  # Initial version
-            created_at=datetime.utcnow()
-        )
-        session.add(diagram)
-        
-        logger.info("Generated Mermaid functional diagram (version 1.0.0)")
-        
-        # Step 4: Commit all changes
+        # Commit and return response
         await session.commit()
         await session.refresh(diagram_set)
-        
-        # Step 5: Build response
-        # Fetch diagrams and ambiguities
-        diagrams_stmt = select(Diagram).where(Diagram.diagram_set_id == diagram_set.id)
-        diagrams_result = await session.execute(diagrams_stmt)
-        diagrams = diagrams_result.scalars().all()
-        
-        ambiguities_stmt = select(AmbiguityReport).where(AmbiguityReport.diagram_set_id == diagram_set.id)
-        ambiguities_result = await session.execute(ambiguities_stmt)
-        ambiguities = ambiguities_result.scalars().all()
-        
-        logger.info(
-            "DiagramSet created successfully: id=%s, diagrams=%d, ambiguities=%d",
-            diagram_set.id, len(diagrams), len(ambiguities)
-        )
-        
-        return DiagramSetResponse(
-            id=diagram_set.id,
-            adr_id=diagram_set.adr_id,
-            input_description=diagram_set.input_description,
-            created_at=diagram_set.created_at.isoformat(),
-            updated_at=diagram_set.updated_at.isoformat(),
-            diagrams=[
-                DiagramResponse(
-                    id=d.id,
-                    diagram_set_id=d.diagram_set_id,
-                    diagram_type=d.diagram_type.value,
-                    source_code=d.source_code,
-                    version=d.version,
-                    created_at=d.created_at.isoformat()
-                )
-                for d in diagrams
-            ],
-            ambiguities=[
-                AmbiguityReportResponse(
-                    id=a.id,
-                    diagram_set_id=a.diagram_set_id,
-                    ambiguous_text=a.ambiguous_text,
-                    suggested_clarification=a.suggested_clarification,
-                    resolved=a.resolved,
-                    created_at=a.created_at.isoformat()
-                )
-                for a in ambiguities
-            ]
-        )
+        return await _build_response(session, diagram_set)
         
     except HTTPException:
         raise

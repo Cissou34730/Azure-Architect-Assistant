@@ -28,7 +28,7 @@ class DiagramLLMClient:
     - Separate from general llm_service.py for isolation
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize diagram LLM client with settings."""
         app_settings = get_app_settings()
         openai_settings = get_openai_settings()
@@ -247,7 +247,7 @@ Focus on:
         # Remove markdown code fences
         if content.startswith("```"):
             # Find first newline after opening fence
-            first_newline = content.find("\n")
+            first_newline: int = content.find("\n")
             if first_newline != -1:
                 content = content[first_newline + 1:]
             
@@ -255,4 +255,4 @@ Focus on:
             if content.endswith("```"):
                 content = content[:-3]
         
-        return content.strip()  # Non-fatal, return empty list
+        return content.strip()

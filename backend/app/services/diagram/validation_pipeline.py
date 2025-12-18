@@ -4,7 +4,7 @@ Coordinates all diagram validation layers before storage.
 """
 
 import logging
-from typing import Optional
+from typing import Optional, List
 from dataclasses import dataclass
 
 from .syntax_validator import SyntaxValidator, ValidationResult
@@ -33,17 +33,17 @@ class PipelineValidationResult:
 class ValidationPipeline:
     """Orchestrates 5-layer validation pipeline for diagrams."""
 
-    def __init__(self, llm_client: DiagramLLMClient, plantuml_jar_path: Optional[str] = None):
+    def __init__(self, llm_client: DiagramLLMClient, plantuml_jar_path: Optional[str] = None) -> None:
         """Initialize validation pipeline with validators.
         
         Args:
             llm_client: Diagram-specific LLM client for semantic validation
             plantuml_jar_path: Path to PlantUML JAR (unused - remote rendering)
         """
-        self.syntax_validator = SyntaxValidator()
-        self.semantic_validator = SemanticValidator(llm_client)
-        self.quality_checker = VisualQualityChecker()
-        self.plantuml_jar_path = plantuml_jar_path
+        self.syntax_validator: SyntaxValidator = SyntaxValidator()
+        self.semantic_validator: SemanticValidator = SemanticValidator(llm_client)
+        self.quality_checker: VisualQualityChecker = VisualQualityChecker()
+        self.plantuml_jar_path: Optional[str] = plantuml_jar_path
 
     async def validate_diagram(
         self,
@@ -196,7 +196,7 @@ class ValidationPipeline:
         Returns:
             Feedback string for LLM retry prompt
         """
-        feedback_parts = []
+        feedback_parts: List[str] = []
         
         if semantic_result.missing_elements:
             feedback_parts.append(

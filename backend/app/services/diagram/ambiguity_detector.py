@@ -5,7 +5,7 @@ that could lead to incorrect diagram generation (FR-004, FR-019).
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set
 
 from .llm_client import DiagramLLMClient
 from .prompt_builder import PromptBuilder
@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 class AmbiguityDetector:
     """Service for detecting ambiguities in architecture descriptions."""
 
-    def __init__(self, llm_client: DiagramLLMClient):
+    def __init__(self, llm_client: DiagramLLMClient) -> None:
         """Initialize ambiguity detector with LLM client.
         
         Args:
             llm_client: Diagram-specific LLM client for analysis
         """
-        self.llm_client = llm_client
-        self.prompt_builder = PromptBuilder()
+        self.llm_client: DiagramLLMClient = llm_client
+        self.prompt_builder: PromptBuilder = PromptBuilder()
 
     async def analyze_description(self, description: str) -> List[Dict[str, Any]]:
         """Analyze input description and identify ambiguous elements.
@@ -96,8 +96,8 @@ class AmbiguityDetector:
         Returns:
             Filtered and validated ambiguity list
         """
-        validated = []
-        seen_texts = set()
+        validated: List[Dict[str, Any]] = []
+        seen_texts: Set[str] = set()
         
         for ambiguity in ambiguities:
             # Check required fields

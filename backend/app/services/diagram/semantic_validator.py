@@ -30,13 +30,13 @@ class SemanticValidationResult:
 class SemanticValidator:
     """Validates diagram semantics using LLM analysis."""
 
-    def __init__(self, llm_client: DiagramLLMClient):
+    def __init__(self, llm_client: DiagramLLMClient) -> None:
         """Initialize semantic validator with LLM client.
         
         Args:
             llm_client: Diagram-specific LLM client for validation
         """
-        self.llm_client = llm_client
+        self.llm_client: DiagramLLMClient = llm_client
 
     async def validate_diagram_semantics(
         self,
@@ -120,9 +120,9 @@ class SemanticValidator:
         Returns:
             Validation prompt for LLM
         """
-        diagram_type_name = diagram_type.value.replace('_', ' ').title()
+        diagram_type_name: str = diagram_type.value.replace('_', ' ').title()
         
-        prompt = f"""Compare the input description with the generated diagram to verify accuracy.
+        prompt: str = f"""Compare the input description with the generated diagram to verify accuracy.
 
 INPUT DESCRIPTION:
 {description}
@@ -163,7 +163,7 @@ Be strict: mark as invalid if significant elements are missing or relationships 
         """
         try:
             # Try parsing as JSON
-            result = json.loads(llm_response)
+            result: Dict[str, Any] = json.loads(llm_response)
             
             # Validate required fields
             if "is_valid" not in result:
@@ -175,9 +175,9 @@ Be strict: mark as invalid if significant elements are missing or relationships 
             logger.error("Failed to parse LLM validation result as JSON: %s", str(e))
             # Try extracting JSON from markdown code block
             if "```json" in llm_response:
-                json_start = llm_response.find("```json") + 7
-                json_end = llm_response.find("```", json_start)
-                json_str = llm_response[json_start:json_end].strip()
+                json_start: int = llm_response.find("```json") + 7
+                json_end: int = llm_response.find("```", json_start)
+                json_str: str = llm_response[json_start:json_end].strip()
                 try:
                     return json.loads(json_str)
                 except json.JSONDecodeError:
