@@ -104,6 +104,8 @@ There MUST be no duplicate logic anywhere in the codebase. Every piece of behavi
 - Duplicate code means fixing bugs in N places and N opportunities for divergence
 - Prefer composition and pure functions for shared behavior
 - Configuration/data can repeat; logic cannot
+- Any new logic MUST reference the existing implementation evaluated and justify why reuse or extension was not possible
+
 
 **Rationale**: Each duplication multiplies maintenance burden, bug density, and inconsistency risk. Single source of truth ensures reliability.
 
@@ -117,7 +119,17 @@ Build only what is required today. No speculative features.
 
 **Rationale**: Unused code becomes unmaintained liability. Build for today with refactorability in mind.
 
-### VI. 
+### VI. Integration First (NON-NEGOTIABLE)
+All new code MUST integrate with the existing codebase and reuse existing capabilities before introducing new ones.
+
+- Existing code MUST be searched and evaluated before implementing new logic
+- Reuse, extension, or adaptation is mandatory when equivalent behavior exists
+- New code MUST be placed according to established architectural boundaries
+- Creating parallel or competing implementations is prohibited
+- When existing code is insufficient, extend via adapter/facade rather than duplication
+
+**Rationale**: This project evolves within a large, existing professional codebase. Uncontrolled greenfield-style additions rapidly create fragmentation, duplication, and architectural decay.
+
 
 ## Technology Stack
 
@@ -163,7 +175,12 @@ These files provide detailed implementation standards:
 - [ ] III. Explicit Naming - PASS/FAIL/JUSTIFIED
 - [ ] IV. Zero Duplication - PASS/FAIL/JUSTIFIED
 - [ ] V. YAGNI - PASS/FAIL/JUSTIFIED
-- [ ] Instruction files compliance verified
+- [ ] VI. Integration First - PASS/FAIL/JUSTIFIED
+- [ ] VII. Existing code discovery performed and documented
+- [ ] VII. Instruction files compliance verified
+
+Violations: [If any FAIL/JUSTIFIED, explain rationale and mitigation]
+
 
 Violations: [If any FAIL/JUSTIFIED, explain rationale and mitigation]
 ```
@@ -178,6 +195,13 @@ Violations: [If any FAIL/JUSTIFIED, explain rationale and mitigation]
 - ✅ No new frameworks without approval
 
 **Feature Branch Flow**: `feature → PR → constitution check → tests pass → auto-merge → auto-deploy → production`
+
+**Refactoring Obligations**:
+- Refactoring MUST be planned explicitly in `tasks.md`
+- Tasks may not be considered DONE if refactoring steps are skipped
+- Each phase MUST include a Hardening step (structure, duplication, boundaries)
+- Refactoring tasks MUST NOT introduce new features
+
 
 Manual gates break Principle II.
 
