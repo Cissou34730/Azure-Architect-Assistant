@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 
+const API_BASE = `${import.meta.env.BACKEND_URL || "http://localhost:8000"}/api`;
+
 type AgentStatus = "unknown" | "healthy" | "not_initialized";
 
 export function useAgentHealth() {
@@ -7,7 +9,7 @@ export function useAgentHealth() {
 
   const checkHealth = async () => {
     try {
-      const response = await fetch("http://localhost:8080/api/agent/health");
+      const response = await fetch(`${API_BASE}/agent/health`);
       const data = await response.json();
       setAgentStatus(data.status);
     } catch (error) {

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import type { Message, AgentResponse } from "../../../types/agent";
 
+const API_BASE = `${import.meta.env.BACKEND_URL || "http://localhost:8000"}/api`;
+
 interface UseAgentChatProps {
   selectedProjectId: string;
   onProjectStateUpdate?: (state: any) => void;
@@ -22,7 +24,7 @@ export function useAgentChat({
 
     try {
       const response = await fetch(
-        `http://localhost:8080/api/agent/projects/${selectedProjectId}/history`
+        `${API_BASE}/agent/projects/${selectedProjectId}/history`
       );
       const data = await response.json();
 
@@ -50,8 +52,8 @@ export function useAgentChat({
 
     try {
       const endpoint = selectedProjectId
-        ? `http://localhost:8080/api/agent/projects/${selectedProjectId}/chat`
-        : "http://localhost:8080/api/agent/chat";
+        ? `${API_BASE}/agent/projects/${selectedProjectId}/chat`
+        : `${API_BASE}/agent/chat`;
 
       const response = await fetch(endpoint, {
         method: "POST",

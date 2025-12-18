@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import type { ProjectState } from "../../../types/agent";
 
+const API_BASE = `${import.meta.env.BACKEND_URL || "http://localhost:8000"}/api`;
+
 export function useProjectState(selectedProjectId: string) {
   const [projectState, setProjectState] = useState<ProjectState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -14,7 +16,7 @@ export function useProjectState(selectedProjectId: string) {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `http://localhost:8080/api/projects/${selectedProjectId}/state`
+        `${API_BASE}/projects/${selectedProjectId}/state`
       );
       const data = await response.json();
       setProjectState(data.projectState);
