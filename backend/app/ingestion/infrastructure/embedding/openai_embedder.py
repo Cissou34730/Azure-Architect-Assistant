@@ -3,13 +3,14 @@ OpenAI Embedder
 Generates embeddings using OpenAI embedding models.
 """
 
+import asyncio
 import logging
 from typing import List, Dict, Any, Optional, Callable
 
-from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core import Document
 
 from .embedder_base import BaseEmbedder
+from app.services.ai import get_ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 class OpenAIEmbedder(BaseEmbedder):
     """
     Generate embeddings using OpenAI embedding models.
-    Wraps LlamaIndex OpenAIEmbedding for consistent interface.
+    Uses unified AIService for consistent configuration and monitoring.
     """
     
     def __init__(self, model_name: str = "text-embedding-3-small"):
@@ -28,7 +29,7 @@ class OpenAIEmbedder(BaseEmbedder):
             model_name: OpenAI embedding model name
         """
         super().__init__(model_name)
-        self.embedder = OpenAIEmbedding(model=model_name)
+        self.ai_service = get_ai_service()
         self.logger.info(f"OpenAIEmbedder initialized with model: {model_name}")
     
     def embed_documents(
@@ -82,28 +83,32 @@ class OpenAIEmbedder(BaseEmbedder):
                 {'documents': len(llama_docs)}
             )
         
-        # Generate embeddings using LlamaIndex
-        # Note: LlamaIndex handles batching and rate limiting internally
-        for i, doc in enumerate(llama_docs):
-            try:
-                # Get embedding for document text
-                embedding = self.embedder.get_text_embedding(doc.text)
-                doc.embedding = embedding
-                
-                # Progress callback every 10 documents
-                if progress_callback and i % 10 == 0:
-                    progress = 25 + int((i / len(llama_docs)) * 50)  # 25-75%
-                    from app.ingestion.domain.phase_tracker import IngestionPhase
-                    progress_callback(
-                        IngestionPhase.EMBEDDING,
-                        progress,
-                        f"Embedded {i}/{len(llama_docs)} documents",
-                        {'embedded': i, 'total': len(llama_docs)}
-                    )
-            except Exception as e:
-                self.logger.error(f"Failed to embed document {i}: {e}")
-                # Continue with other documents
-                continue
+        # Generate embeddings using AIService
+        # Extract all texts for batch processing
+        texts = [doc.text for doc in llama_docs]
+        
+        # Use asyncio to run async batch embedding
+        try:
+            embeddings = asyncio.run(self.ai_service.embed_batch(texts))
+        except RuntimeError:
+            # If already in event loop, create task
+            loop = asyncio.get_event_loop()
+            embeddings = loop.run_until_complete(self.ai_service.embed_batch(texts))
+        
+        # Assign embeddings to documents
+        for i, (doc, embedding) in enumerate(zip(llama_docs, embeddings)):
+            doc.embedding = embedding
+            
+            # Progress callback every 10 documents
+            if progress_callback and i % 10 == 0:
+                progress = 25 + int((i / len(llama_docs)) * 50)  # 25-75%
+                from app.ingestion.domain.phase_tracker import IngestionPhase
+                progress_callback(
+                    IngestionPhase.EMBEDDING,
+                    progress,
+                    f"Embedded {i}/{len(llama_docs)} documents",
+                    {'embedded': i, 'total': len(llama_docs)}
+                )
         
         if progress_callback:
             from app.ingestion.domain.phase_tracker import IngestionPhase

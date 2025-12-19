@@ -1,13 +1,13 @@
 """
 Agent system runner.
 Entry point for initializing and running the agent system.
-Keeps initialization logic thin - delegates to agent for actual execution.
+Delegates composition to AgentOrchestrator to keep runner thin.
 """
 
 import logging
 from typing import Optional
 
-from .agents.mcp_agent import MCPReActAgent
+from .orchestrator.orchestrator import AgentOrchestrator
 from ..services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from config.settings import OpenAISettings
 
@@ -21,7 +21,7 @@ class AgentRunner:
     Responsible for:
     - Configuration loading
     - Dependency injection (MCP client, OpenAI)
-    - Agent initialization
+    - Agent initialization via orchestrator
     - Graceful lifecycle management
     """
     
@@ -39,7 +39,7 @@ class AgentRunner:
         """
         self.openai_settings = openai_settings or OpenAISettings()
         self.mcp_client = mcp_client
-        self.agent: Optional[MCPReActAgent] = None
+        self.orchestrator: Optional[AgentOrchestrator] = None
         
         logger.info("AgentRunner initialized")
     
@@ -57,21 +57,17 @@ class AgentRunner:
         if not self.openai_settings.api_key:
             raise ValueError("OPENAI_API_KEY not set in environment")
         
-        logger.info("Initializing MCPReActAgent...")
-        
-        # Create agent
-        self.agent = MCPReActAgent(
-            openai_api_key=self.openai_settings.api_key,
-            mcp_client=self.mcp_client,
-            model=self.openai_settings.model,
-            temperature=0.1,  # Low temperature for consistent architectural guidance
+        logger.info("Initializing AgentOrchestrator...")
+
+        # Create and initialize orchestrator (inject OpenAI settings)
+        self.orchestrator = AgentOrchestrator(
+            openai_settings=self.openai_settings,
             max_iterations=10,
+            max_execution_time=60,
             verbose=True,
         )
-        
-        # Initialize agent components (async)
-        await self.agent.initialize()
-        
+        await self.orchestrator.initialize(self.mcp_client)
+
         logger.info("Agent system initialization complete")
     
     async def execute_query(self, user_query: str, project_context: Optional[str] = None) -> dict:
@@ -88,12 +84,12 @@ class AgentRunner:
         Raises:
             RuntimeError: If agent not initialized
         """
-        if not self.agent:
+        if not self.orchestrator:
             raise RuntimeError("Agent not initialized. Call initialize() first.")
         
         logger.info(f"Executing query: {user_query[:100]}...")
         
-        result = await self.agent.execute(user_query, project_context=project_context)
+        result = await self.orchestrator.execute(user_query, project_context=project_context)
         
         logger.info(f"Query execution complete (success={result['success']})")
         
@@ -107,12 +103,10 @@ class AgentRunner:
         """
         logger.info("Shutting down agent system...")
         
-        # Close MCP client if needed
-        if self.mcp_client:
-            # MCP client cleanup handled by lifecycle manager
-            pass
-        
-        self.agent = None
+        # Orchestrator cleanup
+        if self.orchestrator:
+            await self.orchestrator.shutdown()
+            self.orchestrator = None
         
         logger.info("Agent system shutdown complete")
     
@@ -123,11 +117,12 @@ class AgentRunner:
         Returns:
             Dictionary with health status
         """
-        return {
-            "status": "healthy" if self.agent else "not_initialized",
+        health = self.orchestrator.health() if self.orchestrator else {"status": "not_initialized"}
+        health.update({
             "mcp_client_connected": self.mcp_client is not None,
             "openai_configured": bool(self.openai_settings.api_key),
-        }
+        })
+        return health
 
 
 # Global runner instance (initialized by FastAPI lifecycle)

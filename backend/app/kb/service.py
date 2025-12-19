@@ -7,10 +7,10 @@ import os
 import logging
 from typing import Dict, Optional
 from llama_index.core import VectorStoreIndex, StorageContext, Settings
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.openai import OpenAI
 
 from .knowledge_base_manager import KBConfig
+from app.services.ai import get_ai_service
+from app.services.ai.adapters import AIServiceLLM, AIServiceEmbedding
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +40,18 @@ class KnowledgeBaseService:
     def _ensure_settings(self):
         """Lazy configuration of LlamaIndex settings."""
         if not self._settings_configured:
-            # Configure LlamaIndex settings for this KB
-            Settings.embed_model = OpenAIEmbedding(model=self.kb_config.embedding_model)
-            Settings.llm = OpenAI(
-                model=self.kb_config.generation_model,
-                temperature=0.1,
-                max_tokens=1000,
-                timeout=90.0
+            # Get unified AI service
+            ai_service = get_ai_service()
+            
+            # Configure LlamaIndex settings using adapters
+            # This allows LlamaIndex to work unchanged while using AIService
+            Settings.embed_model = AIServiceEmbedding(
+                ai_service,
+                model_name=self.kb_config.embedding_model
+            )
+            Settings.llm = AIServiceLLM(
+                ai_service,
+                model_name=self.kb_config.generation_model
             )
             self._settings_configured = True
     

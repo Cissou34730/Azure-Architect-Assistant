@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             logger.exception(f"close_diagram_database failed: {exc}")
 
-        # Cleanup other resources
+        # Cleanup other resources (includes MCP client shutdown)
         try:
             await lifecycle.shutdown()
         except Exception as exc:
