@@ -20,16 +20,24 @@ from config import (
 
 from dotenv import load_dotenv
 from pydantic import Field, validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def _default_env_path() -> Path:
     """Return the repository-level .env path (one level above backend)."""
-    return Path(__file__).resolve().parents[2] / ".env"
+    return Path(__file__).resolve().parents[3] / ".env"
 
 
 class AppSettings(BaseSettings):
     """Top-level application settings."""
+    # Ignore unknown/extra env keys to prevent startup failures when .env
+    # contains settings not explicitly modeled here.
+    model_config = SettingsConfigDict(
+        env_file=str(_default_env_path()),
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
     env: str = Field("development", env="ENV")
     backend_port: int = Field(8000, env="BACKEND_PORT")
@@ -45,8 +53,8 @@ class AppSettings(BaseSettings):
     mcp_max_retries: int = Field(3, env="MCP_MAX_RETRIES")
 
     # Diagram generation settings
-    diagrams_database: str = Field(
-        default="sqlite+aiosqlite:///backend/data/diagrams.db",
+    diagrams_database: Path = Field(
+        default_factory=lambda: Path(__file__).resolve().parents[2] / "data" / "diagrams.db",
         env="DIAGRAMS_DATABASE"
     )
     plantuml_jar_path: Path = Field(
@@ -69,10 +77,24 @@ class AppSettings(BaseSettings):
             return Path(value)
         return value
 
-    class Config:
-        env_file = str(_default_env_path())
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    @validator("diagrams_database", pre=True)
+    def _normalize_diagrams_db(cls, value):
+        repo_root = Path(__file__).resolve().parents[3]
+        if isinstance(value, Path):
+            return value if value.is_absolute() else (repo_root / value).resolve()
+        if isinstance(value, str):
+            v = value.strip()
+            if v.startswith("sqlite+aiosqlite:///"):
+                # Strip DSN prefix and normalize path
+                path_str = v.replace("sqlite+aiosqlite:///", "", 1)
+                p = Path(path_str)
+                return p if p.is_absolute() else (repo_root / p).resolve()
+            # Treat as filesystem path
+            p = Path(v)
+            return p if p.is_absolute() else (repo_root / p).resolve()
+        return value
+
+    # Pydantic v2 config is defined via model_config above.
 
     def load_mcp_config(self) -> Dict[str, Any]:
         """
