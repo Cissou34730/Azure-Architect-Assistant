@@ -1,0 +1,655 @@
+openapi: 3.1.0
+info:
+  title: Architecture Diagram Generator API
+  version: 1.0.0
+  description: |
+    API for generating architecture diagrams (Mermaid, PlantUML) from functional requirements or technical descriptions.
+    Supports ambiguity detection, versioning, and ADR integration.
+  contact:
+    name: Azure Architect Assistant Team
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+  - url: https://diagram-api.example.com/api/v1
+    description: Production server
+
+tags:
+  - name: Diagrams
+    description: Diagram generation and retrieval
+  - name: Ambiguities
+    description: Ambiguity detection and resolution
+  - name: Locking
+    description: Concurrent access control
+
+paths:
+  /diagram-sets:
+    post:
+      summary: Create new diagram set with generation
+      description: |
+        Generate diagrams from input description. Creates DiagramSet, detects ambiguities, generates all diagram types.
+        Completes within 30 seconds (SC-001).
+      operationId: createDiagramSet
+      tags:
+        - Diagrams
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDiagramSetRequest'
+      responses:
+        '201':
+          description: Diagram set created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagramSetResponse'
+        '400':
+          description: Invalid input description
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Generation failed after 3 retries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: List all diagram sets
+      description: Retrieve all diagram sets with optional filtering by ADR ID.
+      operationId: listDiagramSets
+      tags:
+        - Diagrams
+      parameters:
+        - name: adr_id
+          in: query
+          description: Filter by ADR ID
+          required: false
+          schema:
+            type: string
+            example: "ADR-2024-001"
+        - name: limit
+          in: query
+          description: Maximum number of results
+          required: false
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 500
+        - name: offset
+          in: query
+          description: Pagination offset
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: List of diagram sets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagramSetListResponse'
+
+  /diagram-sets/{diagram_set_id}:
+    get:
+      summary: Get diagram set by ID
+      description: Retrieve a single diagram set with all diagrams and ambiguities.
+      operationId: getDiagramSet
+      tags:
+        - Diagrams
+      parameters:
+        - name: diagram_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 42
+      responses:
+        '200':
+          description: Diagram set details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagramSetResponse'
+        '404':
+          description: Diagram set not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      summary: Update diagram set metadata
+      description: Update input description or ADR ID. Requires lock acquisition.
+      operationId: updateDiagramSet
+      tags:
+        - Diagrams
+      parameters:
+        - name: diagram_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDiagramSetRequest'
+      responses:
+        '200':
+          description: Diagram set updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagramSetResponse'
+        '409':
+          description: Diagram set locked by another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete diagram set
+      description: Soft delete diagram set and all related diagrams/ambiguities.
+      operationId: deleteDiagramSet
+      tags:
+        - Diagrams
+      parameters:
+        - name: diagram_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Diagram set deleted
+        '404':
+          description: Diagram set not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /diagram-sets/{diagram_set_id}/regenerate:
+    post:
+      summary: Regenerate diagrams for existing set
+      description: |
+        Re-run diagram generation using existing input description. Creates new diagram versions.
+        Useful after ambiguity resolution or PlantUML template updates.
+      operationId: regenerateDiagrams
+      tags:
+        - Diagrams
+      parameters:
+        - name: diagram_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                diagram_types:
+                  type: array
+                  description: Specific diagram types to regenerate (omit for all)
+                  items:
+                    type: string
+                    enum: [mermaid_functional, c4_context, c4_container, plantuml_azure]
+                  example: ["c4_context", "c4_container"]
+      responses:
+        '200':
+          description: Diagrams regenerated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagramSetResponse'
+        '404':
+          description: Diagram set not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /diagram-sets/{diagram_set_id}/diagrams/{diagram_id}:
+    get:
+      summary: Get specific diagram
+      description: Retrieve diagram source code and rendered outputs.
+      operationId: getDiagram
+      tags:
+        - Diagrams
+      parameters:
+        - name: diagram_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: diagram_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Diagram details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagramResponse'
+        '404':
+          description: Diagram not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /diagram-sets/{diagram_set_id}/diagrams/{diagram_id}/export:
+    get:
+      summary: Export diagram in specific format
+      description: Export Mermaid source, PlantUML SVG, or PlantUML PNG.
+      operationId: exportDiagram
+      tags:
+        - Diagrams
+      parameters:
+        - name: diagram_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: diagram_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [source, svg, png]
+            description: |
+              - source: Mermaid or PlantUML source code (text/plain)
+              - svg: SVG rendering (PlantUML only, image/svg+xml)
+              - png: PNG rendering (PlantUML only, image/png)
+      responses:
+        '200':
+          description: Exported diagram
+          content:
+            text/plain:
+              schema:
+                type: string
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid format for diagram type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Diagram not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /diagram-sets/{diagram_set_id}/ambiguities:
+    get:
+      summary: Get ambiguity reports for diagram set
+      description: List all detected ambiguities with resolution status.
+      operationId: getAmbiguities
+      tags:
+        - Ambiguities
+      parameters:
+        - name: diagram_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: resolved
+          in: query
+          description: Filter by resolution status
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of ambiguity reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AmbiguityReportResponse'
+
+  /diagram-sets/{diagram_set_id}/ambiguities/{ambiguity_id}/resolve:
+    post:
+      summary: Mark ambiguity as resolved
+      description: User acknowledges and resolves ambiguity.
+      operationId: resolveAmbiguity
+      tags:
+        - Ambiguities
+      parameters:
+        - name: diagram_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: ambiguity_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Ambiguity marked as resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AmbiguityReportResponse'
+        '404':
+          description: Ambiguity not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /diagram-sets/{diagram_set_id}/lock:
+    post:
+      summary: Acquire lock on diagram set
+      description: |
+        Acquire pessimistic lock for editing. Lock expires after 10 minutes.
+        Returns 409 if already locked by another user.
+      operationId: acquireLock
+      tags:
+        - Locking
+      parameters:
+        - name: diagram_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  description: User or session identifier
+                  example: "user-session-abc123"
+              required:
+                - user_id
+      responses:
+        '200':
+          description: Lock acquired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockResponse'
+        '409':
+          description: Already locked by another user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Release lock on diagram set
+      description: Explicitly release lock before expiration.
+      operationId: releaseLock
+      tags:
+        - Locking
+      parameters:
+        - name: diagram_set_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+            description: User or session identifier
+      responses:
+        '204':
+          description: Lock released
+        '404':
+          description: Lock not found or already released
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CreateDiagramSetRequest:
+      type: object
+      required:
+        - input_description
+      properties:
+        input_description:
+          type: string
+          description: Functional requirements or technical design description
+          minLength: 10
+          maxLength: 50000
+          example: |
+            User uploads a document to Azure Blob Storage.
+            Azure Function processes the document and extracts metadata.
+            Metadata is stored in Cosmos DB with embedding vectors.
+            User can query documents via API Gateway.
+        adr_id:
+          type: string
+          nullable: true
+          description: Optional ADR identifier to link diagrams
+          pattern: '^[A-Za-z0-9-]+$'
+          example: "ADR-2024-001"
+
+    UpdateDiagramSetRequest:
+      type: object
+      properties:
+        input_description:
+          type: string
+          minLength: 10
+          maxLength: 50000
+        adr_id:
+          type: string
+          nullable: true
+          pattern: '^[A-Za-z0-9-]+$'
+
+    DiagramSetResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        adr_id:
+          type: string
+          nullable: true
+          example: "ADR-2024-001"
+        input_description:
+          type: string
+          example: "User uploads document to Azure Blob Storage..."
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-12-17T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-12-17T14:45:00Z"
+        diagrams:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiagramResponse'
+        ambiguities:
+          type: array
+          items:
+            $ref: '#/components/schemas/AmbiguityReportResponse'
+        lock:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/LockResponse'
+
+    DiagramSetListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 150
+        offset:
+          type: integer
+          example: 0
+        limit:
+          type: integer
+          example: 100
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              adr_id:
+                type: string
+                nullable: true
+              input_description:
+                type: string
+                maxLength: 200
+                description: Truncated description
+              created_at:
+                type: string
+                format: date-time
+              diagram_count:
+                type: integer
+              ambiguity_count:
+                type: integer
+
+    DiagramResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        diagram_set_id:
+          type: integer
+          example: 42
+        diagram_type:
+          type: string
+          enum: [mermaid_functional, c4_context, c4_container, plantuml_azure]
+          example: "c4_context"
+        source_code:
+          type: string
+          example: |
+            C4Context
+            title System Context for Architecture Assistant
+            Person(user, "Architect", "Designs cloud solutions")
+            System(app, "Diagram Generator", "Generates architecture diagrams")
+            System_Ext(openai, "OpenAI API", "LLM service")
+            Rel(user, app, "Submits description")
+            Rel(app, openai, "Generates diagrams")
+        has_rendered_svg:
+          type: boolean
+          description: True if SVG available (PlantUML only)
+          example: true
+        has_rendered_png:
+          type: boolean
+          description: True if PNG available (PlantUML only)
+          example: true
+        version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+$'
+          example: "1.0.0"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-12-17T10:30:15Z"
+
+    AmbiguityReportResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 201
+        diagram_set_id:
+          type: integer
+          example: 42
+        ambiguous_text:
+          type: string
+          example: "processes the document"
+          description: Excerpt from input description
+        suggested_clarification:
+          type: string
+          nullable: true
+          example: "Specify: OCR extraction, NLP analysis, or simple text parsing?"
+        resolved:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-12-17T10:30:10Z"
+
+    LockResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 301
+        diagram_set_id:
+          type: integer
+          example: 42
+        lock_held_by:
+          type: string
+          example: "user-session-abc123"
+        lock_acquired_at:
+          type: string
+          format: date-time
+          example: "2025-12-17T14:30:00Z"
+        lock_expires_at:
+          type: string
+          format: date-time
+          example: "2025-12-17T14:40:00Z"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Invalid input_description"
+        detail:
+          type: string
+          example: "input_description must be between 10 and 50,000 characters"
+        code:
+          type: string
+          example: "VALIDATION_ERROR"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for service-to-service authentication
+
+security:
+  - ApiKeyAuth: []

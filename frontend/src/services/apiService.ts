@@ -324,3 +324,31 @@ export const proposalApi = {
     return eventSource;
   },
 };
+
+/**
+ * Diagram Generation API
+ */
+export const diagramApi = {
+  async getDiagramSet(diagramSetId: string) {
+    const response = await fetch(`${API_BASE}/v1/diagram-sets/${diagramSetId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch diagram set: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  async createDiagramSet(inputDescription: string, adrId?: string) {
+    const response = await fetch(`${API_BASE}/v1/diagram-sets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input_description: inputDescription,
+        adr_id: adrId,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create diagram set: ${response.status}`);
+    }
+    return response.json();
+  },
+};
