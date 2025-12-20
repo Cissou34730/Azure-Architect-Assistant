@@ -19,7 +19,7 @@ from config import (
 )
 
 from dotenv import load_dotenv
-from pydantic import Field, validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,54 +30,61 @@ def _default_env_path() -> Path:
 
 class AppSettings(BaseSettings):
     """Top-level application settings."""
-    # Ignore unknown/extra env keys to prevent startup failures when .env
-    # contains settings not explicitly modeled here.
+    # Strict settings config with explicit env file and no extras.
     model_config = SettingsConfigDict(
         env_file=str(_default_env_path()),
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="ignore",
+        extra="forbid",
     )
 
-    env: str = Field("development", env="ENV")
-    backend_port: int = Field(8000, env="BACKEND_PORT")
-    cors_allow_origins: List[str] = Field(default_factory=lambda: ["*"], env="CORS_ALLOW_ORIGINS")
-    log_level: str = Field("INFO", env="LOG_LEVEL")
+    env: str = Field("development")
+    backend_port: int = Field(8000)
+    cors_allow_origins: List[str] = Field(default_factory=lambda: ["*"])
+    log_level: str = Field("INFO")
 
     # Agent system settings
     mcp_config_path: Path = Field(
         default_factory=lambda: Path(__file__).resolve().parents[2] / "config" / "mcp" / "mcp_config.json",
-        env="MCP_CONFIG_PATH"
     )
-    mcp_default_timeout: int = Field(30, env="MCP_DEFAULT_TIMEOUT")
-    mcp_max_retries: int = Field(3, env="MCP_MAX_RETRIES")
+    mcp_default_timeout: int = Field(30)
+    mcp_max_retries: int = Field(3)
 
     # Diagram generation settings
     diagrams_database: Path = Field(
         default_factory=lambda: Path(__file__).resolve().parents[2] / "data" / "diagrams.db",
-        env="DIAGRAMS_DATABASE"
     )
     plantuml_jar_path: Path = Field(
         default_factory=lambda: Path(__file__).resolve().parents[2] / "lib" / "plantuml.jar",
-        env="PLANTUML_JAR_PATH"
     )
-    diagram_openai_model: str = Field("gpt-4-turbo-preview", env="DIAGRAM_OPENAI_MODEL")
-    diagram_max_retries: int = Field(3, env="DIAGRAM_MAX_RETRIES")
-    diagram_generation_timeout: int = Field(30, env="DIAGRAM_GENERATION_TIMEOUT")
+    diagram_openai_model: str = Field("gpt-4-turbo-preview")
+    diagram_max_retries: int = Field(3)
+    diagram_generation_timeout: int = Field(30)
 
-    @validator("cors_allow_origins", pre=True)
+    # Explicitly model commonly-present env keys to avoid extras in .env
+    frontend_port: int | None = None
+    backend_url: str | None = None
+    openai_api_key: str | None = None
+    openai_model: str | None = None
+    openai_embedding_model: str | None = None
+    projects_database: Path | None = None
+    ingestion_database: Path | None = None
+    knowledge_bases_root: Path | None = None
+    vite_banner_message: str | None = None
+
+    @field_validator("cors_allow_origins", mode="before")
     def _split_origins(cls, value):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
-    @validator("mcp_config_path", pre=True)
+    @field_validator("mcp_config_path", mode="before")
     def _resolve_mcp_path(cls, value):
         if isinstance(value, str):
             return Path(value)
         return value
 
-    @validator("diagrams_database", pre=True)
+    @field_validator("diagrams_database", mode="before")
     def _normalize_diagrams_db(cls, value):
         repo_root = Path(__file__).resolve().parents[3]
         if isinstance(value, Path):

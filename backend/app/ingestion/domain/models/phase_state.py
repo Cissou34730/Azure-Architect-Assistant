@@ -88,8 +88,8 @@ if PYDANTIC_AVAILABLE:
         completed_at: Optional[datetime] = None
         error: Optional[str] = None
 
-        class Config:
-            from_attributes = True
+        # Pydantic v2 config; use plain dict to avoid import issues
+        model_config = {"from_attributes": True}
 
         @classmethod
         def from_phase_state(cls, phase: PhaseState) -> "PhaseStateSchema":
