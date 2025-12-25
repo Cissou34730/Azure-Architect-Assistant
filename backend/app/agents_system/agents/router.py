@@ -5,7 +5,7 @@ FastAPI router for agent chat endpoints and request handling.
 
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, Field
@@ -208,7 +208,7 @@ async def chat_with_project_context(
             project_id=project_id,
             role="user",
             content=request.message,
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
         db.add(user_message)
         
@@ -217,7 +217,7 @@ async def chat_with_project_context(
             project_id=project_id,
             role="assistant",
             content=answer,
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
         db.add(agent_message)
         

@@ -5,7 +5,7 @@ Job repository for orchestrator-based ingestion.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from sqlalchemy import select, update
@@ -44,7 +44,7 @@ class JobRepository:
         priority: int = 0,
     ) -> str:
         """Create a new ingestion job and return its ID."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         with get_session() as session:
             job = IngestionJob(
                 kb_id=kb_id,
@@ -119,7 +119,7 @@ class JobRepository:
             session.execute(
                 update(IngestionJob)
                 .where(IngestionJob.id == job_id)
-                .values(status=db_status, updated_at=datetime.utcnow())
+                .values(status=db_status, updated_at=datetime.now(timezone.utc))
             )
 
     def initialize_phase_statuses(self, job_id: str) -> None:
@@ -154,7 +154,7 @@ class JobRepository:
             job.status = status
             job.finished_at = finished_at
             job.last_error = last_error
-            job.updated_at = datetime.utcnow()
+            job.updated_at = datetime.now(timezone.utc)
 
     def update_job(
         self,
@@ -182,7 +182,7 @@ class JobRepository:
                 job.finished_at = finished_at
             if last_error is not None:
                 job.last_error = last_error
-            job.updated_at = datetime.utcnow()
+            job.updated_at = datetime.now(timezone.utc)
 
     def update_heartbeat(self, job_id: str) -> None:
         """Update job heartbeat timestamp."""
@@ -190,7 +190,7 @@ class JobRepository:
             session.execute(
                 update(IngestionJob)
                 .where(IngestionJob.id == job_id)
-                .values(heartbeat_at=datetime.utcnow())
+                .values(heartbeat_at=datetime.now(timezone.utc))
             )
 
     def get_job(self, job_id: str) -> JobView:

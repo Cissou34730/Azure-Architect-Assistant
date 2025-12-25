@@ -4,10 +4,10 @@ Queue repository for chunk-level work items.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, delete
 
 from app.ingestion.domain.errors import DuplicateChunkError
 from app.ingestion.domain.enums import PhaseStatus
@@ -40,14 +40,15 @@ class QueueRepository:
     def dequeue_batch(self, batch_size: int = 50) -> List[IngestionQueueItem]:
         """Fetch a batch of pending items and mark them processing."""
         with get_session() as session:
-            pending = (
-                session.query(IngestionQueueItem)
-                .filter(IngestionQueueItem.status == QueueStatus.PENDING.value)
+            stmt = (
+                select(IngestionQueueItem)
+                .where(IngestionQueueItem.status == QueueStatus.PENDING.value)
                 .order_by(IngestionQueueItem.available_at)
                 .limit(batch_size)
                 .with_for_update(skip_locked=True)
-                .all()
             )
+            result = session.execute(stmt)
+            pending = result.scalars().all()
             for item in pending:
                 item.mark_processing()
             return pending
@@ -82,53 +83,62 @@ class QueueRepository:
     def pause_current_phase(self, kb_id: str) -> None:
         """Mark current phase paused for latest job."""
         with get_session() as session:
-            job = (
-                session.query(IngestionJob)
-                .filter(IngestionJob.kb_id == kb_id)
+            stmt = (
+                select(IngestionJob)
+                .where(IngestionJob.kb_id == kb_id)
                 .order_by(IngestionJob.created_at.desc())
-                .first()
+                .limit(1)
             )
+            result = session.execute(stmt)
+            job = result.scalar_one_or_none()
             if not job:
                 return
             job.status = QueueStatus.PAUSED.value if hasattr(QueueStatus, "PAUSED") else job.status
-            job.updated_at = datetime.utcnow()
+            job.updated_at = datetime.now(timezone.utc)
 
     def resume_current_phase(self, kb_id: str) -> None:
         """Mark current phase running for latest job."""
         with get_session() as session:
-            job = (
-                session.query(IngestionJob)
-                .filter(IngestionJob.kb_id == kb_id)
+            stmt = (
+                select(IngestionJob)
+                .where(IngestionJob.kb_id == kb_id)
                 .order_by(IngestionJob.created_at.desc())
-                .first()
+                .limit(1)
             )
+            result = session.execute(stmt)
+            job = result.scalar_one_or_none()
             if not job:
                 return
             job.status = QueueStatus.PROCESSING.value
-            job.updated_at = datetime.utcnow()
+            job.updated_at = datetime.now(timezone.utc)
 
     def cancel_job_and_reset(self, kb_id: str) -> None:
         """Cancel latest job for KB and reset queue."""
         with get_session() as session:
-            job = (
-                session.query(IngestionJob)
-                .filter(IngestionJob.kb_id == kb_id)
+            stmt = (
+                select(IngestionJob)
+                .where(IngestionJob.kb_id == kb_id)
                 .order_by(IngestionJob.created_at.desc())
-                .first()
+                .limit(1)
             )
+            result = session.execute(stmt)
+            job = result.scalar_one_or_none()
             if not job:
                 return
             job.status = QueueStatus.DONE.value if hasattr(QueueStatus, "DONE") else job.status
-            job.updated_at = datetime.utcnow()
-            session.query(IngestionQueueItem).filter(IngestionQueueItem.job_id == job.id).delete()
+            job.updated_at = datetime.now(timezone.utc)
+            delete_stmt = delete(IngestionQueueItem).where(IngestionQueueItem.job_id == job.id)
+            session.execute(delete_stmt)
 
     def recover_inflight_jobs(self) -> None:
         """Recover jobs stuck in RUNNING state by marking them paused."""
         with get_session() as session:
-            jobs = session.query(IngestionJob).filter(IngestionJob.status == QueueStatus.PROCESSING.value).all()
+            stmt = select(IngestionJob).where(IngestionJob.status == QueueStatus.PROCESSING.value)
+            result = session.execute(stmt)
+            jobs = result.scalars().all()
             for job in jobs:
                 job.status = QueueStatus.PAUSED.value if hasattr(QueueStatus, "PAUSED") else job.status
-                job.updated_at = datetime.utcnow()
+                job.updated_at = datetime.now(timezone.utc)
 
     def add_queue_item(
         self,

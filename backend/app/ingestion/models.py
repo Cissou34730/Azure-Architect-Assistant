@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import enum
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Column,
@@ -91,7 +91,7 @@ class IngestionJob(Base):
 
     def update_status(self, status: JobStatus) -> None:
         self.status = status.value
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 class IngestionPhaseStatus(Base):
@@ -113,40 +113,40 @@ class IngestionPhaseStatus(Base):
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     job = relationship("IngestionJob", backref="phase_statuses")
 
     def start(self) -> None:
         """Mark phase as started."""
         self.status = PhaseStatusDB.RUNNING.value
-        self.started_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.started_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
 
     def pause(self) -> None:
         """Mark phase as paused."""
         self.status = PhaseStatusDB.PAUSED.value
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def resume(self) -> None:
         """Mark phase as resumed."""
         self.status = PhaseStatusDB.RUNNING.value
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def complete(self) -> None:
         """Mark phase as completed."""
         self.status = PhaseStatusDB.COMPLETED.value
         self.progress_percent = 100
-        self.completed_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
 
     def fail(self, error_message: str) -> None:
         """Mark phase as failed."""
         self.status = PhaseStatusDB.FAILED.value
         self.error_message = error_message
-        self.completed_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
 
     def update_progress(self, items_processed: int, items_total: int = None) -> None:
         """Update phase progress."""
@@ -160,7 +160,7 @@ class IngestionPhaseStatus(Base):
             # Without total, cap at 99% until completion
             self.progress_percent = min(99, int((items_processed / max(items_processed + 1, 100)) * 100))
         
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
 
 class IngestionQueueItem(Base):
@@ -181,22 +181,22 @@ class IngestionQueueItem(Base):
     status = Column(String(20), nullable=False, default=QueueStatus.PENDING.value)
     attempts = Column(Integer, nullable=False, default=0)
     error_log = Column(Text, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    available_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    available_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     job = relationship("IngestionJob", back_populates="queue_items")
 
     def mark_processing(self) -> None:
         self.status = QueueStatus.PROCESSING.value
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def mark_done(self) -> None:
         self.status = QueueStatus.DONE.value
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def mark_error(self, message: str) -> None:
         self.status = QueueStatus.ERROR.value
         self.error_log = message
         self.attempts += 1
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)

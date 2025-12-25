@@ -7,7 +7,7 @@ Per backend/docs/ingestion/OrchestratorSpec.md
 import asyncio
 import logging
 import signal
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -113,7 +113,7 @@ class IngestionOrchestrator:
             self.repo.set_job_status(
                 job_id,
                 status='failed',
-                finished_at=datetime.utcnow(),
+                finished_at=datetime.now(timezone.utc),
                 last_error=f"Initialization failed: {e}"
             )
             raise
@@ -276,7 +276,7 @@ class IngestionOrchestrator:
             self.repo.set_job_status(
                 job_id,
                 status='completed',
-                finished_at=datetime.utcnow(),
+                finished_at=datetime.now(timezone.utc),
                 last_error=None
             )
             logger.info(f"Ingestion completed: job_id={job_id}, counters={counters}")
@@ -286,7 +286,7 @@ class IngestionOrchestrator:
             self.repo.set_job_status(
                 job_id,
                 status='failed',
-                finished_at=datetime.utcnow(),
+                finished_at=datetime.now(timezone.utc),
                 last_error=str(e)
             )
             raise
@@ -394,7 +394,7 @@ class IngestionOrchestrator:
                 status='not_started',
                 checkpoint=None,
                 counters=None,
-                finished_at=datetime.utcnow(),
+                finished_at=datetime.now(timezone.utc),
                 last_error='Canceled by user'
             )
             logger.info(f"Reset job {job_id} to not_started")

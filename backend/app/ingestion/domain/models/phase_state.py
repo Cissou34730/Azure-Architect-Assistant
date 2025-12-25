@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 try:
@@ -31,7 +31,7 @@ class PhaseState:
     def start(self) -> None:
         """Mark phase as running."""
         self.status = PhaseStatus.RUNNING
-        self.started_at = datetime.utcnow()
+        self.started_at = datetime.now(timezone.utc)
 
     def pause(self) -> None:
         """Mark phase as paused."""
@@ -44,13 +44,13 @@ class PhaseState:
     def complete(self) -> None:
         """Mark phase as completed."""
         self.status = PhaseStatus.COMPLETED
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
         self.progress = 100
 
     def fail(self, error: str) -> None:
         """Mark phase as failed with error message."""
         self.status = PhaseStatus.FAILED
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
         self.error = error
 
     def update_progress(self, items_processed: int, items_total: Optional[int] = None) -> None:

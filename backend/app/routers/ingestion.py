@@ -6,7 +6,7 @@ Per backend/docs/ingestion/OrchestratorSpec.md
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -155,7 +155,7 @@ async def start_ingestion(
             job_id=job_id,
             kb_id=kb_id,
             status="running",
-            started_at=datetime.utcnow()
+            started_at=datetime.now(timezone.utc)
         )
         
     except Exception as e:
