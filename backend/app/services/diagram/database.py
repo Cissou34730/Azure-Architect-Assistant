@@ -24,14 +24,15 @@ async def init_diagram_database() -> None:
     global _diagram_engine, _diagram_session_factory
     
     settings = get_app_settings()
-    
-    # Ensure data directory exists
-    db_path = Path("backend/data")
-    db_path.mkdir(parents=True, exist_ok=True)
-    
+
+    # Build DSN from filesystem path and ensure directory exists
+    db_file: Path = settings.diagrams_database
+    db_file.parent.mkdir(parents=True, exist_ok=True)
+    dsn = f"sqlite+aiosqlite:///{db_file.as_posix()}"
+
     # Create async engine
     _diagram_engine = create_async_engine(
-        settings.diagrams_database,
+        dsn,
         echo=False,
         poolclass=NullPool,  # SQLite doesn't benefit from connection pooling
         connect_args={"check_same_thread": False},

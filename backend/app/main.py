@@ -6,12 +6,20 @@ Migrated from split TypeScript/Python architecture to unified Python backend.
 
 import os
 import logging
+import warnings
 from pathlib import Path
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# Suppress third-party Pydantic v2 warnings from dependencies not yet updated
+warnings.filterwarnings(
+    "ignore",
+    message=r"The 'validate_default' attribute with value True was provided to the `Field\(\)` function.*",
+    category=UserWarning,
+)
 
 # Import routers
 from app.routers.kb_query import router as kb_query_router

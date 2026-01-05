@@ -1,7 +1,7 @@
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from sqlalchemy import select
@@ -44,7 +44,7 @@ class ChatService:
             project_id=project_id,
             role="user",
             content=message,
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
         )
         db.add(user_message)
         await db.commit()
@@ -91,13 +91,13 @@ class ChatService:
             project_id=project_id,
             role="assistant",
             content=response["assistantMessage"],
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             waf_sources=json.dumps(response.get("sources", [])) if response.get("sources") else None,
         )
         db.add(assistant_message)
 
         state_record.state = json.dumps(response["projectState"])
-        state_record.updated_at = datetime.utcnow().isoformat()
+        state_record.updated_at = datetime.now(timezone.utc).isoformat()
 
         await db.commit()
 

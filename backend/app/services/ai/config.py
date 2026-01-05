@@ -5,7 +5,7 @@ Centralized configuration for all AI providers.
 
 import os
 from typing import Literal
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AIConfig(BaseSettings):
@@ -37,10 +37,11 @@ class AIConfig(BaseSettings):
     max_requests_per_minute: int = 60
     max_tokens_per_minute: int = 150000
     
-    class Config:
-        env_prefix = "AI_"
-        env_file = ".env"
-        extra = "ignore"  # Ignore extra environment variables
+    model_config = SettingsConfigDict(
+        env_prefix="AI_",
+        env_file=".env",
+        extra="ignore",
+    )
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

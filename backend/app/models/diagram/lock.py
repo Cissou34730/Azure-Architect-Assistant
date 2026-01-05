@@ -1,7 +1,7 @@
 """Lock model for pessimistic locking of diagram updates."""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
@@ -22,7 +22,7 @@ class Lock(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     diagram_set_id = Column(String(36), ForeignKey("diagram_sets.id", ondelete="CASCADE"), unique=True, nullable=False)
     lock_held_by = Column(String(255), nullable=False)
-    lock_acquired_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    lock_acquired_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     lock_expires_at = Column(DateTime, nullable=False)
     
     # Relationships
@@ -32,11 +32,11 @@ class Lock(Base):
         """Initialize lock with 10-minute expiration."""
         super().__init__(*args, **kwargs)
         if not self.lock_expires_at:
-            self.lock_expires_at = datetime.utcnow() + timedelta(minutes=10)
+            self.lock_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
     
     def is_expired(self) -> bool:
         """Check if lock has expired."""
-        return datetime.utcnow() > self.lock_expires_at
+        return datetime.now(timezone.utc) > self.lock_expires_at
     
     def __repr__(self) -> str:
         return f"<Lock(id={self.id}, held_by={self.lock_held_by}, expires={self.lock_expires_at})>"

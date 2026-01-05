@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Any, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ...models import ProjectState, Project
 
@@ -90,7 +90,7 @@ async def update_project_state(
     
     # Update database record
     state_record.state = json.dumps(updated_state)
-    state_record.updated_at = datetime.utcnow().isoformat()
+    state_record.updated_at = datetime.now(timezone.utc).isoformat()
     
     # Don't commit here - let the dependency handle it
     await db.flush()  # Flush to get updated values but don't commit

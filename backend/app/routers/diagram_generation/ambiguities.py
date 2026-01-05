@@ -29,8 +29,9 @@ class AmbiguityReportResponse(BaseModel):
     resolved: bool = False
     created_at: str
     
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class ResolveAmbiguityRequest(BaseModel):

@@ -5,7 +5,7 @@ Migrated from TypeScript backend.
 
 from sqlalchemy import Column, String, Text, ForeignKey, JSON
 from sqlalchemy.orm import relationship, declarative_base
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 Base = declarative_base()
@@ -18,7 +18,7 @@ class Project(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)
     text_requirements = Column(Text, nullable=True)
-    created_at = Column(String(30), nullable=False, default=lambda: datetime.utcnow().isoformat())
+    created_at = Column(String(30), nullable=False, default=lambda: datetime.now(timezone.utc).isoformat())
 
     # Relationships
     documents = relationship("ProjectDocument", back_populates="project", cascade="all, delete-orphan")
@@ -44,7 +44,7 @@ class ProjectDocument(Base):
     file_name = Column(String(255), nullable=False)
     mime_type = Column(String(100), nullable=False)
     raw_text = Column(Text, nullable=False)
-    uploaded_at = Column(String(30), nullable=False, default=lambda: datetime.utcnow().isoformat())
+    uploaded_at = Column(String(30), nullable=False, default=lambda: datetime.now(timezone.utc).isoformat())
 
     # Relationships
     project = relationship("Project", back_populates="documents")
@@ -67,7 +67,7 @@ class ProjectState(Base):
 
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
     state = Column(Text, nullable=False)  # JSON string
-    updated_at = Column(String(30), nullable=False, default=lambda: datetime.utcnow().isoformat())
+    updated_at = Column(String(30), nullable=False, default=lambda: datetime.now(timezone.utc).isoformat())
 
     # Relationships
     project = relationship("Project", back_populates="states")
@@ -89,7 +89,7 @@ class ConversationMessage(Base):
     project_id = Column(String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     role = Column(String(20), nullable=False)  # "user" or "assistant"
     content = Column(Text, nullable=False)
-    timestamp = Column(String(30), nullable=False, default=lambda: datetime.utcnow().isoformat())
+    timestamp = Column(String(30), nullable=False, default=lambda: datetime.now(timezone.utc).isoformat())
     waf_sources = Column(Text, nullable=True)  # JSON string for WAF sources
 
     # Relationships

@@ -6,7 +6,7 @@ Usage:
 """
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Ensure backend is on sys.path
 ROOT = Path(__file__).resolve().parents[2]
@@ -37,7 +37,7 @@ def mark_kb_finished(kb_id: str) -> None:
     state.progress = 100
     state.message = "Ingestion marked as completed by script"
     state.error = None
-    state.completed_at = datetime.utcnow()
+    state.completed_at = datetime.now(timezone.utc)
 
     # Persist
     store.save_state(state)

@@ -80,8 +80,17 @@ async def search_microsoft_docs(
         f"Searching Microsoft docs for '{query}'",
     )
 
-    # Content is already a list of result dicts
-    results = response.get("content", [])[:max_results]
+    # Normalize content to a list of result dicts
+    content = response.get("content")
+    if isinstance(content, list):
+        items = content
+    elif isinstance(content, dict):
+        # Some servers return { results: [...] }
+        items = content.get("results") if isinstance(content.get("results"), list) else [content]
+    else:
+        items = []
+
+    results = items[:max_results]
 
     return {
         "results": results,
@@ -172,8 +181,23 @@ async def search_code_samples(
         f"Searching code samples for '{query}' (language: {language})",
     )
 
-    # Content is already a list of sample dicts
-    samples = response.get("content", [])[:max_results]
+    # Normalize content to a list of sample dicts
+    content = response.get("content")
+    if isinstance(content, list):
+        items = content
+    elif isinstance(content, dict):
+        # Some servers return { samples: [...] } or { results: [...] }
+        items = (
+            content.get("samples")
+            if isinstance(content.get("samples"), list)
+            else content.get("results")
+            if isinstance(content.get("results"), list)
+            else [content]
+        )
+    else:
+        items = []
+
+    samples = items[:max_results]
 
     return {
         "samples": samples,

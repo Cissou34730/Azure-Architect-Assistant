@@ -46,8 +46,7 @@ class MicrosoftDocsSearchTool(BaseTool):
     
     mcp_client: Optional[MicrosoftLearnMCPClient] = None
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = {"arbitrary_types_allowed": True}
     
     def _run(self, query: str, max_results: int = 5) -> str:
         """Synchronous wrapper - not used for async agents."""
@@ -90,8 +89,7 @@ class MicrosoftDocsFetchTool(BaseTool):
     
     mcp_client: Optional[MicrosoftLearnMCPClient] = None
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = {"arbitrary_types_allowed": True}
     
     def _run(self, url: str) -> str:
         """Synchronous wrapper - not used for async agents."""
@@ -127,8 +125,7 @@ class MicrosoftCodeSamplesTool(BaseTool):
     
     mcp_client: Optional[MicrosoftLearnMCPClient] = None
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = {"arbitrary_types_allowed": True}
     
     def _run(self, query: str, language: Optional[str] = None, max_results: int = 3) -> str:
         """Synchronous wrapper - not used for async agents."""

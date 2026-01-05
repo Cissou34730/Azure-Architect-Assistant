@@ -1,5 +1,11 @@
 **Architecture Backlog**
 
+- **Frontend: Hard-coded Diagram Set ID**
+  - **Problem**: `ProjectWorkspace` uses a fixed `diagramSetId` (aa57f645-...) in the Diagrams tab, causing 404s on fresh databases.
+  - **Goal**: Replace hard-coded ID with a dynamic source (e.g., list recent sets, select per project, or remember last viewed).
+  - **Plan**: Add backend endpoint to list diagram sets; update UI to pick a valid set or create one explicitly via user action.
+  - **Priority**: Medium – avoids confusing errors and improves UX.
+
 - **Fix Toast Notifications Not Showing**: Toast notifications replaced alert() calls but don't appear visually in UI.
   - **Problem**: useToast hook called successfully, ToastContainer rendered in App.tsx, but toasts don't display on screen.
   - **Status**: Analyze button works (no black page), StatePanel renders correctly, but user feedback missing.

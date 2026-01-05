@@ -6,7 +6,7 @@ Main entry point for diagram generation from architecture descriptions.
 import asyncio
 import logging
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -50,8 +50,9 @@ class DiagramResponse(BaseModel):
     version: str
     created_at: str
     
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class AmbiguityReportResponse(BaseModel):
@@ -63,8 +64,9 @@ class AmbiguityReportResponse(BaseModel):
     resolved: bool = False
     created_at: str
     
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class DiagramSetResponse(BaseModel):
@@ -104,7 +106,7 @@ async def _store_ambiguities(
             ambiguous_text=amb_data["ambiguous_text"],
             suggested_clarification=amb_data.get("suggested_clarification"),
             resolved=False,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         session.add(ambiguity)
     
@@ -143,7 +145,7 @@ async def _store_generated_diagram(
         rendered_svg=None,  # Mermaid rendered client-side
         rendered_png=None,
         version="1.0.0",  # Initial version
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     session.add(diagram)
     logger.info("Generated %s diagram (version 1.0.0)", diagram_type.value)
@@ -259,8 +261,8 @@ async def create_diagram_set(
         diagram_set = DiagramSet(
             adr_id=request.adr_id,
             input_description=request.input_description,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         session.add(diagram_set)
         await session.flush()  # Get ID without committing

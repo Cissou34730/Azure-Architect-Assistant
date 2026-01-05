@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Table, Column, Integer, DateTime, MetaData, text
 from sqlalchemy.engine import Engine
@@ -41,7 +41,7 @@ def run_migrations(engine: Engine) -> None:
                 text(
                     "INSERT INTO ingestion_schema_version (version, applied_at) VALUES (:version, :applied_at)"
                 ),
-                {"version": SCHEMA_VERSION, "applied_at": datetime.utcnow()},
+                {"version": SCHEMA_VERSION, "applied_at": datetime.now(timezone.utc)},
             )
         elif current_version > SCHEMA_VERSION:
             raise RuntimeError(
@@ -53,7 +53,7 @@ def run_migrations(engine: Engine) -> None:
                 text(
                     "UPDATE ingestion_schema_version SET version = :version, applied_at = :applied_at"
                 ),
-                {"version": SCHEMA_VERSION, "applied_at": datetime.utcnow()},
+                {"version": SCHEMA_VERSION, "applied_at": datetime.now(timezone.utc)},
             )
 
         Base.metadata.create_all(bind=connection)
