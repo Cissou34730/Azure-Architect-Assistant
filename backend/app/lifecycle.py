@@ -11,6 +11,7 @@ from app.core.logging import configure_logging
 from app.ingestion.ingestion_database import init_ingestion_database
 from app.projects_database import close_database, init_database
 from app.agents_system.runner import initialize_agent_runner, shutdown_agent_runner
+from app.services.diagram.database import init_diagram_database, close_diagram_database
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,11 @@ async def startup():
         logger.info("Initializing ingestion persistence...")
         await asyncio.to_thread(init_ingestion_database)
         logger.info("Ingestion persistence ready")
+
+        # Initialize diagram database
+        logger.info("Initializing diagram database...")
+        await init_diagram_database()
+        logger.info("Diagram database ready")
 
         # Load KB manager (configs only, no index preload)
         from app.service_registry import get_kb_manager
@@ -114,6 +120,14 @@ async def shutdown():
 
     # Close database connections
     await close_database()
+    
+    # Close diagram database connections
+    try:
+        logger.info("Closing diagram database...")
+        await close_diagram_database()
+        logger.info("✓ Diagram database closed")
+    except Exception as e:
+        logger.warning(f"Error closing diagram database: {e}")
 
     logger.info("=" * 60)
     logger.info("SHUTDOWN COMPLETE")

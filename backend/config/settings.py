@@ -33,8 +33,7 @@ class IngestionSettings(BaseModel):
     # Thread lifecycle
     thread_join_timeout: float = Field(description="Seconds to wait for thread exit")
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = {"arbitrary_types_allowed": True}
 
     @classmethod
     def from_json(cls, config_path: Optional[Path] = None) -> "IngestionSettings":
@@ -45,8 +44,10 @@ class IngestionSettings(BaseModel):
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
         
-        # Pydantic does all the parsing, validation, and type conversion
-        return cls.parse_file(config_path)
+        # Pydantic v2: load JSON and validate explicitly
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return cls.model_validate(data)
 
 
 class KBDefaults(BaseModel):
@@ -67,7 +68,9 @@ class KBDefaults(BaseModel):
         if not config_path.exists():
             raise FileNotFoundError(f"KB defaults file not found: {config_path}")
         
-        return cls.parse_file(config_path)
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return cls.model_validate(data)
     
     def merge_with_kb_config(self, kb_config: Dict[str, Any]) -> Dict[str, Any]:
         """Merge defaults with KB-specific config and environment variables.

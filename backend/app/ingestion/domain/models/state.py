@@ -143,8 +143,8 @@ if PYDANTIC_AVAILABLE:
         completed_at: Optional[datetime] = None
         phases: Dict[str, Any] = Field(default_factory=dict)
 
-        class Config:
-            from_attributes = True
+        # Pydantic v2 config; use plain dict to avoid import issues
+        model_config = {"from_attributes": True}
 
         @classmethod
         def from_state(cls, state: IngestionState) -> "IngestionStateSchema":

@@ -5,7 +5,7 @@ LOADING is source-specific (crawling, PDF loading, etc.)
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from enum import Enum
 
@@ -94,7 +94,7 @@ class PhaseTracker:
                 )
         
         self.phases[phase_key]["status"] = PhaseStatus.RUNNING.value
-        self.phases[phase_key]["started_at"] = datetime.utcnow().isoformat()
+        self.phases[phase_key]["started_at"] = datetime.now(timezone.utc).isoformat()
         self.phases[phase_key]["progress"] = 0
         
         logger.info(f"[PhaseTracker|Job={self.job_id}] Phase {phase_key} STARTED")
@@ -119,7 +119,7 @@ class PhaseTracker:
         """Mark a phase as completed."""
         phase_key = phase.value
         self.phases[phase_key]["status"] = PhaseStatus.COMPLETED.value
-        self.phases[phase_key]["completed_at"] = datetime.utcnow().isoformat()
+        self.phases[phase_key]["completed_at"] = datetime.now(timezone.utc).isoformat()
         self.phases[phase_key]["progress"] = 100
         
         if items_processed is not None:
@@ -135,7 +135,7 @@ class PhaseTracker:
         phase_key = phase.value
         self.phases[phase_key]["status"] = PhaseStatus.FAILED.value
         self.phases[phase_key]["error"] = error
-        self.phases[phase_key]["completed_at"] = datetime.utcnow().isoformat()
+        self.phases[phase_key]["completed_at"] = datetime.now(timezone.utc).isoformat()
         
         logger.error(f"[PhaseTracker|Job={self.job_id}] Phase {phase_key} FAILED: {error}")
     

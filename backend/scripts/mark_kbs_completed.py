@@ -10,7 +10,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Ensure backend package is on sys.path
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -52,7 +52,7 @@ def mark_completed(kb_ids: List[str]) -> None:
         for job in jobs:
             job.status = JobStatus.COMPLETED.value
             job.current_phase = "indexing"
-            job.updated_at = datetime.utcnow()
+            job.updated_at = datetime.now(timezone.utc)
 
             phases = session.execute(
                 select(IngestionPhaseStatus).where(IngestionPhaseStatus.job_id == job.id)
@@ -68,8 +68,8 @@ def mark_completed(kb_ids: List[str]) -> None:
                     session.add(phase)
                 phase.status = PhaseStatusDB.COMPLETED.value
                 phase.progress_percent = 100
-                phase.completed_at = datetime.utcnow()
-                phase.updated_at = datetime.utcnow()
+                phase.completed_at = datetime.now(timezone.utc)
+                phase.updated_at = datetime.now(timezone.utc)
 
         session.commit()
         print(f"Marked {len(jobs)} job(s) as COMPLETED: {[j.kb_id for j in jobs]}")

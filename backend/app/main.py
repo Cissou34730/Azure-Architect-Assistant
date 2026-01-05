@@ -6,6 +6,7 @@ Migrated from split TypeScript/Python architecture to unified Python backend.
 
 import os
 import logging
+import warnings
 from pathlib import Path
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
@@ -13,12 +14,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# Suppress third-party Pydantic v2 warnings from dependencies not yet updated
+warnings.filterwarnings(
+    "ignore",
+    message=r"The 'validate_default' attribute with value True was provided to the `Field\(\)` function.*",
+    category=UserWarning,
+)
+
 # Import routers
 from app.routers.kb_query import router as kb_query_router
 from app.routers.kb_management import router as kb_management_router
 from app.routers.project_management import router as project_router
 from app.routers.ingestion import router as ingestion_router
 from app.agents_system.agents.router import router as agent_router
+from app.routers.diagram_generation import router as diagram_generation_router
 
 # Import lifecycle management
 from app import lifecycle
@@ -26,6 +35,7 @@ from app.ingestion.application.orchestrator import IngestionOrchestrator
 from app.routers.ingestion import cleanup_running_tasks
 from app.core.config import get_app_settings
 from app.core.logging import configure_logging
+from app.services.diagram.database import init_diagram_database, close_diagram_database
 
 # Load environment variables from root .env (one level up from backend)
 backend_root = Path(__file__).parent.parent
@@ -50,6 +60,12 @@ async def lifespan(app: FastAPI):
             await cleanup_running_tasks()
         except Exception as exc:
             logger.exception(f"cleanup_running_tasks failed: {exc}")
+
+        # Cleanup diagram database connections
+        try:
+            await close_diagram_database()
+        except Exception as exc:
+            logger.exception(f"close_diagram_database failed: {exc}")
 
         # Cleanup other resources (includes MCP client shutdown)
         try:
@@ -145,6 +161,7 @@ app.include_router(kb_query_router)            # KB query endpoints
 app.include_router(kb_management_router)       # KB health/list endpoints
 app.include_router(ingestion_router)           # Orchestrator-based ingestion
 app.include_router(agent_router)               # Agent chat endpoints
+app.include_router(diagram_generation_router, prefix="/api/v1")  # Diagram generation
 
 
 # Health check

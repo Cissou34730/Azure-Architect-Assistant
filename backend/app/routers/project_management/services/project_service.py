@@ -1,7 +1,7 @@
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from sqlalchemy import select
@@ -23,7 +23,7 @@ class ProjectService:
         project = Project(
             id=str(uuid.uuid4()),
             name=request.name.strip(),
-            created_at=datetime.utcnow().isoformat(),
+            created_at=datetime.now(timezone.utc).isoformat(),
         )
 
         db.add(project)

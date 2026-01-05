@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.projects_database import get_db
 
@@ -189,7 +189,7 @@ async def generate_proposal(
             data = {
                 "stage": stage,
                 "detail": detail,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             return f"data: {json.dumps(data)}\n\n"
         
@@ -215,7 +215,7 @@ async def generate_proposal(
             final_data = {
                 "stage": "done",
                 "proposal": proposal,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             yield f"data: {json.dumps(final_data)}\n\n"
             
@@ -224,7 +224,7 @@ async def generate_proposal(
             error_data = {
                 "stage": "error",
                 "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             yield f"data: {json.dumps(error_data)}\n\n"
         except Exception as e:
@@ -232,7 +232,7 @@ async def generate_proposal(
             error_data = {
                 "stage": "error",
                 "error": f"Internal server error: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             yield f"data: {json.dumps(error_data)}\n\n"
     

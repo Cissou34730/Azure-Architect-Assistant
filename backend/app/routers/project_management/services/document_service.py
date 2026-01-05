@@ -1,7 +1,7 @@
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from sqlalchemy import select
@@ -46,7 +46,7 @@ class DocumentService:
                 filename=file.filename,
                 raw_text=content_str,
                 extracted_summary=json.dumps(doc_summary),
-                uploaded_at=datetime.utcnow().isoformat(),
+                uploaded_at=datetime.now(timezone.utc).isoformat(),
             )
 
             db.add(doc)
@@ -82,19 +82,19 @@ class DocumentService:
 
         if existing_state:
             existing_state.state = state_json
-            existing_state.updated_at = datetime.utcnow().isoformat()
+            existing_state.updated_at = datetime.now(timezone.utc).isoformat()
         else:
             new_state = ProjectState(
                 project_id=project_id,
                 state=state_json,
-                updated_at=datetime.utcnow().isoformat(),
+                updated_at=datetime.now(timezone.utc).isoformat(),
             )
             db.add(new_state)
 
         await db.commit()
 
         state_data["projectId"] = project_id
-        state_data["lastUpdated"] = datetime.utcnow().isoformat()
+        state_data["lastUpdated"] = datetime.now(timezone.utc).isoformat()
 
         logger.info(f"Document analysis completed for project: {project_id}")
         return state_data

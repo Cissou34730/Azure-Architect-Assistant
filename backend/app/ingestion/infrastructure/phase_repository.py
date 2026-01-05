@@ -4,7 +4,7 @@ Phase status repository.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from sqlalchemy import select
@@ -47,7 +47,7 @@ class PhaseRepository:
             ).scalars().first()
             if phase:
                 phase.status = PhaseStatusDB.RUNNING.value
-                phase.started_at = datetime.utcnow()
+                phase.started_at = datetime.now(timezone.utc)
 
     def complete_phase(self, job_id: str, phase_name: str) -> None:
         with get_session() as session:
@@ -58,7 +58,7 @@ class PhaseRepository:
             ).scalars().first()
             if phase:
                 phase.status = PhaseStatusDB.COMPLETED.value
-                phase.completed_at = datetime.utcnow()
+                phase.completed_at = datetime.now(timezone.utc)
                 phase.progress_percent = 100
 
     def update_progress(
@@ -90,7 +90,7 @@ class PhaseRepository:
             if items_total is not None:
                 phase.items_total = items_total
             if phase.started_at is None:
-                phase.started_at = datetime.utcnow()
+                phase.started_at = datetime.now(timezone.utc)
 
     def fail_phase(self, job_id: str, phase_name: str, error_message: str) -> None:
         with get_session() as session:
@@ -102,7 +102,7 @@ class PhaseRepository:
             if phase:
                 phase.status = PhaseStatusDB.FAILED.value
                 phase.error_message = error_message
-                phase.completed_at = datetime.utcnow()
+                phase.completed_at = datetime.now(timezone.utc)
 
     def _db_phase_to_domain(self, db_phase: IngestionPhaseStatus) -> PhaseState:
         return PhaseState(

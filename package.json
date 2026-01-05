@@ -12,7 +12,7 @@
     "build": "npm run build --workspace=frontend",
     "lint": "npm run lint --workspace=frontend",
     "lint:fix": "npm run lint:fix --workspace=frontend",
-    "installAll": "npm install --workspace=frontend && uv sync",
+    "installAll": "npm install --workspace=frontend && uv sync --link-mode=copy",
     "kill": "powershell -File kill-backend.ps1"
   },
   "keywords": [
