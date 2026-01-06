@@ -3,15 +3,9 @@
  */
 
 import { useState } from "react";
-import {
-  SourceType,
-  CreateKBRequest,
-  WebsiteSourceConfig,
-  YoutubeSourceConfig,
-  PDFSourceConfig,
-  MarkdownSourceConfig,
-} from "../../../types/ingestion";
+import { SourceType, CreateKBRequest } from "../../../types/ingestion";
 import { createKB, startIngestion } from "../../../services/ingestionApi";
+import { buildSourceConfig } from "../../../utils/ingestionConfig";
 
 export type WizardStep = "basic" | "source" | "config" | "review";
 
@@ -68,43 +62,18 @@ export function useKBWizardForm() {
     setError(null);
 
     try {
-      // Build source config based on type
-      let sourceConfig:
-        | WebsiteSourceConfig
-        | YoutubeSourceConfig
-        | PDFSourceConfig
-        | MarkdownSourceConfig;
-
-      if (sourceType === "website") {
-        sourceConfig = sitemapUrl
-          ? {
-              sitemap_url: sitemapUrl,
-              url_prefix: urlPrefix || undefined,
-            }
-          : {
-              start_url: urls[0]?.trim(),
-              url_prefix: urlPrefix || undefined,
-              max_pages: maxPages || 1000,
-            };
-      } else if (sourceType === "youtube") {
-        sourceConfig = {
-          video_urls: videoUrls.filter((url) => url.trim()),
-        };
-      } else if (sourceType === "pdf") {
-        sourceConfig = {
-          local_paths: pdfLocalPaths.filter((p) => p.trim()),
-          pdf_urls: pdfUrls.filter((url) => url.trim()),
-          folder_path: pdfFolderPath || undefined,
-        };
-        // Remove empty arrays
-        if (!sourceConfig.local_paths?.length) delete sourceConfig.local_paths;
-        if (!sourceConfig.pdf_urls?.length) delete sourceConfig.pdf_urls;
-      } else {
-        // markdown
-        sourceConfig = {
-          folder_path: markdownFolderPath,
-        };
-      }
+      const sourceConfig = buildSourceConfig({
+        sourceType,
+        urls,
+        sitemapUrl,
+        urlPrefix,
+        maxPages,
+        videoUrls,
+        pdfLocalPaths,
+        pdfUrls,
+        pdfFolderPath,
+        markdownFolderPath,
+      });
 
       // Create KB
       const request: CreateKBRequest = {

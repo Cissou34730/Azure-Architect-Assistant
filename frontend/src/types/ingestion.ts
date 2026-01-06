@@ -130,6 +130,7 @@ export interface PDFSourceConfig {
   files?: readonly string[];
   local_paths?: string[];
   pdf_urls?: string[];
+  folder_path?: string;
 }
 
 export interface MarkdownSourceConfig {
