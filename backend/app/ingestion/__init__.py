@@ -1,7 +1,7 @@
 """
 Ingestion module (orchestrator-first).
 
-Provides the orchestrator-based ingestion pipeline per docs/ingestion/OrchestratorSpec.md.
+Provides the orchestrator-based ingestion pipeline. See docs/SYSTEM_ARCHITECTURE.md for a summary.
 Legacy threaded pipeline components have been archived under archive/backend/ingestion_v1.
 """
 

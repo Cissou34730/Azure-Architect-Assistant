@@ -1,7 +1,7 @@
 """
 Ingestion Orchestrator
-Sequential orchestrator implementing load → chunk → embed → index pipeline.
-Per backend/docs/ingestion/OrchestratorSpec.md
+Sequential orchestrator implementing load -> chunk -> embed -> index pipeline.
+See docs/SYSTEM_ARCHITECTURE.md for a pipeline overview.
 """
 
 import asyncio
@@ -425,3 +425,4 @@ class IngestionOrchestrator:
         except Exception as e:
             # Log but don't crash
             logger.error(f"Cleanup failed for job {job_id}: {e}", exc_info=True)
+
