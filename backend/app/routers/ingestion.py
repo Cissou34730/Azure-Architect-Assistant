@@ -1,7 +1,7 @@
 """
 Ingestion V2 Router
 Clean API endpoints for orchestrator-based ingestion.
-Per backend/docs/ingestion/OrchestratorSpec.md
+See docs/SYSTEM_ARCHITECTURE.md for a pipeline overview.
 """
 
 import asyncio
