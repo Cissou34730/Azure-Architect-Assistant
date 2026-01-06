@@ -3,7 +3,11 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { ProjectState, stateApi, projectApi } from "../services/apiService";
+import {
+  ProjectState,
+  stateApi,
+  projectApi,
+} from "../../../services/apiService";
 
 export const useProjectState = (projectId: string | null) => {
   const [projectState, setProjectState] = useState<ProjectState | null>(null);

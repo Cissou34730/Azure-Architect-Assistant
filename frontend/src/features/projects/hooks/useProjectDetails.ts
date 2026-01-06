@@ -1,113 +1,131 @@
 import { useState, useEffect, useCallback } from "react";
-import { useProjects } from "./useProjects";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Project, projectApi } from "../../../services/apiService";
 import { useProjectState } from "./useProjectState";
 import { useChat } from "./useChat";
 import { useProposal } from "./useProposal";
-import { useToast } from "./useToast";
+import { useToast } from "../../../hooks/useToast";
+import { getTabs } from "../tabs";
 
-export function useProjectWorkspace() {
-  const [activeTab, setActiveTab] = useState<
-    "documents" | "chat" | "state" | "proposal"
-  >("documents");
-  const [projectName, setProjectName] = useState("");
+export function useProjectDetails(projectId: string | undefined) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [loadingProject, setLoadingProject] = useState(false);
+
+  // Derive active tab from URL path (last segment)
+  const currentPath = location.pathname.split("/").pop() || "documents";
+  const tabs = getTabs();
+  // Validate if path matches a known tab, default to documents if not found
+  // (though routing should handle 404s, this is safe fallback state)
+  const activeTab = tabs.find((t) => t.path === currentPath)?.id || "documents";
+
+  const setActiveTab = useCallback(
+    (tabId: string) => {
+      // Find path for the given tabId
+      const tab = tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+
+      // Navigate to the new path, preserving the base project URL
+      // Assuming structure /projects/:projectId/:tabPath
+      // We can use a relative path logic or absolute construction
+      if (projectId) {
+        navigate(`/projects/${projectId}/${tab.path}`);
+      }
+    },
+    [navigate, projectId, tabs]
+  );
+
   const [textRequirements, setTextRequirements] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
+
   const { success, error: showError, warning } = useToast();
 
-  const projectsHook = useProjects();
-  const { selectedProject } = projectsHook;
+  // Fetch project details
+  useEffect(() => {
+    if (!projectId) {
+      setSelectedProject(null);
+      return;
+    }
 
+    const fetchProject = async () => {
+      setLoadingProject(true);
+      try {
+        const project = await projectApi.get(projectId);
+        setSelectedProject(project);
+        // Initialize local state
+        setTextRequirements(project.textRequirements ?? "");
+      } catch (error) {
+        showError("Failed to load project details");
+        console.error(error);
+      } finally {
+        setLoadingProject(false);
+      }
+    };
+
+    void fetchProject();
+  }, [projectId, showError]);
+
+  // Feature Hooks
   const stateHook = useProjectState(selectedProject?.id ?? null);
   const chatHook = useChat(selectedProject?.id ?? null);
   const proposalHook = useProposal();
 
   const loading =
-    projectsHook.loading ||
+    loadingProject ||
     stateHook.loading ||
     chatHook.loading ||
     proposalHook.loading;
+
   const loadingMessage = chatHook.loadingMessage;
 
-  // Logging helper (disabled for production)
+  // Logging helper
   const logAction = useCallback(
     (_action: string, _details?: Record<string, unknown>) => {
-      // Logging disabled - enable for debugging if needed
-      // console.log(`[${new Date().toISOString()}] ${action}`, details || "");
+      // Logging disabled
     },
     []
   );
 
-  // Update text requirements when project changes
-  useEffect(() => {
-    if (selectedProject) {
-      logAction("Project selected", {
-        projectId: selectedProject.id,
-        name: selectedProject.name,
-      });
-      setTextRequirements(selectedProject.textRequirements || "");
-    }
-  }, [selectedProject, logAction]);
-
-  // Log state changes
+  // Sync state changes log
   useEffect(() => {
     if (stateHook.projectState) {
-      logAction("Project state changed in UI", {
+      logAction("Project state changed", {
         projectId: stateHook.projectState.projectId,
-        lastUpdated: stateHook.projectState.lastUpdated,
-        openQuestionsCount: stateHook.projectState.openQuestions.length,
       });
     }
   }, [stateHook.projectState, logAction]);
 
-  // Refresh state when switching to State tab
-  useEffect(() => {
-    if (activeTab === "state" && selectedProject) {
-      logAction("State tab activated, refreshing project state");
-      void stateHook.refreshState();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, selectedProject, logAction]);
-
-  // Handler functions
-  const handleCreateProject = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    if (!projectName.trim()) return;
-
-    try {
-      await projectsHook.createProject(projectName);
-      setProjectName("");
-      success(`Project "${projectName}" created successfully`);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to create project";
-      showError(message);
-      console.error("Error creating project:", error);
-    }
-  };
-
   const handleUploadDocuments = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || !selectedProject) return;
 
     try {
-      await projectsHook.uploadDocuments(files);
+      await projectApi.uploadDocuments(selectedProject.id, files);
       success("Documents uploaded successfully!");
       setFiles(null);
       const fileInput = document.getElementById(
         "file-input"
-      ) as HTMLInputElement;
+      ) as HTMLInputElement | null;
       if (fileInput) fileInput.value = "";
     } catch (error) {
       console.error("Error uploading documents:", error);
+      showError("Failed to upload documents");
     }
   };
 
   const handleSaveTextRequirements = async (): Promise<void> => {
+    if (!selectedProject) return;
     try {
-      await projectsHook.saveTextRequirements(textRequirements);
+      const updated = await projectApi.saveTextRequirements(
+        selectedProject.id,
+        textRequirements
+      );
+      setSelectedProject(updated); // Update local project to reflect changes
       success("Requirements saved successfully!");
     } catch (error) {
       console.error("Error saving requirements:", error);
+      showError("Failed to save requirements");
     }
   };
 
@@ -126,12 +144,9 @@ export function useProjectWorkspace() {
 
     try {
       const state = await stateHook.analyzeDocuments();
-      if (state) {
-        setActiveTab("state");
-        success("Analysis complete!");
-      } else {
-        showError("Analysis completed but no state was returned");
-      }
+      setActiveTab("state");
+      success("Analysis complete!");
+      logAction("Analysis success", { stateId: state.projectId });
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Failed to analyze documents";
@@ -143,17 +158,10 @@ export function useProjectWorkspace() {
     e.preventDefault();
     if (!chatHook.chatInput.trim()) return;
 
-    const userMessage = chatHook.chatInput;
-    logAction("Sending chat message", {
-      projectId: selectedProject?.id,
-      messagePreview: userMessage.substring(0, 50),
-    });
-
     try {
-      await chatHook.sendMessage(userMessage);
+      await chatHook.sendMessage(chatHook.chatInput);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      logAction("Chat message failed", { error: message });
       showError(`Error: ${message}`);
     }
   };
@@ -161,21 +169,16 @@ export function useProjectWorkspace() {
   const handleGenerateProposal = (): void => {
     if (!selectedProject) return;
 
-    logAction("User initiated proposal generation", {
-      projectId: selectedProject.id,
-    });
     proposalHook.generateProposal(selectedProject.id, () => {
-      logAction("Proposal generation complete, refreshing state");
       void stateHook.refreshState();
     });
   };
 
   return {
-    // UI State
+    // State
+    selectedProject,
     activeTab,
     setActiveTab,
-    projectName,
-    setProjectName,
     textRequirements,
     setTextRequirements,
     files,
@@ -183,10 +186,7 @@ export function useProjectWorkspace() {
     loading,
     loadingMessage,
 
-    // Data from hooks
-    projects: projectsHook.projects,
-    selectedProject,
-    setSelectedProject: projectsHook.setSelectedProject,
+    // Sub-hooks data
     projectState: stateHook.projectState,
     messages: chatHook.messages,
     chatInput: chatHook.chatInput,
@@ -194,14 +194,12 @@ export function useProjectWorkspace() {
     architectureProposal: proposalHook.architectureProposal,
     proposalStage: proposalHook.proposalStage,
 
-    // Handler functions
-    handleCreateProject,
+    // Handlers
     handleUploadDocuments,
     handleSaveTextRequirements,
     handleAnalyzeDocuments,
     handleSendChatMessage,
     handleGenerateProposal,
     refreshState: stateHook.refreshState,
-    fetchProjects: projectsHook.fetchProjects,
   };
 }

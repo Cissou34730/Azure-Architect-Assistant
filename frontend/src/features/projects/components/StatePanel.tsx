@@ -1,4 +1,4 @@
-import { ProjectState } from '../../services/apiService';
+import { ProjectState } from '../../../services/apiService';
 
 interface StatePanelProps {
   projectState: ProjectState | null;
@@ -40,7 +40,7 @@ export function StatePanel({ projectState, onRefreshState, loading }: StatePanel
             <p><strong>Scenario Type:</strong> {projectState.context.scenarioType}</p>
             <p><strong>Objectives:</strong></p>
             <ul className="list-disc list-inside">
-              {projectState.context.objectives.map((obj: any, i: number) => (
+              {(projectState.context?.objectives || []).map((obj: any, i: number) => (
                 <li key={i}>
                   {typeof obj === 'string' ? obj : (
                     <>
@@ -62,7 +62,7 @@ export function StatePanel({ projectState, onRefreshState, loading }: StatePanel
           <Section title="Application Structure">
             <p><strong>Components:</strong></p>
             <ul className="list-disc list-inside">
-              {projectState.applicationStructure.components.map((comp: any, i: number) => (
+              {(projectState.applicationStructure?.components || []).map((comp: any, i: number) => (
                 <li key={i}>
                   {typeof comp === 'string' ? comp : (
                     <>
@@ -74,7 +74,7 @@ export function StatePanel({ projectState, onRefreshState, loading }: StatePanel
             </ul>
             <p><strong>Integrations:</strong></p>
             <ul className="list-disc list-inside">
-              {projectState.applicationStructure.integrations.map((int: any, i: number) => (
+              {(projectState.applicationStructure?.integrations || []).map((int: any, i: number) => (
                 <li key={i}>
                   {typeof int === 'string' ? int : (
                     <>
@@ -87,15 +87,15 @@ export function StatePanel({ projectState, onRefreshState, loading }: StatePanel
           </Section>
 
           <Section title="Data & Compliance">
-            <p><strong>Data Types:</strong> {projectState.dataCompliance.dataTypes.join(', ')}</p>
-            <p><strong>Compliance:</strong> {projectState.dataCompliance.complianceRequirements.join(', ')}</p>
-            <p><strong>Data Residency:</strong> {projectState.dataCompliance.dataResidency}</p>
+            <p><strong>Data Types:</strong> {(projectState.dataCompliance?.dataTypes || []).join(', ')}</p>
+            <p><strong>Compliance:</strong> {(projectState.dataCompliance?.complianceRequirements || []).join(', ')}</p>
+            <p><strong>Data Residency:</strong> {projectState.dataCompliance?.dataResidency}</p>
           </Section>
 
           <Section title="Technical Constraints">
             <p><strong>Constraints:</strong></p>
             <ul className="list-disc list-inside">
-              {projectState.technicalConstraints.constraints.map((c: any, i: number) => (
+              {(projectState.technicalConstraints?.constraints || []).map((c: any, i: number) => (
                 <li key={i}>
                   {typeof c === 'string' ? c : (
                     <>
@@ -107,7 +107,7 @@ export function StatePanel({ projectState, onRefreshState, loading }: StatePanel
             </ul>
             <p><strong>Assumptions:</strong></p>
             <ul className="list-disc list-inside">
-              {projectState.technicalConstraints.assumptions.map((a: any, i: number) => (
+              {(projectState.technicalConstraints?.assumptions || []).map((a: any, i: number) => (
                 <li key={i}>
                   {typeof a === 'string' ? a : (
                     <>

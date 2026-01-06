@@ -11,7 +11,6 @@ import {
   KnowledgeBase,
   KBStatusSimple,
   KBIngestionDetails,
-  IngestionJob,
 } from "../types/ingestion";
 import { ServiceError, fetchWithErrorHandling } from "./serviceError";
 

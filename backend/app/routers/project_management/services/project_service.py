@@ -39,6 +39,13 @@ class ProjectService:
         logger.info(f"Listing {len(projects)} projects")
         return [p.to_dict() for p in projects]
 
+    async def get_project(self, project_id: str, db: AsyncSession) -> Dict[str, Any] | None:
+        result = await db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalar_one_or_none()
+        if not project:
+            return None
+        return project.to_dict()
+
     async def update_requirements(
         self, project_id: str, request: UpdateRequirementsRequest, db: AsyncSession
     ) -> Dict[str, Any]:

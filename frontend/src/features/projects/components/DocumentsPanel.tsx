@@ -1,4 +1,5 @@
-import { Project } from '../../services/apiService';
+
+import { Project } from '../../../services/apiService';
 
 interface DocumentsPanelProps {
   selectedProject: Project;

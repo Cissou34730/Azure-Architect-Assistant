@@ -97,8 +97,8 @@ export function useKBWizardForm() {
           folder_path: pdfFolderPath || undefined,
         };
         // Remove empty arrays
-        if (!sourceConfig.local_paths.length) delete sourceConfig.local_paths;
-        if (!sourceConfig.pdf_urls.length) delete sourceConfig.pdf_urls;
+        if (!sourceConfig.local_paths?.length) delete sourceConfig.local_paths;
+        if (!sourceConfig.pdf_urls?.length) delete sourceConfig.pdf_urls;
       } else {
         // markdown
         sourceConfig = {

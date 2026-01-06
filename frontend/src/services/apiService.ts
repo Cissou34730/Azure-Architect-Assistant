@@ -143,6 +143,13 @@ export const kbApi = {
  * Project API
  */
 export const projectApi = {
+  async get(id: string): Promise<Project> {
+    const response = await fetch(`${API_BASE}/projects/${id}`);
+    if (!response.ok) throw new Error("Failed to fetch project");
+    const data = (await response.json()) as { project: Project };
+    return data.project;
+  },
+
   async fetchAll(): Promise<Project[]> {
     const response = await fetch(`${API_BASE}/projects`);
     const data = await response.json();

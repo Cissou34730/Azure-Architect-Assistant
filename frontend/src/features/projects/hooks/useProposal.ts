@@ -3,8 +3,8 @@
  */
 
 import { useState, useCallback } from "react";
-import { proposalApi } from "../services/apiService";
-import { useToast } from "./useToast";
+import { proposalApi } from "../../../services/apiService";
+import { useToast } from "../../../hooks/useToast";
 
 export const useProposal = () => {
   const { error: showError } = useToast();

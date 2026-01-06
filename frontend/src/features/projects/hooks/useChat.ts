@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import { Message, chatApi, ProjectState } from "../services/apiService";
+import { Message, chatApi, ProjectState } from "../../../services/apiService";
 
 export const useChat = (projectId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);

@@ -1,5 +1,5 @@
-import { Message } from '../../services/apiService';
-import { LoadingSpinner } from '../common';
+import { Message } from '../../../services/apiService';
+import { LoadingSpinner } from '../../../components/common';
 
 interface ChatPanelProps {
   messages: Message[];

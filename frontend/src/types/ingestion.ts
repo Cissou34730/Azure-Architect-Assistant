@@ -126,9 +126,42 @@ export interface WebGenericConfig {
   same_domain_only?: boolean;
 }
 
+export interface PDFSourceConfig {
+  files?: readonly string[];
+  local_paths?: string[];
+  pdf_urls?: string[];
+}
+
+export interface MarkdownSourceConfig {
+  files?: readonly string[];
+  local_paths?: string[];
+  folder_path?: string;
+  pdf_urls?: string[]; // Added because wizard might access it on union
+}
+
+export interface WebsiteSourceConfig {
+  url?: string; // used by some
+  start_url?: string; // used by wizard
+  recursive?: boolean;
+  sitemap_url?: string;
+  url_prefix?: string;
+  max_pages?: number;
+  local_paths?: string[]; // Added because wizard might access it on union
+}
+
+export interface YoutubeSourceConfig {
+  video_urls?: readonly string[];
+  local_paths?: string[]; // Added for consistency
+  pdf_urls?: string[]; // Added for consistency
+}
+
 export type SourceConfig =
   | WebDocumentationConfig
   | WebGenericConfig
+  | PDFSourceConfig
+  | MarkdownSourceConfig
+  | WebsiteSourceConfig
+  | YoutubeSourceConfig
   | Record<string, unknown>;
 
 export interface CreateKBRequest {

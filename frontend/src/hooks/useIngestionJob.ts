@@ -17,7 +17,7 @@ interface UseIngestionJobReturn {
   job: IngestionJob | null;
   loading: boolean;
   error: Error | null;
-  refetch: () => Promise<void>;
+  refetch: () => Promise<IngestionJob | null>;
 }
 
 /**
@@ -29,7 +29,12 @@ export function useIngestionJob(
 ): UseIngestionJobReturn {
   const DEFAULT_ACTIVE_POLL_MS = 5000;
   const IDLE_POLL_INTERVAL = 10000; // 10s health-check when idle
-  const { pollInterval = DEFAULT_ACTIVE_POLL_MS, onComplete, onError, enabled = true } = options;
+  const {
+    pollInterval = DEFAULT_ACTIVE_POLL_MS,
+    onComplete,
+    onError,
+    enabled = true,
+  } = options;
 
   const [job, setJob] = useState<IngestionJob | null>(null);
   const [loading, setLoading] = useState(true);

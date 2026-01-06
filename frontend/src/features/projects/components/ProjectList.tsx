@@ -1,4 +1,4 @@
-import { Project } from '../../services/apiService';
+import { Project } from '../../../services/apiService';
 
 interface ProjectListProps {
   projects: Project[];

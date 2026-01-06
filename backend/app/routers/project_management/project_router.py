@@ -65,6 +65,24 @@ async def list_projects(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Failed to list projects: {str(e)}")
 
 
+@router.get("/projects/{project_id}", response_model=ProjectResponse)
+async def get_project(
+    project_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get project details"""
+    try:
+        project = await project_service.get_project(project_id, db)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        return {"project": project}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get project: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get project: {str(e)}")
+
+
 @router.put("/projects/{project_id}/requirements", response_model=ProjectResponse)
 async def update_requirements(
     project_id: str,
