@@ -44,6 +44,19 @@ Default ports:
 - Backend: 8000
 - Frontend: 5173
 
+## Feature development checklist
+
+1. Identify the backend module (projects, KB, ingestion, agent, diagrams).
+2. Add or update the backend route + service.
+3. Update `frontend/src/services/apiService.ts` and types.
+4. Wire UI changes (pages, components, hooks).
+5. Update docs if new endpoints or configs are added.
+
+## Config changes
+
+- New environment variables must be added to `backend/app/core/config.py` (extra env keys are forbidden).
+- Update `.env.example` whenever you add a new env key.
+
 ## Useful scripts
 
 - `npm run build` - frontend production build.
@@ -62,6 +75,13 @@ uv run mypy backend
 # Linting
 uv run flake8 backend
 ```
+
+## Local data reset (if needed)
+
+- Delete `data/projects.db` to reset projects.
+- Delete `data/ingestion.db` to reset ingestion jobs.
+- Delete `data/diagrams.db` to reset diagram sets.
+- Remove `data/knowledge_bases/<kb_id>/index/` to force re-ingestion.
 
 ## Common locations
 

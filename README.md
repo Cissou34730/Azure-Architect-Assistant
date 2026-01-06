@@ -38,4 +38,5 @@ Backend: http://localhost:8000
 ## Notes
 
 - Runtime data lives in `data/` (SQLite DBs and KB indices).
+- If you are adding features, start with `docs/SYSTEM_ARCHITECTURE.md`, then the backend and frontend references.
 - For API details and routes, see `docs/BACKEND_REFERENCE.md`.

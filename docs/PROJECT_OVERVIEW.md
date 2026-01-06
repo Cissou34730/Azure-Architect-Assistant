@@ -9,6 +9,14 @@ Azure Architecture Assistant is a full-stack app that helps architects analyze p
 - Agent chat: a ReAct-style agent that searches Microsoft documentation via MCP and answers questions with citations.
 - Diagram generation: generate Mermaid-based functional, C4 context, and C4 container diagrams from a text description.
 
+## Feature areas and where to look
+
+- Projects: `backend/app/routers/project_management/` and `frontend/src/features/projects/`.
+- KB ingestion: `backend/app/ingestion/` and `frontend/src/components/ingestion/`.
+- KB query: `backend/app/services/kb/` and `frontend/src/components/kb/`.
+- Agent system: `backend/app/agents_system/` and `frontend/src/components/agent/`.
+- Diagrams: `backend/app/services/diagram/` and `frontend/src/components/diagrams/`.
+
 ## Key components
 
 - Backend: FastAPI service with modular routers for projects, KB management, ingestion, queries, agents, and diagram generation.
@@ -22,5 +30,12 @@ Azure Architecture Assistant is a full-stack app that helps architects analyze p
 - data/ - SQLite DBs and KB indices (runtime).
 - scripts/ - helper scripts (optional).
 - docs/ - reference docs for the current codebase.
+
+## Adding features (high level)
+
+1. Add or update backend routes and services.
+2. Expose new API calls in `frontend/src/services/apiService.ts`.
+3. Add UI components or pages in `frontend/src/components/` or `frontend/src/features/`.
+4. Update docs for new endpoints or workflows.
 
 For architecture, setup, and API details see the docs in this folder.

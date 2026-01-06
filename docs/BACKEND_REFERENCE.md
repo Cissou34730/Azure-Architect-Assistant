@@ -3,11 +3,20 @@
 ## Entry points and layout
 
 - App entry: `backend/app/main.py`
+- Lifecycle: `backend/app/lifecycle.py`
 - Routers: `backend/app/routers/`
 - Services: `backend/app/services/`
 - Ingestion pipeline: `backend/app/ingestion/`
 - Agent system: `backend/app/agents_system/`
 - Diagram generation: `backend/app/services/diagram/`
+- SQLAlchemy models: `backend/app/models/`
+
+## Router conventions
+
+- `kb_management/` and `kb_query/` use a models + operations + router pattern.
+- `project_management/` uses a router with services in `project_management/services/`.
+- `ingestion.py` is a dedicated router because it owns background tasks.
+- Diagram routes live under `routers/diagram_generation/` with a `/api/v1` prefix.
 
 ## API overview
 
@@ -69,14 +78,40 @@
 ## Configuration and settings
 
 - `.env` (repo root) provides ports, API keys, and storage paths.
+- App settings live in `backend/app/core/config.py` (extra env keys must be added there).
 - `backend/config/ingestion.config.json` controls ingest queue behavior.
 - `backend/config/kb_defaults.json` provides chunking and embedding defaults.
 - `backend/config/mcp/mcp_config.json` configures MCP servers.
 - `backend/config/prompts/agent_prompts.yaml` defines agent prompts.
 
-## Key services to know
+## Adding a new backend feature
 
-- `app/services/ai/` - LLM and embedding adapters.
-- `app/services/kb/` - multi-KB query orchestration.
-- `app/ingestion/application/orchestrator.py` - ingestion pipeline controller.
-- `app/services/diagram/` - diagram generation, validation, storage.
+1. Decide the feature area (projects, KB, ingestion, agent, diagrams) and create a router module under `backend/app/routers/`.
+2. Define request/response models (Pydantic) near the router or in a `*_models.py` file.
+3. Implement business logic in a service or operations module.
+4. Register the router in `backend/app/main.py`.
+5. Add or update frontend calls in `frontend/src/services/apiService.ts` and align types.
+
+## Adding or changing persistence
+
+- Add SQLAlchemy models in `backend/app/models/`.
+- Create or update Alembic migrations in `backend/migrations/`.
+- Update any service code that reads/writes the new tables.
+
+## Extending ingestion
+
+- Add a source handler in `backend/app/ingestion/domain/sources/` and register it in `factory.py`.
+- Update KB configuration to include the new source type.
+- If the UI needs new fields, update `frontend/src/utils/ingestionConfig.ts`.
+
+## Extending the agent system
+
+- Add tools in `backend/app/agents_system/tools/`.
+- Wire tool usage in the agent runner and update prompts if needed.
+- Ensure MCP config is present in `backend/config/mcp/mcp_config.json`.
+
+## Extending diagrams
+
+- Add new diagram types in `backend/app/models/diagram/diagram.py`.
+- Update the generator in `backend/app/services/diagram/`.
+- Update UI labels in `frontend/src/components/diagrams/DiagramSetViewer.tsx`.
