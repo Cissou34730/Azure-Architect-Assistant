@@ -17,5 +17,17 @@ export default defineConfig(({ mode }) => {
     define: {
       "import.meta.env.BACKEND_URL": JSON.stringify(apiBaseUrl),
     },
+    build: {
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            "react-vendor": ["react", "react-dom"],
+            "router-vendor": ["react-router-dom"],
+            "mermaid-vendor": ["mermaid"],
+          },
+        },
+      },
+    },
   };
 });

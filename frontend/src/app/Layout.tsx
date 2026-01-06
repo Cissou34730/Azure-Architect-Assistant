@@ -1,5 +1,6 @@
+import { Suspense } from "react";
 import { Outlet } from "react-router-dom";
-import { Banner, Navigation, ToastContainer } from "../components/common";
+import { Banner, Navigation, ToastContainer, PageLoader } from "../components/common";
 import { useToast } from "../hooks/useToast";
 
 export function Layout() {
@@ -11,7 +12,9 @@ export function Layout() {
       <Navigation />
       
       <main role="main">
-        <Outlet />
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <ToastContainer toasts={toasts} onClose={close} />

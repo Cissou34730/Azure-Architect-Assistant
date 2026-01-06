@@ -59,7 +59,7 @@ export default function MermaidRenderer({ diagramSetId, diagramType }: MermaidRe
   const mermaidRef = useRef<HTMLDivElement>(null);
   const [isRendered, setIsRendered] = useState(false);
 
-  // Initialize mermaid with configuration
+  // Initialize mermaid with configuration once
   useEffect(() => {
     mermaid.initialize({
       startOnLoad: false,
@@ -71,23 +71,31 @@ export default function MermaidRenderer({ diagramSetId, diagramType }: MermaidRe
 
   // Fetch diagram set data from backend
   useEffect(() => {
+    let isMounted = true;
     const fetchDiagramSet = async () => {
       try {
         setLoading(true);
         setError(null);
         
         const data: DiagramSetResponse = await diagramApi.getDiagramSet(diagramSetId);
-        setDiagramSet(data);
+        if (isMounted) {
+          setDiagramSet(data);
+        }
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-        setError(errorMessage);
-        console.error('Error fetching diagram set:', err);
+        if (isMounted) {
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+          setError(errorMessage);
+          console.error('Error fetching diagram set:', err);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     void fetchDiagramSet();
+    return () => { isMounted = false; };
   }, [diagramSetId]);
 
   // Render the mermaid diagram
@@ -96,6 +104,7 @@ export default function MermaidRenderer({ diagramSetId, diagramType }: MermaidRe
       return;
     }
 
+    let isMounted = true;
     const diagram = diagramSet.diagrams.find(d => d.diagram_type === diagramType);
     if (!diagram) {
       setRenderError(`Diagram type '${diagramType}' not found in diagram set`);
@@ -106,44 +115,41 @@ export default function MermaidRenderer({ diagramSetId, diagramType }: MermaidRe
       try {
         setRenderError(null);
         
-        // Clear previous content
-        if (mermaidRef.current) {
-          mermaidRef.current.innerHTML = '';
-        }
-
         // Generate unique ID for this diagram
-        const diagramId = `mermaid-${diagramSetId}-${diagramType}`;
+        const diagramId = `mermaid-${diagramSetId}-${diagramType.replace(/[^a-zA-Z0-9]/g, '-')}`;
         
         // Render the diagram
         const { svg } = await mermaid.render(diagramId, diagram.source_code);
         
-        if (mermaidRef.current) {
+        if (isMounted && mermaidRef.current) {
           mermaidRef.current.innerHTML = svg;
           setIsRendered(true);
         }
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown rendering error';
-        setRenderError(`Failed to render Mermaid diagram: ${errorMessage}`);
-        console.error('Mermaid rendering error:', err);
-        
-        // Display the source code for debugging
-        if (mermaidRef.current) {
-          mermaidRef.current.innerHTML = `
-            <pre class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm overflow-x-auto">
-${diagram.source_code}
-            </pre>
-          `;
+        if (isMounted) {
+          const errorMessage = err instanceof Error ? err.message : 'Unknown rendering error';
+          setRenderError(`Failed to render Mermaid diagram: ${errorMessage}`);
+          console.error('Mermaid rendering error:', err);
+          
+          if (mermaidRef.current) {
+            mermaidRef.current.innerHTML = `
+              <pre class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm overflow-x-auto">
+  ${diagram.source_code}
+              </pre>
+            `;
+          }
         }
       }
     };
 
     void renderDiagram();
+    return () => { isMounted = false; };
   }, [diagramSet, diagramType, diagramSetId, isRendered]);
 
   // Re-render when diagram set or type changes
   useEffect(() => {
     setIsRendered(false);
-  }, [diagramSet, diagramType]);
+  }, [diagramSet, diagramType, diagramSetId]);
 
   if (loading) {
     return (
