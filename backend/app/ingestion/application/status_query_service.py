@@ -41,57 +41,65 @@ class StatusQueryService:
         for name in CANONICAL_PHASES:
             ps = phase_map.get(name)
             if ps:
-                phase_details.append({
-                    'name': name,
-                    'status': ps.status.value,
-                    'progress': ps.progress,
-                    'items_processed': ps.items_processed,
-                    'items_total': ps.items_total or 0,
-                    'started_at': ps.started_at,
-                    'completed_at': ps.completed_at,
-                    'error': ps.error,
-                })
+                phase_details.append(
+                    {
+                        "name": name,
+                        "status": ps.status.value,
+                        "progress": ps.progress,
+                        "items_processed": ps.items_processed,
+                        "items_total": ps.items_total or 0,
+                        "started_at": ps.started_at,
+                        "completed_at": ps.completed_at,
+                        "error": ps.error,
+                    }
+                )
             else:
-                phase_details.append({
-                    'name': name,
-                    'status': 'not_started',
-                    'progress': 0,
-                    'items_processed': 0,
-                    'items_total': 0,
-                    'started_at': None,
-                    'completed_at': None,
-                    'error': None,
-                })
+                phase_details.append(
+                    {
+                        "name": name,
+                        "status": "not_started",
+                        "progress": 0,
+                        "items_processed": 0,
+                        "items_total": 0,
+                        "started_at": None,
+                        "completed_at": None,
+                        "error": None,
+                    }
+                )
 
         # Use persisted job.status mapped to KB-level (ready|pending|not_ready)
         if latest is None:
-            derived = 'not_ready'
+            derived = "not_ready"
         else:
-            job_status = latest.status  # 'not_started'|'running'|'paused'|'completed'|'failed'|'canceled'
-            if job_status == 'completed':
-                derived = 'ready'
-            elif job_status == 'running':
-                derived = 'pending'
-            elif job_status == 'paused':
-                derived = 'paused'
-            elif job_status in ('not_started', 'canceled', 'failed'):
-                derived = 'not_ready'
+            job_status = (
+                latest.status
+            )  # 'not_started'|'running'|'paused'|'completed'|'failed'|'canceled'
+            if job_status == "completed":
+                derived = "ready"
+            elif job_status == "running":
+                derived = "pending"
+            elif job_status == "paused":
+                derived = "paused"
+            elif job_status in ("not_started", "canceled", "failed"):
+                derived = "not_ready"
             else:
-                derived = 'not_ready'
+                derived = "not_ready"
 
         # Current phase: first non-completed canonical, else last
         current_phase = None
         for name in CANONICAL_PHASES:
-            pd = next((p for p in phase_details if p['name'] == name), None)
-            if pd and pd['status'] != 'completed':
+            pd = next((p for p in phase_details if p["name"] == name), None)
+            if pd and pd["status"] != "completed":
                 current_phase = name
                 break
         if not current_phase:
             current_phase = CANONICAL_PHASES[-1]
 
         # Overall progress: average of phase progress; 100 if ready
-        overall_progress = 100 if derived == 'ready' else int(
-            sum(p['progress'] for p in phase_details) / len(phase_details)
+        overall_progress = (
+            100
+            if derived == "ready"
+            else int(sum(p["progress"] for p in phase_details) / len(phase_details))
         )
 
         return KBPersistedStatus(

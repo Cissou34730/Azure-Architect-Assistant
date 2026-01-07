@@ -7,9 +7,7 @@ from typing import Dict, Any, Optional
 
 
 def extract_state_updates(
-    agent_response: str,
-    user_message: str,
-    current_state: Dict[str, Any]
+    agent_response: str, user_message: str, current_state: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """Infer partial `ProjectState` updates based on agent output and user input.
 
@@ -32,16 +30,25 @@ def extract_state_updates(
             f"{availability_match.group(1)} SLA requirement"
         )
 
-    security_keywords = ["security", "authentication", "authorization", "encryption", "compliance"]
+    security_keywords = [
+        "security",
+        "authentication",
+        "authorization",
+        "encryption",
+        "compliance",
+    ]
     if any(keyword in user_message.lower() for keyword in security_keywords):
         existing_security = current_state.get("nfrs", {}).get("security")
         if not existing_security:
             security_mentions = [
-                line.strip() for line in agent_response.split("\n")
+                line.strip()
+                for line in agent_response.split("\n")
                 if any(kw in line.lower() for kw in security_keywords)
             ]
             if security_mentions:
-                updates.setdefault("nfrs", {})["security"] = "; ".join(security_mentions[:3])
+                updates.setdefault("nfrs", {})["security"] = "; ".join(
+                    security_mentions[:3]
+                )
 
     perf_match = re.search(
         r"(\d+(?:\.\d+)?)\s*(ms|seconds?|milliseconds?)\s+(?:latency|response time)",
@@ -56,6 +63,8 @@ def extract_state_updates(
     if "cost" in combined_text or "budget" in combined_text:
         cost_match = re.search(r"\$[\d,]+(?:\.\d{2})?", combined_text)
         if cost_match:
-            updates.setdefault("nfrs", {})["costConstraints"] = f"Budget: {cost_match.group(0)}"
+            updates.setdefault("nfrs", {})["costConstraints"] = (
+                f"Budget: {cost_match.group(0)}"
+            )
 
     return updates or None

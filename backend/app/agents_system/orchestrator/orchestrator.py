@@ -79,7 +79,9 @@ class AgentOrchestrator:
             template=f"{SYSTEM_PROMPT}\n\n{REACT_TEMPLATE}",
             input_variables=["input", "agent_scratchpad"],
             partial_variables={
-                "tools": "\n".join([f"{tool.name}: {tool.description}" for tool in tools]),
+                "tools": "\n".join(
+                    [f"{tool.name}: {tool.description}" for tool in tools]
+                ),
                 "tool_names": ", ".join([tool.name for tool in tools]),
             },
         )
@@ -101,7 +103,9 @@ class AgentOrchestrator:
 
         logger.info("AgentOrchestrator: initialized")
 
-    async def execute(self, user_query: str, project_context: Optional[str] = None) -> dict:
+    async def execute(
+        self, user_query: str, project_context: Optional[str] = None
+    ) -> dict:
         """Execute a query via the agent with optional context injection."""
         if not self._agent:
             raise RuntimeError("AgentOrchestrator not initialized")
@@ -114,14 +118,18 @@ class AgentOrchestrator:
                     tools = self._agent.tools
                 self._on_start(user_query, project_context, tools)
 
-            result = await self._agent.execute(user_query, project_context=project_context)
+            result = await self._agent.execute(
+                user_query, project_context=project_context
+            )
 
             # Optional summarization
             if self._summary_chain and self._summary_chain.enabled:
-                summary = self._summary_chain.summarize([
-                    {"role": "user", "content": user_query},
-                    {"role": "assistant", "content": str(result.get("output", ""))},
-                ])
+                summary = self._summary_chain.summarize(
+                    [
+                        {"role": "user", "content": user_query},
+                        {"role": "assistant", "content": str(result.get("output", ""))},
+                    ]
+                )
                 if summary:
                     result["summary"] = summary.summary
 

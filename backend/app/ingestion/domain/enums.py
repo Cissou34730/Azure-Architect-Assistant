@@ -22,6 +22,3 @@ class PhaseStatus(str, enum.Enum):
     PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
-
-
-

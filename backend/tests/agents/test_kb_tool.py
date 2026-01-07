@@ -25,7 +25,9 @@ def tool(monkeypatch):
 
     # Monkeypatch the agent to avoid hitting real indices/services
     class DummyAgent:
-        def execute(self, query, profile="chat", kb_ids=None, top_k=5, metadata_filters=None):
+        def execute(
+            self, query, profile="chat", kb_ids=None, top_k=5, metadata_filters=None
+        ):
             return DummyResult().result
 
     monkeypatch.setattr(t, "_agent", DummyAgent())
@@ -33,7 +35,9 @@ def tool(monkeypatch):
 
 
 def test_kb_search_tool_returns_cited_answer(tool):
-    output = tool._run(query="How to secure Azure SQL?", profile="chat", kb_ids=None, topK=3)
+    output = tool._run(
+        query="How to secure Azure SQL?", profile="chat", kb_ids=None, topK=3
+    )
     assert "This is a grounded answer." in output
     assert "Sources:" in output
     assert "Azure Architecture Guide" in output

@@ -21,15 +21,22 @@ if str(BACKEND_ROOT) not in sys.path:
 from sqlalchemy import select
 
 from app.ingestion.ingestion_database import get_session, init_ingestion_database
-from app.ingestion.models import IngestionJob, IngestionPhaseStatus, JobStatus, PhaseStatusDB
+from app.ingestion.models import (
+    IngestionJob,
+    IngestionPhaseStatus,
+    JobStatus,
+    PhaseStatusDB,
+)
 
 
 def mark_completed(kb_ids: List[str]) -> None:
     init_ingestion_database()
     with get_session() as session:
-        jobs = session.execute(
-            select(IngestionJob).where(IngestionJob.kb_id.in_(kb_ids))
-        ).scalars().all()
+        jobs = (
+            session.execute(select(IngestionJob).where(IngestionJob.kb_id.in_(kb_ids)))
+            .scalars()
+            .all()
+        )
 
         if not jobs:
             # Create jobs if they do not exist
@@ -54,9 +61,15 @@ def mark_completed(kb_ids: List[str]) -> None:
             job.current_phase = "indexing"
             job.updated_at = datetime.now(timezone.utc)
 
-            phases = session.execute(
-                select(IngestionPhaseStatus).where(IngestionPhaseStatus.job_id == job.id)
-            ).scalars().all()
+            phases = (
+                session.execute(
+                    select(IngestionPhaseStatus).where(
+                        IngestionPhaseStatus.job_id == job.id
+                    )
+                )
+                .scalars()
+                .all()
+            )
 
             # Ensure all canonical phases exist and are completed
             canonical = ["loading", "chunking", "embedding", "indexing"]

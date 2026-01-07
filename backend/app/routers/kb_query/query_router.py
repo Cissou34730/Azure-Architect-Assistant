@@ -3,7 +3,6 @@ KB Query Router
 FastAPI endpoints for knowledge base queries.
 """
 
-from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 import logging
 
@@ -15,7 +14,7 @@ from .query_models import (
     ProfileQueryRequest,
     KBQueryRequest,
     SourceInfo,
-    QueryResponse
+    QueryResponse,
 )
 from .query_operations import KBQueryService, get_query_service
 
@@ -27,6 +26,7 @@ router = APIRouter(prefix="/api/query", tags=["query"])
 # ============================================================================
 # Dependency Injection
 # ============================================================================
+
 
 def get_multi_query_service_dep() -> MultiKBQueryService:
     """Dependency for Multi Query Service - allows mocking in tests"""
@@ -42,12 +42,13 @@ def get_query_service_dep() -> KBQueryService:
 # Query Endpoints
 # ============================================================================
 
+
 @router.post("", response_model=QueryResponse)
 @router.post("/", response_model=QueryResponse, include_in_schema=False)
 async def query_legacy(
     request: QueryRequest,
     multi_query_service: MultiKBQueryService = Depends(get_multi_query_service_dep),
-    operations: KBQueryService = Depends(get_query_service_dep)
+    operations: KBQueryService = Depends(get_query_service_dep),
 ) -> QueryResponse:
     """
     Legacy query endpoint - queries all active KBs using CHAT profile.
@@ -55,31 +56,28 @@ async def query_legacy(
     """
     try:
         result = operations.query_with_profile(
-            multi_query_service,
-            request.question,
-            QueryProfile.CHAT,
-            request.topK
+            multi_query_service, request.question, QueryProfile.CHAT, request.topK
         )
-        
+
         sources = [
             SourceInfo(
-                url=source.get('url', ''),
-                title=source.get('title', ''),
-                section=source.get('section', ''),
-                score=source.get('score', 0.0),
-                kb_id=source.get('kb_id'),
-                kb_name=source.get('kb_name')
+                url=source.get("url", ""),
+                title=source.get("title", ""),
+                section=source.get("section", ""),
+                score=source.get("score", 0.0),
+                kb_id=source.get("kb_id"),
+                kb_name=source.get("kb_name"),
             )
-            for source in result.get('sources', [])
+            for source in result.get("sources", [])
         ]
-        
+
         return QueryResponse(
-            answer=result['answer'],
+            answer=result["answer"],
             sources=sources,
-            hasResults=result.get('has_results', True),
-            suggestedFollowUps=result.get('suggested_follow_ups')
+            hasResults=result.get("has_results", True),
+            suggestedFollowUps=result.get("suggested_follow_ups"),
         )
-        
+
     except Exception as e:
         logger.error(f"Legacy query failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
@@ -89,7 +87,7 @@ async def query_legacy(
 async def query_chat(
     request: ProfileQueryRequest,
     multi_query_service: MultiKBQueryService = Depends(get_multi_query_service_dep),
-    operations: KBQueryService = Depends(get_query_service_dep)
+    operations: KBQueryService = Depends(get_query_service_dep),
 ) -> QueryResponse:
     """
     Query knowledge bases using CHAT profile (fast, targeted responses).
@@ -97,42 +95,42 @@ async def query_chat(
     """
     try:
         # Filter to ready KBs only
-        ready_kbs = [kb for kb in get_kb_manager().get_kbs_for_profile(QueryProfile.CHAT.value)
-                     if KnowledgeBaseService(kb).is_index_ready()]
+        ready_kbs = [
+            kb
+            for kb in get_kb_manager().get_kbs_for_profile(QueryProfile.CHAT.value)
+            if KnowledgeBaseService(kb).is_index_ready()
+        ]
         if not ready_kbs:
             return QueryResponse(
                 answer="No indexed knowledge bases available for chat yet.",
                 sources=[],
                 hasResults=False,
-                suggestedFollowUps=None
+                suggestedFollowUps=None,
             )
 
         result = operations.query_with_profile(
-            multi_query_service,
-            request.question,
-            QueryProfile.CHAT,
-            request.topKPerKB
+            multi_query_service, request.question, QueryProfile.CHAT, request.topKPerKB
         )
-        
+
         sources = [
             SourceInfo(
-                url=source.get('url', ''),
-                title=source.get('title', ''),
-                section=source.get('section', ''),
-                score=source.get('score', 0.0),
-                kb_id=source.get('kb_id'),
-                kb_name=source.get('kb_name')
+                url=source.get("url", ""),
+                title=source.get("title", ""),
+                section=source.get("section", ""),
+                score=source.get("score", 0.0),
+                kb_id=source.get("kb_id"),
+                kb_name=source.get("kb_name"),
             )
-            for source in result.get('sources', [])
+            for source in result.get("sources", [])
         ]
-        
+
         return QueryResponse(
-            answer=result['answer'],
+            answer=result["answer"],
             sources=sources,
-            hasResults=result.get('has_results', True),
-            suggestedFollowUps=result.get('suggested_follow_ups')
+            hasResults=result.get("has_results", True),
+            suggestedFollowUps=result.get("suggested_follow_ups"),
         )
-        
+
     except Exception as e:
         logger.error(f"Chat query failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Chat query failed: {str(e)}")
@@ -142,49 +140,52 @@ async def query_chat(
 async def query_proposal(
     request: ProfileQueryRequest,
     multi_query_service: MultiKBQueryService = Depends(get_multi_query_service_dep),
-    operations: KBQueryService = Depends(get_query_service_dep)
+    operations: KBQueryService = Depends(get_query_service_dep),
 ) -> QueryResponse:
     """
     Query knowledge bases using PROPOSAL profile (comprehensive, detailed responses).
     Returns answer with sources from proposal-enabled knowledge bases.
     """
     try:
-        ready_kbs = [kb for kb in get_kb_manager().get_kbs_for_profile(QueryProfile.PROPOSAL.value)
-                     if KnowledgeBaseService(kb).is_index_ready()]
+        ready_kbs = [
+            kb
+            for kb in get_kb_manager().get_kbs_for_profile(QueryProfile.PROPOSAL.value)
+            if KnowledgeBaseService(kb).is_index_ready()
+        ]
         if not ready_kbs:
             return QueryResponse(
                 answer="No indexed knowledge bases available for proposal yet.",
                 sources=[],
                 hasResults=False,
-                suggestedFollowUps=None
+                suggestedFollowUps=None,
             )
 
         result = operations.query_with_profile(
             multi_query_service,
             request.question,
             QueryProfile.PROPOSAL,
-            request.topKPerKB
+            request.topKPerKB,
         )
-        
+
         sources = [
             SourceInfo(
-                url=source.get('url', ''),
-                title=source.get('title', ''),
-                section=source.get('section', ''),
-                score=source.get('score', 0.0),
-                kb_id=source.get('kb_id'),
-                kb_name=source.get('kb_name')
+                url=source.get("url", ""),
+                title=source.get("title", ""),
+                section=source.get("section", ""),
+                score=source.get("score", 0.0),
+                kb_id=source.get("kb_id"),
+                kb_name=source.get("kb_name"),
             )
-            for source in result.get('sources', [])
+            for source in result.get("sources", [])
         ]
-        
+
         return QueryResponse(
-            answer=result['answer'],
+            answer=result["answer"],
             sources=sources,
-            hasResults=result.get('has_results', True),
-            suggestedFollowUps=result.get('suggested_follow_ups')
+            hasResults=result.get("has_results", True),
+            suggestedFollowUps=result.get("suggested_follow_ups"),
         )
-        
+
     except Exception as e:
         logger.error(f"Proposal query failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Proposal query failed: {str(e)}")
@@ -194,7 +195,7 @@ async def query_proposal(
 async def query_kb_manual(
     request: KBQueryRequest,
     multi_query_service: MultiKBQueryService = Depends(get_multi_query_service_dep),
-    operations: KBQueryService = Depends(get_query_service_dep)
+    operations: KBQueryService = Depends(get_query_service_dep),
 ) -> QueryResponse:
     """
     Query specific knowledge bases manually selected by user.
@@ -203,43 +204,45 @@ async def query_kb_manual(
     try:
         # Filter input kb_ids to those with ready indexes
         from typing import List
-        kb_ids: List[str] = [kb_id for kb_id in request.kb_ids
-                             if (lambda cfg: cfg and KnowledgeBaseService(cfg).is_index_ready())
-                             (get_kb_manager().get_kb(kb_id))]
+
+        kb_ids: List[str] = [
+            kb_id
+            for kb_id in request.kb_ids
+            if (lambda cfg: cfg and KnowledgeBaseService(cfg).is_index_ready())(
+                get_kb_manager().get_kb(kb_id)
+            )
+        ]
         if not kb_ids:
             return QueryResponse(
                 answer="Selected KBs have no built index yet.",
                 sources=[],
                 hasResults=False,
-                suggestedFollowUps=None
+                suggestedFollowUps=None,
             )
 
         result = operations.query_specific_kbs(
-            multi_query_service,
-            request.question,
-            kb_ids,
-            request.topKPerKB
+            multi_query_service, request.question, kb_ids, request.topKPerKB
         )
-        
+
         sources = [
             SourceInfo(
-                url=source.get('url', ''),
-                title=source.get('title', ''),
-                section=source.get('section', ''),
-                score=source.get('score', 0.0),
-                kb_id=source.get('kb_id'),
-                kb_name=source.get('kb_name')
+                url=source.get("url", ""),
+                title=source.get("title", ""),
+                section=source.get("section", ""),
+                score=source.get("score", 0.0),
+                kb_id=source.get("kb_id"),
+                kb_name=source.get("kb_name"),
             )
-            for source in result.get('sources', [])
+            for source in result.get("sources", [])
         ]
-        
+
         return QueryResponse(
-            answer=result['answer'],
+            answer=result["answer"],
             sources=sources,
-            hasResults=result.get('has_results', True),
-            suggestedFollowUps=result.get('suggested_follow_ups')
+            hasResults=result.get("has_results", True),
+            suggestedFollowUps=result.get("suggested_follow_ups"),
         )
-        
+
     except Exception as e:
         logger.error(f"KB Query failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"KB Query failed: {str(e)}")

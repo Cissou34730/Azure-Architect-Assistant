@@ -24,6 +24,7 @@ Base = declarative_base()
 
 class JobStatus(str, enum.Enum):
     """Lifecycle states for an ingestion job (database model)."""
+
     NOT_STARTED = "NOT_STARTED"
     RUNNING = "RUNNING"
     PAUSED = "PAUSED"
@@ -66,18 +67,22 @@ class IngestionJob(Base):
     source_type = Column(String(50), nullable=False)
     source_config = Column(JSON, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
     total_items = Column(Integer, nullable=True, default=0)
     processed_items = Column(Integer, nullable=True, default=0)
     priority = Column(Integer, nullable=False, default=0)
-    
+
     # Orchestrator-specific fields (OrchestratorSpec)
     checkpoint = Column(JSON, nullable=True, default=None)  # {last_batch_id, cursor}
-    counters = Column(JSON, nullable=True, default=None)    # {docs_seen, chunks_seen, chunks_processed, chunks_skipped, chunks_error}
+    counters = Column(
+        JSON, nullable=True, default=None
+    )  # {docs_seen, chunks_seen, chunks_processed, chunks_skipped, chunks_error}
     heartbeat_at = Column(DateTime, nullable=True, default=None)
     finished_at = Column(DateTime, nullable=True, default=None)
     last_error = Column(Text, nullable=True, default=None)
-    
+
     # Phase-level tracking (legacy, for backward compatibility)
     current_phase = Column(String(50), nullable=True, default="loading")
     phase_progress = Column(JSON, nullable=True, default=dict)
@@ -104,8 +109,12 @@ class IngestionPhaseStatus(Base):
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    job_id = Column(String(36), ForeignKey("ingestion_jobs.id", ondelete="CASCADE"), nullable=False)
-    phase_name = Column(String(50), nullable=False)  # loading, chunking, embedding, indexing
+    job_id = Column(
+        String(36), ForeignKey("ingestion_jobs.id", ondelete="CASCADE"), nullable=False
+    )
+    phase_name = Column(
+        String(50), nullable=False
+    )  # loading, chunking, embedding, indexing
     status = Column(String(20), nullable=False, default=PhaseStatusDB.NOT_STARTED.value)
     progress_percent = Column(Integer, nullable=False, default=0)
     items_processed = Column(Integer, nullable=False, default=0)
@@ -113,8 +122,15 @@ class IngestionPhaseStatus(Base):
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
     job = relationship("IngestionJob", backref="phase_statuses")
 
@@ -153,13 +169,17 @@ class IngestionPhaseStatus(Base):
         self.items_processed = items_processed
         if items_total is not None:
             self.items_total = items_total
-        
+
         if self.items_total and self.items_total > 0:
-            self.progress_percent = min(100, int((items_processed / self.items_total) * 100))
+            self.progress_percent = min(
+                100, int((items_processed / self.items_total) * 100)
+            )
         else:
             # Without total, cap at 99% until completion
-            self.progress_percent = min(99, int((items_processed / max(items_processed + 1, 100)) * 100))
-        
+            self.progress_percent = min(
+                99, int((items_processed / max(items_processed + 1, 100)) * 100)
+            )
+
         self.updated_at = datetime.now(timezone.utc)
 
 
@@ -173,17 +193,28 @@ class IngestionQueueItem(Base):
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    job_id = Column(String(36), ForeignKey("ingestion_jobs.id", ondelete="CASCADE"), nullable=False)
+    job_id = Column(
+        String(36), ForeignKey("ingestion_jobs.id", ondelete="CASCADE"), nullable=False
+    )
     doc_hash = Column(String(128), nullable=False)
     content = Column(Text, nullable=False)
     # 'metadata' is reserved by SQLAlchemy Declarative; use attribute 'item_metadata'
-    item_metadata = Column('metadata', JSON, nullable=False, default=dict)
+    item_metadata = Column("metadata", JSON, nullable=False, default=dict)
     status = Column(String(20), nullable=False, default=QueueStatus.PENDING.value)
     attempts = Column(Integer, nullable=False, default=0)
     error_log = Column(Text, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    available_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+    available_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
 
     job = relationship("IngestionJob", back_populates="queue_items")
 

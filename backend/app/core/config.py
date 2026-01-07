@@ -30,6 +30,7 @@ def _default_env_path() -> Path:
 
 class AppSettings(BaseSettings):
     """Top-level application settings."""
+
     # Strict settings config with explicit env file and no extras.
     model_config = SettingsConfigDict(
         env_file=str(_default_env_path()),
@@ -45,17 +46,24 @@ class AppSettings(BaseSettings):
 
     # Agent system settings
     mcp_config_path: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parents[2] / "config" / "mcp" / "mcp_config.json",
+        default_factory=lambda: Path(__file__).resolve().parents[2]
+        / "config"
+        / "mcp"
+        / "mcp_config.json",
     )
     mcp_default_timeout: int = Field(30)
     mcp_max_retries: int = Field(3)
 
     # Diagram generation settings
     diagrams_database: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parents[2] / "data" / "diagrams.db",
+        default_factory=lambda: Path(__file__).resolve().parents[2]
+        / "data"
+        / "diagrams.db",
     )
     plantuml_jar_path: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parents[2] / "lib" / "plantuml.jar",
+        default_factory=lambda: Path(__file__).resolve().parents[2]
+        / "lib"
+        / "plantuml.jar",
     )
     diagram_openai_model: str = Field("gpt-4-turbo-preview")
     diagram_max_retries: int = Field(3)

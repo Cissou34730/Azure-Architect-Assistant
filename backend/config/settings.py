@@ -16,20 +16,26 @@ load_dotenv()
 
 class OpenAISettings(BaseModel):
     """OpenAI configuration loaded from environment variables."""
-    
+
     api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
     model: str = Field(default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
-    embedding_model: str = Field(default_factory=lambda: os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"))
+    embedding_model: str = Field(
+        default_factory=lambda: os.getenv(
+            "OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
+        )
+    )
 
 
 class IngestionSettings(BaseModel):
     """Configuration for ingestion system - auto-loaded from JSON."""
-    
+
     # Queue configuration
     batch_size: int = Field(description="Number of items to dequeue per batch")
     dequeue_timeout: float = Field(description="Seconds to wait when queue empty")
-    consumer_poll_interval: float = Field(description="Seconds between dequeue attempts")
-    
+    consumer_poll_interval: float = Field(
+        description="Seconds between dequeue attempts"
+    )
+
     # Thread lifecycle
     thread_join_timeout: float = Field(description="Seconds to wait for thread exit")
 
@@ -40,10 +46,10 @@ class IngestionSettings(BaseModel):
         """Load settings from JSON configuration file."""
         if config_path is None:
             config_path = Path(__file__).parent / "ingestion.config.json"
-        
+
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
-        
+
         # Pydantic v2: load JSON and validate explicitly
         with open(config_path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -52,10 +58,12 @@ class IngestionSettings(BaseModel):
 
 class KBDefaults(BaseModel):
     """Default configuration for knowledge bases."""
-    
+
     chunk_size: int = Field(description="Target size for text chunks")
     chunk_overlap: int = Field(description="Overlap between consecutive chunks")
-    chunking_strategy: str = Field(description="Strategy for chunking (semantic, fixed, etc.)")
+    chunking_strategy: str = Field(
+        description="Strategy for chunking (semantic, fixed, etc.)"
+    )
     embedder_type: str = Field(description="Type of embedder (openai, azure, etc.)")
     index_type: str = Field(description="Type of index (vector, summary, etc.)")
 
@@ -64,29 +72,29 @@ class KBDefaults(BaseModel):
         """Load KB defaults from JSON configuration file."""
         if config_path is None:
             config_path = Path(__file__).parent / "kb_defaults.json"
-        
+
         if not config_path.exists():
             raise FileNotFoundError(f"KB defaults file not found: {config_path}")
-        
+
         with open(config_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return cls.model_validate(data)
-    
+
     def merge_with_kb_config(self, kb_config: Dict[str, Any]) -> Dict[str, Any]:
         """Merge defaults with KB-specific config and environment variables.
         Priority: kb_config > defaults > environment variables
         """
         # Start with JSON defaults
         merged = self.dict()
-        
+
         # Add models from environment (will be overridden if in kb_config)
         openai_settings = get_openai_settings()
         merged["embedding_model"] = openai_settings.embedding_model
         merged["generation_model"] = openai_settings.model
-        
+
         # KB-specific config takes precedence
         merged.update(kb_config)
-        
+
         return merged
 
 

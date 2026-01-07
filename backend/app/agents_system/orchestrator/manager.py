@@ -1,6 +1,6 @@
 """
 Orchestration manager.
-Main entry point for agent system coordination. Manages agent lifecycle, 
+Main entry point for agent system coordination. Manages agent lifecycle,
 conversation flow, and checklist-driven workflow execution.
 """
 

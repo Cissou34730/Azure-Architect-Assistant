@@ -33,25 +33,23 @@ engine = create_async_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
-    echo=False  # Set to True for SQL debugging
+    echo=False,  # Set to True for SQL debugging
 )
 
 # Create async session factory
 AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False
+    engine, class_=AsyncSession, expire_on_commit=False
 )
 
 
 async def init_database():
     """Initialize database tables."""
     logger.info(f"Initializing database at: {DB_PATH}")
-    
+
     async with engine.begin() as conn:
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
-    
+
     logger.info("Database tables initialized successfully")
 
 

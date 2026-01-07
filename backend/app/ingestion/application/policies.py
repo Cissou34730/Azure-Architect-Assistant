@@ -18,7 +18,12 @@ class StepName(str, Enum):
 class WorkflowDefinition:
     """Defines pipeline step order and transitions."""
 
-    ORDER: List[StepName] = [StepName.LOAD, StepName.CHUNK, StepName.EMBED, StepName.INDEX]
+    ORDER: List[StepName] = [
+        StepName.LOAD,
+        StepName.CHUNK,
+        StepName.EMBED,
+        StepName.INDEX,
+    ]
 
     @classmethod
     def get_first_step(cls) -> StepName:
@@ -44,4 +49,4 @@ class RetryPolicy:
         return attempt < self.max_attempts
 
     def get_backoff_delay(self, attempt: int) -> float:
-        return min(2 ** attempt * self.backoff_multiplier, 60.0)
+        return min(2**attempt * self.backoff_multiplier, 60.0)

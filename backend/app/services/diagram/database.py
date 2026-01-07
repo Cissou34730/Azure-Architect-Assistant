@@ -17,12 +17,12 @@ _diagram_session_factory = None
 async def init_diagram_database() -> None:
     """
     Initialize diagram database engine and session factory.
-    
+
     Call this during application startup.
     Creates the database file and tables if they don't exist.
     """
     global _diagram_engine, _diagram_session_factory
-    
+
     settings = get_app_settings()
 
     # Build DSN from filesystem path and ensure directory exists
@@ -37,14 +37,14 @@ async def init_diagram_database() -> None:
         poolclass=NullPool,  # SQLite doesn't benefit from connection pooling
         connect_args={"check_same_thread": False},
     )
-    
+
     # Create session factory
     _diagram_session_factory = async_sessionmaker(
         _diagram_engine,
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     # Create all tables
     async with _diagram_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -53,16 +53,16 @@ async def init_diagram_database() -> None:
 async def get_diagram_session() -> AsyncGenerator[AsyncSession, None]:
     """
     Get diagram database session.
-    
+
     Use as a dependency in FastAPI endpoints:
     ```python
     async def endpoint(session: AsyncSession = Depends(get_diagram_session)):
         ...
     ```
-    
+
     Yields:
         AsyncSession: Database session
-        
+
     Raises:
         RuntimeError: If database not initialized
     """
@@ -71,7 +71,7 @@ async def get_diagram_session() -> AsyncGenerator[AsyncSession, None]:
             "Diagram database not initialized. "
             "Call init_diagram_database() during application startup."
         )
-    
+
     async with _diagram_session_factory() as session:
         try:
             yield session
@@ -84,11 +84,11 @@ async def get_diagram_session() -> AsyncGenerator[AsyncSession, None]:
 async def close_diagram_database() -> None:
     """
     Close diagram database connections.
-    
+
     Call this during application shutdown.
     """
     global _diagram_engine
-    
+
     if _diagram_engine is not None:
         await _diagram_engine.dispose()
         _diagram_engine = None

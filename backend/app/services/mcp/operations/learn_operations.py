@@ -86,7 +86,11 @@ async def search_microsoft_docs(
         items = content
     elif isinstance(content, dict):
         # Some servers return { results: [...] }
-        items = content.get("results") if isinstance(content.get("results"), list) else [content]
+        items = (
+            content.get("results")
+            if isinstance(content.get("results"), list)
+            else [content]
+        )
     else:
         items = []
 
@@ -99,7 +103,9 @@ async def search_microsoft_docs(
     }
 
 
-async def fetch_documentation(client: MicrosoftLearnMCPClient, url: str) -> dict[str, Any]:
+async def fetch_documentation(
+    client: MicrosoftLearnMCPClient, url: str
+) -> dict[str, Any]:
     """
     Fetch and convert a Microsoft documentation page to markdown.
 
@@ -123,7 +129,10 @@ async def fetch_documentation(client: MicrosoftLearnMCPClient, url: str) -> dict
         ```
     """
     response = await _call_mcp_tool(
-        client, "microsoft_docs_fetch", {"url": url}, f"Fetching documentation from '{url}'"
+        client,
+        "microsoft_docs_fetch",
+        {"url": url},
+        f"Fetching documentation from '{url}'",
     )
 
     # Content is a markdown string

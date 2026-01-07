@@ -58,12 +58,12 @@ async def startup():
         try:
             global _mcp_client_instance
             from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
-            
+
             logger.info("Initializing MCP client for agent system...")
             # Load MCP config from centralized core settings
             app_settings = get_app_settings()
             mcp_config = app_settings.get_mcp_server_config("microsoft_learn")
-            
+
             mcp_client = MicrosoftLearnMCPClient(mcp_config)
             await mcp_client.initialize()
             _mcp_client_instance = mcp_client  # Store for cleanup
@@ -120,7 +120,7 @@ async def shutdown():
 
     # Close database connections
     await close_database()
-    
+
     # Close diagram database connections
     try:
         logger.info("Closing diagram database...")

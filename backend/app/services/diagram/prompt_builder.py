@@ -7,11 +7,11 @@ from app.models.diagram import DiagramType
 class PromptBuilder:
     """
     Shared LLM prompt patterns for diagram generation.
-    
+
     Abstracts common prompt structures for Mermaid and PlantUML diagrams,
     avoiding duplication across different diagram types.
     """
-    
+
     @staticmethod
     def build_generation_prompt(
         description: str,
@@ -20,12 +20,12 @@ class PromptBuilder:
     ) -> str:
         """
         Build prompt for diagram generation.
-        
+
         Args:
             description: Input architecture description
             diagram_type: Type of diagram to generate
             previous_error: Error from previous attempt (for retry)
-            
+
         Returns:
             Formatted prompt for LLM
         """
@@ -34,7 +34,7 @@ class PromptBuilder:
 {description}
 
 """
-        
+
         if diagram_type == DiagramType.MERMAID_FUNCTIONAL:
             base_prompt += """Create a Mermaid flowchart showing functional flow.
 
@@ -53,7 +53,7 @@ Requirements:
 - Show data flow and decisions
 - Max 20 nodes for readability
 """
-        
+
         elif diagram_type == DiagramType.C4_CONTEXT:
             base_prompt += """Create a C4 Context diagram showing system boundaries and external actors.
 
@@ -76,7 +76,7 @@ Requirements:
 - Use System_Ext for external systems
 - Clear relationships with Rel()
 """
-        
+
         elif diagram_type == DiagramType.C4_CONTAINER:
             base_prompt += """Create a C4 Container diagram showing application components.
 
@@ -104,7 +104,7 @@ Requirements:
 - Include technology choices
 - No Component elements (wrong abstraction level)
 """
-        
+
         elif diagram_type == DiagramType.PLANTUML_AZURE:
             base_prompt += """Create a PlantUML diagram with Azure service icons.
 
@@ -134,7 +134,7 @@ Requirements:
 - Use Azure service names in descriptions
 - Show relationships between services
 """
-        
+
         if previous_error:
             base_prompt += f"""
 
@@ -143,19 +143,21 @@ IMPORTANT: Previous attempt failed with this error:
 
 Fix the error and regenerate the diagram.
 """
-        
-        base_prompt += "\nReturn ONLY the diagram code, no explanations or markdown formatting."
-        
+
+        base_prompt += (
+            "\nReturn ONLY the diagram code, no explanations or markdown formatting."
+        )
+
         return base_prompt
-    
+
     @staticmethod
     def build_ambiguity_prompt(description: str) -> str:
         """
         Build prompt for ambiguity detection.
-        
+
         Args:
             description: Input description to analyze
-            
+
         Returns:
             Formatted prompt for ambiguity detection
         """
@@ -180,7 +182,7 @@ Return JSON:
   ]
 }}
 """
-    
+
     @staticmethod
     def build_retry_prompt(
         original_prompt: str,
@@ -189,12 +191,12 @@ Return JSON:
     ) -> str:
         """
         Build prompt for retry attempt with error feedback.
-        
+
         Args:
             original_prompt: Original generation prompt
             error_feedback: Error message from validation
             attempt: Retry attempt number (1-3)
-            
+
         Returns:
             Enhanced prompt with error context
         """

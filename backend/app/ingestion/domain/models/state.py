@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional
 
 try:
     from pydantic import BaseModel, Field
+
     PYDANTIC_AVAILABLE = True
 except ImportError:
     PYDANTIC_AVAILABLE = False
@@ -30,14 +31,14 @@ class IngestionState:
     created_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    
+
     # Phase-level tracking (populated from phase_tracker)
     phases: Dict[str, Any] = field(default_factory=dict)
 
     def get_overall_status(self) -> str:
         """
         Calculate overall job status based on phase statuses.
-        
+
         Logic:
         - If any phase is FAILED -> job is "failed"
         - If all phases are COMPLETED -> job is "completed"
@@ -46,35 +47,40 @@ class IngestionState:
         """
         if not self.phases:
             return self.status
-        
-        phase_statuses = [p.get("status", PhaseStatus.NOT_STARTED.value) for p in self.phases.values()]
-        
+
+        phase_statuses = [
+            p.get("status", PhaseStatus.NOT_STARTED.value) for p in self.phases.values()
+        ]
+
         # Check for failures
         if PhaseStatus.FAILED.value in phase_statuses:
             return "failed"
-        
+
         # Check if all completed
         if all(s == PhaseStatus.COMPLETED.value for s in phase_statuses):
             return "completed"
-        
+
         # Check if any running or paused
-        if PhaseStatus.RUNNING.value in phase_statuses or PhaseStatus.PAUSED.value in phase_statuses:
+        if (
+            PhaseStatus.RUNNING.value in phase_statuses
+            or PhaseStatus.PAUSED.value in phase_statuses
+        ):
             return "running"
-        
+
         # Default to current status
         return self.status
 
     def get_current_phase(self) -> Optional[str]:
         """
         Determine which phase is currently active.
-        
+
         Returns the name of the first phase that is RUNNING or PAUSED.
         If no phase is active, returns the first NOT_STARTED phase.
         If all phases are completed, returns None.
         """
         if not self.phases:
             return self.phase
-        
+
         # Phase order
         phase_order = [
             JobPhase.LOADING.value,
@@ -82,21 +88,25 @@ class IngestionState:
             JobPhase.EMBEDDING.value,
             JobPhase.INDEXING.value,
         ]
-        
+
         # First check for active phases (running or paused)
         for phase_name in phase_order:
             if phase_name in self.phases:
-                status = self.phases[phase_name].get("status", PhaseStatus.NOT_STARTED.value)
+                status = self.phases[phase_name].get(
+                    "status", PhaseStatus.NOT_STARTED.value
+                )
                 if status in (PhaseStatus.RUNNING.value, PhaseStatus.PAUSED.value):
                     return phase_name
-        
+
         # Then check for first not-started phase
         for phase_name in phase_order:
             if phase_name in self.phases:
-                status = self.phases[phase_name].get("status", PhaseStatus.NOT_STARTED.value)
+                status = self.phases[phase_name].get(
+                    "status", PhaseStatus.NOT_STARTED.value
+                )
                 if status == PhaseStatus.NOT_STARTED.value:
                     return phase_name
-        
+
         # All phases completed or failed
         return None
 
@@ -107,26 +117,27 @@ class IngestionState:
         """
         if not self.phases:
             return self.progress
-        
+
         phase_order = [
             JobPhase.LOADING.value,
             JobPhase.CHUNKING.value,
             JobPhase.EMBEDDING.value,
             JobPhase.INDEXING.value,
         ]
-        
+
         total_progress = 0
         weight_per_phase = 25  # 100 / 4 phases
-        
+
         for phase_name in phase_order:
             if phase_name in self.phases:
                 phase_progress = self.phases[phase_name].get("progress", 0)
                 total_progress += (phase_progress * weight_per_phase) // 100
-        
+
         return min(100, total_progress)
 
 
 if PYDANTIC_AVAILABLE:
+
     class IngestionStateSchema(BaseModel):
         """Pydantic-compatible schema for API serialization."""
 

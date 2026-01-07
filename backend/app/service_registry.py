@@ -6,9 +6,7 @@ NOTE: Singleton pattern is intentional for keeping indices in memory for perform
 Each service caches loaded indices to avoid repeated disk I/O.
 """
 
-import os
 import logging
-from pathlib import Path
 from typing import Optional
 
 from app.kb import KBManager
@@ -51,7 +49,7 @@ def invalidate_kb_manager():
     """
     Invalidate cached KB manager to reload configuration.
     Called after KB create/update/delete operations.
-    
+
     NOTE: Forces reload of config.json on next access.
     """
     global _kb_manager, _multi_query_service

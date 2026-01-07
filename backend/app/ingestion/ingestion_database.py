@@ -10,7 +10,6 @@ from typing import Iterator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from app.ingestion.models import Base
 
 # Point to consolidated data directory at backend/data
 BACKEND_ROOT = Path(__file__).parent.parent.parent

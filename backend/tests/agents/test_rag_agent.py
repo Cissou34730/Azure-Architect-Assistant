@@ -8,7 +8,9 @@ def agent(monkeypatch):
     a = RAGAgent()
 
     class DummyService:
-        def query_profile(self, question, profile, top_k_per_kb=3, metadata_filters=None):
+        def query_profile(
+            self, question, profile, top_k_per_kb=3, metadata_filters=None
+        ):
             return {
                 "answer": f"Answer for: {question}",
                 "sources": [
@@ -47,8 +49,10 @@ def test_rag_agent_profile_routing(agent):
 
 
 def test_rag_agent_specific_kbs(agent):
-    res = agent.execute("Explain policies", profile="chat", kb_ids=["caf","security"], top_k=2)
+    res = agent.execute(
+        "Explain policies", profile="chat", kb_ids=["caf", "security"], top_k=2
+    )
     assert res["has_results"] is True
     assert "Specific KBs:" in res["answer"]
-    assert res["kbs_queried"] == ["caf","security"]
+    assert res["kbs_queried"] == ["caf", "security"]
     assert res["kb_count"] == 2

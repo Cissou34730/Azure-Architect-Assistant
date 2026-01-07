@@ -3,19 +3,23 @@ KB Management Router
 FastAPI endpoints for KB CRUD operations, listing, and health monitoring.
 """
 
-from typing import Dict, Any
+from typing import Dict
 from fastapi import APIRouter, HTTPException, Depends
 import logging
 import asyncio
 
-from app.service_registry import get_kb_manager, get_multi_query_service, invalidate_kb_manager
+from app.service_registry import (
+    get_kb_manager,
+    get_multi_query_service,
+    invalidate_kb_manager,
+)
 from app.kb import KBManager
-from app.services.kb import MultiKBQueryService, QueryProfile
+from app.services.kb import MultiKBQueryService
 from app.kb.service import clear_index_cache
 from .management_models import (
-    KBInfo, 
-    KBListResponse, 
-    KBHealthInfo, 
+    KBInfo,
+    KBListResponse,
+    KBHealthInfo,
     KBHealthResponse,
     CreateKBRequest,
     CreateKBResponse,
@@ -33,6 +37,7 @@ router = APIRouter(prefix="/api/kb", tags=["knowledge-bases"])
 # ============================================================================
 # Dependency Injection
 # ============================================================================
+
 
 def get_kb_manager_dep() -> KBManager:
     """Dependency for KB Manager - allows mocking in tests"""
@@ -53,19 +58,20 @@ def get_management_service_dep() -> KBManagementService:
 # KB CRUD Endpoints
 # ============================================================================
 
+
 @router.post("/create", response_model=CreateKBResponse)
 async def create_kb(
     request: CreateKBRequest,
     kb_manager: KBManager = Depends(get_kb_manager_dep),
-    operations: KBManagementService = Depends(get_management_service_dep)
+    operations: KBManagementService = Depends(get_management_service_dep),
 ) -> CreateKBResponse:
     """Create a new knowledge base"""
     try:
         result = operations.create_knowledge_base(request, kb_manager)
-        
+
         # Invalidate KB manager cache to reload config
         invalidate_kb_manager()
-        
+
         return CreateKBResponse(**result)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -81,7 +87,7 @@ async def delete_kb(
 ) -> Dict[str, str]:
     """
     Delete a knowledge base and all its data.
-    
+
     This will:
     - Cancel any running ingestion jobs
     - Unload the index from memory
@@ -92,40 +98,41 @@ async def delete_kb(
         # Check if KB exists
         if not kb_manager.kb_exists(kb_id):
             raise HTTPException(
-                status_code=404,
-                detail=f"Knowledge base '{kb_id}' not found"
+                status_code=404, detail=f"Knowledge base '{kb_id}' not found"
             )
-        
+
         # Get KB config before deletion
         kb_config = kb_manager.get_kb(kb_id)
         storage_dir = kb_config.index_path if kb_config else None
-        
+
         # Persist cancel/reset prior to deletion
         try:
             repo = create_job_repository()
-            repo.update_job_status(job_id=repo.get_latest_job_id(kb_id) or "", status="canceled")
+            repo.update_job_status(
+                job_id=repo.get_latest_job_id(kb_id) or "", status="canceled"
+            )
         except Exception:
             pass
-        
+
         # Clear index from memory cache
         if storage_dir:
             clear_index_cache(kb_id=kb_id, storage_dir=storage_dir)
             logger.info(f"Cleared index cache for KB: {kb_id}")
             await asyncio.sleep(0.5)
-        
+
         # Delete the KB
         kb_manager.delete_kb(kb_id)
-        
+
         # Invalidate KB manager cache to reload config
         invalidate_kb_manager()
-        
+
         logger.info(f"Deleted KB: {kb_id}")
-        
+
         return {
             "message": f"Knowledge base '{kb_id}' deleted successfully",
-            "kb_id": kb_id
+            "kb_id": kb_id,
         }
-        
+
     except HTTPException:
         raise
     except ValueError as e:
@@ -139,7 +146,7 @@ async def delete_kb(
 @router.get("/list", response_model=KBListResponse)
 async def list_knowledge_bases(
     kb_manager: KBManager = Depends(get_kb_manager_dep),
-    operations: KBManagementService = Depends(get_management_service_dep)
+    operations: KBManagementService = Depends(get_management_service_dep),
 ) -> KBListResponse:
     """
     List all available knowledge bases with their configuration.
@@ -147,32 +154,31 @@ async def list_knowledge_bases(
     """
     try:
         kbs_info = operations.list_knowledge_bases(kb_manager)
-        
+
         kb_list = [
             KBInfo(
-                id=kb['id'],
-                name=kb['name'],
-                profiles=kb.get('profiles', []),
-                priority=kb.get('priority', 0),
-                status=kb.get('status', 'unknown')
+                id=kb["id"],
+                name=kb["name"],
+                profiles=kb.get("profiles", []),
+                priority=kb.get("priority", 0),
+                status=kb.get("status", "unknown"),
             )
             for kb in kbs_info
         ]
-        
+
         return KBListResponse(knowledge_bases=kb_list)
-        
+
     except Exception as e:
         logger.error(f"Failed to list knowledge bases: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to list knowledge bases: {str(e)}"
+            status_code=500, detail=f"Failed to list knowledge bases: {str(e)}"
         )
 
 
 @router.get("/health", response_model=KBHealthResponse)
 async def check_kb_health(
     kb_manager: KBManager = Depends(get_kb_manager_dep),
-    operations: KBManagementService = Depends(get_management_service_dep)
+    operations: KBManagementService = Depends(get_management_service_dep),
 ) -> KBHealthResponse:
     """
     Check health status of all knowledge bases.
@@ -180,28 +186,22 @@ async def check_kb_health(
     """
     try:
         result = operations.check_health(kb_manager)
-        
-        kb_health = [
-            KBHealthInfo(**kb_info)
-            for kb_info in result['knowledge_bases']
-        ]
-        
+
+        kb_health = [KBHealthInfo(**kb_info) for kb_info in result["knowledge_bases"]]
+
         return KBHealthResponse(
-            overall_status=result['overall_status'],
-            knowledge_bases=kb_health
+            overall_status=result["overall_status"], knowledge_bases=kb_health
         )
-        
+
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Health check failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
 
 # ============================================================================
 # Phase 3: KB-level persisted status
 # ============================================================================
+
 
 @router.get("/{kb_id}/status", response_model=KBStatusResponse)
 async def get_kb_status(
@@ -211,7 +211,9 @@ async def get_kb_status(
     """Persisted-only KB status derived from phase rows; no runtime calls."""
     try:
         if not kb_manager.kb_exists(kb_id):
-            raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+            raise HTTPException(
+                status_code=404, detail=f"Knowledge base '{kb_id}' not found"
+            )
 
         status_service = StatusQueryService()
         status = status_service.get_status(kb_id)
@@ -238,4 +240,6 @@ async def get_kb_status(
         raise
     except Exception as e:
         logger.error(f"Failed to get KB status: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get KB status: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get KB status: {str(e)}"
+        )

@@ -104,9 +104,7 @@ class TestLearnOperations:
     @pytest.mark.asyncio
     async def test_get_azure_guidance(self, mcp_client):
         """Test getting comprehensive Azure guidance."""
-        result = await operations.get_azure_guidance(
-            mcp_client, "Azure Container Apps"
-        )
+        result = await operations.get_azure_guidance(mcp_client, "Azure Container Apps")
 
         assert result is not None
         assert "topic" in result

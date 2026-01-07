@@ -32,10 +32,14 @@ class ChatService:
         if not project:
             raise ValueError("Project not found")
 
-        result = await db.execute(select(ProjectState).where(ProjectState.project_id == project_id))
+        result = await db.execute(
+            select(ProjectState).where(ProjectState.project_id == project_id)
+        )
         state_record = result.scalar_one_or_none()
         if not state_record:
-            raise ValueError("Project state not initialized. Please analyze documents first.")
+            raise ValueError(
+                "Project state not initialized. Please analyze documents first."
+            )
 
         current_state = json.loads(state_record.state)
 
@@ -62,7 +66,14 @@ class ChatService:
 
         is_architecture_related = any(
             keyword in message.lower()
-            for keyword in ["azure", "architecture", "service", "security", "availability", "performance"]
+            for keyword in [
+                "azure",
+                "architecture",
+                "service",
+                "security",
+                "availability",
+                "performance",
+            ]
         )
 
         kb_sources = []
@@ -92,7 +103,9 @@ class ChatService:
             role="assistant",
             content=response["assistantMessage"],
             timestamp=datetime.now(timezone.utc).isoformat(),
-            waf_sources=json.dumps(response.get("sources", [])) if response.get("sources") else None,
+            waf_sources=json.dumps(response.get("sources", []))
+            if response.get("sources")
+            else None,
         )
         db.add(assistant_message)
 
@@ -109,13 +122,17 @@ class ChatService:
             "wafSources": response.get("sources", []),
         }
 
-    async def get_project_state(self, project_id: str, db: AsyncSession) -> Dict[str, Any]:
+    async def get_project_state(
+        self, project_id: str, db: AsyncSession
+    ) -> Dict[str, Any]:
         result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
         if not project:
             raise ValueError("Project not found")
 
-        result = await db.execute(select(ProjectState).where(ProjectState.project_id == project_id))
+        result = await db.execute(
+            select(ProjectState).where(ProjectState.project_id == project_id)
+        )
         state_record = result.scalar_one_or_none()
         if not state_record:
             raise ValueError("Project state not found. Please analyze documents first.")
@@ -126,7 +143,9 @@ class ChatService:
 
         return state_data
 
-    async def get_conversation_messages(self, project_id: str, db: AsyncSession) -> List[Dict[str, Any]]:
+    async def get_conversation_messages(
+        self, project_id: str, db: AsyncSession
+    ) -> List[Dict[str, Any]]:
         result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
         if not project:

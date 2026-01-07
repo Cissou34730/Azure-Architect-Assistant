@@ -29,9 +29,7 @@ _examples = _loader.get_few_shot_examples()
 
 FEW_SHOT_EXAMPLES = "\n\n".join(
     [
-        f"Example {i+1}: {ex['name']}\n"
-        f"Question: {ex['question']}\n"
-        f"{ex['reasoning']}"
+        f"Example {i + 1}: {ex['name']}\nQuestion: {ex['question']}\n{ex['reasoning']}"
         for i, ex in enumerate(_examples)
     ]
 )

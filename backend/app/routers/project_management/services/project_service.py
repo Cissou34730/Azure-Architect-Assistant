@@ -1,4 +1,3 @@
-import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -16,7 +15,9 @@ logger = logging.getLogger(__name__)
 class ProjectService:
     """Project CRUD operations."""
 
-    async def create_project(self, request: CreateProjectRequest, db: AsyncSession) -> Dict[str, Any]:
+    async def create_project(
+        self, request: CreateProjectRequest, db: AsyncSession
+    ) -> Dict[str, Any]:
         if not request.name or not request.name.strip():
             raise ValueError("Project name is required")
 
@@ -39,7 +40,9 @@ class ProjectService:
         logger.info(f"Listing {len(projects)} projects")
         return [p.to_dict() for p in projects]
 
-    async def get_project(self, project_id: str, db: AsyncSession) -> Dict[str, Any] | None:
+    async def get_project(
+        self, project_id: str, db: AsyncSession
+    ) -> Dict[str, Any] | None:
         result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
         if not project:

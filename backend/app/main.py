@@ -31,12 +31,11 @@ from app.routers.diagram_generation import router as diagram_generation_router
 
 # Import lifecycle management
 from app import lifecycle
-from app.ingestion.application.orchestrator import IngestionOrchestrator
 from app.routers.ingestion import cleanup_running_tasks
 from app.core.config import get_app_settings
 from app.core.logging import configure_logging
 from app.core.signals import install_ingestion_signal_handlers
-from app.services.diagram.database import init_diagram_database, close_diagram_database
+from app.services.diagram.database import close_diagram_database
 
 # Load environment variables from root .env (one level up from backend)
 backend_root = Path(__file__).parent.parent
@@ -48,6 +47,7 @@ settings = get_app_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 logger.info(f"Loading environment from: {env_path}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -97,11 +97,11 @@ install_ingestion_signal_handlers()
 
 
 # Include routers
-app.include_router(project_router)             # Project management
-app.include_router(kb_query_router)            # KB query endpoints
-app.include_router(kb_management_router)       # KB health/list endpoints
-app.include_router(ingestion_router)           # Orchestrator-based ingestion
-app.include_router(agent_router)               # Agent chat endpoints
+app.include_router(project_router)  # Project management
+app.include_router(kb_query_router)  # KB query endpoints
+app.include_router(kb_management_router)  # KB health/list endpoints
+app.include_router(ingestion_router)  # Orchestrator-based ingestion
+app.include_router(agent_router)  # Agent chat endpoints
 app.include_router(diagram_generation_router, prefix="/api/v1")  # Diagram generation
 
 
@@ -118,12 +118,13 @@ async def health_check():
     return HealthResponse(
         status="healthy",
         service="Azure Architect Assistant - Full Stack Backend",
-        version="3.0.0"
+        version="3.0.0",
     )
 
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.getenv("BACKEND_PORT", "8000"))
     logger.info(f"Starting server on port {port}")
     uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)

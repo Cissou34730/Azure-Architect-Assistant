@@ -6,6 +6,6 @@ from .openai_llm import OpenAILLMProvider
 from .openai_embedding import OpenAIEmbeddingProvider
 
 __all__ = [
-    'OpenAILLMProvider',
-    'OpenAIEmbeddingProvider',
+    "OpenAILLMProvider",
+    "OpenAIEmbeddingProvider",
 ]

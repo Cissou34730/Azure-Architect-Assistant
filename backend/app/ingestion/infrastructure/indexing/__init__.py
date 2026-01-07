@@ -7,8 +7,4 @@ from .builder_base import BaseIndexBuilder
 from .vector import VectorIndexBuilder
 from .factory import IndexBuilderFactory
 
-__all__ = [
-    'BaseIndexBuilder',
-    'VectorIndexBuilder',
-    'IndexBuilderFactory'
-]
+__all__ = ["BaseIndexBuilder", "VectorIndexBuilder", "IndexBuilderFactory"]

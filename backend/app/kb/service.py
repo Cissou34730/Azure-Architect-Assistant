@@ -20,11 +20,11 @@ _INDEX_CACHE: Dict[str, VectorStoreIndex] = {}
 
 class KnowledgeBaseService:
     """Service for managing index lifecycle for a knowledge base."""
-    
+
     def __init__(self, kb_config: KBConfig, similarity_threshold: float = 0.5):
         """
         Initialize knowledge base service.
-        
+
         Args:
             kb_config: KB configuration
             similarity_threshold: Minimum similarity score for results
@@ -34,79 +34,79 @@ class KnowledgeBaseService:
         self.kb_name = kb_config.name
         self.storage_dir = kb_config.index_path
         self._settings_configured = False
-        
+
         logger.info(f"[{self.kb_id}] Service initialized - Storage: {self.storage_dir}")
-    
+
     def _ensure_settings(self):
         """Lazy configuration of LlamaIndex settings."""
         if not self._settings_configured:
             # Get unified AI service
             ai_service = get_ai_service()
-            
+
             # Configure LlamaIndex settings using adapters
             # This allows LlamaIndex to work unchanged while using AIService
             Settings.embed_model = AIServiceEmbedding(
-                ai_service,
-                model_name=self.kb_config.embedding_model
+                ai_service, model_name=self.kb_config.embedding_model
             )
             Settings.llm = AIServiceLLM(
-                ai_service,
-                model_name=self.kb_config.generation_model
+                ai_service, model_name=self.kb_config.generation_model
             )
             self._settings_configured = True
-    
+
     def _load_index(self) -> VectorStoreIndex:
         """Load index from storage with global caching."""
         self._ensure_settings()  # Configure settings before loading index
-        
+
         cache_key = self.storage_dir
-        
+
         if cache_key in _INDEX_CACHE:
             logger.info(f"[{self.kb_id}] Using cached index")
             return _INDEX_CACHE[cache_key]
-        
+
         from llama_index.core import load_index_from_storage
-        
+
         logger.info(f"[{self.kb_id}] Loading index from {self.storage_dir}")
-        
+
         if not os.path.exists(self.storage_dir):
             raise FileNotFoundError(f"Index not found: {self.storage_dir}")
-        
+
         storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
         index = load_index_from_storage(storage_context)
-        
+
         _INDEX_CACHE[cache_key] = index
         logger.info(f"[{self.kb_id}] Index loaded and cached")
-        
+
         return index
-    
+
     def get_index(self) -> VectorStoreIndex:
         """Public accessor to obtain the loaded index for this KB."""
         return self._load_index()
-    
+
     def is_index_ready(self) -> bool:
         """Check if index exists and is ready."""
         if not os.path.exists(self.storage_dir):
             return False
         # Consider index ready only if core index files exist
-        docstore_path = os.path.join(self.storage_dir, 'docstore.json')
+        docstore_path = os.path.join(self.storage_dir, "docstore.json")
         return os.path.exists(docstore_path)
 
 
 def clear_index_cache(kb_id: Optional[str] = None, storage_dir: Optional[str] = None):
     """
     Clear cached indexes from memory.
-    
+
     Args:
         kb_id: KB ID to clear (optional, for logging)
         storage_dir: Storage directory path to remove from cache
     """
     global _INDEX_CACHE
-    
+
     if storage_dir:
         if storage_dir in _INDEX_CACHE:
             del _INDEX_CACHE[storage_dir]
-            logger.info(f"[{kb_id or 'Unknown'}] Cleared index cache for: {storage_dir}")
+            logger.info(
+                f"[{kb_id or 'Unknown'}] Cleared index cache for: {storage_dir}"
+            )
         else:
             logger.debug(f"[{kb_id or 'Unknown'}] Index not in cache: {storage_dir}")
     else:

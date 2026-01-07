@@ -40,7 +40,9 @@ class TestLearnOperations:
     @pytest.mark.asyncio
     async def test_search_microsoft_docs_with_max_results(self, mcp_client):
         """Test searching with max results limit."""
-        result = await search_microsoft_docs(mcp_client, "Azure Functions", max_results=3)
+        result = await search_microsoft_docs(
+            mcp_client, "Azure Functions", max_results=3
+        )
 
         assert result is not None
         assert len(result["results"]) <= 3
@@ -105,7 +107,9 @@ class TestLearnOperations:
     @pytest.mark.asyncio
     async def test_get_azure_guidance_without_code(self, mcp_client):
         """Test getting Azure guidance without code samples."""
-        result = await get_azure_guidance(mcp_client, "Azure Virtual Network", include_code=False)
+        result = await get_azure_guidance(
+            mcp_client, "Azure Virtual Network", include_code=False
+        )
 
         assert result is not None
         assert result["code_samples"] is None

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 class IngestionError(Exception):
     """Base exception for ingestion errors."""
+
     pass
 
 
@@ -40,9 +41,7 @@ class InvalidJobStateError(IngestionError):
         self.job_id = job_id
         self.current_status = current_status
         self.operation = operation
-        super().__init__(
-            f"Cannot {operation} job {job_id} in status {current_status}"
-        )
+        super().__init__(f"Cannot {operation} job {job_id} in status {current_status}")
 
 
 class RuntimeNotFoundError(IngestionError):

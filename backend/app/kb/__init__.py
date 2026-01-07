@@ -7,6 +7,6 @@ from .knowledge_base_manager import KBManager
 from .models import KBConfig
 
 __all__ = [
-    'KBManager',
-    'KBConfig',
+    "KBManager",
+    "KBConfig",
 ]

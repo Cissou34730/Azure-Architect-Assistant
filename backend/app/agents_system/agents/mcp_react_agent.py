@@ -66,7 +66,9 @@ class MCPReActAgent:
         # Initialize LLM if not injected
         if self.llm is None:
             if not self.openai_api_key or not self.model:
-                raise ValueError("LLM not injected and OpenAI credentials/model not provided")
+                raise ValueError(
+                    "LLM not injected and OpenAI credentials/model not provided"
+                )
             self.llm = ChatOpenAI(
                 model=self.model,
                 temperature=self.temperature,
@@ -80,14 +82,18 @@ class MCPReActAgent:
             mcp_tools = await create_mcp_tools(self.mcp_client)
             kb_tools = create_kb_tools()
             self.tools = [*mcp_tools, *kb_tools]
-            logger.info(f"Initialized {len(self.tools)} tools: {[t.name for t in self.tools]}")
+            logger.info(
+                f"Initialized {len(self.tools)} tools: {[t.name for t in self.tools]}"
+            )
 
         # Create prompt if not injected
         prompt = self.prompt or PromptTemplate(
             template=f"{SYSTEM_PROMPT}\n\n{REACT_TEMPLATE}",
             input_variables=["input", "agent_scratchpad"],
             partial_variables={
-                "tools": "\n".join([f"{tool.name}: {tool.description}" for tool in self.tools]),
+                "tools": "\n".join(
+                    [f"{tool.name}: {tool.description}" for tool in self.tools]
+                ),
                 "tool_names": ", ".join([tool.name for tool in self.tools]),
             },
         )
@@ -105,7 +111,9 @@ class MCPReActAgent:
                     "Final Answer: [your answer]\n"
                     "Please continue with the correct format."
                 )
-            return f"Parsing error: {error_msg}. Please follow the exact format specified."
+            return (
+                f"Parsing error: {error_msg}. Please follow the exact format specified."
+            )
 
         # Create ReAct agent and executor
         agent = create_react_agent(llm=self.llm, tools=self.tools, prompt=self.prompt)
@@ -122,7 +130,9 @@ class MCPReActAgent:
 
         logger.info("MCPReActAgent initialization complete")
 
-    async def execute(self, user_query: str, project_context: Optional[str] = None) -> dict:
+    async def execute(
+        self, user_query: str, project_context: Optional[str] = None
+    ) -> dict:
         if not self.agent_executor:
             raise RuntimeError("Agent not initialized. Call initialize() first.")
 
@@ -154,13 +164,16 @@ Please answer considering the project context above. If your answer clarifies or
             elif "exceeded time" in err_text.lower() or "timeout" in err_text.lower():
                 hint = "The agent timed out while reasoning. Consider narrowing the query or I can raise the time limit."
             return {
-                "output": f"I encountered an error while processing your query: {err_text}" + (f"\n\nTip: {hint}" if hint else ""),
+                "output": f"I encountered an error while processing your query: {err_text}"
+                + (f"\n\nTip: {hint}" if hint else ""),
                 "intermediate_steps": [],
                 "success": False,
                 "error": err_text,
             }
 
-    async def stream_execute(self, user_query: str, project_context: Optional[str] = None):
+    async def stream_execute(
+        self, user_query: str, project_context: Optional[str] = None
+    ):
         # TODO: Implement streaming with LangChain's streaming callbacks
         result = await self.execute(user_query, project_context)
         yield result

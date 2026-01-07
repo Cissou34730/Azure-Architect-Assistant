@@ -33,7 +33,9 @@ def setup_logging(verbose: bool) -> None:
     )
 
 
-def recompute_all_jobs(dry_run: bool = False, verbose: bool = False) -> Tuple[int, List[str]]:
+def recompute_all_jobs(
+    dry_run: bool = False, verbose: bool = False
+) -> Tuple[int, List[str]]:
     """Recompute job.status for all jobs using repository canonical rules.
 
     Returns a tuple of (updated_count, messages).
@@ -63,7 +65,10 @@ def recompute_all_jobs(dry_run: bool = False, verbose: bool = False) -> Tuple[in
                     updated_count += 1
             else:
                 logging.debug(
-                    "job_id=%s kb_id=%s status unchanged: %s", job.id, job.kb_id, old_status
+                    "job_id=%s kb_id=%s status unchanged: %s",
+                    job.id,
+                    job.kb_id,
+                    old_status,
                 )
 
         if not dry_run:
@@ -73,7 +78,9 @@ def recompute_all_jobs(dry_run: bool = False, verbose: bool = False) -> Tuple[in
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Recompute and persist ingestion job statuses")
+    parser = argparse.ArgumentParser(
+        description="Recompute and persist ingestion job statuses"
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",

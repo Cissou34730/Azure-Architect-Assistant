@@ -6,5 +6,4 @@ Uses lazy imports - handlers are only loaded when factory creates them.
 
 from .factory import SourceHandlerFactory
 
-__all__ = ['SourceHandlerFactory']
-
+__all__ = ["SourceHandlerFactory"]

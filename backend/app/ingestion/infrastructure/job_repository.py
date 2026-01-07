@@ -16,7 +16,7 @@ from app.ingestion.models import (
     IngestionPhaseStatus,
     JobStatus as DBJobStatus,
 )
-from app.ingestion.domain.models import IngestionState, PhaseState
+from app.ingestion.domain.models import IngestionState
 from app.ingestion.domain.enums import JobPhase, PhaseStatus
 from app.ingestion.domain.errors import JobNotFoundError
 
@@ -125,9 +125,15 @@ class JobRepository:
     def initialize_phase_statuses(self, job_id: str) -> None:
         """Initialize phase status records for all phases (idempotent)."""
         with get_session() as session:
-            existing = session.execute(
-                select(IngestionPhaseStatus.phase_name).where(IngestionPhaseStatus.job_id == job_id)
-            ).scalars().all()
+            existing = (
+                session.execute(
+                    select(IngestionPhaseStatus.phase_name).where(
+                        IngestionPhaseStatus.job_id == job_id
+                    )
+                )
+                .scalars()
+                .all()
+            )
             existing_set = set(existing)
             for phase in JobPhase:
                 if phase.value in existing_set:

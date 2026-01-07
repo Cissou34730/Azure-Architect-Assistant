@@ -29,7 +29,9 @@ class KBQueryService:
         self.kb_name = kb_config.name
         self.similarity_threshold = similarity_threshold
 
-    def query(self, question: str, top_k: int = 5, metadata_filters: Optional[Dict] = None) -> Dict:
+    def query(
+        self, question: str, top_k: int = 5, metadata_filters: Optional[Dict] = None
+    ) -> Dict:
         logger.info("[%s] Processing query: %s...", self.kb_id, question[:100])
 
         index = KnowledgeBaseService(self.kb_config).get_index()
@@ -37,15 +39,20 @@ class KBQueryService:
 
         if metadata_filters:
             from llama_index.core.vector_stores import MetadataFilter, MetadataFilters
+
             filters = MetadataFilters(
-                filters=[MetadataFilter(key=k, value=v) for k, v in metadata_filters.items()]
+                filters=[
+                    MetadataFilter(key=k, value=v) for k, v in metadata_filters.items()
+                ]
             )
             retriever = index.as_retriever(similarity_top_k=top_k, filters=filters)
 
         retrieved_nodes = retriever.retrieve(question)
         logger.info("[%s] Retrieved %d nodes", self.kb_id, len(retrieved_nodes))
 
-        filtered = [n for n in retrieved_nodes if n.score >= self.similarity_threshold][:top_k]
+        filtered = [n for n in retrieved_nodes if n.score >= self.similarity_threshold][
+            :top_k
+        ]
         logger.info("[%s] After filtering: %d nodes", self.kb_id, len(filtered))
 
         if not filtered:
@@ -158,7 +165,9 @@ class MultiKBQueryService:
 
         return self._merge_results(results, question, profile)
 
-    def _merge_results(self, all_results: List[Dict], question: str, profile: QueryProfile) -> Dict:
+    def _merge_results(
+        self, all_results: List[Dict], question: str, profile: QueryProfile
+    ) -> Dict:
         sources: List[Dict] = []
         for result in all_results:
             sources.extend(result["sources"])
@@ -178,7 +187,9 @@ class MultiKBQueryService:
         else:
             contexts = []
             for result in all_results:
-                contexts.append(f"### Context from {result['kb_name']}:\n{result['answer']}")
+                contexts.append(
+                    f"### Context from {result['kb_name']}:\n{result['answer']}"
+                )
             consolidated_answer = "\n\n".join(contexts)
 
         return {

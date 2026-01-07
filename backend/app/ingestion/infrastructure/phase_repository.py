@@ -22,7 +22,8 @@ class PhaseRepository:
         with get_session() as session:
             result = session.execute(
                 select(IngestionPhaseStatus).where(
-                    IngestionPhaseStatus.job_id == job_id, IngestionPhaseStatus.phase_name == phase_name
+                    IngestionPhaseStatus.job_id == job_id,
+                    IngestionPhaseStatus.phase_name == phase_name,
                 )
             )
             db_phase = result.scalars().first()
@@ -33,29 +34,41 @@ class PhaseRepository:
     def get_all_phase_statuses(self, job_id: str) -> Dict[str, PhaseState]:
         with get_session() as session:
             result = session.execute(
-                select(IngestionPhaseStatus).where(IngestionPhaseStatus.job_id == job_id)
+                select(IngestionPhaseStatus).where(
+                    IngestionPhaseStatus.job_id == job_id
+                )
             )
             phases = result.scalars().all()
             return {p.phase_name: self._db_phase_to_domain(p) for p in phases}
 
     def start_phase(self, job_id: str, phase_name: str) -> None:
         with get_session() as session:
-            phase = session.execute(
-                select(IngestionPhaseStatus).where(
-                    IngestionPhaseStatus.job_id == job_id, IngestionPhaseStatus.phase_name == phase_name
+            phase = (
+                session.execute(
+                    select(IngestionPhaseStatus).where(
+                        IngestionPhaseStatus.job_id == job_id,
+                        IngestionPhaseStatus.phase_name == phase_name,
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             if phase:
                 phase.status = PhaseStatusDB.RUNNING.value
                 phase.started_at = datetime.now(timezone.utc)
 
     def complete_phase(self, job_id: str, phase_name: str) -> None:
         with get_session() as session:
-            phase = session.execute(
-                select(IngestionPhaseStatus).where(
-                    IngestionPhaseStatus.job_id == job_id, IngestionPhaseStatus.phase_name == phase_name
+            phase = (
+                session.execute(
+                    select(IngestionPhaseStatus).where(
+                        IngestionPhaseStatus.job_id == job_id,
+                        IngestionPhaseStatus.phase_name == phase_name,
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             if phase:
                 phase.status = PhaseStatusDB.COMPLETED.value
                 phase.completed_at = datetime.now(timezone.utc)
@@ -74,11 +87,16 @@ class PhaseRepository:
         Update phase progress and mark status as running.
         """
         with get_session() as session:
-            phase = session.execute(
-                select(IngestionPhaseStatus).where(
-                    IngestionPhaseStatus.job_id == job_id, IngestionPhaseStatus.phase_name == phase_name
+            phase = (
+                session.execute(
+                    select(IngestionPhaseStatus).where(
+                        IngestionPhaseStatus.job_id == job_id,
+                        IngestionPhaseStatus.phase_name == phase_name,
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             if not phase:
                 return
 
@@ -94,11 +112,16 @@ class PhaseRepository:
 
     def fail_phase(self, job_id: str, phase_name: str, error_message: str) -> None:
         with get_session() as session:
-            phase = session.execute(
-                select(IngestionPhaseStatus).where(
-                    IngestionPhaseStatus.job_id == job_id, IngestionPhaseStatus.phase_name == phase_name
+            phase = (
+                session.execute(
+                    select(IngestionPhaseStatus).where(
+                        IngestionPhaseStatus.job_id == job_id,
+                        IngestionPhaseStatus.phase_name == phase_name,
+                    )
                 )
-            ).scalars().first()
+                .scalars()
+                .first()
+            )
             if phase:
                 phase.status = PhaseStatusDB.FAILED.value
                 phase.error_message = error_message

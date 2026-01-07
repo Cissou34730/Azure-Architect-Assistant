@@ -56,13 +56,17 @@ class DocumentService:
         logger.info(f"Uploaded {len(saved_docs)} documents for project: {project_id}")
         return [doc.to_dict() for doc in saved_docs]
 
-    async def analyze_documents(self, project_id: str, db: AsyncSession) -> Dict[str, Any]:
+    async def analyze_documents(
+        self, project_id: str, db: AsyncSession
+    ) -> Dict[str, Any]:
         result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
         if not project:
             raise ValueError("Project not found")
 
-        result = await db.execute(select(ProjectDocument).where(ProjectDocument.project_id == project_id))
+        result = await db.execute(
+            select(ProjectDocument).where(ProjectDocument.project_id == project_id)
+        )
         documents = result.scalars().all()
 
         document_texts = [doc.raw_text for doc in documents]
@@ -72,12 +76,16 @@ class DocumentService:
         if not document_texts:
             raise ValueError("No documents or text requirements to analyze")
 
-        logger.info(f"Analyzing {len(document_texts)} documents for project: {project_id}")
+        logger.info(
+            f"Analyzing {len(document_texts)} documents for project: {project_id}"
+        )
         llm_service = get_llm_service()
         state_data = await llm_service.analyze_documents(document_texts)
         state_json = json.dumps(state_data)
 
-        result = await db.execute(select(ProjectState).where(ProjectState.project_id == project_id))
+        result = await db.execute(
+            select(ProjectState).where(ProjectState.project_id == project_id)
+        )
         existing_state = result.scalar_one_or_none()
 
         if existing_state:
@@ -99,17 +107,23 @@ class DocumentService:
         logger.info(f"Document analysis completed for project: {project_id}")
         return state_data
 
-    async def generate_proposal(self, project_id: str, db: AsyncSession, on_progress=None) -> str:
+    async def generate_proposal(
+        self, project_id: str, db: AsyncSession, on_progress=None
+    ) -> str:
         """Generate architecture proposal for a project."""
         result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
         if not project:
             raise ValueError("Project not found")
 
-        result = await db.execute(select(ProjectState).where(ProjectState.project_id == project_id))
+        result = await db.execute(
+            select(ProjectState).where(ProjectState.project_id == project_id)
+        )
         state_record = result.scalar_one_or_none()
         if not state_record:
-            raise ValueError("Project state not initialized. Please analyze documents first.")
+            raise ValueError(
+                "Project state not initialized. Please analyze documents first."
+            )
 
         state = json.loads(state_record.state)
         llm_service = get_llm_service()

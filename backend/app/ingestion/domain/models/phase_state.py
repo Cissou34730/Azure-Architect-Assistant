@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
 try:
     from pydantic import BaseModel, Field
+
     PYDANTIC_AVAILABLE = True
 except ImportError:
     PYDANTIC_AVAILABLE = False
 
-from app.ingestion.domain.enums import PhaseStatus, JobPhase
+from app.ingestion.domain.enums import PhaseStatus
 
 
 @dataclass
@@ -53,15 +54,19 @@ class PhaseState:
         self.completed_at = datetime.now(timezone.utc)
         self.error = error
 
-    def update_progress(self, items_processed: int, items_total: Optional[int] = None) -> None:
+    def update_progress(
+        self, items_processed: int, items_total: Optional[int] = None
+    ) -> None:
         """Update progress metrics."""
         self.items_processed = items_processed
         if items_total is not None:
             self.items_total = items_total
-        
+
         # Calculate percentage
         if self.items_total and self.items_total > 0:
-            self.progress = min(100, int((self.items_processed / self.items_total) * 100))
+            self.progress = min(
+                100, int((self.items_processed / self.items_total) * 100)
+            )
         else:
             # If total unknown, show progress but cap at 99 until completed
             self.progress = min(99, self.items_processed)
@@ -76,6 +81,7 @@ class PhaseState:
 
 
 if PYDANTIC_AVAILABLE:
+
     class PhaseStateSchema(BaseModel):
         """Pydantic-compatible schema for API serialization."""
 

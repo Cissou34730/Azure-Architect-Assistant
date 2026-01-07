@@ -23,10 +23,10 @@ class WebsiteSourceHandler(BaseSourceHandler):
 
     # Domains with massive sitemaps - skip auto-discovery
     PROBLEMATIC_DOMAINS = [
-        'learn.microsoft.com',
-        'docs.microsoft.com',
-        'developer.mozilla.org',
-        'docs.aws.amazon.com'
+        "learn.microsoft.com",
+        "docs.microsoft.com",
+        "developer.mozilla.org",
+        "docs.aws.amazon.com",
     ]
 
     def __init__(self, kb_id: str, job=None, state=None):
@@ -54,16 +54,16 @@ class WebsiteSourceHandler(BaseSourceHandler):
         """
         logger.info("Website ingestion start")
 
-        url_prefix = config.get('url_prefix')
-        max_pages = config.get('max_pages', 1000)
+        url_prefix = config.get("url_prefix")
+        max_pages = config.get("max_pages", 1000)
 
         # Mode 1: Explicit sitemap
-        if 'sitemap_url' in config:
-            return self._ingest_from_sitemap(config['sitemap_url'], url_prefix)
+        if "sitemap_url" in config:
+            return self._ingest_from_sitemap(config["sitemap_url"], url_prefix)
 
         # Mode 2: start_url (try sitemap → fallback to crawl)
-        if 'start_url' in config:
-            start_url = config['start_url']
+        if "start_url" in config:
+            start_url = config["start_url"]
 
             # Check if domain has massive sitemaps
             domain = urlparse(start_url).netloc.lower()
@@ -78,19 +78,25 @@ class WebsiteSourceHandler(BaseSourceHandler):
                     urls_list = list(sitemap_urls)
                     return self._ingest_urls(urls_list, url_prefix)
                 else:
-                    return self.crawler.crawl(start_url, url_prefix, max_pages, batch_size=10)
+                    return self.crawler.crawl(
+                        start_url, url_prefix, max_pages, batch_size=10
+                    )
 
             except Exception as e:
                 logger.warning(f"Sitemap discovery failed: {e}")
-                return self.crawler.crawl(start_url, url_prefix, max_pages, batch_size=10)
+                return self.crawler.crawl(
+                    start_url, url_prefix, max_pages, batch_size=10
+                )
 
         # Mode 3: Direct URLs
-        if 'urls' in config:
-            return self._ingest_urls(config['urls'], url_prefix)
+        if "urls" in config:
+            return self._ingest_urls(config["urls"], url_prefix)
 
         raise ValueError("Config must have 'sitemap_url', 'start_url', or 'urls'")
 
-    def _ingest_from_sitemap(self, sitemap_url: str, url_prefix: str = None) -> List[Document]:
+    def _ingest_from_sitemap(
+        self, sitemap_url: str, url_prefix: str = None
+    ) -> List[Document]:
         """Parse sitemap and ingest URLs."""
         urls = self.sitemap_parser.parse_sitemap(sitemap_url)
         urls = list(set(urls))
@@ -109,18 +115,21 @@ class WebsiteSourceHandler(BaseSourceHandler):
             content = self.content_fetcher.fetch_content(url)
             if content:
                 from datetime import datetime
+
                 doc = Document(
                     text=content,
                     metadata={
-                        'source_type': 'website',
-                        'url': url,
-                        'kb_id': self.kb_id,
-                        'date_ingested': datetime.now().isoformat()
-                    }
+                        "source_type": "website",
+                        "url": url,
+                        "kb_id": self.kb_id,
+                        "date_ingested": datetime.now().isoformat(),
+                    },
                 )
                 documents.append(doc)
             else:
-                logger.warning(f"  ✗ Failed to fetch content")
+                logger.warning("  ✗ Failed to fetch content")
 
-        logger.info(f"Website ingestion complete: {len(documents)}/{len(urls)} successful")
+        logger.info(
+            f"Website ingestion complete: {len(documents)}/{len(urls)} successful"
+        )
         return documents

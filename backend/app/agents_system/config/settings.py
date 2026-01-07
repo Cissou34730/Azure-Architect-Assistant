@@ -4,7 +4,6 @@ Centralizes all configuration parameters for agents, tools, and orchestration.
 """
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -14,13 +13,16 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """
     Agent system configuration settings.
-    
+
     Settings are loaded from environment variables and configuration files.
     """
 
     # MCP Configuration
     MCP_CONFIG_PATH: str = str(
-        Path(__file__).parent.parent.parent.parent / "config" / "mcp" / "mcp_config.json"
+        Path(__file__).parent.parent.parent.parent
+        / "config"
+        / "mcp"
+        / "mcp_config.json"
     )
     MCP_DEFAULT_TIMEOUT: int = 30
     MCP_MAX_RETRIES: int = 3

@@ -1,9 +1,9 @@
 import signal
 import asyncio
 import logging
-from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
+
 
 def install_ingestion_signal_handlers():
     """
@@ -49,7 +49,9 @@ def install_ingestion_signal_handlers():
         except KeyboardInterrupt:
             raise
         except Exception:  # pragma: no cover - avoid masking shutdown
-            logger.debug("Previous signal handler raised; continuing shutdown", exc_info=True)
+            logger.debug(
+                "Previous signal handler raised; continuing shutdown", exc_info=True
+            )
 
     signals_to_install = [signal.SIGINT]
     if hasattr(signal, "SIGTERM"):

@@ -43,7 +43,9 @@ class TestMicrosoftLearnMCPClient:
 
     def test_init_missing_endpoint(self):
         """Test client initialization fails without endpoint."""
-        with pytest.raises(MCPConfigurationError, match="Config dictionary cannot be empty"):
+        with pytest.raises(
+            MCPConfigurationError, match="Config dictionary cannot be empty"
+        ):
             MicrosoftLearnMCPClient({})
 
     def test_init_invalid_endpoint(self):
@@ -53,7 +55,9 @@ class TestMicrosoftLearnMCPClient:
 
     def test_init_empty_config(self):
         """Test client initialization fails with empty config."""
-        with pytest.raises(MCPConfigurationError, match="Config dictionary cannot be empty"):
+        with pytest.raises(
+            MCPConfigurationError, match="Config dictionary cannot be empty"
+        ):
             MicrosoftLearnMCPClient(None)
 
     def test_list_tools_before_init(self):

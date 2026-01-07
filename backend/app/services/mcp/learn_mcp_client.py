@@ -179,12 +179,18 @@ class MicrosoftLearnMCPClient:
             for tool in tools_response.tools:
                 tool_dict = {
                     "name": tool.name,
-                    "description": tool.description if hasattr(tool, "description") else "",
-                    "inputSchema": tool.inputSchema if hasattr(tool, "inputSchema") else {},
+                    "description": tool.description
+                    if hasattr(tool, "description")
+                    else "",
+                    "inputSchema": tool.inputSchema
+                    if hasattr(tool, "inputSchema")
+                    else {},
                 }
                 self._tools_cache[tool.name] = tool_dict
 
-            logger.info(f"Cached {len(self._tools_cache)} tools: {list(self._tools_cache.keys())}")
+            logger.info(
+                f"Cached {len(self._tools_cache)} tools: {list(self._tools_cache.keys())}"
+            )
 
         except Exception as e:
             raise MCPProtocolError(
@@ -212,7 +218,7 @@ class MicrosoftLearnMCPClient:
     async def _cleanup(self) -> None:
         """
         Internal cleanup of connection resources.
-        
+
         Properly closes session and connection context managers in reverse order
         of initialization to ensure clean shutdown.
         """
@@ -222,8 +228,7 @@ class MicrosoftLearnMCPClient:
                 try:
                     logger.debug("Closing MCP session")
                     await asyncio.wait_for(
-                        self._session.__aexit__(None, None, None),
-                        timeout=5.0
+                        self._session.__aexit__(None, None, None), timeout=5.0
                     )
                 except asyncio.TimeoutError:
                     logger.warning("Session close timed out")
@@ -231,14 +236,14 @@ class MicrosoftLearnMCPClient:
                     logger.warning(f"Error closing session: {e}")
                 finally:
                     self._session = None
-            
+
             # Close connection context (outermost context manager)
             if self._connection_context and self._streams:
                 try:
                     logger.debug("Closing MCP connection context")
                     await asyncio.wait_for(
                         self._connection_context.__aexit__(None, None, None),
-                        timeout=5.0
+                        timeout=5.0,
                     )
                 except asyncio.TimeoutError:
                     logger.warning("Connection context close timed out")
@@ -299,7 +304,8 @@ class MicrosoftLearnMCPClient:
 
             # Execute tool call
             result = await asyncio.wait_for(
-                self._session.call_tool(tool_name, arguments=arguments), timeout=call_timeout
+                self._session.call_tool(tool_name, arguments=arguments),
+                timeout=call_timeout,
             )
 
             # Normalize response
@@ -311,7 +317,11 @@ class MicrosoftLearnMCPClient:
         except asyncio.TimeoutError as e:
             raise MCPTimeoutError(
                 f"Tool call '{tool_name}' timed out after {call_timeout}s",
-                details={"tool": tool_name, "timeout": call_timeout, "arguments": arguments},
+                details={
+                    "tool": tool_name,
+                    "timeout": call_timeout,
+                    "arguments": arguments,
+                },
             ) from e
         except Exception as e:
             logger.error(f"Tool call '{tool_name}' failed: {e}")
@@ -389,7 +399,9 @@ class MicrosoftLearnMCPClient:
                     parsed_content.append(str(block))
 
             # Return single item if only one content block
-            final_content = parsed_content[0] if len(parsed_content) == 1 else parsed_content
+            final_content = (
+                parsed_content[0] if len(parsed_content) == 1 else parsed_content
+            )
 
             response = {
                 "tool": tool_name,

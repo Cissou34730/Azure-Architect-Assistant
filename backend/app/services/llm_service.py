@@ -15,26 +15,26 @@ logger = logging.getLogger(__name__)
 
 class LLMService:
     """Service for LLM operations in project workflow."""
-    
+
     def __init__(self):
         self.ai_service = get_ai_service()
         self.model = self.ai_service.get_llm_model()
         logger.info(f"LLMService ready with model: {self.model}")
-    
+
     async def analyze_documents(self, document_texts: List[str]) -> Dict[str, Any]:
         """
         Analyze documents and extract ProjectState structure.
-        
+
         Args:
             document_texts: List of document text content
-            
+
         Returns:
             Dictionary representing ProjectState
         """
         # Analysis document count log suppressed
-        
+
         combined_text = "\n\n---\n\n".join(document_texts)
-        
+
         system_prompt = """You are an Azure Architecture Assistant. Analyze the provided project documents and extract key information to create a structured Architecture Sheet (ProjectState).
 
 Your response MUST be a valid JSON object with the following structure:
@@ -70,80 +70,86 @@ Your response MUST be a valid JSON object with the following structure:
 Extract as much information as possible from the documents. For missing information, leave fields empty or use empty arrays."""
 
         user_prompt = f"Analyze these project documents and extract the Architecture Sheet:\n\n{combined_text}"
-        
+
         response = await self._complete(system_prompt, user_prompt)
         project_state = self._parse_project_state(response)
-        
+
         # Analysis completion log suppressed
         return project_state
-    
+
     async def process_chat_message(
         self,
         user_message: str,
         current_state: Dict[str, Any],
         recent_messages: List[Dict[str, Any]],
-        kb_sources: Optional[List[Dict[str, Any]]] = None
+        kb_sources: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Process chat message and update project state.
-        
+
         Args:
             user_message: User's message
             current_state: Current ProjectState
             recent_messages: Recent conversation history
             kb_sources: Optional KB sources from RAG query
-            
+
         Returns:
             Dictionary with assistantMessage, projectState, sources
         """
         # Chat message processing log suppressed
-        
+
         # Build conversation history
-        conversation_history = "\n".join([
-            f"{'User' if msg['role'] == 'user' else 'Assistant'}: {msg['content']}"
-            for msg in recent_messages[-10:]  # Last 10 messages
-        ])
-        
+        conversation_history = "\n".join(
+            [
+                f"{'User' if msg['role'] == 'user' else 'Assistant'}: {msg['content']}"
+                for msg in recent_messages[-10:]  # Last 10 messages
+            ]
+        )
+
         # Build KB context if available
         kb_context = ""
         if kb_sources:
-            kb_context = "\n\n".join([
-                f"[Source: {src.get('title', 'Unknown')}]\n{src.get('content', '')}"
-                for src in kb_sources
-            ])
-        
-        system_prompt = self._build_chat_system_prompt(current_state, kb_context, bool(kb_context))
+            kb_context = "\n\n".join(
+                [
+                    f"[Source: {src.get('title', 'Unknown')}]\n{src.get('content', '')}"
+                    for src in kb_sources
+                ]
+            )
+
+        system_prompt = self._build_chat_system_prompt(
+            current_state, kb_context, bool(kb_context)
+        )
         user_prompt = f"Previous conversation:\n{conversation_history}\n\nUser message: {user_message}"
-        
+
         response = await self._complete(system_prompt, user_prompt)
         result = self._parse_chat_response(response, current_state)
-        
+
         if kb_sources:
-            result['sources'] = kb_sources
-        
+            result["sources"] = kb_sources
+
         # Chat processed log suppressed
         return result
-    
+
     async def generate_architecture_proposal(
         self,
         state: Dict[str, Any],
-        on_progress: Optional[Callable[[str, Optional[str]], None]] = None
+        on_progress: Optional[Callable[[str, Optional[str]], None]] = None,
     ) -> str:
         """
         Generate comprehensive architecture proposal.
-        
+
         Args:
             state: ProjectState dictionary
             on_progress: Optional callback for progress updates
-            
+
         Returns:
             Markdown-formatted proposal
         """
         # Proposal generation start log suppressed
-        
+
         if on_progress:
             on_progress("analyzing", "Analyzing project requirements")
-        
+
         # Build comprehensive prompt
         system_prompt = """You are an expert Azure Solution Architect. Generate a comprehensive, production-ready architecture proposal in Markdown format.
 
@@ -163,81 +169,88 @@ Use clear headings, bullet points, and technical details. Reference Azure Well-A
 
         state_json = json.dumps(state, indent=2)
         user_prompt = f"Generate a comprehensive architecture proposal for this project:\n\n{state_json}"
-        
+
         if on_progress:
             on_progress("generating", "Generating proposal content")
-        
+
         proposal = await self._complete(system_prompt, user_prompt, max_tokens=4000)
-        
+
         if on_progress:
             on_progress("completed", "Proposal generated successfully")
-        
+
         # Proposal generated log suppressed
         return proposal
-    
-    async def _complete(self, system_prompt: str, user_prompt: str, max_tokens: int = 2000) -> str:
+
+    async def _complete(
+        self, system_prompt: str, user_prompt: str, max_tokens: int = 2000
+    ) -> str:
         """Make LLM API call via unified AI service."""
         messages = [
             ChatMessage(role="system", content=system_prompt),
-            ChatMessage(role="user", content=user_prompt)
+            ChatMessage(role="user", content=user_prompt),
         ]
-        
+
         response = await self.ai_service.chat(
             messages=messages,
             temperature=self.ai_service.config.default_temperature,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
         )
-        
+
         return response.content
-    
+
     def _parse_project_state(self, response: str) -> Dict[str, Any]:
         """Parse ProjectState from LLM response."""
         # Extract JSON from response
-        json_match = re.search(r'\{[\s\S]*\}', response)
+        json_match = re.search(r"\{[\s\S]*\}", response)
         if not json_match:
             logger.error("Failed to extract JSON from LLM response")
             raise ValueError("Failed to extract JSON from LLM response")
-        
+
         parsed = json.loads(json_match.group(0))
         return parsed
-    
-    def _parse_chat_response(self, response: str, current_state: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _parse_chat_response(
+        self, response: str, current_state: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Parse chat response and extract updated state if present."""
         # Try to find JSON in response
-        json_match = re.search(r'\{[\s\S]*\}', response)
-        
+        json_match = re.search(r"\{[\s\S]*\}", response)
+
         if json_match:
             try:
                 parsed = json.loads(json_match.group(0))
                 # If it looks like a state update, use it
-                if 'context' in parsed or 'nfrs' in parsed:
+                if "context" in parsed or "nfrs" in parsed:
                     # Merge with current state
                     updated_state = {**current_state, **parsed}
                     # Extract assistant message (text before JSON)
-                    assistant_message = response[:json_match.start()].strip()
+                    assistant_message = response[: json_match.start()].strip()
                     return {
-                        'assistantMessage': assistant_message or "I've updated the architecture sheet.",
-                        'projectState': updated_state,
-                        'sources': []
+                        "assistantMessage": assistant_message
+                        or "I've updated the architecture sheet.",
+                        "projectState": updated_state,
+                        "sources": [],
                     }
             except json.JSONDecodeError:
                 pass
-        
+
         # No state update, just return the message
         return {
-            'assistantMessage': response,
-            'projectState': current_state,
-            'sources': []
+            "assistantMessage": response,
+            "projectState": current_state,
+            "sources": [],
         }
-    
-    def _build_chat_system_prompt(self, state: Dict[str, Any], kb_context: str, has_kb_context: bool) -> str:
+
+    def _build_chat_system_prompt(
+        self, state: Dict[str, Any], kb_context: str, has_kb_context: bool
+    ) -> str:
         """Build system prompt for chat."""
         state_json = json.dumps(state, indent=2)
-        
+
         kb_section = ""
         if has_kb_context:
             kb_section = f"\n\nKNOWLEDGE BASE CONTEXT:\n{kb_context}\n\nUse this context to provide accurate Azure guidance."
-        
+
         return f"""You are an Azure Architecture Assistant helping refine an architecture project.
 
 CURRENT PROJECT STATE:
