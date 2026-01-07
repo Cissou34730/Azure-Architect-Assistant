@@ -17,7 +17,7 @@ export default function ProjectsPage() {
     try {
       const project = await createProject(newProjectName);
       setNewProjectName("");
-      navigate(`/projects/${project.id}`);
+      void navigate(`/projects/${project.id}`);
     } catch (error) {
       console.error("Failed to create project:", error);
     }

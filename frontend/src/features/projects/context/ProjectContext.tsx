@@ -1,7 +1,5 @@
 import { createContext, useContext } from "react";
-import { useProjectDetails } from "../hooks/useProjectDetails";
-
-type ProjectContextType = ReturnType<typeof useProjectDetails>;
+import type { ProjectContextType } from "./types";
 
 const ProjectContext = createContext<ProjectContextType | null>(null);
 

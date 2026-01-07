@@ -71,7 +71,7 @@ export function KBList({ kbs, onViewProgress, onStartIngestion, onRefresh }: KBL
         return;
       }
       const delay = hasActive ? 5000 : 10000;
-      timeoutRef.current = setTimeout(loop, delay);
+      timeoutRef.current = setTimeout(() => void loop(), delay);
     };
 
     void loop();

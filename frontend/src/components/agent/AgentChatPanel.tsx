@@ -58,15 +58,15 @@ function EmptyChat({ selectedProjectId }: { selectedProjectId: string }) {
         <ul className="text-sm text-gray-600 space-y-1">
           {selectedProjectId ? (
             <>
-              <li>• "We need 99.9% availability"</li>
-              <li>• "What security measures should we implement?"</li>
-              <li>• "How do we handle data residency requirements?"</li>
+              <li>• &quot;We need 99.9% availability&quot;</li>
+              <li>• &quot;What security measures should we implement?&quot;</li>
+              <li>• &quot;How do we handle data residency requirements?&quot;</li>
             </>
           ) : (
             <>
-              <li>• "How do I secure Azure SQL Database?"</li>
-              <li>• "What's the best way to implement microservices?"</li>
-              <li>• "Show me Private Link configuration examples"</li>
+              <li>• &quot;How do I secure Azure SQL Database?&quot;</li>
+              <li>• &quot;What&apos;s the best way to implement microservices?&quot;</li>
+              <li>• &quot;Show me Private Link configuration examples&quot;</li>
             </>
           )}
         </ul>

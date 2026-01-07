@@ -51,7 +51,7 @@ export const useProposal = () => {
         setLoading(false);
       };
     },
-    []
+    [showError]
   );
 
   return {

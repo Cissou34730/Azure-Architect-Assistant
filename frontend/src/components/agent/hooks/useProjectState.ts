@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import type { ProjectState } from "../../../types/agent";
 
-const API_BASE = `${import.meta.env.BACKEND_URL || "http://localhost:8000"}/api`;
+const API_BASE = `${
+  import.meta.env.BACKEND_URL || "http://localhost:8000"
+}/api`;
 
 export function useProjectState(selectedProjectId: string) {
   const [projectState, setProjectState] = useState<ProjectState | null>(null);
@@ -30,7 +32,7 @@ export function useProjectState(selectedProjectId: string) {
 
   useEffect(() => {
     void loadProjectState();
-  }, [selectedProjectId]);
+  }, [selectedProjectId, loadProjectState]);
 
   return {
     projectState,

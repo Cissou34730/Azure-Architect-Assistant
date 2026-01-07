@@ -145,7 +145,7 @@ export function ReviewStep({
 
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
         <p className="text-sm text-blue-800">
-          ✓ Click "Create KB" to start the ingestion process
+          ✓ Click &quot;Create KB&quot; to start the ingestion process
         </p>
       </div>
     </div>

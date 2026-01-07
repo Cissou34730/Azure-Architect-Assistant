@@ -15,7 +15,7 @@ export function useKBWorkspace() {
 
   // Handler for submitting query with selected KBs
   const handleSubmitQuery = (e?: React.FormEvent) => {
-    queryHook.submitQuery(e, kbListHook.selectedKBs);
+    void queryHook.submitQuery(e, kbListHook.selectedKBs);
   };
 
   return {

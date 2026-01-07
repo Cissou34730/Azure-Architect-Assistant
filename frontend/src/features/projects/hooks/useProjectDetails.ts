@@ -30,7 +30,7 @@ export function useProjectDetails(projectId: string | undefined) {
       // Assuming structure /projects/:projectId/:tabPath
       // We can use a relative path logic or absolute construction
       if (projectId) {
-        navigate(`/projects/${projectId}/${tab.path}`);
+        void navigate(`/projects/${projectId}/${tab.path}`);
       }
     },
     [navigate, projectId, tabs]

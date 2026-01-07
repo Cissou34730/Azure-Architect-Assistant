@@ -254,7 +254,7 @@ export default function MermaidRenderer({ diagramSetId, diagramType }: MermaidRe
                     <p className="text-gray-800 mb-2">{ambiguity.description}</p>
                     {ambiguity.text_fragment && (
                       <p className="text-sm text-gray-600 italic bg-gray-50 p-2 rounded border border-gray-200">
-                        "{ambiguity.text_fragment}"
+                        &quot;{ambiguity.text_fragment}&quot;
                       </p>
                     )}
                   </div>

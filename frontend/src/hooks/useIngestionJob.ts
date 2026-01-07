@@ -77,7 +77,7 @@ export function useIngestionJob(
   }, [kbId, enabled]);
 
   useEffect(() => {
-    const run = async () => {
+    const run = () => {
       if (!kbId || !enabled) {
         setLoading(false);
         return;
