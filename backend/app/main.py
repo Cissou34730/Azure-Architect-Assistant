@@ -14,13 +14,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Suppress third-party Pydantic v2 warnings from dependencies not yet updated
-warnings.filterwarnings(
-    "ignore",
-    message=r"The 'validate_default' attribute with value True was provided to the `Field\(\)` function.*",
-    category=UserWarning,
-)
-
 # Import routers
 from app.routers.kb_query import router as kb_query_router
 from app.routers.kb_management import router as kb_management_router
@@ -36,6 +29,13 @@ from app.core.config import get_app_settings
 from app.core.logging import configure_logging
 from app.core.signals import install_ingestion_signal_handlers
 from app.services.diagram.database import close_diagram_database
+
+# Suppress third-party Pydantic v2 warnings from dependencies not yet updated
+warnings.filterwarnings(
+    "ignore",
+    message=r"The 'validate_default' attribute with value True was provided to the `Field\(\)` function.*",
+    category=UserWarning,
+)
 
 # Load environment variables from root .env (one level up from backend)
 backend_root = Path(__file__).parent.parent

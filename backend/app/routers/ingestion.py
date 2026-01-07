@@ -255,9 +255,6 @@ async def resume_ingestion(kb_id: str, kb_manager: KBManager = Depends(get_kb_ma
                 status_code=404, detail=f"No job found for KB '{kb_id}'"
             )
 
-        # Get job details
-        job = repo.get_job(job_id)
-
         # Verify job is paused
         status = repo.get_job_status(job_id)
         if status != "paused":

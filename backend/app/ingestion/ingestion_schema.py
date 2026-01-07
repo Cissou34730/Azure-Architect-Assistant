@@ -14,7 +14,7 @@ SCHEMA_VERSION = 2  # Updated for ingestion_phase_status table
 
 def _ensure_version_table(engine: Engine) -> MetaData:
     metadata = MetaData()
-    version_table = Table(
+    Table(
         "ingestion_schema_version",
         metadata,
         Column("version", Integer, primary_key=True),

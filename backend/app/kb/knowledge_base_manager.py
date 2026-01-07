@@ -7,12 +7,11 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
+
 from app.core.config import get_kb_storage_root
+from .models import KBConfig
 
 logger = logging.getLogger(__name__)
-
-
-from .models import KBConfig
 
 
 class KBManager:

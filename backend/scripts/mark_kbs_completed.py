@@ -18,10 +18,10 @@ BACKEND_ROOT = REPO_ROOT / "backend"
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from sqlalchemy import select
+from sqlalchemy import select  # noqa: E402
 
-from app.ingestion.ingestion_database import get_session, init_ingestion_database
-from app.ingestion.models import (
+from app.ingestion.ingestion_database import get_session, init_ingestion_database  # noqa: E402
+from app.ingestion.models import (  # noqa: E402
     IngestionJob,
     IngestionPhaseStatus,
     JobStatus,

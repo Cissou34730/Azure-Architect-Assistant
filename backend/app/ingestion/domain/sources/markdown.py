@@ -135,5 +135,5 @@ class MarkdownSourceHandler(BaseSourceHandler):
                 "path_components": list(parts),
                 "category": parts[0] if len(parts) > 1 else "root",
             }
-        except:
+        except Exception:
             return {"depth": 0, "path_components": [], "category": "root"}

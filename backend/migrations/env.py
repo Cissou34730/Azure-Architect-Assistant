@@ -17,7 +17,7 @@ backend_path = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(backend_path))
 
 # Import diagram models Base for autogenerate
-from app.models.diagram import Base
+from app.models.diagram import Base  # noqa: E402
 
 # Alembic Config object
 config = context.config

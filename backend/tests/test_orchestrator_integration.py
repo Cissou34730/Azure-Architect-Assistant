@@ -14,6 +14,14 @@ pytest.skip(
 )
 
 
+# Mock placeholder for linting purposes since tests are skipped
+class IngestionOrchestrator:
+    """Placeholder for legacy orchestrator."""
+
+    def __init__(self, **kwargs):
+        pass
+
+
 # Minimal stand-in for job view object
 @dataclass
 class JobView:

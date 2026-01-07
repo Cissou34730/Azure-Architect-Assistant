@@ -4,7 +4,6 @@ Website Crawler - Orchestrate crawling with checkpointing
 
 import logging
 import time
-import json
 import requests
 from typing import List, Set
 from datetime import datetime
@@ -350,13 +349,3 @@ class WebsiteCrawler:
             return url
         except Exception:
             return ""
-
-            with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
-                json.dump(state, f, indent=2)
-            os.replace(tmp_name, str(state_path))
-
-            logger.info(
-                f"✓ State saved: {len(visited)} visited, {len(to_visit)} queued, {failed_count} failed"
-            )
-        except Exception as e:
-            logger.error(f"Failed to save state: {e}")
