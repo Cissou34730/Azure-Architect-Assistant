@@ -7,7 +7,7 @@ const API_BASE = `${
 export const chatApi = {
   async sendMessage(
     projectId: string,
-    message: string
+    message: string,
   ): Promise<{
     message: string;
     projectState: ProjectState;

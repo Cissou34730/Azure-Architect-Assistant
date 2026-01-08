@@ -1,8 +1,8 @@
-import { KBHealthResponse } from '../../services/apiService'
+import { KBHealthResponse } from "../../services/apiService";
 
 interface Props {
-  healthStatus: KBHealthResponse | null
-  onRefresh: () => void
+  healthStatus: KBHealthResponse | null;
+  onRefresh: () => void;
 }
 
 export function KBHeader({ healthStatus, onRefresh }: Props) {
@@ -12,12 +12,14 @@ export function KBHeader({ healthStatus, onRefresh }: Props) {
         Azure Knowledge Base Query
       </h1>
       <p className="text-gray-600">
-        Ask questions about Azure best practices, architecture patterns, frameworks, and recommendations
+        Ask questions about Azure best practices, architecture patterns,
+        frameworks, and recommendations
       </p>
       {healthStatus && healthStatus.knowledge_bases && (
         <div className="flex items-center justify-between mt-2">
           <p className="text-sm text-gray-500">
-            {healthStatus.knowledge_bases.filter(kb => kb.index_ready).length} of {healthStatus.knowledge_bases.length} knowledge bases ready
+            {healthStatus.knowledge_bases.filter((kb) => kb.index_ready).length}{" "}
+            of {healthStatus.knowledge_bases.length} knowledge bases ready
           </p>
           <button
             onClick={onRefresh}
@@ -28,5 +30,5 @@ export function KBHeader({ healthStatus, onRefresh }: Props) {
         </div>
       )}
     </div>
-  )
+  );
 }

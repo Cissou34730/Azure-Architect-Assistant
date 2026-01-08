@@ -38,14 +38,14 @@ export const projectApi = {
       {
         method: "POST",
         body: formData,
-      }
+      },
     );
     if (!res.ok) throw new Error("Failed to upload documents");
   },
 
   async saveTextRequirements(
     projectId: string,
-    text: string
+    text: string,
   ): Promise<Project> {
     const res = await fetch(
       `${API_BASE}/projects/${projectId}/requirements/text`,
@@ -53,7 +53,7 @@ export const projectApi = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
-      }
+      },
     );
     if (!res.ok) throw new Error("Failed to save requirements");
     return res.json();
@@ -64,7 +64,7 @@ export const projectApi = {
       `${API_BASE}/projects/${projectId}/documents/analyze`,
       {
         method: "POST",
-      }
+      },
     );
     if (!res.ok) throw new Error("Failed to analyze documents");
     return res.json();

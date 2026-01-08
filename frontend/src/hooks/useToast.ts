@@ -20,35 +20,35 @@ export function useToast() {
 
       return id;
     },
-    []
+    [],
   );
 
   const success = useCallback(
     (message: string, duration?: number) => {
       return show(message, "success", duration);
     },
-    [show]
+    [show],
   );
 
   const error = useCallback(
     (message: string, duration?: number) => {
       return show(message, "error", duration);
     },
-    [show]
+    [show],
   );
 
   const warning = useCallback(
     (message: string, duration?: number) => {
       return show(message, "warning", duration);
     },
-    [show]
+    [show],
   );
 
   const info = useCallback(
     (message: string, duration?: number) => {
       return show(message, "info", duration);
     },
-    [show]
+    [show],
   );
 
   const close = useCallback((id: string) => {

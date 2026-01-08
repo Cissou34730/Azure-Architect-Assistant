@@ -24,7 +24,7 @@ export interface ConfigInputs {
 }
 
 export function buildSourceConfig(
-  inputs: ConfigInputs
+  inputs: ConfigInputs,
 ):
   | WebsiteSourceConfig
   | YoutubeSourceConfig

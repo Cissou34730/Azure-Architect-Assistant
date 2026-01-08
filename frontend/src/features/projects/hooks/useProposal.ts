@@ -41,7 +41,7 @@ export const useProposal = () => {
           showError(`Error: ${error}`);
           setProposalStage("");
           setLoading(false);
-        }
+        },
       );
 
       // Return cleanup function
@@ -51,7 +51,7 @@ export const useProposal = () => {
         setLoading(false);
       };
     },
-    [showError]
+    [showError],
   );
 
   return {

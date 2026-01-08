@@ -24,7 +24,10 @@ export function BasicInfoStep({
       <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
 
       <div>
-        <label htmlFor="kb-name" className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          htmlFor="kb-name"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
           Name *
         </label>
         <input
@@ -38,7 +41,10 @@ export function BasicInfoStep({
       </div>
 
       <div>
-        <label htmlFor="kb-id" className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          htmlFor="kb-id"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
           KB ID *
         </label>
         <input
@@ -55,7 +61,10 @@ export function BasicInfoStep({
       </div>
 
       <div>
-        <label htmlFor="kb-description" className="block text-sm font-medium text-gray-700 mb-1">
+        <label
+          htmlFor="kb-description"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
           Description
         </label>
         <textarea

@@ -33,7 +33,7 @@ export function useProjectDetails(projectId: string | undefined) {
         void navigate(`/projects/${projectId}/${tab.path}`);
       }
     },
-    [navigate, projectId, tabs]
+    [navigate, projectId, tabs],
   );
 
   const [textRequirements, setTextRequirements] = useState("");
@@ -84,7 +84,7 @@ export function useProjectDetails(projectId: string | undefined) {
     (_action: string, _details?: Record<string, unknown>) => {
       // Logging disabled
     },
-    []
+    [],
   );
 
   // Sync state changes log
@@ -105,7 +105,7 @@ export function useProjectDetails(projectId: string | undefined) {
       success("Documents uploaded successfully!");
       setFiles(null);
       const fileInput = document.getElementById(
-        "file-input"
+        "file-input",
       ) as HTMLInputElement | null;
       if (fileInput) fileInput.value = "";
     } catch (error) {
@@ -119,7 +119,7 @@ export function useProjectDetails(projectId: string | undefined) {
     try {
       const updated = await projectApi.saveTextRequirements(
         selectedProject.id,
-        textRequirements
+        textRequirements,
       );
       setSelectedProject(updated); // Update local project to reflect changes
       success("Requirements saved successfully!");
@@ -137,7 +137,7 @@ export function useProjectDetails(projectId: string | undefined) {
       (!files || files.length === 0)
     ) {
       warning(
-        "Please provide either text requirements or upload documents before analyzing."
+        "Please provide either text requirements or upload documents before analyzing.",
       );
       return;
     }

@@ -13,7 +13,7 @@ export const kbApi = {
 
   async query(
     question: string,
-    topKPerKB: number = 3
+    topKPerKB: number = 3,
   ): Promise<KBQueryResponse> {
     const res = await fetch(`${API_BASE}/kb/query`, {
       method: "POST",
@@ -30,7 +30,7 @@ export const kbApi = {
   async queryKBs(
     question: string,
     kbIds: string[],
-    topKPerKB: number = 5
+    topKPerKB: number = 5,
   ): Promise<KBQueryResponse> {
     const res = await fetch(`${API_BASE}/kb/query/multi`, {
       method: "POST",

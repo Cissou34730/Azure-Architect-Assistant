@@ -1,4 +1,4 @@
-import { Project } from '../../../services/apiService';
+import { Project } from "../../../services/apiService";
 
 interface ProjectListProps {
   projects: Project[];
@@ -22,7 +22,7 @@ export function ProjectList({
   return (
     <div className="bg-white rounded-lg shadow p-4">
       <h2 className="text-lg font-semibold mb-4">Projects</h2>
-      
+
       <form onSubmit={onCreateProject} className="mb-4">
         <input
           type="text"
@@ -47,8 +47,8 @@ export function ProjectList({
             onClick={() => onSelectProject(project)}
             className={`w-full text-left px-3 py-2 rounded-md text-sm ${
               selectedProject?.id === project.id
-                ? 'bg-blue-100 border border-blue-500'
-                : 'bg-gray-50 hover:bg-gray-100'
+                ? "bg-blue-100 border border-blue-500"
+                : "bg-gray-50 hover:bg-gray-100"
             }`}
           >
             {project.name}

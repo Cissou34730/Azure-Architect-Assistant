@@ -1,15 +1,22 @@
-import type { Project } from '../../types/agent'
+import type { Project } from "../../types/agent";
 
 interface ProjectSelectorProps {
-  projects: Project[]
-  selectedProjectId: string
-  onProjectChange: (projectId: string) => void
+  projects: Project[];
+  selectedProjectId: string;
+  onProjectChange: (projectId: string) => void;
 }
 
-export function ProjectSelector({ projects, selectedProjectId, onProjectChange }: ProjectSelectorProps) {
+export function ProjectSelector({
+  projects,
+  selectedProjectId,
+  onProjectChange,
+}: ProjectSelectorProps) {
   return (
     <div className="flex items-center space-x-3">
-      <label htmlFor="project-select" className="text-sm font-medium text-gray-700">
+      <label
+        htmlFor="project-select"
+        className="text-sm font-medium text-gray-700"
+      >
         Project Context:
       </label>
       <select
@@ -31,5 +38,5 @@ export function ProjectSelector({ projects, selectedProjectId, onProjectChange }
         </span>
       )}
     </div>
-  )
+  );
 }

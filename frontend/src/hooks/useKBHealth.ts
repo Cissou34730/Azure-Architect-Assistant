@@ -3,7 +3,7 @@ import { kbApi, KBHealthResponse } from "../services/apiService";
 
 export function useKBHealth() {
   const [healthStatus, setHealthStatus] = useState<KBHealthResponse | null>(
-    null
+    null,
   );
   const [isReady, setIsReady] = useState(false);
   const [isChecking, setIsChecking] = useState(true);

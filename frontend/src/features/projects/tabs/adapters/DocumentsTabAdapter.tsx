@@ -1,7 +1,11 @@
 import { lazy } from "react";
 import { useProjectContext } from "../../context/ProjectContext";
 
-const DocumentsPanel = lazy(() => import("../../components/DocumentsPanel").then(m => ({ default: m.DocumentsPanel })));
+const DocumentsPanel = lazy(() =>
+  import("../../components/DocumentsPanel").then((m) => ({
+    default: m.DocumentsPanel,
+  })),
+);
 
 export function DocumentsTabAdapter() {
   const {

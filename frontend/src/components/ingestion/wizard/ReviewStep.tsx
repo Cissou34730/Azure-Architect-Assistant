@@ -2,7 +2,7 @@
  * Review Configuration Step Component
  */
 
-import { SourceType } from '../../../types/ingestion';
+import { SourceType } from "../../../types/ingestion";
 
 interface ReviewStepProps {
   name: string;
@@ -23,12 +23,12 @@ interface ReviewStepProps {
 }
 
 const sourceTypeLabels: Record<SourceType, string> = {
-  website: '🌐 Website',
-  web_documentation: '📚 Web Documentation',
-  web_generic: '🌐 Generic Web',
-  youtube: '🎥 YouTube',
-  pdf: '📄 PDF Files',
-  markdown: '📝 Markdown',
+  website: "🌐 Website",
+  web_documentation: "📚 Web Documentation",
+  web_generic: "🌐 Generic Web",
+  youtube: "🎥 YouTube",
+  pdf: "📄 PDF Files",
+  markdown: "📝 Markdown",
 };
 
 export function ReviewStep({
@@ -46,7 +46,9 @@ export function ReviewStep({
 }: ReviewStepProps) {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900">Review Configuration</h3>
+      <h3 className="text-lg font-semibold text-gray-900">
+        Review Configuration
+      </h3>
 
       <div className="bg-gray-50 rounded-lg p-4 space-y-3">
         <div>
@@ -68,77 +70,111 @@ export function ReviewStep({
 
         <div>
           <div className="text-sm font-medium text-gray-700">Source Type</div>
-          <div className="text-sm text-gray-900">{sourceTypeLabels[sourceType]}</div>
+          <div className="text-sm text-gray-900">
+            {sourceTypeLabels[sourceType]}
+          </div>
         </div>
 
-        {sourceType === 'website' && (
+        {sourceType === "website" && (
           <>
             {sitemapUrl ? (
               <div>
-                <div className="text-sm font-medium text-gray-700">Sitemap URL</div>
-                <div className="text-sm text-gray-900 font-mono truncate">{sitemapUrl}</div>
+                <div className="text-sm font-medium text-gray-700">
+                  Sitemap URL
+                </div>
+                <div className="text-sm text-gray-900 font-mono truncate">
+                  {sitemapUrl}
+                </div>
               </div>
             ) : (
               <div>
                 <div className="text-sm font-medium text-gray-700">URLs</div>
                 <ul className="text-sm text-gray-900 list-disc list-inside">
-                  {urls?.filter(url => url.trim()).map((url, i) => (
-                    <li key={i} className="truncate">{url}</li>
-                  ))}
+                  {urls
+                    ?.filter((url) => url.trim())
+                    .map((url, i) => (
+                      <li key={i} className="truncate">
+                        {url}
+                      </li>
+                    ))}
                 </ul>
               </div>
             )}
           </>
         )}
 
-        {sourceType === 'youtube' && (
+        {sourceType === "youtube" && (
           <div>
             <div className="text-sm font-medium text-gray-700">Video URLs</div>
             <ul className="text-sm text-gray-900 list-disc list-inside">
-              {videoUrls?.filter(url => url.trim()).map((url, i) => (
-                <li key={i} className="truncate">{url}</li>
-              ))}
+              {videoUrls
+                ?.filter((url) => url.trim())
+                .map((url, i) => (
+                  <li key={i} className="truncate">
+                    {url}
+                  </li>
+                ))}
             </ul>
           </div>
         )}
 
-        {sourceType === 'pdf' && (
+        {sourceType === "pdf" && (
           <>
-            {pdfLocalPaths && pdfLocalPaths.some(p => p.trim()) && (
+            {pdfLocalPaths && pdfLocalPaths.some((p) => p.trim()) && (
               <div>
-                <div className="text-sm font-medium text-gray-700">Local PDF Paths</div>
+                <div className="text-sm font-medium text-gray-700">
+                  Local PDF Paths
+                </div>
                 <ul className="text-sm text-gray-900 list-disc list-inside">
-                  {pdfLocalPaths.filter(p => p.trim()).map((path, i) => (
-                    <li key={i} className="truncate font-mono">{path}</li>
-                  ))}
+                  {pdfLocalPaths
+                    .filter((p) => p.trim())
+                    .map((path, i) => (
+                      <li key={i} className="truncate font-mono">
+                        {path}
+                      </li>
+                    ))}
                 </ul>
               </div>
             )}
 
-            {pdfUrls && pdfUrls.some(url => url.trim()) && (
+            {pdfUrls && pdfUrls.some((url) => url.trim()) && (
               <div>
-                <div className="text-sm font-medium text-gray-700">Online PDF URLs</div>
+                <div className="text-sm font-medium text-gray-700">
+                  Online PDF URLs
+                </div>
                 <ul className="text-sm text-gray-900 list-disc list-inside">
-                  {pdfUrls.filter(url => url.trim()).map((url, i) => (
-                    <li key={i} className="truncate">{url}</li>
-                  ))}
+                  {pdfUrls
+                    .filter((url) => url.trim())
+                    .map((url, i) => (
+                      <li key={i} className="truncate">
+                        {url}
+                      </li>
+                    ))}
                 </ul>
               </div>
             )}
 
             {pdfFolderPath && (
               <div>
-                <div className="text-sm font-medium text-gray-700">PDF Folder</div>
-                <div className="text-sm text-gray-900 font-mono">{pdfFolderPath}</div>
+                <div className="text-sm font-medium text-gray-700">
+                  PDF Folder
+                </div>
+                <div className="text-sm text-gray-900 font-mono">
+                  {pdfFolderPath}
+                </div>
               </div>
             )}
           </>
         )}
 
-        {sourceType === 'markdown' && (
+        {sourceType === "markdown" && (
           <div>
-            <div className="text-sm font-medium text-gray-700">Markdown Folder</div>
-            <div className="text-sm text-gray-900 font-mono">{markdownFolderPath}</div>
+            <div className="text-sm font-medium text-gray-700">
+              Markdown Folder
+            </div>
+            <div className="text-sm text-gray-900 font-mono">
+              {markdownFolderPath}
+            </div>
           </div>
         )}
       </div>

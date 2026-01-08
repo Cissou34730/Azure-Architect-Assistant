@@ -25,7 +25,7 @@ export const diagramApi = {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(
         errorData.detail ||
-          `Failed to create diagram set: ${response.statusText}`
+          `Failed to create diagram set: ${response.statusText}`,
       );
     }
     return response.json();

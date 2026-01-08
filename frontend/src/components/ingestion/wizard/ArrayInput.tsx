@@ -10,9 +10,15 @@ interface ArrayInputProps {
   helpText?: string;
 }
 
-export function ArrayInput({ label, values, onChange, placeholder, helpText }: ArrayInputProps) {
+export function ArrayInput({
+  label,
+  values,
+  onChange,
+  placeholder,
+  helpText,
+}: ArrayInputProps) {
   const addField = () => {
-    onChange([...values, '']);
+    onChange([...values, ""]);
   };
 
   const removeField = (index: number) => {
@@ -60,9 +66,7 @@ export function ArrayInput({ label, values, onChange, placeholder, helpText }: A
       >
         + Add another
       </button>
-      {helpText && (
-        <p className="mt-1 text-xs text-gray-500">{helpText}</p>
-      )}
+      {helpText && <p className="mt-1 text-xs text-gray-500">{helpText}</p>}
     </div>
   );
 }

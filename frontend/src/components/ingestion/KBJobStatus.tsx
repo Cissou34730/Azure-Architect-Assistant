@@ -3,16 +3,16 @@
  * Displays job status indicator and progress
  */
 
-import { IngestionJob } from '../../types/ingestion';
-import { KBMetrics } from './KBMetrics';
+import { IngestionJob } from "../../types/ingestion";
+import { KBMetrics } from "./KBMetrics";
 
 interface KBJobStatusProps {
   job: IngestionJob;
 }
 
 export function KBJobStatus({ job }: KBJobStatusProps) {
-  const isNotStarted = job.status === 'not_started';
-  
+  const isNotStarted = job.status === "not_started";
+
   if (isNotStarted) {
     return (
       <div className="mt-3 space-y-2">
@@ -26,17 +26,23 @@ export function KBJobStatus({ job }: KBJobStatusProps) {
   }
 
   const statusIndicatorClass = `w-2 h-2 rounded-pill ${
-    job.status === 'running' ? 'bg-status-running animate-pulse' :
-    job.status === 'paused' ? 'bg-yellow-500' :
-    job.status === 'completed' ? 'bg-status-completed' :
-    job.status === 'failed' ? 'bg-status-failed' :
-    'bg-gray-500'
+    job.status === "running"
+      ? "bg-status-running animate-pulse"
+      : job.status === "paused"
+        ? "bg-yellow-500"
+        : job.status === "completed"
+          ? "bg-status-completed"
+          : job.status === "failed"
+            ? "bg-status-failed"
+            : "bg-gray-500"
   }`;
 
-  const statusText = 
-    job.status === 'completed' ? 'COMPLETED' :
-    job.status === 'paused' ? 'PAUSED' :
-    `${(job.phase ? job.phase.toUpperCase() : 'UNKNOWN')} - ${typeof job.progress === 'number' ? job.progress.toFixed(0) : '0'}%`;
+  const statusText =
+    job.status === "completed"
+      ? "COMPLETED"
+      : job.status === "paused"
+        ? "PAUSED"
+        : `${job.phase ? job.phase.toUpperCase() : "UNKNOWN"} - ${typeof job.progress === "number" ? job.progress.toFixed(0) : "0"}%`;
 
   return (
     <div className="mt-3 space-y-2">

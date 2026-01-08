@@ -1,12 +1,12 @@
-import { 
-  KBLoadingScreen, 
-  KBStatusNotReady, 
-  KBHeader, 
-  KBQueryForm, 
+import {
+  KBLoadingScreen,
+  KBStatusNotReady,
+  KBHeader,
+  KBQueryForm,
   KBQueryResults,
-  KBSelector
-} from '.'
-import { useKBWorkspace } from '../../hooks/useKBWorkspace'
+  KBSelector,
+} from ".";
+import { useKBWorkspace } from "../../hooks/useKBWorkspace";
 
 export function KBWorkspace() {
   const {
@@ -24,27 +24,29 @@ export function KBWorkspace() {
     selectedKBs,
     setSelectedKBs,
     isLoadingKBs,
-  } = useKBWorkspace()
+  } = useKBWorkspace();
 
   if (isChecking) {
-    return <KBLoadingScreen />
+    return <KBLoadingScreen />;
   }
 
   if (!isReady) {
-    return <KBStatusNotReady healthStatus={healthStatus} onRefresh={refreshHealth} />
+    return (
+      <KBStatusNotReady healthStatus={healthStatus} onRefresh={refreshHealth} />
+    );
   }
 
   return (
     <div className="max-w-6xl mx-auto p-8">
       <KBHeader healthStatus={healthStatus} onRefresh={refreshHealth} />
-      
+
       <KBSelector
         availableKBs={availableKBs}
         selectedKBs={selectedKBs}
         onSelectionChange={setSelectedKBs}
         disabled={isLoading || isLoadingKBs}
       />
-      
+
       <KBQueryForm
         question={question}
         isLoading={isLoading}
@@ -55,5 +57,5 @@ export function KBWorkspace() {
 
       <KBQueryResults response={response} onFollowUp={askFollowUp} />
     </div>
-  )
+  );
 }

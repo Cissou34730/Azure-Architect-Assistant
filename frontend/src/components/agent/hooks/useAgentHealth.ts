@@ -12,7 +12,11 @@ export function useAgentHealth() {
       const data = await response.json();
       // Validate and map the status to ensure it's a valid AgentStatus
       const status = data.status as AgentStatus;
-      if (status === "healthy" || status === "not_initialized" || status === "unknown") {
+      if (
+        status === "healthy" ||
+        status === "not_initialized" ||
+        status === "unknown"
+      ) {
         setAgentStatus(status);
       } else {
         console.warn(`Unknown agent status received: ${data.status}`);

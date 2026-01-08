@@ -48,7 +48,7 @@ export const useProjects = () => {
         setLoading(false);
       }
     },
-    [selectedProject]
+    [selectedProject],
   );
 
   const saveTextRequirements = useCallback(
@@ -61,10 +61,10 @@ export const useProjects = () => {
       try {
         const updatedProject = await projectApi.saveTextRequirements(
           selectedProject.id,
-          text
+          text,
         );
         setProjects((prev) =>
-          prev.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+          prev.map((p) => (p.id === updatedProject.id ? updatedProject : p)),
         );
         setSelectedProject(updatedProject);
         return updatedProject;
@@ -72,7 +72,7 @@ export const useProjects = () => {
         setLoading(false);
       }
     },
-    [selectedProject]
+    [selectedProject],
   );
 
   return {

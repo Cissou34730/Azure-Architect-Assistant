@@ -50,7 +50,7 @@ export function useKBList() {
               acc[kb.kb_id] = kb.index_ready === true;
               return acc;
             },
-            {}
+            {},
           );
         } else {
           console.warn(`[KB List] Health fetch failed: ${healthRes.status}`);
@@ -73,7 +73,7 @@ export function useKBList() {
           (kb) =>
             kb.status === "active" &&
             kb.profiles.includes("kb-query") &&
-            kb.index_ready !== false
+            kb.index_ready !== false,
         )
         .map((kb) => kb.id);
       setSelectedKBs(autoSelect);

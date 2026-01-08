@@ -2,8 +2,8 @@
  * Source Configuration Step Component
  */
 
-import { SourceType } from '../../../types/ingestion';
-import { ArrayInput } from './ArrayInput';
+import { SourceType } from "../../../types/ingestion";
+import { ArrayInput } from "./ArrayInput";
 
 interface ConfigurationStepProps {
   sourceType: SourceType;
@@ -50,12 +50,17 @@ export function ConfigurationStep({
 }: ConfigurationStepProps) {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900">Source Configuration</h3>
+      <h3 className="text-lg font-semibold text-gray-900">
+        Source Configuration
+      </h3>
 
-      {sourceType === 'website' && (
+      {sourceType === "website" && (
         <>
           <div>
-            <label htmlFor="sitemap-url" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="sitemap-url"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Sitemap URL (Optional)
             </label>
             <input
@@ -67,13 +72,17 @@ export function ConfigurationStep({
               placeholder="https://example.com/sitemap.xml"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Provide sitemap URL to automatically crawl all pages, or specify individual URLs below
+              Provide sitemap URL to automatically crawl all pages, or specify
+              individual URLs below
             </p>
           </div>
 
           {sitemapUrl && (
             <div>
-              <label htmlFor="url-prefix" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="url-prefix"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 URL Prefix Filter (Recommended)
               </label>
               <input
@@ -85,7 +94,8 @@ export function ConfigurationStep({
                 placeholder="https://example.com/docs/section/"
               />
               <p className="mt-1 text-xs text-gray-500">
-                Only ingest URLs starting with this prefix. Prevents crawling the entire site.
+                Only ingest URLs starting with this prefix. Prevents crawling
+                the entire site.
               </p>
             </div>
           )}
@@ -102,7 +112,7 @@ export function ConfigurationStep({
         </>
       )}
 
-      {sourceType === 'youtube' && (
+      {sourceType === "youtube" && (
         <>
           <ArrayInput
             label="Video URLs *"
@@ -113,13 +123,14 @@ export function ConfigurationStep({
           />
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-sm text-blue-800">
-              💡 Transcripts will be automatically distilled using LLM to extract key concepts and technical Q&A
+              💡 Transcripts will be automatically distilled using LLM to
+              extract key concepts and technical Q&A
             </p>
           </div>
         </>
       )}
 
-      {sourceType === 'pdf' && (
+      {sourceType === "pdf" && (
         <>
           <ArrayInput
             label="Local PDF Paths"
@@ -138,7 +149,10 @@ export function ConfigurationStep({
           />
 
           <div>
-            <label htmlFor="pdf-folder" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="pdf-folder"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               PDF Folder Path
             </label>
             <input
@@ -156,16 +170,20 @@ export function ConfigurationStep({
 
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
             <p className="text-sm text-amber-800">
-              ⚠️ At least one PDF source (local path, URL, or folder) is required
+              ⚠️ At least one PDF source (local path, URL, or folder) is
+              required
             </p>
           </div>
         </>
       )}
 
-      {sourceType === 'markdown' && (
+      {sourceType === "markdown" && (
         <>
           <div>
-            <label htmlFor="markdown-folder" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="markdown-folder"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Markdown Folder Path *
             </label>
             <input
@@ -177,7 +195,8 @@ export function ConfigurationStep({
               placeholder="C:\Documentation\markdown"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Path to folder containing .md files (will recursively process subfolders)
+              Path to folder containing .md files (will recursively process
+              subfolders)
             </p>
           </div>
 

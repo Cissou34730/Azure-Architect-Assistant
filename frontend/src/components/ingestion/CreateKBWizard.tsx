@@ -3,12 +3,12 @@
  * Multi-step wizard for creating a new knowledge base
  */
 
-import { useKBWizardForm, WizardStep } from './wizard/useKBWizardForm';
-import { StepIndicator } from './wizard/StepIndicator';
-import { BasicInfoStep } from './wizard/BasicInfoStep';
-import { SourceTypeStep } from './wizard/SourceTypeStep';
-import { ConfigurationStep } from './wizard/ConfigurationStep';
-import { ReviewStep } from './wizard/ReviewStep';
+import { useKBWizardForm, WizardStep } from "./wizard/useKBWizardForm";
+import { StepIndicator } from "./wizard/StepIndicator";
+import { BasicInfoStep } from "./wizard/BasicInfoStep";
+import { SourceTypeStep } from "./wizard/SourceTypeStep";
+import { ConfigurationStep } from "./wizard/ConfigurationStep";
+import { ReviewStep } from "./wizard/ReviewStep";
 
 interface CreateKBWizardProps {
   onSuccess: (kbId: string) => void;
@@ -16,10 +16,10 @@ interface CreateKBWizardProps {
 }
 
 const WIZARD_STEPS = [
-  { id: 'basic', label: 'Basic Info' },
-  { id: 'source', label: 'Source Type' },
-  { id: 'config', label: 'Configuration' },
-  { id: 'review', label: 'Review' },
+  { id: "basic", label: "Basic Info" },
+  { id: "source", label: "Source Type" },
+  { id: "config", label: "Configuration" },
+  { id: "review", label: "Review" },
 ];
 
 export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
@@ -62,7 +62,7 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
   } = form;
 
   const handleNext = () => {
-    const steps: WizardStep[] = ['basic', 'source', 'config', 'review'];
+    const steps: WizardStep[] = ["basic", "source", "config", "review"];
     const currentIndex = steps.indexOf(step);
     if (currentIndex < steps.length - 1) {
       setStep(steps[currentIndex + 1]);
@@ -70,7 +70,7 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
   };
 
   const handleBack = () => {
-    const steps: WizardStep[] = ['basic', 'source', 'config', 'review'];
+    const steps: WizardStep[] = ["basic", "source", "config", "review"];
     const currentIndex = steps.indexOf(step);
     if (currentIndex > 0) {
       setStep(steps[currentIndex - 1]);
@@ -81,7 +81,9 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
     <div className="bg-white rounded-lg shadow-lg max-w-3xl mx-auto">
       {/* Header */}
       <div className="px-6 py-4 border-b">
-        <h2 className="text-2xl font-bold text-gray-900">Create Knowledge Base</h2>
+        <h2 className="text-2xl font-bold text-gray-900">
+          Create Knowledge Base
+        </h2>
         <div className="mt-4">
           <StepIndicator steps={WIZARD_STEPS} currentStep={step} />
         </div>
@@ -95,7 +97,7 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
           </div>
         )}
 
-        {step === 'basic' && (
+        {step === "basic" && (
           <BasicInfoStep
             name={name}
             setName={setName}
@@ -106,14 +108,14 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
           />
         )}
 
-        {step === 'source' && (
+        {step === "source" && (
           <SourceTypeStep
             sourceType={sourceType}
             setSourceType={setSourceType}
           />
         )}
 
-        {step === 'config' && (
+        {step === "config" && (
           <ConfigurationStep
             sourceType={sourceType}
             urls={urls}
@@ -135,7 +137,7 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
           />
         )}
 
-        {step === 'review' && (
+        {step === "review" && (
           <ReviewStep
             name={name}
             kbId={kbId}
@@ -163,7 +165,7 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
         </button>
 
         <div className="flex gap-2">
-          {step !== 'basic' && (
+          {step !== "basic" && (
             <button
               onClick={handleBack}
               className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
@@ -173,7 +175,7 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
             </button>
           )}
 
-          {step !== 'review' ? (
+          {step !== "review" ? (
             <button
               onClick={handleNext}
               disabled={!canProceed() || loading}
@@ -187,7 +189,7 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
               disabled={loading}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Creating...' : 'Create KB'}
+              {loading ? "Creating..." : "Create KB"}
             </button>
           )}
         </div>

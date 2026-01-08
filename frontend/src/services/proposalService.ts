@@ -7,7 +7,7 @@ export const proposalApi = {
     projectId: string,
     onProgress: (stage: string, detail?: string) => void,
     onComplete: (proposal: string) => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
   ): EventSource {
     const url = `${API_BASE}/proposals/${projectId}/stream`;
     const eventSource = new EventSource(url);

@@ -66,7 +66,7 @@ export function useErrorHandler() {
 
       return errorMessage;
     },
-    [toast]
+    [toast],
   );
 
   return {

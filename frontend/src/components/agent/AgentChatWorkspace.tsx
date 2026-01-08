@@ -1,28 +1,29 @@
-import { useState } from 'react'
-import { useAgentHealth } from './hooks/useAgentHealth'
-import { useProjects } from './hooks/useProjects'
-import { useProjectState } from './hooks/useProjectState'
-import { useAgentChat } from './hooks/useAgentChat'
-import { WorkspaceHeader } from './WorkspaceHeader'
-import { ProjectSelector } from './ProjectSelector'
-import { AgentChatPanel } from './AgentChatPanel'
-import { ProjectStatePanel } from './ProjectStatePanel'
+import { useState } from "react";
+import { useAgentHealth } from "./hooks/useAgentHealth";
+import { useProjects } from "./hooks/useProjects";
+import { useProjectState } from "./hooks/useProjectState";
+import { useAgentChat } from "./hooks/useAgentChat";
+import { WorkspaceHeader } from "./WorkspaceHeader";
+import { ProjectSelector } from "./ProjectSelector";
+import { AgentChatPanel } from "./AgentChatPanel";
+import { ProjectStatePanel } from "./ProjectStatePanel";
 
 export function AgentChatWorkspace() {
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-  const [showReasoning, setShowReasoning] = useState(false)
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [showReasoning, setShowReasoning] = useState(false);
 
-  const { agentStatus } = useAgentHealth()
-  const { projects } = useProjects()
-  const { projectState, setProjectState } = useProjectState(selectedProjectId)
-  const { messages, input, isLoading, setInput, sendMessage, clearChat } = useAgentChat({
-    selectedProjectId,
-    onProjectStateUpdate: setProjectState
-  })
+  const { agentStatus } = useAgentHealth();
+  const { projects } = useProjects();
+  const { projectState, setProjectState } = useProjectState(selectedProjectId);
+  const { messages, input, isLoading, setInput, sendMessage, clearChat } =
+    useAgentChat({
+      selectedProjectId,
+      onProjectStateUpdate: setProjectState,
+    });
 
   const handleProjectChange = (projectId: string) => {
-    setSelectedProjectId(projectId)
-  }
+    setSelectedProjectId(projectId);
+  };
 
   return (
     <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -59,5 +60,5 @@ export function AgentChatWorkspace() {
         />
       </div>
     </div>
-  )
+  );
 }

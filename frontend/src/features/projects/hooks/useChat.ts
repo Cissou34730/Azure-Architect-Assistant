@@ -48,7 +48,7 @@ export const useChat = (projectId: string | null) => {
         setLoadingMessage("");
       }
     },
-    [projectId, fetchMessages]
+    [projectId, fetchMessages],
   );
 
   useEffect(() => {

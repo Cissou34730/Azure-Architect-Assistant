@@ -1,18 +1,22 @@
-import type { ProjectState } from '../../types/agent'
+import type { ProjectState } from "../../types/agent";
 
 interface ProjectStatePanelProps {
-  selectedProjectId: string
-  projectState: ProjectState | null
-  isLoading: boolean
+  selectedProjectId: string;
+  projectState: ProjectState | null;
+  isLoading: boolean;
 }
 
-export function ProjectStatePanel({ selectedProjectId, projectState, isLoading }: ProjectStatePanelProps) {
+export function ProjectStatePanel({
+  selectedProjectId,
+  projectState,
+  isLoading,
+}: ProjectStatePanelProps) {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[calc(100vh-260px)]">
       <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
         <h2 className="text-lg font-semibold text-gray-900">Project State</h2>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto p-4">
         {!selectedProjectId ? (
           <EmptyState />
@@ -25,7 +29,7 @@ export function ProjectStatePanel({ selectedProjectId, projectState, isLoading }
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function EmptyState() {
@@ -37,7 +41,7 @@ function EmptyState() {
         Select a project from the dropdown above to view its architecture state.
       </p>
     </div>
-  )
+  );
 }
 
 function LoadingState() {
@@ -49,7 +53,7 @@ function LoadingState() {
         Please wait while we fetch the project information.
       </p>
     </div>
-  )
+  );
 }
 
 function ProjectStateContent({ projectState }: { projectState: ProjectState }) {
@@ -60,26 +64,33 @@ function ProjectStateContent({ projectState }: { projectState: ProjectState }) {
         <StateSection icon="📝" title="Context">
           {projectState.context.summary && (
             <StateField label="Summary">
-              <p className="text-gray-600 mt-1">{projectState.context.summary}</p>
+              <p className="text-gray-600 mt-1">
+                {projectState.context.summary}
+              </p>
             </StateField>
           )}
-          {projectState.context.objectives && projectState.context.objectives.length > 0 && (
-            <StateField label="Objectives">
-              <ul className="list-disc list-inside text-gray-600 mt-1">
-                {projectState.context.objectives.map((obj, i) => (
-                  <li key={i}>{obj}</li>
-                ))}
-              </ul>
-            </StateField>
-          )}
+          {projectState.context.objectives &&
+            projectState.context.objectives.length > 0 && (
+              <StateField label="Objectives">
+                <ul className="list-disc list-inside text-gray-600 mt-1">
+                  {projectState.context.objectives.map((obj, i) => (
+                    <li key={i}>{obj}</li>
+                  ))}
+                </ul>
+              </StateField>
+            )}
           {projectState.context.targetUsers && (
             <StateField label="Target Users">
-              <p className="text-gray-600 mt-1">{projectState.context.targetUsers}</p>
+              <p className="text-gray-600 mt-1">
+                {projectState.context.targetUsers}
+              </p>
             </StateField>
           )}
           {projectState.context.scenarioType && (
             <StateField label="Scenario">
-              <p className="text-gray-600 mt-1">{projectState.context.scenarioType}</p>
+              <p className="text-gray-600 mt-1">
+                {projectState.context.scenarioType}
+              </p>
             </StateField>
           )}
         </StateSection>
@@ -90,7 +101,9 @@ function ProjectStateContent({ projectState }: { projectState: ProjectState }) {
         <StateSection icon="🎯" title="Non-Functional Requirements">
           {projectState.nfrs.availability && (
             <StateField label="Availability">
-              <p className="text-gray-600 mt-1">{projectState.nfrs.availability}</p>
+              <p className="text-gray-600 mt-1">
+                {projectState.nfrs.availability}
+              </p>
             </StateField>
           )}
           {projectState.nfrs.security && (
@@ -100,12 +113,16 @@ function ProjectStateContent({ projectState }: { projectState: ProjectState }) {
           )}
           {projectState.nfrs.performance && (
             <StateField label="Performance">
-              <p className="text-gray-600 mt-1">{projectState.nfrs.performance}</p>
+              <p className="text-gray-600 mt-1">
+                {projectState.nfrs.performance}
+              </p>
             </StateField>
           )}
           {projectState.nfrs.costConstraints && (
             <StateField label="Cost">
-              <p className="text-gray-600 mt-1">{projectState.nfrs.costConstraints}</p>
+              <p className="text-gray-600 mt-1">
+                {projectState.nfrs.costConstraints}
+              </p>
             </StateField>
           )}
         </StateSection>
@@ -114,22 +131,29 @@ function ProjectStateContent({ projectState }: { projectState: ProjectState }) {
       {/* Application Structure */}
       {projectState.applicationStructure && (
         <StateSection icon="🏗️" title="Application Structure">
-          {projectState.applicationStructure.components && projectState.applicationStructure.components.length > 0 && (
-            <StateField label="Components">
-              <ul className="space-y-1 mt-1">
-                {projectState.applicationStructure.components.map((comp, i) => (
-                  <li key={i} className="text-gray-600">
-                    <span className="font-medium">{comp.name}:</span> {comp.description}
-                  </li>
-                ))}
-              </ul>
-            </StateField>
-          )}
-          {projectState.applicationStructure.integrations && projectState.applicationStructure.integrations.length > 0 && (
-            <StateField label="Integrations">
-              <p className="text-gray-600 mt-1">{projectState.applicationStructure.integrations.join(', ')}</p>
-            </StateField>
-          )}
+          {projectState.applicationStructure.components &&
+            projectState.applicationStructure.components.length > 0 && (
+              <StateField label="Components">
+                <ul className="space-y-1 mt-1">
+                  {projectState.applicationStructure.components.map(
+                    (comp, i) => (
+                      <li key={i} className="text-gray-600">
+                        <span className="font-medium">{comp.name}:</span>{" "}
+                        {comp.description}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </StateField>
+            )}
+          {projectState.applicationStructure.integrations &&
+            projectState.applicationStructure.integrations.length > 0 && (
+              <StateField label="Integrations">
+                <p className="text-gray-600 mt-1">
+                  {projectState.applicationStructure.integrations.join(", ")}
+                </p>
+              </StateField>
+            )}
         </StateSection>
       )}
 
@@ -153,10 +177,18 @@ function ProjectStateContent({ projectState }: { projectState: ProjectState }) {
         </div>
       )}
     </div>
-  )
+  );
 }
 
-function StateSection({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
+function StateSection({
+  icon,
+  title,
+  children,
+}: {
+  icon: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
       <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
@@ -166,14 +198,20 @@ function StateSection({ icon, title, children }: { icon: string; title: string; 
         {children}
       </div>
     </div>
-  )
+  );
 }
 
-function StateField({ label, children }: { label: string; children: React.ReactNode }) {
+function StateField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
       <span className="font-medium text-gray-700">{label}:</span>
       {children}
     </div>
-  )
+  );
 }

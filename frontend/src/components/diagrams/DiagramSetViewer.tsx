@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import MermaidRenderer from './MermaidRenderer';
-import { diagramApi } from '../../services/apiService';
+import { useState, useEffect } from "react";
+import MermaidRenderer from "./MermaidRenderer";
+import { diagramApi } from "../../services/apiService";
 
 interface DiagramSetViewerProps {
   diagramSetId: string;
@@ -26,16 +26,16 @@ interface DiagramSetResponse {
 
 /**
  * DiagramSetViewer Component
- * 
+ *
  * Displays multiple diagrams from a diagram set side-by-side for comparison.
  * Shows functional flow, C4 Context, and C4 Container diagrams.
- * 
+ *
  * Features:
  * - Responsive grid layout (1 column mobile, 2 columns tablet, 3 columns desktop)
  * - Individual MermaidRenderer for each diagram type
  * - Diagram type labels
  * - TailwindCSS v4 styling
- * 
+ *
  * @param diagramSetId - ID of the diagram set to display
  */
 export function DiagramSetViewer({ diagramSetId }: DiagramSetViewerProps) {
@@ -49,12 +49,14 @@ export function DiagramSetViewer({ diagramSetId }: DiagramSetViewerProps) {
         setLoading(true);
         setError(null);
 
-        const data: DiagramSetResponse = await diagramApi.getDiagramSet(diagramSetId);
+        const data: DiagramSetResponse =
+          await diagramApi.getDiagramSet(diagramSetId);
         setDiagramSet(data);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        const errorMessage =
+          err instanceof Error ? err.message : "Unknown error occurred";
         setError(errorMessage);
-        console.error('Error fetching diagram set:', err);
+        console.error("Error fetching diagram set:", err);
       } finally {
         setLoading(false);
       }
@@ -67,7 +69,9 @@ export function DiagramSetViewer({ diagramSetId }: DiagramSetViewerProps) {
     return (
       <div className="flex items-center justify-center p-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-        <span className="ml-4 text-gray-600 text-lg">Loading diagram set...</span>
+        <span className="ml-4 text-gray-600 text-lg">
+          Loading diagram set...
+        </span>
       </div>
     );
   }
@@ -76,7 +80,11 @@ export function DiagramSetViewer({ diagramSetId }: DiagramSetViewerProps) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-6 m-6">
         <div className="flex items-center">
-          <svg className="h-6 w-6 text-red-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+          <svg
+            className="h-6 w-6 text-red-500 mr-3"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
             <path
               fillRule="evenodd"
               d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -84,7 +92,9 @@ export function DiagramSetViewer({ diagramSetId }: DiagramSetViewerProps) {
             />
           </svg>
           <div>
-            <h3 className="text-red-800 font-semibold text-lg">Error Loading Diagram Set</h3>
+            <h3 className="text-red-800 font-semibold text-lg">
+              Error Loading Diagram Set
+            </h3>
             <p className="text-red-700 text-sm mt-1">{error}</p>
           </div>
         </div>
@@ -98,37 +108,50 @@ export function DiagramSetViewer({ diagramSetId }: DiagramSetViewerProps) {
 
   // Map diagram types to display names
   const diagramTypeLabels: Record<string, string> = {
-    mermaid_functional: 'Functional Flow',
-    c4_context: 'C4 Context (System Boundaries)',
-    c4_container: 'C4 Container (Application Architecture)',
+    mermaid_functional: "Functional Flow",
+    c4_context: "C4 Context (System Boundaries)",
+    c4_container: "C4 Container (Application Architecture)",
   };
 
   // Get available diagram types from the diagram set
-  const availableDiagrams = diagramSet.diagrams.map(d => d.diagram_type);
+  const availableDiagrams = diagramSet.diagrams.map((d) => d.diagram_type);
 
   return (
     <div className="space-y-8 p-6">
       {/* Header */}
       <div className="border-b border-gray-200 pb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Architecture Diagrams</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Architecture Diagrams
+        </h1>
         <div className="flex items-center gap-4 text-sm text-gray-600">
           <span>Diagram Set ID: {diagramSet.id}</span>
           {diagramSet.adr_id && <span>ADR: {diagramSet.adr_id}</span>}
-          <span>Created: {new Date(diagramSet.created_at).toLocaleDateString()}</span>
-          <span className="font-medium text-blue-600">{availableDiagrams.length} diagrams</span>
+          <span>
+            Created: {new Date(diagramSet.created_at).toLocaleDateString()}
+          </span>
+          <span className="font-medium text-blue-600">
+            {availableDiagrams.length} diagrams
+          </span>
         </div>
       </div>
 
       {/* Input Description */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-3">Input Description</h2>
-        <p className="text-gray-700 whitespace-pre-wrap">{diagramSet.input_description}</p>
+        <h2 className="text-xl font-semibold text-gray-900 mb-3">
+          Input Description
+        </h2>
+        <p className="text-gray-700 whitespace-pre-wrap">
+          {diagramSet.input_description}
+        </p>
       </div>
 
       {/* Diagrams Grid - Responsive: 1 col mobile, 2 cols tablet, 3 cols desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {availableDiagrams.map((diagramType) => (
-          <div key={diagramType} className="border border-gray-300 rounded-lg bg-white shadow-sm">
+          <div
+            key={diagramType}
+            className="border border-gray-300 rounded-lg bg-white shadow-sm"
+          >
             {/* Diagram Type Label */}
             <div className="bg-linear-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
               <h3 className="text-lg font-semibold">
@@ -140,7 +163,10 @@ export function DiagramSetViewer({ diagramSetId }: DiagramSetViewerProps) {
             <div className="p-4">
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 {/* Render individual diagram using existing MermaidRenderer */}
-                <DiagramCard diagramSetId={diagramSetId} diagramType={diagramType} />
+                <DiagramCard
+                  diagramSetId={diagramSetId}
+                  diagramType={diagramType}
+                />
               </div>
             </div>
           </div>
@@ -158,7 +184,7 @@ export function DiagramSetViewer({ diagramSetId }: DiagramSetViewerProps) {
               <div
                 key={ambiguity.id}
                 className={`bg-white border rounded-lg p-4 ${
-                  ambiguity.resolved ? 'border-green-300' : 'border-yellow-300'
+                  ambiguity.resolved ? "border-green-300" : "border-yellow-300"
                 }`}
               >
                 <div className="flex items-start justify-between">
@@ -173,10 +199,13 @@ export function DiagramSetViewer({ diagramSetId }: DiagramSetViewerProps) {
                         </span>
                       )}
                     </div>
-                    <p className="text-gray-800 mb-2 font-medium">{ambiguity.ambiguous_text}</p>
+                    <p className="text-gray-800 mb-2 font-medium">
+                      {ambiguity.ambiguous_text}
+                    </p>
                     {ambiguity.suggested_clarification && (
                       <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded border border-blue-200">
-                        <strong>Suggested:</strong> {ambiguity.suggested_clarification}
+                        <strong>Suggested:</strong>{" "}
+                        {ambiguity.suggested_clarification}
                       </p>
                     )}
                   </div>
@@ -192,7 +221,7 @@ export function DiagramSetViewer({ diagramSetId }: DiagramSetViewerProps) {
 
 /**
  * DiagramCard Component
- * 
+ *
  * Wrapper component to render a single diagram with minimal chrome.
  * Used internally by DiagramSetViewer for grid layout.
  */
@@ -209,11 +238,14 @@ function DiagramCard({ diagramSetId, diagramType }: DiagramCardProps) {
     const fetchDiagram = async () => {
       try {
         setLoading(true);
-        const data: DiagramSetResponse = await diagramApi.getDiagramSet(diagramSetId);
-        const foundDiagram = data.diagrams.find(d => d.diagram_type === diagramType);
+        const data: DiagramSetResponse =
+          await diagramApi.getDiagramSet(diagramSetId);
+        const foundDiagram = data.diagrams.find(
+          (d) => d.diagram_type === diagramType,
+        );
         setDiagram(foundDiagram || null);
       } catch (err) {
-        console.error('Error fetching diagram:', err);
+        console.error("Error fetching diagram:", err);
       } finally {
         setLoading(false);
       }

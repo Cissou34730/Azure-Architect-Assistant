@@ -7,7 +7,7 @@ export class ServiceError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
-    public readonly detail?: string
+    public readonly detail?: string,
   ) {
     super(message);
     this.name = "ServiceError";
@@ -19,7 +19,7 @@ export class ServiceError extends Error {
  */
 export async function handleResponseError(
   response: Response,
-  operation: string
+  operation: string,
 ): Promise<never> {
   let errorMessage = `Failed to ${operation}`;
   let detail: string | undefined;
@@ -47,7 +47,7 @@ export async function handleResponseError(
 export async function fetchWithErrorHandling<T>(
   url: string,
   options: RequestInit,
-  operation: string
+  operation: string,
 ): Promise<T> {
   try {
     const response = await fetch(url, options);
@@ -67,7 +67,7 @@ export async function fetchWithErrorHandling<T>(
         error instanceof Error ? error.message : "Unknown error"
       }`,
       undefined,
-      error instanceof Error ? error.message : undefined
+      error instanceof Error ? error.message : undefined,
     );
   }
 }

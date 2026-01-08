@@ -1,7 +1,11 @@
 import { lazy } from "react";
 import { useProjectContext } from "../../context/ProjectContext";
 
-const ProposalPanel = lazy(() => import("../../components/ProposalPanel").then(m => ({ default: m.ProposalPanel })));
+const ProposalPanel = lazy(() =>
+  import("../../components/ProposalPanel").then((m) => ({
+    default: m.ProposalPanel,
+  })),
+);
 
 export function ProposalTabAdapter() {
   const {

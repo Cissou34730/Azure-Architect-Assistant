@@ -1,12 +1,18 @@
 interface Props {
-  question: string
-  isLoading: boolean
-  onQuestionChange: (value: string) => void
-  onSubmit: (e: React.FormEvent) => void
-  onRefresh: () => void
+  question: string;
+  isLoading: boolean;
+  onQuestionChange: (value: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onRefresh: () => void;
 }
 
-export function KBQueryForm({ question, isLoading, onQuestionChange, onSubmit, onRefresh }: Props) {
+export function KBQueryForm({
+  question,
+  isLoading,
+  onQuestionChange,
+  onSubmit,
+  onRefresh,
+}: Props) {
   return (
     <form onSubmit={onSubmit} className="mb-8">
       <div className="bg-white rounded-lg shadow-md p-6">
@@ -33,7 +39,7 @@ export function KBQueryForm({ question, isLoading, onQuestionChange, onSubmit, o
                 Searching...
               </>
             ) : (
-              'Search Knowledge Bases'
+              "Search Knowledge Bases"
             )}
           </button>
           <button
@@ -46,5 +52,5 @@ export function KBQueryForm({ question, isLoading, onQuestionChange, onSubmit, o
         </div>
       </div>
     </form>
-  )
+  );
 }

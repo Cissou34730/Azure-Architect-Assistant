@@ -3,10 +3,15 @@
  * Reusable button with consistent styling and accessibility
  */
 
-import { ButtonHTMLAttributes, ReactNode } from 'react';
+import { ButtonHTMLAttributes, ReactNode } from "react";
 
-export type ButtonVariant = 'primary' | 'success' | 'warning' | 'danger' | 'ghost';
-export type ButtonSize = 'sm' | 'md' | 'lg';
+export type ButtonVariant =
+  | "primary"
+  | "success"
+  | "warning"
+  | "danger"
+  | "ghost";
+export type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -17,37 +22,38 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'btn-primary',
-  success: 'btn-success',
-  warning: 'btn-warning',
-  danger: 'btn-danger',
-  ghost: 'text-gray-700 hover:bg-gray-100',
+  primary: "btn-primary",
+  success: "btn-success",
+  warning: "btn-warning",
+  danger: "btn-danger",
+  ghost: "text-gray-700 hover:bg-gray-100",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'text-sm',
-  md: 'text-base',
-  lg: 'text-lg px-6 py-3',
+  sm: "text-sm",
+  md: "text-base",
+  lg: "text-lg px-6 py-3",
 };
 
 export function Button({
-  variant = 'primary',
-  size = 'md',
+  variant = "primary",
+  size = "md",
   children,
   isLoading = false,
   icon,
   disabled,
-  className = '',
+  className = "",
   ...props
 }: ButtonProps) {
-  const baseClasses = 'inline-flex items-center justify-center gap-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseClasses =
+    "inline-flex items-center justify-center gap-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed";
   const classes = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
 
   return (
     <button
       className={classes}
       disabled={disabled || isLoading}
-      aria-busy={isLoading ? 'true' : 'false'}
+      aria-busy={isLoading ? "true" : "false"}
       {...props}
     >
       {isLoading ? (

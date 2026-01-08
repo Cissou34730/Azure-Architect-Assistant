@@ -1,7 +1,9 @@
 import { lazy } from "react";
 import { useProjectContext } from "../../context/ProjectContext";
 
-const ChatPanel = lazy(() => import("../../components/ChatPanel").then(m => ({ default: m.ChatPanel })));
+const ChatPanel = lazy(() =>
+  import("../../components/ChatPanel").then((m) => ({ default: m.ChatPanel })),
+);
 
 export function ChatTabAdapter() {
   const {

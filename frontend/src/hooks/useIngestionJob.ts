@@ -25,7 +25,7 @@ interface UseIngestionJobReturn {
  */
 export function useIngestionJob(
   kbId: string | null,
-  options: UseIngestionJobOptions = {}
+  options: UseIngestionJobOptions = {},
 ): UseIngestionJobReturn {
   const DEFAULT_ACTIVE_POLL_MS = 5000;
   const IDLE_POLL_INTERVAL = 10000; // 10s health-check when idle

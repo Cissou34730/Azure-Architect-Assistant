@@ -20,8 +20,12 @@ export default function ProjectDetailPage() {
   if (!selectedProject) {
     return (
       <div className="container mx-auto p-6 text-center">
-        <h2 className="text-xl font-semibold text-gray-800">Project not found</h2>
-        <p className="text-gray-600 mt-2">The requested project could not be found.</p>
+        <h2 className="text-xl font-semibold text-gray-800">
+          Project not found
+        </h2>
+        <p className="text-gray-600 mt-2">
+          The requested project could not be found.
+        </p>
       </div>
     );
   }
@@ -32,8 +36,12 @@ export default function ProjectDetailPage() {
     <ProjectProvider value={projectDetails}>
       <div className="container mx-auto p-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">{selectedProject.name}</h1>
-          <p className="text-sm text-gray-500">Project ID: {selectedProject.id}</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {selectedProject.name}
+          </h1>
+          <p className="text-sm text-gray-500">
+            Project ID: {selectedProject.id}
+          </p>
         </div>
 
         <div className="bg-white rounded-lg shadow">
@@ -54,4 +62,3 @@ export default function ProjectDetailPage() {
     </ProjectProvider>
   );
 }
-

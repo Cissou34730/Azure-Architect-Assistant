@@ -6,5 +6,5 @@ export function KBLoadingScreen() {
         <p className="text-gray-600">Checking knowledge base status...</p>
       </div>
     </div>
-  )
+  );
 }

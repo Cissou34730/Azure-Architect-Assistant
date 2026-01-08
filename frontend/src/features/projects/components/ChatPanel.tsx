@@ -1,5 +1,5 @@
-import { Message } from '../../../services/apiService';
-import { LoadingSpinner } from '../../../components/common';
+import { Message } from "../../../services/apiService";
+import { LoadingSpinner } from "../../../components/common";
 
 interface ChatPanelProps {
   messages: Message[];
@@ -21,57 +21,68 @@ export function ChatPanel({
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Clarification Chat</h2>
-      
+
       {loading && loadingMessage && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md flex items-center gap-2">
           <LoadingSpinner size="sm" />
           <span className="text-sm text-blue-800">{loadingMessage}</span>
         </div>
       )}
-      
+
       <div className="h-96 overflow-y-auto border border-gray-200 rounded-md p-4 mb-4">
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={`mb-4 ${
-              msg.role === 'user' ? 'text-right' : 'text-left'
+              msg.role === "user" ? "text-right" : "text-left"
             }`}
           >
             <div
               className={`inline-block max-w-[80%] p-3 rounded-lg ${
-                msg.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-800'
+                msg.role === "user"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200 text-gray-800"
               }`}
             >
               <div className="text-xs mb-1 opacity-75">
-                {msg.role === 'user' ? 'You' : 'Assistant'}
+                {msg.role === "user" ? "You" : "Assistant"}
               </div>
               <div className="whitespace-pre-wrap">{msg.content}</div>
-              {msg.role === 'assistant' && msg.kbSources && msg.kbSources.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-300">
-                  <div className="text-xs font-semibold mb-2">Sources:</div>
-                  <div className="space-y-1">
-                    {msg.kbSources.map((source: { url: string; title: string; section: string }, idx: number) => (
-                      <div key={idx} className="text-xs">
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {source.title} ({source.section})
-                        </a>
-                      </div>
-                    ))}
+              {msg.role === "assistant" &&
+                msg.kbSources &&
+                msg.kbSources.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-300">
+                    <div className="text-xs font-semibold mb-2">Sources:</div>
+                    <div className="space-y-1">
+                      {msg.kbSources.map(
+                        (
+                          source: {
+                            url: string;
+                            title: string;
+                            section: string;
+                          },
+                          idx: number,
+                        ) => (
+                          <div key={idx} className="text-xs">
+                            <a
+                              href={source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              {source.title} ({source.section})
+                            </a>
+                          </div>
+                        ),
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           </div>
         ))}
       </div>
-      
+
       <form onSubmit={onSendMessage} className="flex gap-2">
         <input
           type="text"
@@ -88,13 +99,31 @@ export function ChatPanel({
         >
           {loading ? (
             <>
-              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                className="animate-spin h-4 w-4"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               <span>Sending...</span>
             </>
-          ) : 'Send'}
+          ) : (
+            "Send"
+          )}
         </button>
       </form>
     </div>

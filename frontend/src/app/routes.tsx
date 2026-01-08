@@ -3,11 +3,25 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "./Layout";
 import { getTabs } from "../features/projects/tabs";
 
-const ProjectsPage = lazy(() => import("../features/projects/pages/ProjectsPage"));
-const ProjectDetailPage = lazy(() => import("../features/projects/pages/ProjectDetailPage"));
-const KBWorkspace = lazy(() => import("../components/kb").then(m => ({ default: m.KBWorkspace })));
-const IngestionWorkspace = lazy(() => import("../components/ingestion/IngestionWorkspace").then(m => ({ default: m.IngestionWorkspace })));
-const AgentChatWorkspace = lazy(() => import("../components/agent").then(m => ({ default: m.AgentChatWorkspace })));
+const ProjectsPage = lazy(
+  () => import("../features/projects/pages/ProjectsPage"),
+);
+const ProjectDetailPage = lazy(
+  () => import("../features/projects/pages/ProjectDetailPage"),
+);
+const KBWorkspace = lazy(() =>
+  import("../components/kb").then((m) => ({ default: m.KBWorkspace })),
+);
+const IngestionWorkspace = lazy(() =>
+  import("../components/ingestion/IngestionWorkspace").then((m) => ({
+    default: m.IngestionWorkspace,
+  })),
+);
+const AgentChatWorkspace = lazy(() =>
+  import("../components/agent").then((m) => ({
+    default: m.AgentChatWorkspace,
+  })),
+);
 
 export const router = createBrowserRouter([
   {
