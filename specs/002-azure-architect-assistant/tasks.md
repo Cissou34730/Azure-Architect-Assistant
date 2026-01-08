@@ -61,7 +61,7 @@ description: "Task list for Azure Architect Assistant (AAA)"
 - [x] T014 [US1] Extend analyze-docs output to include business/functional/NFR requirements + ambiguity markers in backend/app/routers/project_management/services/document_service.py
 - [x] T015 [US1] Generate prioritized clarification questions from gaps/ambiguities (FR-006) in backend/app/routers/project_management/services/document_service.py
 - [x] T016 [US1] Generate/store initial C4 Level 1 diagram link in ProjectState via existing diagram flow in backend/app/routers/project_management/project_router.py
-- [ ] T017 [P] [US1] Build minimal AAA UI shell with upload/analyze and requirements review in frontend/src/features/aaa/
+- [x] T017 [P] [US1] Build minimal AAA UI shell with upload/analyze and requirements review in frontend/src/features/aaa/
 
 - [x] T044 [US1] Implement PDF text extraction and diagnostics (FR-001) in backend/app/routers/project_management/services/document_service.py
 - [x] T045 [US1] Implement XLS/XLSX text extraction and diagnostics (FR-001) in backend/app/routers/project_management/services/document_service.py
