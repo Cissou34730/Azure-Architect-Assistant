@@ -1,7 +1,8 @@
+import json
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -126,7 +127,13 @@ class DocumentService:
         )
         documents = result.scalars().all()
 
-        document_texts = [doc.raw_text for doc in documents if (doc.raw_text or "").strip()]
+        # Provide source anchors (documentId/fileName) to the LLM so it can produce
+        # meaningful requirement sources.
+        document_texts = [
+            f"DocumentId: {doc.id}\nFileName: {doc.file_name}\n---\n{doc.raw_text}"
+            for doc in documents
+            if (doc.raw_text or "").strip()
+        ]
         if project.text_requirements:
             document_texts.append(project.text_requirements)
 
@@ -140,6 +147,9 @@ class DocumentService:
 
         llm_service = get_llm_service()
         state_data = await llm_service.analyze_documents(document_texts)
+
+        # Normalize AAA artifacts: add stable IDs and map question->requirement links.
+        _normalize_aaa_requirements_and_questions(state_data)
 
         # Always include ingestion stats (SC-004)
         failures = []
@@ -208,6 +218,123 @@ class DocumentService:
             )
 
         state = json.loads(state_record.state)
+        from app.services.llm_service import get_llm_service
+
         llm_service = get_llm_service()
         proposal = await llm_service.generate_architecture_proposal(state, on_progress)
         return proposal
+
+
+def _normalize_aaa_requirements_and_questions(state_data: Dict[str, Any]) -> None:
+    """Ensure AAA requirements/questions exist and have stable IDs.
+
+    This keeps the state aligned to the AAA data model (specs/002-azure-architect-assistant/data-model.md)
+    without relying on the LLM to generate UUIDs.
+    """
+
+    requirements: List[Dict[str, Any]] = []
+    for item in state_data.get("requirements", []) or []:
+        if not isinstance(item, dict):
+            continue
+
+        category = (item.get("category") or "").strip().lower()
+        if category not in {"business", "functional", "nfr"}:
+            # Best-effort classification fallback
+            category = "functional" if category else "functional"
+
+        text = (item.get("text") or "").strip()
+        if not text:
+            continue
+
+        ambiguity = item.get("ambiguity") if isinstance(item.get("ambiguity"), dict) else {}
+        is_ambiguous = bool(ambiguity.get("isAmbiguous", False))
+        notes = (ambiguity.get("notes") or "").strip() if is_ambiguous else (ambiguity.get("notes") or "").strip()
+
+        sources = item.get("sources") if isinstance(item.get("sources"), list) else []
+        normalized_sources: List[Dict[str, Any]] = []
+        for s in sources:
+            if not isinstance(s, dict):
+                continue
+            normalized_sources.append(
+                {
+                    "documentId": (s.get("documentId") or None),
+                    "fileName": (s.get("fileName") or None),
+                    "excerpt": (s.get("excerpt") or None),
+                }
+            )
+
+        requirements.append(
+            {
+                "id": item.get("id") or str(uuid.uuid4()),
+                "category": category,
+                "text": text,
+                "ambiguity": {"isAmbiguous": is_ambiguous, "notes": notes} if (is_ambiguous or notes) else {"isAmbiguous": False},
+                "sources": normalized_sources,
+            }
+        )
+
+    # Preserve existing requirements if already present (do not overwrite manually edited state)
+    if "requirements" not in state_data or not state_data.get("requirements"):
+        state_data["requirements"] = requirements
+    else:
+        # Ensure ids exist for any existing items
+        existing_reqs = state_data.get("requirements") or []
+        if isinstance(existing_reqs, list):
+            for r in existing_reqs:
+                if isinstance(r, dict) and not r.get("id"):
+                    r["id"] = str(uuid.uuid4())
+
+    # Build id mapping for question linkage
+    req_list: List[Dict[str, Any]] = state_data.get("requirements") or []
+    req_ids_by_index: Dict[int, str] = {}
+    for idx, r in enumerate(req_list):
+        if isinstance(r, dict) and isinstance(r.get("id"), str):
+            req_ids_by_index[idx] = r["id"]
+
+    clarification_questions: List[Dict[str, Any]] = []
+    for q in state_data.get("clarificationQuestions", []) or []:
+        if not isinstance(q, dict):
+            continue
+
+        question_text = (q.get("question") or "").strip()
+        if not question_text:
+            continue
+
+        related_indexes = q.get("relatedRequirementIndexes")
+        related_requirement_ids: List[str] = []
+        if isinstance(related_indexes, list):
+            for idx in related_indexes:
+                if isinstance(idx, int) and idx in req_ids_by_index:
+                    related_requirement_ids.append(req_ids_by_index[idx])
+
+        clarification_questions.append(
+            {
+                "id": q.get("id") or str(uuid.uuid4()),
+                "question": question_text,
+                "status": q.get("status") or "open",
+                "priority": q.get("priority"),
+                "relatedRequirementIds": related_requirement_ids,
+            }
+        )
+
+    # If LLM returned none, fall back to openQuestions list (legacy field)
+    if not clarification_questions:
+        for oq in state_data.get("openQuestions", []) or []:
+            if isinstance(oq, str) and oq.strip():
+                clarification_questions.append(
+                    {
+                        "id": str(uuid.uuid4()),
+                        "question": oq.strip(),
+                        "status": "open",
+                        "relatedRequirementIds": [],
+                    }
+                )
+
+    if "clarificationQuestions" not in state_data or not state_data.get("clarificationQuestions"):
+        state_data["clarificationQuestions"] = clarification_questions
+    else:
+        existing_qs = state_data.get("clarificationQuestions") or []
+        if isinstance(existing_qs, list):
+            for qq in existing_qs:
+                if isinstance(qq, dict) and not qq.get("id"):
+                    qq["id"] = str(uuid.uuid4())
