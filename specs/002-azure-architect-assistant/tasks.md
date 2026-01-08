@@ -97,12 +97,12 @@ description: "Task list for Azure Architect Assistant (AAA)"
 
 ### Implementation for User Story 7
 
-- [ ] T022 [US7] Enforce per-iteration source logging (reference docs + MCP queries) in backend/app/agents_system/tools/mcp_tool.py
-- [ ] T023 [US7] Add uncovered mind map topic prompting in backend/app/agents_system/orchestrator/orchestrator.py
-- [ ] T024 [US7] Implement conflict surfacing payloads + handling strategy in backend/app/agents_system/agents/router.py
-- [ ] T055 [US7] Persist SC-010 iteration events (propose/challenge + citations + architect response link) into ProjectState.iterationEvents in backend/app/agents_system/orchestrator/orchestrator.py
-- [ ] T025 [US7] Record failed/empty MCP lookups and request clarification in backend/app/agents_system/tools/mcp_tool.py
-- [ ] T026 [P] [US7] Render iteration timeline (reasoning steps + citations) in frontend/src/features/aaa/
+- [x] T022 [US7] Enforce per-iteration source logging (reference docs + MCP queries) in backend/app/agents_system/tools/mcp_tool.py
+- [x] T023 [US7] Add uncovered mind map topic prompting in backend/app/agents_system/agents/router.py
+- [x] T024 [US7] Implement conflict surfacing payloads + handling strategy in backend/app/agents_system/agents/router.py
+- [x] T055 [US7] Persist SC-010 iteration events (propose/challenge + citations + architect response link) into ProjectState.iterationEvents in backend/app/agents_system/agents/router.py
+- [x] T025 [US7] Record failed/empty MCP lookups and request clarification in backend/app/agents_system/agents/router.py
+- [x] T026 [P] [US7] Render iteration timeline (reasoning steps + citations) in frontend/src/features/aaa/
 
 - [ ] T048 [US7] When sources conflict (FR-018), present options + tradeoffs + citations and require explicit architect choice before persisting a final selection in backend/app/agents_system/orchestrator/orchestrator.py
 

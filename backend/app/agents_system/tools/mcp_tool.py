@@ -3,6 +3,8 @@ MCP tool for agent system.
 Provides agents with access to MCP operations and external tool execution.
 """
 
+import json
+
 from typing import Optional, Type
 from pydantic import BaseModel, Field
 from langchain.tools import BaseTool
@@ -13,6 +15,16 @@ from ...services.mcp.operations.learn_operations import (
     fetch_documentation,
     search_code_samples,
 )
+
+
+def _append_mcp_log(*, tool: str, query: Optional[str] = None, url: Optional[str] = None, urls: Optional[list[str]] = None) -> str:
+    payload = {
+        "tool": tool,
+        "query": query,
+        "url": url,
+        "urls": urls or [],
+    }
+    return "\n\nAAA_MCP_LOG\n```json\n" + json.dumps(payload, ensure_ascii=False) + "\n```"
 
 
 class DocsSearchInput(BaseModel):
@@ -73,19 +85,28 @@ class MicrosoftDocsSearchTool(BaseTool):
 
             # Format results for agent consumption
             formatted_results = []
+            urls: list[str] = []
             for idx, doc in enumerate(result["results"], 1):
+                url = doc.get("contentUrl", "N/A")
+                if isinstance(url, str) and url.startswith("http"):
+                    urls.append(url)
                 formatted_results.append(
                     f"{idx}. **{doc.get('title', 'No title')}**\n"
-                    f"   URL: {doc.get('contentUrl', 'N/A')}\n"
+                    f"   URL: {url}\n"
                     f"   {doc.get('content', 'No content')[:200]}...\n"
                 )
 
             return (
                 f"Found {result['total_results']} results for '{query}':\n\n"
                 + "\n".join(formatted_results)
+                + _append_mcp_log(tool=self.name, query=query, urls=urls)
             )
         except Exception as e:
-            return f"Error searching Microsoft docs: {str(e)}"
+            return f"Error searching Microsoft docs: {str(e)}" + _append_mcp_log(
+                tool=self.name,
+                query=query,
+                urls=[],
+            )
 
 
 class MicrosoftDocsFetchTool(BaseTool):
@@ -118,9 +139,14 @@ class MicrosoftDocsFetchTool(BaseTool):
                 f"**Documentation from:** {result['url']}\n"
                 f"**Length:** {result['length']} characters\n\n"
                 f"{result['content']}"
+                + _append_mcp_log(tool=self.name, url=url, urls=[url])
             )
         except Exception as e:
-            return f"Error fetching documentation from {url}: {str(e)}"
+            return f"Error fetching documentation from {url}: {str(e)}" + _append_mcp_log(
+                tool=self.name,
+                url=url,
+                urls=[url],
+            )
 
 
 class MicrosoftCodeSamplesTool(BaseTool):
@@ -158,11 +184,15 @@ class MicrosoftCodeSamplesTool(BaseTool):
 
             # Format code samples for agent consumption
             formatted_samples = []
+            urls: list[str] = []
             for idx, sample in enumerate(result["samples"], 1):
+                link = sample.get("link", "N/A")
+                if isinstance(link, str) and link.startswith("http"):
+                    urls.append(link)
                 formatted_samples.append(
                     f"{idx}. **{sample.get('description', 'No description')}**\n"
                     f"   Language: {sample.get('language', 'N/A')}\n"
-                    f"   Link: {sample.get('link', 'N/A')}\n"
+                    f"   Link: {link}\n"
                     f"   ```{sample.get('language', '')}\n"
                     f"   {sample.get('codeSnippet', 'No code snippet')}\n"
                     f"   ```\n"
@@ -172,9 +202,14 @@ class MicrosoftCodeSamplesTool(BaseTool):
             return (
                 f"Found {result['total_samples']} code samples for '{query}'{lang_filter}:\n\n"
                 + "\n".join(formatted_samples)
+                + _append_mcp_log(tool=self.name, query=query, urls=urls)
             )
         except Exception as e:
-            return f"Error searching code samples: {str(e)}"
+            return f"Error searching code samples: {str(e)}" + _append_mcp_log(
+                tool=self.name,
+                query=query,
+                urls=[],
+            )
 
 
 async def create_mcp_tools(mcp_client: MicrosoftLearnMCPClient) -> list[BaseTool]:

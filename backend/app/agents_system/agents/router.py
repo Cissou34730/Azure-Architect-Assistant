@@ -4,6 +4,7 @@ FastAPI router for agent chat endpoints and request handling.
 """
 
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, status, Depends
@@ -18,6 +19,11 @@ from ..services.project_context import (
     get_project_context_summary,
 )
 from ..services.state_update_parser import extract_state_updates
+from ..services.iteration_logging import (
+    derive_mcp_query_updates_from_steps,
+    build_iteration_event_update,
+    derive_uncovered_topic_questions,
+)
 from ...projects_database import get_db
 from ...models.project import ConversationMessage
 
@@ -214,6 +220,7 @@ async def chat_with_project_context(
 
         # Save user message to database
         user_message = ConversationMessage(
+            id=str(uuid.uuid4()),
             project_id=project_id,
             role="user",
             content=request.message,
@@ -223,6 +230,7 @@ async def chat_with_project_context(
 
         # Save agent response to database
         agent_message = ConversationMessage(
+            id=str(uuid.uuid4()),
             project_id=project_id,
             role="assistant",
             content=answer,
@@ -230,15 +238,97 @@ async def chat_with_project_context(
         )
         db.add(agent_message)
 
-        # Look for state update suggestions in the answer
+        # Derive per-iteration MCP query logging from tool calls.
+        derived_updates: Dict[str, Any] = derive_mcp_query_updates_from_steps(
+            intermediate_steps=result.get("intermediate_steps", []),
+            user_message=request.message,
+        )
+
+        # Look for state update suggestions in the answer.
         state_updates = extract_state_updates(answer, request.message, project_state)
 
-        if state_updates:
-            logger.info(f"Project {project_id}: Detected state updates, applying...")
+        # Combine structured/heuristic updates with derived logging updates.
+        combined_updates: Dict[str, Any] = {}
+        for src in [state_updates or {}, derived_updates or {}]:
+            for key, value in src.items():
+                if key not in combined_updates:
+                    combined_updates[key] = value
+                    continue
+                if isinstance(combined_updates[key], list) and isinstance(value, list):
+                    combined_updates[key] = [*combined_updates[key], *value]
+                elif isinstance(combined_updates[key], dict) and isinstance(value, dict):
+                    combined_updates[key] = {**combined_updates[key], **value}
+
+        # Add an iteration event (SC-010) with MCP citations.
+        mcp_query_ids = [q.get("id") for q in combined_updates.get("mcpQueries", []) if isinstance(q, dict) and q.get("id")]
+        kind = "challenge" if any(k in request.message.lower() for k in ["validate", "validation", "waf", "risk", "security benchmark"]) else "propose"
+        event_text = answer.strip()[:800]
+        iteration_update = build_iteration_event_update(
+            kind=kind,
+            text=event_text,
+            mcp_query_ids=[str(qid) for qid in mcp_query_ids if qid],
+            architect_response_message_id=agent_message.id,
+        )
+        for key, value in iteration_update.items():
+            if key not in combined_updates:
+                combined_updates[key] = value
+            elif isinstance(combined_updates[key], list) and isinstance(value, list):
+                combined_updates[key] = [*combined_updates[key], *value]
+
+        if combined_updates:
+            logger.info(f"Project {project_id}: Applying derived/parsed state updates...")
             try:
-                updated_state = await update_project_state(
-                    project_id, state_updates, db
-                )
+                updated_state = await update_project_state(project_id, combined_updates, db)
+
+                # Heuristic uncovered-topic prompts (until full coverage tracking exists).
+                uncovered_questions = derive_uncovered_topic_questions(updated_state)
+                if uncovered_questions:
+                    answer += "\n\nUncovered topics to confirm:\n" + "\n".join(
+                        [f"- {q}" for q in uncovered_questions]
+                    )
+                    try:
+                        await update_project_state(
+                            project_id,
+                            {"openQuestions": uncovered_questions},
+                            db,
+                        )
+                    except Exception as prompt_update_error:
+                        logger.warning(
+                            f"Project {project_id}: Failed to persist openQuestions: {prompt_update_error}"
+                        )
+
+                # Record and surface failed/empty MCP lookups (T025).
+                failed_mcp_queries: List[str] = []
+                for q in combined_updates.get("mcpQueries", []) if isinstance(combined_updates.get("mcpQueries"), list) else []:
+                    if not isinstance(q, dict):
+                        continue
+                    result_urls = q.get("resultUrls")
+                    if isinstance(result_urls, list) and len(result_urls) == 0:
+                        query_text = q.get("queryText")
+                        if isinstance(query_text, str) and query_text.strip():
+                            failed_mcp_queries.append(query_text.strip())
+
+                if failed_mcp_queries:
+                    deduped_failed: List[str] = []
+                    seen_failed: set[str] = set()
+                    for qt in failed_mcp_queries:
+                        if qt not in seen_failed:
+                            seen_failed.add(qt)
+                            deduped_failed.append(qt)
+
+                    answer += "\n\nMCP lookups returned no results — please clarify the exact term/service to search for:\n"
+                    for qt in deduped_failed[:3]:
+                        answer += f"- {qt}: what exact Azure service/feature name (or official doc topic) should I use?\n"
+
+                # Surface merge conflicts in the answer to enforce human confirmation.
+                conflicts = updated_state.get("conflicts") if isinstance(updated_state, dict) else None
+                if isinstance(conflicts, list) and conflicts:
+                    answer += "\n\nConflicts detected (no overwrite applied). Please confirm which value is correct for each path:\n"
+                    for c in conflicts[:5]:
+                        if not isinstance(c, dict):
+                            continue
+                        answer += f"- {c.get('path')}: kept existing value; incoming suggestion available\n"
+
                 logger.info(f"Project {project_id}: State updated successfully")
             except Exception as update_error:
                 logger.error(f"Failed to update state: {update_error}")

@@ -16,6 +16,14 @@ type ClarificationQuestion = {
   status?: string;
 };
 
+type IterationEvent = {
+  id?: string;
+  kind?: string;
+  text?: string;
+  citations?: Array<{ kind?: string; url?: string; note?: string }>;
+  createdAt?: string;
+};
+
 function Section({
   title,
   children,
@@ -48,6 +56,9 @@ export default function AaaWorkspace() {
     | ClarificationQuestion[]
     | undefined;
   const candidates = ((projectState as any)?.candidateArchitectures || []) as any[];
+  const iterationEvents = ((projectState as any)?.iterationEvents || []) as
+    | IterationEvent[]
+    | undefined;
 
   const groupedRequirements = useMemo(() => {
     const groups: Record<string, Requirement[]> = {
@@ -87,7 +98,10 @@ export default function AaaWorkspace() {
       <Section title="Upload & Analyze">
         <form onSubmit={handleUploadDocuments} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="file-input"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Documents
             </label>
             <input
@@ -262,6 +276,62 @@ export default function AaaWorkspace() {
               );
             })}
           </div>
+        )}
+      </Section>
+
+      <Section title="Iteration Timeline">
+        {!iterationEvents || iterationEvents.length === 0 ? (
+          <p className="text-gray-600">No iteration events yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {iterationEvents
+              .slice()
+              .sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
+              .map((ev) => {
+                const citations = Array.isArray(ev.citations) ? ev.citations : [];
+                return (
+                  <li
+                    key={ev.id || `${ev.kind}-${ev.createdAt}`}
+                    className="bg-white p-3 rounded-md border border-gray-200"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {String(ev.kind || "event")}
+                        </p>
+                        {ev.createdAt && (
+                          <p className="text-xs text-gray-500">{String(ev.createdAt)}</p>
+                        )}
+                      </div>
+                      {ev.id && (
+                        <span className="text-xs text-gray-500">{String(ev.id)}</span>
+                      )}
+                    </div>
+
+                    {ev.text && (
+                      <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
+                        {String(ev.text)}
+                      </p>
+                    )}
+
+                    {citations.length > 0 && (
+                      <div className="mt-3 text-xs text-gray-600">
+                        <p className="font-medium">Citations</p>
+                        <ul className="list-disc list-inside">
+                          {citations.map((s, idx) => (
+                            <li key={`${String(ev.id || ev.createdAt)}-cit-${idx}`}>
+                              {String(s?.kind || "source")}
+                              {s?.url ? ` — ${String(s.url)}` : ""}
+                              {s?.note ? ` (${String(s.note)})` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+          </ul>
         )}
       </Section>
     </div>

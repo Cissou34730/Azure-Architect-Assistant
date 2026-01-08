@@ -1,6 +1,8 @@
 import { fetchWithErrorHandling } from "../serviceError";
 
-const API_BASE = `${import.meta.env.BACKEND_URL || "http://localhost:8000"}/api`;
+const API_BASE = `${
+  import.meta.env.BACKEND_URL || "http://localhost:8000"
+}/api`;
 
 type ProjectState = Record<string, unknown>;
 
@@ -14,7 +16,7 @@ export const aaaProjectApi = {
     await fetchWithErrorHandling<{ documents: unknown[] }>(
       `${API_BASE}/projects/${projectId}/documents`,
       { method: "POST", body: formData },
-      "upload project documents",
+      "upload project documents"
     );
   },
 
@@ -22,7 +24,7 @@ export const aaaProjectApi = {
     const data = await fetchWithErrorHandling<{ projectState: ProjectState }>(
       `${API_BASE}/projects/${projectId}/analyze-docs`,
       { method: "POST" },
-      "analyze project documents",
+      "analyze project documents"
     );
 
     return data.projectState;
@@ -33,7 +35,7 @@ export const aaaProjectApi = {
       const data = await fetchWithErrorHandling<{ projectState: ProjectState }>(
         `${API_BASE}/projects/${projectId}/state`,
         { method: "GET" },
-        "fetch project state",
+        "fetch project state"
       );
 
       return data.projectState;

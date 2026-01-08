@@ -17,7 +17,9 @@ export function useProjectState(selectedProjectId: string) {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/projects/${selectedProjectId}/state`);
+      const response = await fetch(
+        `${API_BASE}/projects/${selectedProjectId}/state`
+      );
       const data = await response.json();
       setProjectState(data.projectState);
     } catch (error) {
