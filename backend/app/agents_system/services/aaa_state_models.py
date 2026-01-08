@@ -132,7 +132,34 @@ def ensure_aaa_defaults(state: Dict[str, Any]) -> Dict[str, Any]:
     updated.setdefault("clarificationQuestions", [])
     updated.setdefault("candidateArchitectures", [])
     updated.setdefault("adrs", [])
-    updated.setdefault("wafChecklist", {})
+    waf = updated.get("wafChecklist")
+    if not isinstance(waf, dict) or not waf:
+        updated["wafChecklist"] = {
+            "version": "1",
+            "pillars": [
+                "reliability",
+                "security",
+                "cost",
+                "operationalExcellence",
+                "performanceEfficiency",
+            ],
+            "items": [],
+        }
+    else:
+        # Ensure minimally expected keys exist for UX + future checklist updates.
+        waf.setdefault(
+            "pillars",
+            [
+                "reliability",
+                "security",
+                "cost",
+                "operationalExcellence",
+                "performanceEfficiency",
+            ],
+        )
+        waf.setdefault("items", [])
+        waf.setdefault("version", "1")
+        updated["wafChecklist"] = waf
     updated.setdefault("findings", [])
     updated.setdefault("diagrams", [])
     updated.setdefault("iacArtifacts", [])

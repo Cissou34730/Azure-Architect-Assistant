@@ -16,6 +16,7 @@ from langchain.tools import BaseTool
 from ..config.react_prompts import SYSTEM_PROMPT, REACT_TEMPLATE
 from ..tools.mcp_tool import create_mcp_tools
 from ..tools.kb_tool import create_kb_tools
+from ..tools.aaa_candidate_tool import create_aaa_tools
 from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,8 @@ class MCPReActAgent:
                 raise ValueError("MCP client required to build tools")
             mcp_tools = await create_mcp_tools(self.mcp_client)
             kb_tools = create_kb_tools()
-            self.tools = [*mcp_tools, *kb_tools]
+            aaa_tools = create_aaa_tools()
+            self.tools = [*mcp_tools, *kb_tools, *aaa_tools]
             logger.info(
                 f"Initialized {len(self.tools)} tools: {[t.name for t in self.tools]}"
             )

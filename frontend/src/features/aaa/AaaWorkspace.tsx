@@ -47,6 +47,7 @@ export default function AaaWorkspace() {
   const clarificationQuestions = (projectState as any)?.clarificationQuestions as
     | ClarificationQuestion[]
     | undefined;
+  const candidates = ((projectState as any)?.candidateArchitectures || []) as any[];
 
   const groupedRequirements = useMemo(() => {
     const groups: Record<string, Requirement[]> = {
@@ -210,6 +211,57 @@ export default function AaaWorkspace() {
                 </li>
               ))}
           </ul>
+        )}
+      </Section>
+      <Section title="Candidate Architectures">
+        {!Array.isArray(candidates) || candidates.length === 0 ? (
+          <p className="text-gray-600">
+            No candidates yet. Use the Agent chat to generate one.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {candidates.map((c) => {
+              const title = String(c?.title || "Untitled");
+              const summary = String(c?.summary || "");
+              const citations = Array.isArray(c?.sourceCitations)
+                ? (c.sourceCitations as any[])
+                : [];
+
+              return (
+                <div
+                  key={String(c?.id || title)}
+                  className="bg-white p-4 rounded-md border border-gray-200"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h4 className="font-semibold text-gray-900">{title}</h4>
+                    {c?.id && (
+                      <span className="text-xs text-gray-500">{String(c.id)}</span>
+                    )}
+                  </div>
+                  {summary && (
+                    <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">
+                      {summary}
+                    </p>
+                  )}
+
+                  {citations.length > 0 && (
+                    <div className="mt-3 text-xs text-gray-600">
+                      <p className="font-medium">Citations</p>
+                      <ul className="list-disc list-inside">
+                        {citations.map((s, idx) => (
+                          <li key={`${String(c?.id || title)}-cit-${idx}`}>
+                            {String(s?.kind || "source")}
+                            {s?.url ? ` — ${String(s.url)}` : ""}
+                            {s?.note ? ` (${String(s.note)})` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </Section>
     </div>

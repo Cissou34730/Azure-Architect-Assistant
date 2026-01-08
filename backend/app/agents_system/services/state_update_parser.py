@@ -2,9 +2,48 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
+
+
+_AAA_UPDATE_MARKER = "AAA_STATE_UPDATE"
+
+
+def _extract_json_code_block(text: str, *, marker: str) -> Optional[Dict[str, Any]]:
+    """Extract a JSON code block that appears after a marker line.
+
+    Expected format:
+      AAA_STATE_UPDATE
+      ```json
+      { ... }
+      ```
+    """
+    marker_index = text.find(marker)
+    if marker_index < 0:
+        return None
+
+    after = text[marker_index + len(marker) :]
+    fence_start = after.find("```json")
+    if fence_start < 0:
+        return None
+    after = after[fence_start + len("```json") :]
+
+    fence_end = after.find("```")
+    if fence_end < 0:
+        return None
+
+    json_text = after[:fence_end].strip()
+    if not json_text:
+        return None
+
+    try:
+        payload = json.loads(json_text)
+    except json.JSONDecodeError:
+        return None
+
+    return payload if isinstance(payload, dict) else None
 
 
 def extract_state_updates(
@@ -17,6 +56,10 @@ def extract_state_updates(
     The focus is on common non-functional requirement signals (availability, security,
     performance, cost). Returns ``None`` when no actionable updates are detected.
     """
+    structured_updates = _extract_json_code_block(agent_response, marker=_AAA_UPDATE_MARKER)
+    if structured_updates:
+        return structured_updates
+
     combined_text = f"{user_message} {agent_response}".lower()
 
     updates: Dict[str, Any] = {}

@@ -80,10 +80,10 @@ description: "Task list for Azure Architect Assistant (AAA)"
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Implement candidate generation tool in backend/app/agents_system/tools/aaa_candidate_tool.py
-- [ ] T019 [US2] Persist candidate architectures, assumptions, and citations (SC-011) into ProjectState using backend/app/agents_system/services/project_context.py
-- [ ] T020 [US2] Initialize WAF checklist for all pillars (FR-005/SC-002) in backend/app/agents_system/services/aaa_state_models.py
-- [ ] T021 [P] [US2] Implement candidate viewer (reads ProjectState, shows citations) in frontend/src/features/aaa/
+- [x] T018 [US2] Implement candidate generation tool in backend/app/agents_system/tools/aaa_candidate_tool.py
+- [x] T019 [US2] Persist candidate architectures, assumptions, and citations (SC-011) into ProjectState using backend/app/agents_system/services/project_context.py
+- [x] T020 [US2] Initialize WAF checklist for all pillars (FR-005/SC-002) in backend/app/agents_system/services/aaa_state_models.py
+- [x] T021 [P] [US2] Implement candidate viewer (reads ProjectState, shows citations) in frontend/src/features/aaa/
 
 **Checkpoint**: US2 independently functional.
 
