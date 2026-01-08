@@ -42,8 +42,8 @@ description: "Task list for Azure Architect Assistant (AAA)"
 - [x] T009 Implement source logging helpers (reference docs + MCP queries + citations) in backend/app/agents_system/services/source_logging.py
 - [x] T010 Implement merge-based state updates + conflict detection primitives (no overwrite) in backend/app/agents_system/services/state_update_parser.py
 - [x] T054 Implement append-only diagram versioning (SC-003) when diagrams are created/updated in backend/app/services/diagram/
-- [ ] T011 [P] Add frontend API wrapper for project-aware agent chat/history in frontend/src/services/aaa/agentApi.ts
-- [ ] T012 [P] Add frontend API wrapper for project doc analyze/state in frontend/src/services/aaa/projectApi.ts
+- [x] T011 [P] Add frontend API wrapper for project-aware agent chat/history in frontend/src/services/aaa/agentApi.ts
+- [x] T012 [P] Add frontend API wrapper for project doc analyze/state in frontend/src/services/aaa/projectApi.ts
 
 **Checkpoint**: Foundation ready — user story work can begin.
 
