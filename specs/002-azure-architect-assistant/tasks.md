@@ -57,16 +57,16 @@ description: "Task list for Azure Architect Assistant (AAA)"
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Update ingestion pipeline to record parse failures (not silent skips) in backend/app/routers/project_management/services/document_service.py
+- [x] T013 [US1] Update ingestion pipeline to record parse failures (not silent skips) in backend/app/routers/project_management/services/document_service.py
 - [ ] T014 [US1] Extend analyze-docs output to include business/functional/NFR requirements + ambiguity markers in backend/app/routers/project_management/services/document_service.py
 - [ ] T015 [US1] Generate prioritized clarification questions from gaps/ambiguities (FR-006) in backend/app/routers/project_management/services/document_service.py
 - [ ] T016 [US1] Generate/store initial C4 Level 1 diagram link in ProjectState via existing diagram flow in backend/app/routers/project_management/project_router.py
 - [ ] T017 [P] [US1] Build minimal AAA UI shell with upload/analyze and requirements review in frontend/src/features/aaa/
 
-- [ ] T044 [US1] Implement PDF text extraction and diagnostics (FR-001) in backend/app/routers/project_management/services/document_service.py
-- [ ] T045 [US1] Implement XLS/XLSX text extraction and diagnostics (FR-001) in backend/app/routers/project_management/services/document_service.py
-- [ ] T046 [US1] Route extraction by content type/extension (pdf/xlsx/md/txt) and always record outcomes in backend/app/routers/project_management/services/document_service.py
-- [ ] T047 [US1] Persist ingestion stats for SC-004 (attempted/parsed/failed + reasons) into ProjectState in backend/app/routers/project_management/services/document_service.py
+- [x] T044 [US1] Implement PDF text extraction and diagnostics (FR-001) in backend/app/routers/project_management/services/document_service.py
+- [x] T045 [US1] Implement XLS/XLSX text extraction and diagnostics (FR-001) in backend/app/routers/project_management/services/document_service.py
+- [x] T046 [US1] Route extraction by content type/extension (pdf/xlsx/md/txt) and always record outcomes in backend/app/routers/project_management/services/document_service.py
+- [x] T047 [US1] Persist ingestion stats for SC-004 (attempted/parsed/failed + reasons) into ProjectState in backend/app/routers/project_management/services/document_service.py
 
 **Checkpoint**: US1 independently functional.
 

@@ -1,4 +1,3 @@
-import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -8,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Project, ProjectDocument, ProjectState
-from app.services.llm_service import get_llm_service
+
+from .document_parsing import extract_text_from_upload
 
 logger = logging.getLogger(__name__)
 
@@ -27,25 +27,39 @@ class DocumentService:
         if not project:
             raise ValueError("Project not found")
 
-        saved_docs = []
-        llm_service = get_llm_service()
+        saved_docs: List[ProjectDocument] = []
+        attempted_documents = 0
+        parsed_documents = 0
+        failures: List[Dict[str, Any]] = []
 
         for file in files:
+            attempted_documents += 1
             content = await file.read()
-            try:
-                content_str = content.decode("utf-8")
-            except UnicodeDecodeError:
-                logger.warning(f"Skipping non-text file: {file.filename}")
-                continue
 
-            doc_summary = await llm_service.extract_document_content(content_str)
+            extracted_text, failure_reason = extract_text_from_upload(
+                file_name=file.filename,
+                mime_type=getattr(file, "content_type", None),
+                content=content,
+            )
+
+            if extracted_text is None:
+                failures.append(
+                    {
+                        "documentId": None,
+                        "fileName": file.filename,
+                        "reason": failure_reason or "unknown parse failure",
+                    }
+                )
+                extracted_text = ""  # Persist empty text but keep the document record
+            else:
+                parsed_documents += 1
 
             doc = ProjectDocument(
                 id=str(uuid.uuid4()),
                 project_id=project_id,
-                filename=file.filename,
-                raw_text=content_str,
-                extracted_summary=json.dumps(doc_summary),
+                file_name=file.filename,
+                mime_type=getattr(file, "content_type", "application/octet-stream"),
+                raw_text=extracted_text,
                 uploaded_at=datetime.now(timezone.utc).isoformat(),
             )
 
@@ -53,6 +67,49 @@ class DocumentService:
             saved_docs.append(doc)
 
         await db.commit()
+
+        # Persist ingestion stats into ProjectState (SC-004) without blocking upload.
+        try:
+            stats_payload = {
+                "ingestionStats": {
+                    "attemptedDocuments": attempted_documents,
+                    "parsedDocuments": parsed_documents,
+                    "failedDocuments": max(attempted_documents - parsed_documents, 0),
+                    "failures": failures,
+                }
+            }
+
+            state_result = await db.execute(
+                select(ProjectState).where(ProjectState.project_id == project_id)
+            )
+            state_record = state_result.scalar_one_or_none()
+
+            if state_record:
+                import json
+
+                current_state = json.loads(state_record.state)
+                current_state.update(stats_payload)
+                state_record.state = json.dumps(current_state)
+                state_record.updated_at = datetime.now(timezone.utc).isoformat()
+            else:
+                import json
+
+                db.add(
+                    ProjectState(
+                        project_id=project_id,
+                        state=json.dumps(stats_payload),
+                        updated_at=datetime.now(timezone.utc).isoformat(),
+                    )
+                )
+
+            await db.commit()
+        except Exception as exc:
+            logger.warning(
+                "Failed to persist ingestionStats for project %s (%s)",
+                project_id,
+                exc,
+            )
+
         logger.info(f"Uploaded {len(saved_docs)} documents for project: {project_id}")
         return [doc.to_dict() for doc in saved_docs]
 
@@ -69,7 +126,7 @@ class DocumentService:
         )
         documents = result.scalars().all()
 
-        document_texts = [doc.raw_text for doc in documents]
+        document_texts = [doc.raw_text for doc in documents if (doc.raw_text or "").strip()]
         if project.text_requirements:
             document_texts.append(project.text_requirements)
 
@@ -79,8 +136,33 @@ class DocumentService:
         logger.info(
             f"Analyzing {len(document_texts)} documents for project: {project_id}"
         )
+        from app.services.llm_service import get_llm_service
+
         llm_service = get_llm_service()
         state_data = await llm_service.analyze_documents(document_texts)
+
+        # Always include ingestion stats (SC-004)
+        failures = []
+        parsed_documents = 0
+        for doc in documents:
+            if (doc.raw_text or "").strip():
+                parsed_documents += 1
+            else:
+                failures.append(
+                    {
+                        "documentId": doc.id,
+                        "fileName": doc.file_name,
+                        "reason": "no extractable text",
+                    }
+                )
+
+        state_data["ingestionStats"] = {
+            "attemptedDocuments": len(documents),
+            "parsedDocuments": parsed_documents,
+            "failedDocuments": max(len(documents) - parsed_documents, 0),
+            "failures": failures,
+        }
+
         state_json = json.dumps(state_data)
 
         result = await db.execute(
