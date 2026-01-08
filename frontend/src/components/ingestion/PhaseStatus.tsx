@@ -1,4 +1,3 @@
-/* eslint-disable */
 import type { PhaseDetail, IngestionPhase } from "../../types/ingestion";
 
 type Props = {
