@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from datetime import datetime, timezone
+
 
 REQUIRED_TOP_LEVEL_TOPIC_KEYS: Tuple[str, ...] = (
     "1_foundations",
@@ -111,3 +113,87 @@ def get_top_level_topics() -> Dict[str, Any]:
 
 def get_mindmap_path() -> Optional[Path]:
     return _cached_path
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def compute_top_level_coverage(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Compute coarse coverage for the 13 top-level topics.
+
+    Coverage is heuristic and based on presence of artifact groups. This is meant
+    to drive navigation and prompt uncovered areas, not to be a strict compliance check.
+    """
+
+    topics = {}
+    try:
+        top_level = get_top_level_topics()
+        topic_keys = list(top_level.keys())
+    except Exception:
+        topic_keys = list(REQUIRED_TOP_LEVEL_TOPIC_KEYS)
+
+    def _has_list(key: str) -> bool:
+        v = state.get(key)
+        return bool(v) if isinstance(v, list) else False
+
+    def _has_dict(key: str) -> bool:
+        v = state.get(key)
+        return bool(v) if isinstance(v, dict) else False
+
+    has_requirements = _has_list("requirements")
+    has_candidates = _has_list("candidateArchitectures")
+    has_diagrams = _has_list("diagrams")
+    has_adrs = _has_list("adrs")
+    has_findings = _has_list("findings")
+    has_iac = _has_list("iacArtifacts")
+    has_cost = _has_list("costEstimates")
+    has_trace = _has_list("traceabilityLinks")
+
+    waf = state.get("wafChecklist")
+    has_waf = isinstance(waf, dict) and bool(waf)
+    has_waf_items = isinstance(waf, dict) and isinstance(waf.get("items"), list) and bool(waf.get("items"))
+
+    # Minimal mapping from artifacts to the 13 top-level topics.
+    signals: Dict[str, List[bool]] = {
+        "1_foundations": [has_diagrams, has_trace],
+        "2_requirements_and_quality_attributes": [has_requirements, has_waf],
+        "3_domain_and_design": [has_requirements],
+        "4_architecture_styles": [has_candidates, has_diagrams],
+        "5_data_and_storage": [has_candidates, has_adrs],
+        "6_integration_and_distributed_systems": [has_candidates, has_adrs],
+        "7_cloud_and_infrastructure": [has_iac, has_diagrams],
+        "8_security_and_compliance": [has_waf_items, has_findings],
+        "9_delivery_and_lifecycle": [has_iac],
+        "10_observability_and_reliability": [has_waf_items, has_findings],
+        "11_organization_and_process": [has_adrs],
+        "12_practice_ideas": [has_adrs, has_trace],
+        "13_learning_and_practice": [has_trace],
+    }
+
+    for key in topic_keys:
+        checks = signals.get(key, [])
+        if not checks:
+            status = "not-addressed"
+        else:
+            true_count = sum(1 for c in checks if c)
+            if true_count == 0:
+                status = "not-addressed"
+            elif true_count == len(checks):
+                status = "addressed"
+            else:
+                status = "partial"
+        topics[key] = {"status": status}
+
+    return {
+        "version": "1",
+        "computedAt": _now_iso(),
+        "topics": topics,
+    }
+
+
+def update_mindmap_coverage(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a shallow-copied state dict with updated mind map coverage."""
+    updated = dict(state)
+    updated["mindMapCoverage"] = compute_top_level_coverage(updated)
+    return updated

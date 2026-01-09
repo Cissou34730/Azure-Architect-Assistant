@@ -118,11 +118,11 @@ description: "Task list for Azure Architect Assistant (AAA)"
 
 ### Implementation for User Story 3
 
-- [ ] T027 [US3] Implement ADR tool (create/update/supersede) with citations (SC-011) in backend/app/agents_system/tools/aaa_adr_tool.py
-- [ ] T028 [US3] Persist ADRs + traceability links in backend/app/agents_system/services/aaa_state_models.py
-- [ ] T029 [P] [US3] Implement ADR view/edit UX (agent-chat driven) in frontend/src/features/aaa/
+- [x] T027 [US3] Implement ADR tool (create/update/supersede) with citations (SC-011) in backend/app/agents_system/tools/aaa_adr_tool.py
+- [x] T028 [US3] Persist ADRs + traceability links in backend/app/agents_system/services/aaa_state_models.py
+- [x] T029 [P] [US3] Implement ADR view/edit UX (agent-chat driven) in frontend/src/features/aaa/
 
-- [ ] T049 [US3] Enforce ADR has ≥1 requirement link; diagram/WAF linkage is best-effort and when missing MUST record explicit reason (SC-005) in backend/app/agents_system/tools/aaa_adr_tool.py
+- [x] T049 [US3] Enforce ADR has ≥1 requirement link; diagram/WAF linkage is best-effort and when missing MUST record explicit reason (SC-005) in backend/app/agents_system/tools/aaa_adr_tool.py
 
 **Checkpoint**: US3 independently functional.
 
@@ -136,10 +136,10 @@ description: "Task list for Azure Architect Assistant (AAA)"
 
 ### Implementation for User Story 4
 
-- [ ] T030 [US4] Implement validation tool producing findings in backend/app/agents_system/tools/aaa_validation_tool.py
-- [ ] T030 [US4] Implement validation tool producing findings with citations (SC-011) in backend/app/agents_system/tools/aaa_validation_tool.py
-- [ ] T031 [US4] Update WAF checklist coverage with evidence links in backend/app/agents_system/services/aaa_state_models.py
-- [ ] T032 [P] [US4] Implement findings panel UI in frontend/src/features/aaa/
+- [x] T030 [US4] Implement validation tool producing findings in backend/app/agents_system/tools/aaa_validation_tool.py
+- [x] T030 [US4] Implement validation tool producing findings with citations (SC-011) in backend/app/agents_system/tools/aaa_validation_tool.py
+- [x] T031 [US4] Update WAF checklist coverage with evidence links in backend/app/agents_system/services/aaa_state_models.py
+- [x] T032 [P] [US4] Implement findings panel UI in frontend/src/features/aaa/
 
 **Checkpoint**: US4 independently functional.
 
@@ -153,15 +153,15 @@ description: "Task list for Azure Architect Assistant (AAA)"
 
 ### Implementation for User Story 5
 
-- [ ] T033 [US5] Implement IaC generation tool in backend/app/agents_system/tools/aaa_iac_tool.py
-- [ ] T034 [US5] Implement static validation recording (SC-006) in backend/app/agents_system/tools/aaa_iac_tool.py
-- [ ] T035 [US5] Implement cost estimate generation + persistence in backend/app/agents_system/services/aaa_state_models.py
-- [ ] T036 [P] [US5] Implement IaC + cost UI (view + download) in frontend/src/features/aaa/
+- [x] T033 [US5] Implement IaC generation tool in backend/app/agents_system/tools/aaa_iac_tool.py
+- [x] T034 [US5] Implement static validation recording (SC-006) in backend/app/agents_system/tools/aaa_iac_tool.py
+- [x] T035 [US5] Implement cost estimate generation + persistence in backend/app/agents_system/services/aaa_state_models.py
+- [x] T036 [P] [US5] Implement IaC + cost UI (view + download) in frontend/src/features/aaa/
 
-- [ ] T050 [US5] Implement Azure Retail Prices API client (pagination, filters, retries) in backend/app/services/pricing/retail_prices_client.py
-- [ ] T051 [US5] Implement pricing normalization + meter matching rules (service/SKU → retail price) in backend/app/services/pricing/pricing_normalizer.py
-- [ ] T052 [US5] Compute and persist baseline monthly cost from Retail Prices API (SC-007) in backend/app/agents_system/services/aaa_state_models.py
-- [ ] T053 [US5] Compute and persist variance% vs baseline; record pricing gaps and exclude from variance (SC-007) in backend/app/agents_system/services/aaa_state_models.py
+- [x] T050 [US5] Implement Azure Retail Prices API client (pagination, filters, retries) in backend/app/services/pricing/retail_prices_client.py
+- [x] T051 [US5] Implement pricing normalization + meter matching rules (service/SKU → retail price) in backend/app/services/pricing/pricing_normalizer.py
+- [x] T052 [US5] Compute and persist baseline monthly cost from Retail Prices API (SC-007) in backend/app/agents_system/services/aaa_state_models.py
+- [x] T053 [US5] Compute and persist variance% vs baseline; record pricing gaps and exclude from variance (SC-007) in backend/app/agents_system/services/aaa_state_models.py
 
 **Checkpoint**: US5 independently functional.
 
@@ -175,10 +175,10 @@ description: "Task list for Azure Architect Assistant (AAA)"
 
 ### Implementation for User Story 6
 
-- [ ] T037 [US6] Implement coverage tracking updates on state changes in backend/app/agents_system/services/mindmap_loader.py
-- [ ] T038 [US6] Implement traceability link generation/verification in backend/app/agents_system/services/aaa_state_models.py
-- [ ] T039 [US6] Implement export tool preserving traceability links (FR-012) in backend/app/agents_system/tools/aaa_export_tool.py
-- [ ] T040 [P] [US6] Implement coverage dashboard + traceability browser in frontend/src/features/aaa/
+- [x] T037 [US6] Implement coverage tracking updates on state changes in backend/app/agents_system/services/mindmap_loader.py
+- [x] T038 [US6] Implement traceability link generation/verification in backend/app/agents_system/services/aaa_state_models.py
+- [x] T039 [US6] Implement export tool preserving traceability links (FR-012) in backend/app/agents_system/tools/aaa_export_tool.py
+- [x] T040 [P] [US6] Implement coverage dashboard + traceability browser in frontend/src/features/aaa/
 
 **Checkpoint**: US6 independently functional.
 

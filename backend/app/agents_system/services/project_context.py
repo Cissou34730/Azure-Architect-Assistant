@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 from pydantic import ValidationError
 
 from ...models import ProjectState, Project
-from .aaa_state_models import AAAProjectState, ensure_aaa_defaults
+from .aaa_state_models import AAAProjectState, ensure_aaa_defaults, apply_us6_enrichment
+from .mindmap_loader import update_mindmap_coverage, is_mindmap_initialized
 from .state_update_parser import merge_state_updates_no_overwrite
 
 logger = logging.getLogger(__name__)
@@ -103,6 +104,11 @@ async def update_project_state(
         conflicts = [c.__dict__ for c in merge_result.conflicts]
     else:
         updated_state = ensure_aaa_defaults(updates)
+
+    # US6 enrichment: update mind map coverage and traceability without overwriting.
+    if is_mindmap_initialized():
+        updated_state = update_mindmap_coverage(updated_state)
+    updated_state = apply_us6_enrichment(updated_state)
 
     # Validate/normalize through typed model to prevent corrupting persisted state
     try:

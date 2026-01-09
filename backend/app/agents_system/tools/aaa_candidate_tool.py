@@ -19,6 +19,11 @@ from typing import Any, Dict, List, Optional, Type
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field
 
+from .aaa_adr_tool import AAAManageAdrTool
+from .aaa_validation_tool import AAARunValidationTool
+from .aaa_iac_tool import AAAGenerateIacTool
+from .aaa_export_tool import AAAExportTool
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -122,4 +127,10 @@ class AAAGenerateCandidateTool(BaseTool):
 def create_aaa_tools() -> List[BaseTool]:
     """Factory returning AAA-specific tools for the agent."""
 
-    return [AAAGenerateCandidateTool()]
+    return [
+        AAAGenerateCandidateTool(),
+        AAAManageAdrTool(),
+        AAARunValidationTool(),
+        AAAGenerateIacTool(),
+        AAAExportTool(),
+    ]

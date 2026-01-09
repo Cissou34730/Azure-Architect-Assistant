@@ -4,25 +4,14 @@
 		{
 			"label": "Run backend unit tests",
 			"type": "shell",
-			"command": "python -m pytest backend/tests -q",
+			"command": "& \"${workspaceFolder}\\.venv\\Scripts\\python.exe\" -m pytest backend\\tests -q",
 			"group": "test"
-		},
-		{
-			"label": "Run backend unit tests",
-			"type": "shell",
-			"command": "\"C:/Users/cyril.beurier/OneDrive - Avanade/Documents 1/Azure-Architect-Assistant/.venv/Scripts/python.exe\" -m pytest backend/tests -q",
-			"group": "test"
-		},
+		}
+		,
 		{
 			"label": "Run full backend tests",
 			"type": "shell",
-			"command": "\"C:/Users/cyril.beurier/OneDrive - Avanade/Documents 1/Azure-Architect-Assistant/.venv/Scripts/python.exe\" -m pytest backend -q",
-			"group": "test"
-		},
-		{
-			"label": "Run full backend tests",
-			"type": "shell",
-			"command": "& \"C:/Users/cyril.beurier/OneDrive - Avanade/Documents 1/Azure-Architect-Assistant/.venv/Scripts/python.exe\" -m pytest backend -q",
+			"command": "& \"${workspaceFolder}\\.venv\\Scripts\\python.exe\" -m pytest backend -q",
 			"group": "test"
 		}
 	]
