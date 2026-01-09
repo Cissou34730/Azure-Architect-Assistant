@@ -1,13 +1,11 @@
 import { Message, ProjectState, KBSource } from "../types/api";
 
-const API_BASE = `${
-  import.meta.env.BACKEND_URL
-}/api`;
+const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
 
 export const chatApi = {
   async sendMessage(
     projectId: string,
-    message: string,
+    message: string
   ): Promise<{
     message: string;
     projectState: ProjectState;

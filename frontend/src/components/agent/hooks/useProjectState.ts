@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ProjectState } from "../../../types/agent";
 
-const API_BASE = `${
-  import.meta.env.BACKEND_URL
-}/api`;
+const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
 
 export function useProjectState(selectedProjectId: string) {
   const [projectState, setProjectState] = useState<ProjectState | null>(null);

@@ -14,9 +14,7 @@ import {
 } from "../types/ingestion";
 import { ServiceError, fetchWithErrorHandling } from "./serviceError";
 
-const API_BASE = `${
-  import.meta.env.BACKEND_URL
-}/api`;
+const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
 
 // Re-export ServiceError as IngestionAPIError for backward compatibility
 export { ServiceError as IngestionAPIError };
@@ -25,7 +23,7 @@ export { ServiceError as IngestionAPIError };
  * Create a new knowledge base
  */
 export async function createKB(
-  request: CreateKBRequest,
+  request: CreateKBRequest
 ): Promise<CreateKBResponse> {
   return fetchWithErrorHandling<CreateKBResponse>(
     `${API_BASE}/kb/create`,
@@ -34,7 +32,7 @@ export async function createKB(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),
     },
-    "create KB",
+    "create KB"
   );
 }
 
@@ -42,7 +40,7 @@ export async function createKB(
  * Start ingestion for a KB
  */
 export async function startIngestion(
-  kbId: string,
+  kbId: string
 ): Promise<StartIngestionResponse> {
   return fetchWithErrorHandling<StartIngestionResponse>(
     `${API_BASE}/ingestion/kb/${kbId}/start`,
@@ -51,7 +49,7 @@ export async function startIngestion(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kb_id: kbId }),
     },
-    "start ingestion",
+    "start ingestion"
   );
 }
 
@@ -63,18 +61,18 @@ export async function getKBReadyStatus(kbId: string): Promise<KBStatusSimple> {
   return fetchWithErrorHandling<KBStatusSimple>(
     `${API_BASE}/kb/${kbId}/status`,
     { method: "GET" },
-    "get KB status",
+    "get KB status"
   );
 }
 
 // Phase 3: Ingestion details for pending state
 export async function getKBIngestionDetails(
-  kbId: string,
+  kbId: string
 ): Promise<KBIngestionDetails> {
   return fetchWithErrorHandling<KBIngestionDetails>(
     `${API_BASE}/ingestion/kb/${kbId}/details`,
     { method: "GET" },
-    "get ingestion details",
+    "get ingestion details"
   );
 }
 
@@ -85,37 +83,37 @@ export async function getKBJobView(kbId: string): Promise<IngestionJob> {
   return fetchWithErrorHandling<IngestionJob>(
     `${API_BASE}/ingestion/kb/${kbId}/job-view`,
     { method: "GET" },
-    "get KB job view",
+    "get KB job view"
   );
 }
 
 export async function pauseIngestion(
-  kbId: string,
+  kbId: string
 ): Promise<{ message: string; kb_id: string }> {
   return fetchWithErrorHandling<{ message: string; kb_id: string }>(
     `${API_BASE}/ingestion/kb/${kbId}/pause`,
     { method: "POST" },
-    "pause ingestion",
+    "pause ingestion"
   );
 }
 
 export async function resumeIngestion(
-  kbId: string,
+  kbId: string
 ): Promise<{ message: string; kb_id: string }> {
   return fetchWithErrorHandling<{ message: string; kb_id: string }>(
     `${API_BASE}/ingestion/kb/${kbId}/resume`,
     { method: "POST" },
-    "resume ingestion",
+    "resume ingestion"
   );
 }
 
 export async function cancelIngestion(
-  kbId: string,
+  kbId: string
 ): Promise<{ message: string; kb_id: string }> {
   return fetchWithErrorHandling<{ message: string; kb_id: string }>(
     `${API_BASE}/ingestion/kb/${kbId}/cancel`,
     { method: "POST" },
-    "cancel ingestion",
+    "cancel ingestion"
   );
 }
 
@@ -126,7 +124,7 @@ export async function deleteKB(kbId: string): Promise<void> {
   await fetchWithErrorHandling<void>(
     `${API_BASE}/kb/${kbId}`,
     { method: "DELETE" },
-    "delete KB",
+    "delete KB"
   );
 }
 
@@ -135,7 +133,7 @@ export async function deleteKB(kbId: string): Promise<void> {
  */
 export async function listJobs(
   kbId?: string,
-  limit?: number,
+  limit?: number
 ): Promise<JobListResponse> {
   const params = new URLSearchParams();
   if (kbId) params.append("kb_id", kbId);
@@ -148,7 +146,7 @@ export async function listJobs(
   return fetchWithErrorHandling<JobListResponse>(
     url,
     { method: "GET" },
-    "list jobs",
+    "list jobs"
   );
 }
 

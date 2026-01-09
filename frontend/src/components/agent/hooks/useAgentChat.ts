@@ -24,7 +24,7 @@ export function useAgentChat({
 
     try {
       const response = await fetch(
-        `${API_BASE}/agent/projects/${selectedProjectId}/history`,
+        `${API_BASE}/agent/projects/${selectedProjectId}/history`
       );
       const data = await response.json();
 
