@@ -15,7 +15,7 @@ import {
 import { ServiceError, fetchWithErrorHandling } from "./serviceError";
 
 const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
+  import.meta.env.BACKEND_URL
 }/api`;
 
 // Re-export ServiceError as IngestionAPIError for backward compatibility

@@ -1,11 +1,11 @@
 /**
  * API Service - Centralized API calls
- * Now points directly to Python backend (port 8000)
+ * Points directly to the Python backend (configured via repo .env)
  */
 
 // Point to Python backend directly (no TypeScript proxy layer)
 const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
+  import.meta.env.BACKEND_URL
 }/api`;
 
 export interface Project {

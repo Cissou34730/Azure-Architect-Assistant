@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Message, AgentResponse } from "../../../types/agent";
 
-const API_BASE = `${import.meta.env.BACKEND_URL || "http://localhost:8000"}/api`;
+const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
 
 interface UseAgentChatProps {
   selectedProjectId: string;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { ProjectState } from "../../../types/agent";
 
 const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
+  import.meta.env.BACKEND_URL
 }/api`;
 
 export function useProjectState(selectedProjectId: string) {

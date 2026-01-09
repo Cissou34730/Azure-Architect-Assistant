@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API_BASE = `${import.meta.env.BACKEND_URL || "http://localhost:8000"}/api`;
+const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
 
 interface Project {
   id: string;

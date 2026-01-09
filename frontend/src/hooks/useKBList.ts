@@ -28,7 +28,7 @@ export function useKBList() {
       setIsLoadingKBs(true);
       setError(null);
 
-      const baseUrl = import.meta.env.BACKEND_URL || "http://localhost:8000";
+      const baseUrl = import.meta.env.BACKEND_URL;
       const response = await fetch(`${baseUrl}/api/kb/list`);
       if (!response.ok) {
         throw new Error(`Failed to fetch KB list: ${response.statusText}`);

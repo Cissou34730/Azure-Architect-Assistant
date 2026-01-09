@@ -125,6 +125,13 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.getenv("BACKEND_PORT", "8000"))
-    logger.info(f"Starting server on port {port}")
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)
+    from app.core.config import get_app_settings
+
+    settings = get_app_settings()
+    logger.info(f"Starting server on port {settings.backend_port}")
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=int(settings.backend_port),
+        reload=True,
+    )

@@ -1,7 +1,7 @@
 import { KBHealthResponse, KBQueryResponse } from "../types/api";
 
 const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
+  import.meta.env.BACKEND_URL
 }/api`;
 
 export const kbApi = {

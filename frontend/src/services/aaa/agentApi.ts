@@ -3,7 +3,7 @@ import type { ProjectState } from "../../types/agent";
 import { fetchWithErrorHandling } from "../serviceError";
 
 const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
+  import.meta.env.BACKEND_URL
 }/api`;
 
 export interface AgentConversationHistoryResponse {
