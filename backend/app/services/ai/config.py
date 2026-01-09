@@ -45,9 +45,17 @@ class AIConfig(BaseSettings):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Fallback to OPENAI_API_KEY if AI_OPENAI_API_KEY not set
-        if not self.openai_api_key:
-            self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
+        # Prefer central app settings for OpenAI API key fallback
+        try:
+            from app.core.config import get_app_settings
+
+            app_settings = get_app_settings()
+            if not self.openai_api_key and app_settings.openai_api_key:
+                self.openai_api_key = app_settings.openai_api_key
+        except Exception:
+            # Last-resort fallback to environment variable
+            if not self.openai_api_key:
+                self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
 
     def validate_provider_config(self) -> None:
         """Validate that required config for selected provider is present."""

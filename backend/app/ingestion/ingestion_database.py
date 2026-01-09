@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from app.core.config import get_app_settings
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
@@ -16,10 +17,19 @@ BACKEND_ROOT = Path(__file__).parent.parent.parent
 DATA_ROOT = BACKEND_ROOT / "data"
 DATA_ROOT.mkdir(exist_ok=True)
 
-INGESTION_DB_PATH = os.getenv(
-    "INGESTION_DATABASE",
-    str(DATA_ROOT / "ingestion.db"),
-)
+app_settings = None
+try:
+    app_settings = get_app_settings()
+except Exception:
+    app_settings = None
+
+if app_settings and app_settings.ingestion_database:
+    INGESTION_DB_PATH = str(app_settings.ingestion_database)
+else:
+    INGESTION_DB_PATH = os.getenv(
+        "INGESTION_DATABASE",
+        str(DATA_ROOT / "ingestion.db"),
+    )
 
 # Handle relative paths
 if not Path(INGESTION_DB_PATH).is_absolute():
