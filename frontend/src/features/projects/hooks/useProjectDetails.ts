@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Project, projectApi } from "../../../services/apiService";
 import { useProjectState } from "./useProjectState";
-import { useChat } from "./useChat";
 import { useProposal } from "./useProposal";
 import { useToast } from "../../../hooks/useToast";
 import { getTabs } from "../tabs";
@@ -38,6 +37,7 @@ export function useProjectDetails(projectId: string | undefined) {
 
   const [textRequirements, setTextRequirements] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState("");
 
   const { success, error: showError, warning } = useToast();
 
@@ -68,16 +68,10 @@ export function useProjectDetails(projectId: string | undefined) {
 
   // Feature Hooks
   const stateHook = useProjectState(selectedProject?.id ?? null);
-  const chatHook = useChat(selectedProject?.id ?? null);
   const proposalHook = useProposal();
 
   const loading =
-    loadingProject ||
-    stateHook.loading ||
-    chatHook.loading ||
-    proposalHook.loading;
-
-  const loadingMessage = chatHook.loadingMessage;
+    loadingProject || stateHook.loading || proposalHook.loading;
 
   // Logging helper
   const logAction = useCallback(
@@ -143,6 +137,7 @@ export function useProjectDetails(projectId: string | undefined) {
     }
 
     try {
+      setLoadingMessage("Analyzing documents...");
       const state = await stateHook.analyzeDocuments();
       setActiveTab("state");
       success("Analysis complete!");
@@ -151,18 +146,8 @@ export function useProjectDetails(projectId: string | undefined) {
       const message =
         error instanceof Error ? error.message : "Failed to analyze documents";
       showError(`Error: ${message}`);
-    }
-  };
-
-  const handleSendChatMessage = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    if (!chatHook.chatInput.trim()) return;
-
-    try {
-      await chatHook.sendMessage(chatHook.chatInput);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      showError(`Error: ${message}`);
+    } finally {
+      setLoadingMessage("");
     }
   };
 
@@ -189,9 +174,6 @@ export function useProjectDetails(projectId: string | undefined) {
     // Sub-hooks data
     projectState: stateHook.projectState,
     setProjectState: stateHook.setProjectState,
-    messages: chatHook.messages,
-    chatInput: chatHook.chatInput,
-    setChatInput: chatHook.setChatInput,
     architectureProposal: proposalHook.architectureProposal,
     proposalStage: proposalHook.proposalStage,
 
@@ -199,7 +181,6 @@ export function useProjectDetails(projectId: string | undefined) {
     handleUploadDocuments,
     handleSaveTextRequirements,
     handleAnalyzeDocuments,
-    handleSendChatMessage,
     handleGenerateProposal,
     refreshState: stateHook.refreshState,
   };
