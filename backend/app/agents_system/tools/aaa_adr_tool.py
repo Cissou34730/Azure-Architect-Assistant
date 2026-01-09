@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Type
+from typing import Any, Dict, List, Literal, Optional, Type, Union
 
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field
@@ -90,6 +90,23 @@ class AAAManageAdrInput(BaseModel):
     )
 
 
+class AAAManageAdrToolInput(BaseModel):
+    """Raw tool payload.
+
+    LangChain's ReAct agent supplies `Action Input:` as a string. If we keep the
+    structured args schema directly, BaseTool will map the entire JSON string
+    into the first field and Pydantic validation fails. We instead accept a
+    single payload and validate after JSON parsing.
+    """
+
+    payload: Union[str, Dict[str, Any]] = Field(
+        description=(
+            "A JSON object (or JSON string) matching AAAManageAdrInput. Example: "
+            "{\"action\":\"create\",\"title\":...,\"context\":...,\"decision\":...,\"consequences\":...,\"relatedRequirementIds\":[...],\"sourceCitations\":[...],...}"
+        )
+    )
+
+
 class AAAManageAdrTool(BaseTool):
     name: str = "aaa_manage_adr"
     description: str = (
@@ -99,24 +116,40 @@ class AAAManageAdrTool(BaseTool):
         "ADR version that references an existing ADR via supersedesAdrId."
     )
 
-    args_schema: Type[BaseModel] = AAAManageAdrInput
+    args_schema: Type[BaseModel] = AAAManageAdrToolInput
 
     def _run(
-        self,
-        action: ADRAction,
-        title: str,
-        status: ADRStatus = "draft",
-        context: str = "",
-        decision: str = "",
-        consequences: str = "",
-        relatedRequirementIds: Optional[List[str]] = None,
-        relatedMindMapNodeIds: Optional[List[str]] = None,
-        relatedDiagramIds: Optional[List[str]] = None,
-        relatedWafEvidenceIds: Optional[List[str]] = None,
-        missingEvidenceReason: Optional[str] = None,
-        sourceCitations: Optional[List[Dict[str, Any]]] = None,
-        supersedesAdrId: Optional[str] = None,
+        self, payload: Union[str, Dict[str, Any]]
     ) -> str:
+        if isinstance(payload, str):
+            raw = payload.strip()
+            try:
+                data: Dict[str, Any] = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    "Invalid JSON payload for aaa_manage_adr. Provide a JSON object in Action Input."
+                ) from exc
+        elif isinstance(payload, dict):
+            data = payload
+        else:
+            raise ValueError("Invalid payload type for aaa_manage_adr")
+
+        args = AAAManageAdrInput.model_validate(data)
+
+        action = args.action
+        title = args.title
+        status = args.status
+        context = args.context
+        decision = args.decision
+        consequences = args.consequences
+        relatedRequirementIds = args.relatedRequirementIds
+        relatedMindMapNodeIds = args.relatedMindMapNodeIds
+        relatedDiagramIds = args.relatedDiagramIds
+        relatedWafEvidenceIds = args.relatedWafEvidenceIds
+        missingEvidenceReason = args.missingEvidenceReason
+        sourceCitations = args.sourceCitations
+        supersedesAdrId = args.supersedesAdrId
+
         requirement_ids = [rid.strip() for rid in (relatedRequirementIds or []) if rid and rid.strip()]
         if not requirement_ids:
             raise ValueError(
