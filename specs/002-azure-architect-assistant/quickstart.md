@@ -47,6 +47,19 @@ Examples of actions to drive through agent chat:
 
 ## Validation Checklist
 
-- Mind map is loaded and coverage is tracked for 13 topics
-- Each candidate/ADR/finding includes at least one source citation (reference document or MCP)
-- No manual edits are overwritten (conflicts are surfaced)
+- [ ] `/docs/arch_mindmap.json` loads at backend startup (missing/invalid fails fast)
+- [ ] `POST /api/projects` creates a project
+- [ ] `POST /api/projects/{projectId}/documents` uploads at least 1 document
+- [ ] `POST /api/projects/{projectId}/analyze-docs` produces `ProjectState` with:
+	- [ ] `ingestionStats` (attempted/parsed/failed + failures)
+	- [ ] `requirements` populated (business/functional/nfr)
+	- [ ] `clarificationQuestions` populated when ambiguity exists
+	- [ ] initial diagram link stored (C4 L1)
+- [ ] `POST /api/agent/projects/{projectId}/chat` can generate AAA artifacts and persist them via `AAA_STATE_UPDATE`:
+	- [ ] `candidateArchitectures` + `assumptions`
+	- [ ] `adrs` (with citations + requirement link)
+	- [ ] `findings` + `wafChecklist` evaluations
+	- [ ] `iacArtifacts` and `costEstimates` (when requested)
+- [ ] Each candidate/ADR/finding has at least one source citation (reference doc or MCP)
+- [ ] Mind map coverage exists for the 13 topics (`mindMapCoverage.topics`)
+- [ ] No manual edits are overwritten: merge conflicts are surfaced via `conflicts` on state updates

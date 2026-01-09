@@ -188,11 +188,11 @@ description: "Task list for Azure Architect Assistant (AAA)"
 
 **Purpose**: Hardening after user stories.
 
-- [ ] T041 [P] Update docs quickstart validation checklist in specs/002-azure-architect-assistant/quickstart.md
-- [ ] T042 Add observability around state updates, conflicts, and MCP lookups in backend/app/agents_system/agents/router.py
-- [ ] T043 [P] Update docs overview references for AAA feature in docs/PROJECT_OVERVIEW.md
-- [ ] T056 Add backend smoke tests for analyze-docs: ingestionStats + requirements extraction in backend/tests/
-- [ ] T057 Add backend test for merge updates: no-overwrite + conflicts surfaced in backend/tests/
+- [x] T041 [P] Update docs quickstart validation checklist in specs/002-azure-architect-assistant/quickstart.md
+- [x] T042 Add observability around state updates, conflicts, and MCP lookups in backend/app/agents_system/agents/router.py
+- [x] T043 [P] Update docs overview references for AAA feature in docs/PROJECT_OVERVIEW.md
+- [x] T056 Add backend smoke tests for analyze-docs: ingestionStats + requirements extraction in backend/tests/
+- [x] T057 Add backend test for merge updates: no-overwrite + conflicts surfaced in backend/tests/
 
 ---
 

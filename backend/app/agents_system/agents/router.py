@@ -240,11 +240,24 @@ async def chat_with_project_context(
             request.message, project_context=context_summary
         )
 
+        intermediate_steps = result.get("intermediate_steps", [])
+        logger.info(
+            "Project %s: Agent execution finished (success=%s, steps=%d)",
+            project_id,
+            result.get("success"),
+            len(intermediate_steps) if isinstance(intermediate_steps, list) else 0,
+        )
+
         # Parse response for potential state updates
         updated_state = None
         answer = result["output"]
 
         architect_choice_required = _extract_architect_choice_required_section(answer)
+        if architect_choice_required:
+            logger.warning(
+                "Project %s: Architect choice required detected; blocking state updates until explicit selection.",
+                project_id,
+            )
 
         # Save user message to database
         user_message = ConversationMessage(
@@ -268,9 +281,14 @@ async def chat_with_project_context(
 
         # Derive per-iteration MCP query logging from tool calls.
         derived_updates: Dict[str, Any] = derive_mcp_query_updates_from_steps(
-            intermediate_steps=result.get("intermediate_steps", []),
+            intermediate_steps=intermediate_steps,
             user_message=request.message,
         )
+        mcp_queries_count = 0
+        if isinstance(derived_updates, dict) and isinstance(derived_updates.get("mcpQueries"), list):
+            mcp_queries_count = len(derived_updates.get("mcpQueries"))
+        if mcp_queries_count:
+            logger.info("Project %s: Derived MCP queries=%d", project_id, mcp_queries_count)
 
         # Look for state update suggestions in the answer.
         state_updates = extract_state_updates(answer, request.message, project_state)
@@ -313,7 +331,11 @@ async def chat_with_project_context(
                 combined_updates[key] = [*combined_updates[key], *value]
 
         if combined_updates:
-            logger.info(f"Project {project_id}: Applying derived/parsed state updates...")
+            logger.info(
+                "Project %s: Applying state updates (keys=%s)",
+                project_id,
+                ",".join(sorted([str(k) for k in combined_updates.keys()])),
+            )
             try:
                 updated_state = await update_project_state(project_id, combined_updates, db)
 
@@ -358,6 +380,13 @@ async def chat_with_project_context(
                     for qt in deduped_failed[:3]:
                         answer += f"- {qt}: what exact Azure service/feature name (or official doc topic) should I use?\n"
 
+                    logger.warning(
+                        "Project %s: MCP lookups returned no results (count=%d, sample=%s)",
+                        project_id,
+                        len(deduped_failed),
+                        "; ".join(deduped_failed[:3]),
+                    )
+
                 # Surface merge conflicts in the answer to enforce human confirmation.
                 conflicts = updated_state.get("conflicts") if isinstance(updated_state, dict) else None
                 if isinstance(conflicts, list) and conflicts:
@@ -367,14 +396,31 @@ async def chat_with_project_context(
                             continue
                         answer += f"- {c.get('path')}: kept existing value; incoming suggestion available\n"
 
+                    conflict_paths = [
+                        str(c.get("path"))
+                        for c in conflicts
+                        if isinstance(c, dict) and c.get("path")
+                    ]
+                    logger.warning(
+                        "Project %s: Merge conflicts detected (count=%d, paths=%s)",
+                        project_id,
+                        len(conflicts),
+                        ",".join(conflict_paths[:10]),
+                    )
+
                 logger.info(f"Project {project_id}: State updated successfully")
             except Exception as update_error:
-                logger.error(f"Failed to update state: {update_error}")
+                logger.error(
+                    "Project %s: Failed to update state (%s)",
+                    project_id,
+                    update_error,
+                    exc_info=True,
+                )
                 # Don't fail the request, just log the error
 
         # Format reasoning steps
         reasoning_steps = []
-        for action, observation in result.get("intermediate_steps", []):
+        for action, observation in intermediate_steps:
             reasoning_steps.append(
                 AgentStep(
                     action=action.tool if hasattr(action, "tool") else str(action),
