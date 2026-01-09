@@ -119,8 +119,18 @@ class AAAManageAdrTool(BaseTool):
     args_schema: Type[BaseModel] = AAAManageAdrToolInput
 
     def _run(
-        self, payload: Union[str, Dict[str, Any]]
+        self,
+        payload: Union[str, Dict[str, Any], None] = None,
+        **kwargs: Any,
     ) -> str:
+        if payload is None:
+            if "payload" in kwargs:
+                payload = kwargs["payload"]
+            elif "tool_input" in kwargs:
+                payload = kwargs["tool_input"]
+            else:
+                raise ValueError("Missing payload for aaa_manage_adr")
+
         if isinstance(payload, str):
             raw = payload.strip()
             try:
@@ -249,8 +259,12 @@ class AAAManageAdrTool(BaseTool):
             "```"
         )
 
-    async def _arun(self, **kwargs: Any) -> str:
-        return self._run(**kwargs)
+    async def _arun(
+        self,
+        payload: Union[str, Dict[str, Any], None] = None,
+        **kwargs: Any,
+    ) -> str:
+        return self._run(payload=payload, **kwargs)
 
 
 def create_adr_tools() -> List[BaseTool]:
