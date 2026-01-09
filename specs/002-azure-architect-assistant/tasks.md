@@ -104,7 +104,7 @@ description: "Task list for Azure Architect Assistant (AAA)"
 - [x] T025 [US7] Record failed/empty MCP lookups and request clarification in backend/app/agents_system/agents/router.py
 - [x] T026 [P] [US7] Render iteration timeline (reasoning steps + citations) in frontend/src/features/aaa/
 
-- [ ] T048 [US7] When sources conflict (FR-018), present options + tradeoffs + citations and require explicit architect choice before persisting a final selection in backend/app/agents_system/orchestrator/orchestrator.py
+- [x] T048 [US7] When sources conflict (FR-018), present options + tradeoffs + citations and require explicit architect choice before persisting a final selection in backend/config/prompts/agent_prompts.yaml and backend/app/agents_system/agents/router.py
 
 **Checkpoint**: US7 independently functional.
 

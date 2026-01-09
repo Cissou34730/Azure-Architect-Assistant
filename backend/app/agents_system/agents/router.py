@@ -4,6 +4,7 @@ FastAPI router for agent chat endpoints and request handling.
 """
 
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
@@ -28,6 +29,31 @@ from ...projects_database import get_db
 from ...models.project import ConversationMessage
 
 logger = logging.getLogger(__name__)
+
+
+_AAA_STATE_UPDATE_MARKER = "AAA_STATE_UPDATE"
+_ARCHITECT_CHOICE_MARKER_RE = re.compile(r"architect\s+choice\s+required\s*:", re.IGNORECASE)
+
+
+def _extract_architect_choice_required_section(text: str) -> Optional[str]:
+    if not text:
+        return None
+
+    match = _ARCHITECT_CHOICE_MARKER_RE.search(text)
+    if not match:
+        return None
+
+    start = match.start()
+    end = text.find(_AAA_STATE_UPDATE_MARKER, start)
+    if end < 0:
+        end = len(text)
+
+    section = text[start:end].strip()
+    if not section:
+        return None
+
+    # Avoid bloating ProjectState.openQuestions.
+    return section[:1500]
 
 # Create router
 router = APIRouter(prefix="/api/agent", tags=["agent"])
@@ -218,6 +244,8 @@ async def chat_with_project_context(
         updated_state = None
         answer = result["output"]
 
+        architect_choice_required = _extract_architect_choice_required_section(answer)
+
         # Save user message to database
         user_message = ConversationMessage(
             id=str(uuid.uuid4()),
@@ -246,6 +274,10 @@ async def chat_with_project_context(
 
         # Look for state update suggestions in the answer.
         state_updates = extract_state_updates(answer, request.message, project_state)
+        if architect_choice_required:
+            # FR-018: if sources conflict, require an explicit architect choice before persisting a final selection.
+            # We still persist derived MCP logs and iteration events.
+            state_updates = None
 
         # Combine structured/heuristic updates with derived logging updates.
         combined_updates: Dict[str, Any] = {}
@@ -258,6 +290,11 @@ async def chat_with_project_context(
                     combined_updates[key] = [*combined_updates[key], *value]
                 elif isinstance(combined_updates[key], dict) and isinstance(value, dict):
                     combined_updates[key] = {**combined_updates[key], **value}
+
+        if architect_choice_required:
+            combined_updates.setdefault("openQuestions", [])
+            if isinstance(combined_updates["openQuestions"], list):
+                combined_updates["openQuestions"].append(architect_choice_required)
 
         # Add an iteration event (SC-010) with MCP citations.
         mcp_query_ids = [q.get("id") for q in combined_updates.get("mcpQueries", []) if isinstance(q, dict) and q.get("id")]
@@ -281,21 +318,22 @@ async def chat_with_project_context(
                 updated_state = await update_project_state(project_id, combined_updates, db)
 
                 # Heuristic uncovered-topic prompts (until full coverage tracking exists).
-                uncovered_questions = derive_uncovered_topic_questions(updated_state)
-                if uncovered_questions:
-                    answer += "\n\nUncovered topics to confirm:\n" + "\n".join(
-                        [f"- {q}" for q in uncovered_questions]
-                    )
-                    try:
-                        await update_project_state(
-                            project_id,
-                            {"openQuestions": uncovered_questions},
-                            db,
+                if not architect_choice_required:
+                    uncovered_questions = derive_uncovered_topic_questions(updated_state)
+                    if uncovered_questions:
+                        answer += "\n\nUncovered topics to confirm:\n" + "\n".join(
+                            [f"- {q}" for q in uncovered_questions]
                         )
-                    except Exception as prompt_update_error:
-                        logger.warning(
-                            f"Project {project_id}: Failed to persist openQuestions: {prompt_update_error}"
-                        )
+                        try:
+                            await update_project_state(
+                                project_id,
+                                {"openQuestions": uncovered_questions},
+                                db,
+                            )
+                        except Exception as prompt_update_error:
+                            logger.warning(
+                                f"Project {project_id}: Failed to persist openQuestions: {prompt_update_error}"
+                            )
 
                 # Record and surface failed/empty MCP lookups (T025).
                 failed_mcp_queries: List[str] = []
