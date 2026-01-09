@@ -188,6 +188,7 @@ export function useProjectDetails(projectId: string | undefined) {
 
     // Sub-hooks data
     projectState: stateHook.projectState,
+    setProjectState: stateHook.setProjectState,
     messages: chatHook.messages,
     chatInput: chatHook.chatInput,
     setChatInput: chatHook.setChatInput,
