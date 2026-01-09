@@ -144,7 +144,32 @@ class AAAManageAdrTool(BaseTool):
         else:
             raise ValueError("Invalid payload type for aaa_manage_adr")
 
-        args = AAAManageAdrInput.model_validate(data)
+        try:
+            args = AAAManageAdrInput.model_validate(data)
+        except Exception as exc:
+            # Provide a friendly, structured error so the agent can ask
+            # for missing/invalid fields instead of failing hard.
+            err_text = str(exc)
+            # Attempt to extract missing field names from the Pydantic message
+            # This is best-effort and intentionally simple.
+            missing = []
+            try:
+                # Look for "field required" occurrences
+                for line in err_text.splitlines():
+                    if "Field required" in line or "field required" in line:
+                        # previous token typically contains the field name
+                        parts = line.split()
+                        if parts:
+                            missing.append(parts[0].strip("'\"`"))
+            except Exception:
+                missing = []
+
+            hint = (
+                "Validation failed for AAAManageAdrInput. Missing or invalid fields: "
+                + (", ".join(missing) if missing else "unknown")
+                + ". Provide a JSON object matching the schema: action, title, context, decision, consequences, relatedRequirementIds, sourceCitations, ..."
+            )
+            return f"ERROR: {hint}"
 
         action = args.action
         title = args.title
