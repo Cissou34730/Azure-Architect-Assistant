@@ -10,7 +10,9 @@ from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .graph_factory import build_project_chat_graph
+from .graph_factory_advanced import build_advanced_project_chat_graph
 from .state import GraphState
+from ...core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -40,17 +42,36 @@ async def execute_project_chat(
         - error: Error message if failed (str, optional)
     """
     try:
+        settings = get_settings()
+        
         # Generate message ID for iteration logging
         response_message_id = str(uuid.uuid4())
         
-        # Build and compile graph
-        graph = build_project_chat_graph(db, response_message_id)
+        # Choose graph factory based on feature flags
+        enable_stage_routing = getattr(settings, 'aaa_enable_stage_routing', False)
+        enable_multi_agent = getattr(settings, 'aaa_enable_multi_agent', False)
+        
+        if enable_stage_routing or enable_multi_agent:
+            logger.info(
+                f"Building advanced graph (stage_routing={enable_stage_routing}, "
+                f"multi_agent={enable_multi_agent})"
+            )
+            graph = build_advanced_project_chat_graph(
+                db,
+                response_message_id,
+                enable_stage_routing=enable_stage_routing,
+                enable_multi_agent=enable_multi_agent,
+            )
+        else:
+            logger.info("Building standard graph (Phase 2/3)")
+            graph = build_project_chat_graph(db, response_message_id)
         
         # Initialize state
         initial_state: GraphState = {
             "project_id": project_id,
             "user_message": user_message,
             "success": False,
+            "retry_count": 0,
         }
         
         logger.info(f"Executing LangGraph workflow for project {project_id}")

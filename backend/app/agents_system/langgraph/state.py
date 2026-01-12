@@ -38,6 +38,19 @@ class GraphState(TypedDict, total=False):
     final_answer: str
     success: bool
     error: Optional[str]
+    
+    # Phase 4+ fields
+    user_message_id: Optional[str]
+    agent_message_id: Optional[str]
+    
+    # Phase 5 fields (stage routing and retry)
+    next_stage: Optional[str]
+    retry_count: int
+    
+    # Phase 6 fields (multi-agent)
+    selected_specialist: Optional[str]
+    specialist_used: Optional[str]
+    specialist_notes: Optional[str]
 
 
 # Graph configuration constants
