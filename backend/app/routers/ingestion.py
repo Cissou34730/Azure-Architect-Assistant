@@ -22,7 +22,6 @@ from app.ingestion.infrastructure import (
     create_job_repository,
     create_queue_repository,
 )
-from app.ingestion.utils import normalize_ingestion_metrics
 from app.service_registry import get_kb_manager
 from app.kb import KBManager
 
@@ -71,7 +70,7 @@ class JobViewResponse(BaseModel):
 
 
 # Global repository instance
-job_repo = create_job_repository()
+repo = create_job_repository()
 
 # Track running orchestrator tasks for graceful shutdown
 _running_tasks: Dict[str, asyncio.Task] = {}  # job_id -> task mapping
@@ -91,7 +90,7 @@ async def run_orchestrator_background(
     import asyncio
 
     orchestrator = IngestionOrchestrator(
-        repo=job_repo,
+        repo=repo,
         workflow=WorkflowDefinition(),
         retry_policy=RetryPolicy(max_attempts=3),
     )
@@ -100,7 +99,7 @@ async def run_orchestrator_background(
         await orchestrator.run(job_id, kb_id, kb_config)
     except asyncio.CancelledError:
         logger.warning(f"Orchestrator task cancelled for job {job_id} - pausing")
-        job_repo.set_job_status(job_id, status="paused")
+        repo.set_job_status(job_id, status="paused")
         raise
     except Exception as e:
         logger.exception(f"Orchestrator failed for job {job_id}: {e}")
@@ -145,7 +144,7 @@ async def start_ingestion(kb_id: str, kb_manager: KBManager = Depends(get_kb_man
         source_config = kb_config.get("source_config", {})
 
         # Create job
-        job_id = job_repo.create_job(
+        job_id = repo.create_job(
             kb_id=kb_id,
             source_type=source_type,
             source_config=source_config,
@@ -189,7 +188,7 @@ async def pause_ingestion(kb_id: str):
     """
     try:
         # Get latest job for this KB
-        job_id = job_repo.get_latest_job_id(kb_id)
+        job_id = repo.get_latest_job_id(kb_id)
         if not job_id:
             raise HTTPException(
                 status_code=404, detail=f"No job found for KB '{kb_id}'"
@@ -200,7 +199,7 @@ async def pause_ingestion(kb_id: str):
 
         if not task:
             # Task not running, just update database
-            job_repo.update_job(job_id, status="paused")
+            repo.update_job(job_id, status="paused")
             logger.info(f"Job {job_id} not running - marked as paused in database")
             return {
                 "status": "paused",
@@ -250,14 +249,14 @@ async def resume_ingestion(kb_id: str, kb_manager: KBManager = Depends(get_kb_ma
 
     try:
         # Get latest job for this KB
-        job_id = job_repo.get_latest_job_id(kb_id)
+        job_id = repo.get_latest_job_id(kb_id)
         if not job_id:
             raise HTTPException(
                 status_code=404, detail=f"No job found for KB '{kb_id}'"
             )
 
         # Verify job is paused
-        status = job_repo.get_job_status(job_id)
+        status = repo.get_job_status(job_id)
         if status != "paused":
             logger.warning(
                 f"Attempted to resume job {job_id} but status is {status}, not paused"
@@ -292,7 +291,7 @@ async def resume_ingestion(kb_id: str, kb_manager: KBManager = Depends(get_kb_ma
         IngestionOrchestrator.clear_shutdown_flag()
 
         # Update status to running
-        job_repo.update_job(job_id, status="running")
+        repo.update_job(job_id, status="running")
 
         # Restart orchestrator task from checkpoint
         task = asyncio.create_task(
@@ -330,13 +329,13 @@ async def cancel_ingestion(kb_id: str):
     """
     try:
         # Get latest job for this KB
-        job_id = job_repo.get_latest_job_id(kb_id)
+        job_id = repo.get_latest_job_id(kb_id)
         if not job_id:
             raise HTTPException(
                 status_code=404, detail=f"No job found for KB '{kb_id}'"
             )
 
-        job_repo.update_job(job_id, status="canceled")
+        repo.update_job(job_id, status="canceled")
         logger.info(f"Canceled job {job_id} for KB {kb_id}")
         return {"status": "canceled", "job_id": job_id, "kb_id": kb_id}
     except Exception as e:
@@ -358,8 +357,8 @@ async def get_job_status(job_id: str):
     """
     try:
         # Get job details
-        job = job_repo.get_job(job_id)
-        status = job_repo.get_job_status(job_id)
+        job = repo.get_job(job_id)
+        status = repo.get_job_status(job_id)
 
         return JobStatusResponse(
             job_id=job.id,
@@ -396,9 +395,9 @@ async def get_kb_ingestion_details(kb_id: str):
 
         # Get job counters if available
         try:
-            job_id = job_repo.get_latest_job_id(kb_id)
+            job_id = repo.get_latest_job_id(kb_id)
             if job_id:
-                job = job_repo.get_job(job_id)
+                job = repo.get_job(job_id)
                 counters = job.counters
             else:
                 counters = {}
@@ -464,11 +463,43 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
     except Exception:
         raw_metrics = {}
 
+    # Phase-derived counts
+    def phase_items(name: str, key: str = "items_processed") -> int:
+        for pd in status.phase_details:
+            if pd.get("name") == name:
+                return pd.get(key, 0) or 0
+        return 0
+
+    chunks_queued = (
+        raw_metrics.get("pending", 0)
+        + raw_metrics.get("processing", 0)
+        + raw_metrics.get("done", 0)
+        + raw_metrics.get("error", 0)
+    )
+
+    metrics_normalized = {
+        "chunks_pending": raw_metrics.get("pending", 0),
+        "chunks_processing": raw_metrics.get("processing", 0),
+        "chunks_embedded": raw_metrics.get("done", 0) or phase_items("indexing"),
+        "chunks_failed": raw_metrics.get("error", 0),
+        "chunks_queued": chunks_queued or phase_items("chunking", "items_total"),
+        "documents_crawled": phase_items("loading"),
+        "documents_cleaned": phase_items("chunking"),
+        "chunks_created": phase_items("chunking"),
+    }
+
     # Merge any persisted counters (docs_seen/chunks_seen/etc.) for richer metrics
     counters = latest_job_view.counters or {} if latest_job_view else {}
-
-    # Normalize metrics via shared util
-    metrics_normalized = normalize_ingestion_metrics(raw_metrics, status.phase_details, counters)
+    if counters:
+        metrics_normalized["documents_crawled"] = counters.get(
+            "docs_seen", metrics_normalized["documents_crawled"]
+        )
+        metrics_normalized["chunks_created"] = counters.get(
+            "chunks_seen", metrics_normalized["chunks_created"]
+        )
+        metrics_normalized["chunks_embedded"] = counters.get(
+            "chunks_processed", metrics_normalized["chunks_embedded"]
+        )
 
     # Map persisted status to job-level status
     derived_status = status.status
@@ -530,7 +561,7 @@ async def cleanup_running_tasks():
     logger.warning("Step 1b: Marking jobs as paused in the repository...")
     for job_id, _ in tasks_snapshot:
         try:
-            job_repo.set_job_status(job_id, status="paused")
+            repo.set_job_status(job_id, status="paused")
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.warning(f"Could not mark job {job_id} as paused: {exc}")
 
