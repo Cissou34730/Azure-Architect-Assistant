@@ -53,6 +53,9 @@ class AppSettings(BaseSettings):
     )
     mcp_default_timeout: int = Field(30)
     mcp_max_retries: int = Field(3)
+    
+    # LangGraph migration feature flag (Phase 3)
+    aaa_use_langgraph: bool = Field(default=False)
 
     # Diagram generation settings
     diagrams_database: Path = Field(

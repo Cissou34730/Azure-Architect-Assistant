@@ -218,6 +218,45 @@ async def chat_with_project_context(
 
     The agent will understand this is an NFR and may update the project state accordingly.
     """
+    from ...core.config import get_settings
+    from ..langgraph.adapter import execute_project_chat
+    
+    settings = get_settings()
+    
+    # Phase 3: Feature-flagged routing
+    if settings.aaa_use_langgraph:
+        logger.info(f"Project {project_id}: Using LangGraph execution path")
+        try:
+            result = await execute_project_chat(project_id, request.message, db)
+            
+            # Format reasoning steps for response
+            reasoning_steps = []
+            for step in result.get("reasoning_steps", []):
+                if isinstance(step, dict):
+                    reasoning_steps.append(
+                        AgentStep(
+                            action=step.get("action", ""),
+                            action_input=step.get("action_input", ""),
+                            observation=step.get("observation", ""),
+                        )
+                    )
+            
+            return ProjectAgentChatResponse(
+                answer=result["answer"],
+                success=result["success"],
+                project_state=result.get("project_state"),
+                reasoning_steps=reasoning_steps,
+                error=result.get("error"),
+            )
+        except Exception as e:
+            logger.error(f"LangGraph execution failed: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"LangGraph execution failed: {str(e)}",
+            )
+    
+    # Legacy execution path
+    logger.info(f"Project {project_id}: Using legacy execution path")
     try:
         logger.info(f"Project {project_id}: Received agent chat request")
 
