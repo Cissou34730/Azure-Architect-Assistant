@@ -6,6 +6,8 @@
 	The frontend is TypeScript React, backend in Python.
 	
 	[x] Mandatory rules to follow before writing code:
+	- Always use `uv` for package management and environment handling
+	- Use uv python to launch python scripts
 	- Use descriptive variable names (days_until_expiration vs d) and clear logic. If you need a comment to explain what the code does, the code is likely too complex.
 	- Use descriptive files, folders names
 	- DRY (Don't Repeat Yourself): If you copy-paste code, you create a maintenance debt. Abstract duplicate logic into a single function or class so you only have to fix bugs in one place
@@ -20,12 +22,14 @@
 	- Use TypeScript 5+
 	- Use only TailwindCSS 4.1 for Styling
 	- Backend in Python 3.10+
+	- Use `uv` for Python package and environment management
 	- Vite for frontend build tool
 
 	[x] Code Style and Conventions:
 	- Liting: ESLint with recommended settings for TypeScript and React
 	- Formatting: Prettier with default settings
-	- Python: Follow PEP 8 style guide for Python code
+	- Python: Follow ruff recommended style guide
+	- TypeScript: Use strict mode. Avoid using `any` type.
 	- Not hardcoding values. Use configuration files where appropriate.
 
 	[X] Project Structure:
@@ -37,16 +41,7 @@
 
 	[x] What to avoid
 	- Indroduce any new frameworks or libraries unless absolutely necessary and without consent
-
-- [x] Scaffold the Project
-	<!--
-	Ensure that the previous step has been marked as completed.
-	Call project setup tool with projectType parameter.
-	Run scaffolding command to create project files and folders.
-	Use '.' as the working directory.
-	If no appropriate projectType is available, search documentation using available tools.
-	Otherwise, create the project structure manually using available file creation tools.
-	-->
+	- use pip to install packages
 
 - [x] Customize the Project
 	
@@ -55,26 +50,3 @@
 	Apply modifications using appropriate tools and user-provided references.
 	Skip this step for "Hello World" projects.
 	
-
-- [x] Install Required Extensions
-	<!-- ONLY install extensions provided mentioned in the get_project_setup_info. Skip this step otherwise and mark as completed. -->
-
-- [x] Compile the Project
-	<!--
-	Verify that all previous steps have been completed.
-	Install any missing dependencies.
-	Run diagnostics and resolve any issues.
-	Check for markdown files in project folder for relevant instructions on how to do this.
-	-->
-
-- [x] Create and Run Task
-
-- [x] Launch the Project
-
-- [x] Ensure Documentation is Complete
-
-- [x] Ensuire module and library have a clean 
-
-- Work through each checklist item systematically.
-- Keep communication concise and focused.
-- Follow development best practices.
