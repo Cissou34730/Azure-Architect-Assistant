@@ -39,11 +39,25 @@ def classify_next_stage(state: GraphState) -> Dict[str, Any]:
     user_message = state.get("user_message", "").lower()
     project_state = state.get("current_project_state", {})
     agent_output = state.get("agent_output", "").lower()
-    
-    # Keyword-based stage classification
-    if any(kw in user_message for kw in ["what", "why", "how", "explain", "clarify", "?"]):
-        next_stage = ProjectStage.CLARIFY
-    elif any(kw in user_message for kw in ["adr", "decision", "record", "architecture decision"]):
+
+    requirements = project_state.get("requirements") or []
+    candidates = project_state.get("candidateArchitectures") or []
+    adrs = project_state.get("adrs") or []
+    findings = project_state.get("findings") or []
+    iac = project_state.get("iacArtifacts") or []
+    cost_estimates = project_state.get("costEstimates") or []
+    waf = project_state.get("wafChecklist") or {}
+
+    has_requirements = bool(requirements)
+    has_candidate = bool(candidates)
+    has_adrs = bool(adrs)
+    has_findings = bool(findings)
+    has_iac = bool(iac)
+    has_cost = bool(cost_estimates)
+    has_waf = bool(waf)
+
+    # Keyword-first for explicit intent
+    if any(kw in user_message for kw in ["adr", "decision", "record", "architecture decision"]):
         next_stage = ProjectStage.MANAGE_ADR
     elif any(kw in user_message for kw in ["validate", "validation", "waf", "security", "compliance", "benchmark"]):
         next_stage = ProjectStage.VALIDATE
@@ -56,8 +70,21 @@ def classify_next_stage(state: GraphState) -> Dict[str, Any]:
     elif any(kw in agent_output for kw in ["candidate", "solution", "propose", "suggest"]):
         next_stage = ProjectStage.PROPOSE_CANDIDATE
     else:
-        # Default to clarify
-        next_stage = ProjectStage.CLARIFY
+        # State-aware defaults
+        if not has_requirements:
+            next_stage = ProjectStage.CLARIFY
+        elif not has_candidate:
+            next_stage = ProjectStage.PROPOSE_CANDIDATE
+        elif not has_adrs:
+            next_stage = ProjectStage.MANAGE_ADR
+        elif not has_findings or not has_waf:
+            next_stage = ProjectStage.VALIDATE
+        elif not has_cost:
+            next_stage = ProjectStage.PRICING
+        elif not has_iac:
+            next_stage = ProjectStage.IAC
+        else:
+            next_stage = ProjectStage.CLARIFY
     
     logger.info(f"Classified next stage: {next_stage.value}")
     
@@ -139,7 +166,14 @@ def propose_next_step(state: GraphState) -> Dict[str, Any]:
     # Check if any artifact was persisted
     has_artifacts = any(
         key in combined_updates and combined_updates[key]
-        for key in ["candidates", "adrs", "validationResults", "costEstimate", "iacCode"]
+        for key in [
+            "candidateArchitectures",
+            "adrs",
+            "findings",
+            "iacArtifacts",
+            "costEstimates",
+            "diagrams",
+        ]
     )
     
     if has_artifacts:
@@ -149,19 +183,18 @@ def propose_next_step(state: GraphState) -> Dict[str, Any]:
     # Generate high-impact questions based on project state
     current_state = state.get("current_project_state", {})
     questions = []
-    
-    if not current_state.get("candidates"):
-        questions.append("What solution approaches should we explore?")
+
+    if not current_state.get("candidateArchitectures"):
+        questions.append("Should we propose 1-2 candidate Azure architectures and generate the first C4 L1 diagram?")
     if not current_state.get("adrs"):
-        questions.append("What architectural decisions need to be documented?")
-    if not current_state.get("validationResults"):
-        questions.append("Should we validate this against WAF or security benchmarks?")
-    if not current_state.get("costEstimate"):
-        questions.append("Do you need a cost estimate for this architecture?")
-    if not current_state.get("iacCode"):
-        questions.append("Should we generate Infrastructure as Code?")
-    
-    # Take top 3-5 questions
+        questions.append("Which decisions should be captured as ADRs with WAF or diagram evidence?")
+    if not current_state.get("findings") or not current_state.get("wafChecklist"):
+        questions.append("Do you want validation against WAF + Azure Security Benchmark now?")
+    if not current_state.get("iacArtifacts"):
+        questions.append("Should we generate Terraform/Bicep for the proposed components?")
+    if not current_state.get("costEstimates"):
+        questions.append("Do you need a cost estimate with key usage assumptions?")
+
     next_step_questions = questions[:5]
     
     if next_step_questions:

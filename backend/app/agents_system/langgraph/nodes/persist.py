@@ -151,7 +151,7 @@ async def apply_state_updates_node(
                     deduped_failed.append(qt)
             
             final_answer += (
-                "\n\nMCP lookups returned no results — "
+                "\n\nMCP lookups returned no results - "
                 "please clarify the exact term/service to search for:\n"
             )
             for qt in deduped_failed[:3]:

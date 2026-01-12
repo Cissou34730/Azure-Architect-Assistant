@@ -12,6 +12,11 @@ from ...services.project_context import (
     read_project_state,
     get_project_context_summary,
 )
+from ...services.mindmap_loader import (
+    get_mindmap,
+    compute_top_level_coverage,
+    is_mindmap_initialized,
+)
 from ..state import GraphState
 
 logger = logging.getLogger(__name__)
@@ -39,13 +44,25 @@ async def load_project_state_node(
             logger.warning(f"No project state found for {project_id}")
             return {
                 "current_project_state": {},
+                "mindmap": get_mindmap() if is_mindmap_initialized() else None,
+                "mindmap_coverage": None,
                 "error": f"Project state not found for {project_id}",
                 "success": False,
             }
         
+        mindmap = get_mindmap() if is_mindmap_initialized() else None
+        mindmap_cov = project_state.get("mindMapCoverage")
+        if mindmap_cov is None and mindmap is not None:
+            try:
+                mindmap_cov = compute_top_level_coverage(project_state)
+            except Exception:
+                mindmap_cov = None
+
         logger.info(f"Loaded project state for {project_id}")
         return {
             "current_project_state": project_state,
+            "mindmap": mindmap,
+            "mindmap_coverage": mindmap_cov,
             "success": True,
         }
         
@@ -53,6 +70,8 @@ async def load_project_state_node(
         logger.error(f"Failed to load project state for {project_id}: {e}", exc_info=True)
         return {
             "current_project_state": {},
+            "mindmap": get_mindmap() if is_mindmap_initialized() else None,
+            "mindmap_coverage": None,
             "error": f"Failed to load project state: {str(e)}",
             "success": False,
         }

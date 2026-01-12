@@ -148,7 +148,10 @@ class MCPReActAgent:
 
 User Question: {user_query}
 
-Please answer considering the project context above. If your answer clarifies or updates project requirements, mention what should be updated in the project state."""
+IMPORTANT: The "CURRENT PROJECT CONTEXT" above is for your INTERNAL reference only. The user CANNOT see it. 
+In your Final Answer, you MUST explicitly include or summarize any requirements, architectural decisions, or facts from the context that are relevant to the user's question. 
+NEVER refer to the context as "detailed above" or "provided in the context" without repeating the details themselves.
+"""
             agent_input["input"] = contextualized_query
 
         try:

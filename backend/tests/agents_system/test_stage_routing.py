@@ -132,7 +132,7 @@ def test_propose_next_step_with_artifacts():
     """Test next step proposal when artifacts persisted."""
     state: GraphState = {
         "combined_updates": {
-            "candidates": [{"id": "c1", "name": "Solution A"}],
+            "candidateArchitectures": [{"id": "c1", "name": "Solution A"}],
         },
         "final_answer": "Solution proposed.",
         "current_project_state": {},
@@ -165,8 +165,8 @@ def test_propose_next_step_specific_gaps():
         "combined_updates": {},
         "final_answer": "Discussed requirements.",
         "current_project_state": {
-            "candidates": [{"id": "c1"}],  # Has candidate
-            # Missing: adrs, validationResults, costEstimate, iacCode
+            "candidateArchitectures": [{"id": "c1"}],  # Has candidate
+            # Missing: adrs, findings/wafChecklist, costEstimates, iacArtifacts
         },
     }
     

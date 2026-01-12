@@ -1,178 +1,196 @@
 """
-Graph-native agent execution using LangGraph ToolNode.
+Stage-aware LangGraph-native agent execution using ToolNode.
 
-Phase 4: Replace LangChain AgentExecutor with LangGraph-native tool loop.
+Uses MCP + KB + AAA tools with explicit directives to research,
+cite sources, and avoid pushback.
 """
 
 import logging
 from typing import Any, Dict, List, Literal
+
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+    BaseMessage,
+)
 from langchain_core.tools import BaseTool
-from langgraph.prebuilt import ToolNode
 from langgraph.graph import StateGraph, END
+from langgraph.prebuilt import ToolNode
 
 from ...tools.mcp_tool import create_mcp_tools
 from ...tools.kb_tool import create_kb_tools
 from ...tools.aaa_candidate_tool import create_aaa_tools
 from ...config.react_prompts import SYSTEM_PROMPT
-from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from ....services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from config.settings import OpenAISettings
-from ..state import GraphState, MAX_AGENT_ITERATIONS, MAX_EXECUTION_TIME_SECONDS
+from ..state import GraphState, MAX_AGENT_ITERATIONS
 
 logger = logging.getLogger(__name__)
 
 
 class AgentState(Dict):
     """State for graph-native agent loop."""
+
     messages: List[BaseMessage]
     iterations: int
-    
 
-async def create_graph_native_agent_node(
-    mcp_client: MicrosoftLearnMCPClient,
-    openai_settings: OpenAISettings,
-) -> callable:
-    """
-    Create a graph-native agent node using LangGraph ToolNode.
-    
-    Phase 4: Replaces AgentExecutor with LangGraph tool loop.
-    
-    Args:
-        mcp_client: MCP client for tool creation
-        openai_settings: OpenAI configuration
-        
-    Returns:
-        Async function that executes graph-native agent
-    """
-    # Create tools
+
+def _format_mindmap_gaps(coverage: Dict[str, Any]) -> str:
+    topics = []
+    cov_topics = (coverage or {}).get("topics", {}) if isinstance(coverage, dict) else {}
+    if isinstance(cov_topics, dict):
+        for key, val in cov_topics.items():
+            if (val or {}).get("status") == "not-addressed":
+                topics.append(key)
+    return ", ".join(topics[:5]) if topics else ""
+
+
+def _build_system_directives(state: GraphState) -> str:
+    directives = [SYSTEM_PROMPT]
+
+    specialist = state.get("selected_specialist") or state.get("specialist_used")
+    if specialist:
+        directives.append(f"### Specialist focus\nOperate as {specialist.replace('_', ' ')} and keep the scope tight.")
+
+    stage_text = state.get("stage_directives")
+    if stage_text:
+        directives.append(f"### Stage directives\n{stage_text}")
+
+    research_plan = state.get("research_plan") or []
+    if research_plan:
+        directives.append(
+            "### Research plan (run MCP searches/fetches for these)\n"
+            + "\n".join([f"- {item}" for item in research_plan])
+        )
+
+    mindmap_cov = state.get("mindmap_coverage")
+    gaps = _format_mindmap_gaps(mindmap_cov) if mindmap_cov else ""
+    if gaps:
+        directives.append(f"### Mind map gaps to cover\n{gaps}")
+
+    directives.append(
+        "### Behavioral guardrails\n"
+        "- Always call MCP tools for at least one search and one fetch before final answer.\n"
+        "- Cite Azure/WAF/ASB sources with names and URLs; include mind map node ids when adding artifacts.\n"
+        "- Do not push back; if data is missing, ask 2 focused clarifications and propose options with trade-offs."
+    )
+
+    context_summary = state.get("context_summary")
+    if context_summary:
+        directives.append(f"### Project context (read-only)\n{context_summary}")
+
+    return "\n\n".join(directives)
+
+
+async def _build_tools(mcp_client: MicrosoftLearnMCPClient) -> List[BaseTool]:
     mcp_tools = await create_mcp_tools(mcp_client)
     kb_tools = create_kb_tools()
     aaa_tools = create_aaa_tools()
-    tools: List[BaseTool] = [*mcp_tools, *kb_tools, *aaa_tools]
-    
-    # Create LLM with tools
+    return [*mcp_tools, *kb_tools, *aaa_tools]
+
+
+async def run_stage_aware_agent(
+    state: GraphState,
+    *,
+    mcp_client: MicrosoftLearnMCPClient,
+    openai_settings: OpenAISettings,
+) -> Dict[str, Any]:
+    """
+    Execute a stage-aware agent using LangGraph ToolNode.
+    """
+    if mcp_client is None or openai_settings is None:
+        raise RuntimeError("Missing MCP client or OpenAI settings for agent execution")
+
+    user_message = state["user_message"]
+    system_directives = _build_system_directives(state)
+
+    tools = await _build_tools(mcp_client)
     llm = ChatOpenAI(
         model=openai_settings.model,
         temperature=0.1,
         openai_api_key=openai_settings.api_key,
     ).bind_tools(tools)
-    
-    # Create tool node
+
     tool_node = ToolNode(tools)
-    
-    def should_continue(state: AgentState) -> Literal["tools", "end"]:
-        """Decide whether to continue with tools or end."""
-        messages = state["messages"]
+
+    def should_continue(agent_state: AgentState) -> Literal["tools", "end"]:
+        messages = agent_state["messages"]
         last_message = messages[-1]
-        iterations = state.get("iterations", 0)
-        
-        # Check iteration limit
+        iterations = agent_state.get("iterations", 0)
+
         if iterations >= MAX_AGENT_ITERATIONS:
-            logger.warning(f"Reached max iterations: {MAX_AGENT_ITERATIONS}")
+            logger.warning("Reached max iterations in native agent loop")
             return "end"
-        
-        # If LLM makes a tool call, continue
+
         if hasattr(last_message, "tool_calls") and last_message.tool_calls:
             return "tools"
-        
         return "end"
-    
-    async def call_model(state: AgentState) -> Dict:
-        """Call LLM with current messages."""
-        messages = state["messages"]
-        iterations = state.get("iterations", 0)
-        
+
+    async def call_model(agent_state: AgentState) -> Dict[str, Any]:
+        messages = agent_state["messages"]
+        iterations = agent_state.get("iterations", 0)
         response = await llm.ainvoke(messages)
-        
-        return {
-            "messages": [response],
-            "iterations": iterations + 1,
-        }
-    
-    # Build agent graph
+        return {"messages": [response], "iterations": iterations + 1}
+
     workflow = StateGraph(AgentState)
     workflow.add_node("agent", call_model)
     workflow.add_node("tools", tool_node)
     workflow.set_entry_point("agent")
-    workflow.add_conditional_edges("agent", should_continue, {
-        "tools": "tools",
-        "end": END,
-    })
+    workflow.add_conditional_edges(
+        "agent",
+        should_continue,
+        {
+            "tools": "tools",
+            "end": END,
+        },
+    )
     workflow.add_edge("tools", "agent")
-    
     agent_graph = workflow.compile()
-    
-    async def execute_agent(state: GraphState) -> Dict[str, Any]:
-        """Execute graph-native agent."""
-        user_message = state["user_message"]
-        context_summary = state.get("context_summary")
-        
-        try:
-            # Build system message with context
-            system_content = SYSTEM_PROMPT
-            if context_summary:
-                system_content += f"\n\n### Project Context:\n{context_summary}"
-            
-            # Initialize agent state
-            initial_messages = [
-                HumanMessage(content=f"{system_content}\n\n{user_message}")
-            ]
-            
-            agent_state: AgentState = {
-                "messages": initial_messages,
-                "iterations": 0,
-            }
-            
-            logger.info(f"Executing graph-native agent for message: {user_message[:100]}...")
-            
-            # Execute agent graph
-            result_state = await agent_graph.ainvoke(agent_state)
-            
-            # Extract output and intermediate steps
-            messages = result_state["messages"]
-            agent_output = ""
-            intermediate_steps = []
-            
-            for msg in messages:
-                if isinstance(msg, AIMessage):
-                    if msg.content:
-                        agent_output = msg.content
-                    # Capture tool calls as intermediate steps
-                    if hasattr(msg, "tool_calls") and msg.tool_calls:
-                        for tool_call in msg.tool_calls:
-                            intermediate_steps.append((
-                                type('Action', (), {
-                                    'tool': tool_call.get("name", ""),
-                                    'tool_input': tool_call.get("args", {}),
-                                })(),
-                                ""  # Observation will come from ToolMessage
-                            ))
-                elif isinstance(msg, ToolMessage):
-                    # Update observation in last step
-                    if intermediate_steps:
-                        action, _ = intermediate_steps[-1]
-                        intermediate_steps[-1] = (action, msg.content)
-            
-            logger.info(
-                f"Graph-native agent finished (iterations={result_state['iterations']}, "
-                f"steps={len(intermediate_steps)})"
-            )
-            
-            return {
-                "agent_output": agent_output,
-                "intermediate_steps": intermediate_steps,
-                "success": True,
-                "error": None,
-            }
-            
-        except Exception as e:
-            logger.error(f"Graph-native agent execution failed: {e}", exc_info=True)
-            return {
-                "agent_output": "",
-                "intermediate_steps": [],
-                "success": False,
-                "error": f"Agent execution failed: {str(e)}",
-            }
-    
-    return execute_agent
+
+    initial_messages: List[BaseMessage] = [
+        SystemMessage(content=system_directives),
+        HumanMessage(content=user_message),
+    ]
+    agent_state: AgentState = {"messages": initial_messages, "iterations": 0}
+
+    logger.info("Running stage-aware native agent")
+    result_state = await agent_graph.ainvoke(agent_state)
+
+    # Extract output and intermediate steps
+    messages = result_state["messages"]
+    agent_output = ""
+    intermediate_steps = []
+
+    for msg in messages:
+        if isinstance(msg, AIMessage):
+            if msg.content:
+                agent_output = msg.content
+            if hasattr(msg, "tool_calls") and msg.tool_calls:
+                for tool_call in msg.tool_calls:
+                    intermediate_steps.append(
+                        (
+                            type(
+                                "Action",
+                                (),
+                                {
+                                    "tool": tool_call.get("name", ""),
+                                    "tool_input": tool_call.get("args", {}),
+                                },
+                            )(),
+                            "",
+                        )
+                    )
+        elif isinstance(msg, ToolMessage):
+            if intermediate_steps:
+                action, _ = intermediate_steps[-1]
+                intermediate_steps[-1] = (action, msg.content)
+
+    return {
+        "agent_output": agent_output,
+        "intermediate_steps": intermediate_steps,
+        "success": True,
+        "error": None,
+    }

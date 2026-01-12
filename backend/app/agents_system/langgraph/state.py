@@ -22,10 +22,14 @@ class GraphState(TypedDict, total=False):
     # Context loading
     context_summary: Optional[str]
     current_project_state: Dict[str, Any]
+    mindmap: Optional[Dict[str, Any]]
+    mindmap_coverage: Optional[Dict[str, Any]]
     
     # Agent execution
     agent_output: str
     intermediate_steps: List[Any]  # Tool call traces
+    stage_directives: Optional[str]
+    research_plan: List[str]
     
     # Post-processing
     architect_choice_required_section: Optional[str]

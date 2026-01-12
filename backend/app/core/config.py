@@ -167,6 +167,15 @@ def get_app_settings() -> AppSettings:
     return AppSettings()
 
 
+def get_settings() -> AppSettings:
+    """Backward-compatible alias for settings access.
+
+    Some routers/services import `get_settings` from this module.
+    Prefer using `get_app_settings` (or `app.core.container.get_settings`) going forward.
+    """
+    return get_app_settings()
+
+
 def get_backend_root() -> Path:
     """Backend root directory path."""
     return Path(__file__).resolve().parents[2]
@@ -176,6 +185,7 @@ def get_backend_root() -> Path:
 __all__ = [
     "AppSettings",
     "get_app_settings",
+    "get_settings",
     "get_backend_root",
     "get_ingestion_settings",
     "get_kb_defaults",

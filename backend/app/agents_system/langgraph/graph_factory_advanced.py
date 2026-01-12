@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .state import GraphState
 from .nodes.context import load_project_state_node, build_context_summary_node
+from .nodes.research import build_research_plan_node
 from .nodes.agent import run_agent_node
 from .nodes.postprocess import postprocess_node
 from .nodes.persist import persist_messages_node, apply_state_updates_node
@@ -58,6 +59,9 @@ def build_advanced_project_chat_graph(
     
     async def build_summary(state: GraphState) -> dict:
         return await build_context_summary_node(state, db)
+
+    async def build_research(state: GraphState) -> dict:
+        return await build_research_plan_node(state)
     
     async def run_agent(state: GraphState) -> dict:
         return await run_agent_node(state)
@@ -74,6 +78,8 @@ def build_advanced_project_chat_graph(
     # Core nodes (all phases)
     workflow.add_node("load_state", load_state)
     workflow.add_node("build_summary", build_summary)
+    workflow.add_node("classify_stage", classify_next_stage)
+    workflow.add_node("build_research", build_research)
     workflow.add_node("run_agent", run_agent)
     workflow.add_node("persist_messages", persist_messages)
     workflow.add_node("postprocess", postprocess)
@@ -81,7 +87,6 @@ def build_advanced_project_chat_graph(
     
     # Phase 5 nodes (stage routing and retry)
     if enable_stage_routing:
-        workflow.add_node("classify_stage", classify_next_stage)
         workflow.add_node("retry_prompt", build_retry_prompt)
         workflow.add_node("propose_next_step", propose_next_step)
     
@@ -96,10 +101,12 @@ def build_advanced_project_chat_graph(
     # Build workflow based on enabled features
     workflow.set_entry_point("load_state")
     workflow.add_edge("load_state", "build_summary")
+    workflow.add_edge("build_summary", "classify_stage")
+    workflow.add_edge("classify_stage", "build_research")
     
     if enable_multi_agent:
         # Phase 6: Route through supervisor
-        workflow.add_edge("build_summary", "supervisor")
+        workflow.add_edge("build_research", "supervisor")
         workflow.add_conditional_edges(
             "supervisor",
             route_to_specialist,
@@ -111,23 +118,22 @@ def build_advanced_project_chat_graph(
                 "general": "run_agent",
             }
         )
-        # All specialists merge back to persist
-        workflow.add_edge("adr_specialist", "persist_messages")
-        workflow.add_edge("validation_specialist", "persist_messages")
-        workflow.add_edge("pricing_specialist", "persist_messages")
-        workflow.add_edge("iac_specialist", "persist_messages")
+        # Specialists annotate state then continue to run agent
+        workflow.add_edge("adr_specialist", "run_agent")
+        workflow.add_edge("validation_specialist", "run_agent")
+        workflow.add_edge("pricing_specialist", "run_agent")
+        workflow.add_edge("iac_specialist", "run_agent")
         workflow.add_edge("run_agent", "persist_messages")
     else:
-        workflow.add_edge("build_summary", "run_agent")
+        workflow.add_edge("build_research", "run_agent")
         workflow.add_edge("run_agent", "persist_messages")
     
     workflow.add_edge("persist_messages", "postprocess")
     
     if enable_stage_routing:
         # Phase 5: Add retry logic
-        workflow.add_edge("postprocess", "classify_stage")
         workflow.add_conditional_edges(
-            "classify_stage",
+            "postprocess",
             check_for_retry,
             {
                 "retry": "retry_prompt",

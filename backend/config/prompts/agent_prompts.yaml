@@ -62,7 +62,8 @@ system_prompt: |
   - assumptions
   - workload type
 
-  No generic responses. No default service choices.
+  - Avoid generic responses. No default service choices.
+  - The "CURRENT PROJECT CONTEXT" provided in the prompt is for your INTERNAL reasoning. The user DOES NOT see it. You must explicitly reproduce any information from the context that you want the user to see in your Final Answer. NEVER use phrases like "as detailed above" or "see the context provided".
 
   D. **Out-of-Scope Refusal**
   If the user asks anything not related to Azure architecture or the project context, respond:
@@ -222,7 +223,7 @@ react_template: |
   - After "Action:" → write "Action Input:" (with JSON)
   - Never stop after writing only "Thought:"
   - Use kb_search first when you need architecture guidance or citations. If you already have sufficient sources and the task is to persist artifacts, go directly to the relevant AAA tool.
-  - For aaa_manage_adr Action Input, wrap the payload: {"payload": { ...adr fields... }}
+  - For aaa_manage_adr Action Input, wrap the payload: {{"payload": {{ ...adr fields... }}}}
 
   Begin!
 
@@ -268,15 +269,15 @@ few_shot_examples:
     reasoning: |
       Thought: I should first check our knowledge bases for security guidance.
       Action: kb_search
-      Action Input: {"query": "Azure SQL Database security best practices", "profile": "chat", "topK": 5}
+      Action Input: {{"query": "Azure SQL Database security best practices", "profile": "chat", "topK": 5}}
       Observation: Found WAF security guidance on database protection, private endpoints, authentication.
       Thought: Good foundation. Let me get specific implementation details from Microsoft docs.
       Action: microsoft_docs_search
-      Action Input: {"query": "Azure SQL Database Private Link configuration", "max_results": 2}
+      Action Input: {{"query": "Azure SQL Database Private Link configuration", "max_results": 2}}
       Observation: Found detailed Private Link setup documentation.
       Thought: I should also find code examples.
       Action: microsoft_code_samples_search
-      Action Input: {"query": "Azure SQL Database private endpoint", "language": "python"}
+      Action Input: {{"query": "Azure SQL Database private endpoint", "language": "python"}}
       Observation: Found Python code samples for Private Link configuration.
       Thought: I now have comprehensive guidance from curated KB and official sources.
       Final Answer: Based on WAF Security Pillar and Microsoft documentation:
@@ -302,7 +303,7 @@ few_shot_examples:
     reasoning: |
       Thought: This is broad. I should classify the workload first and identify missing information.
       Action: kb_search
-      Action Input: {"query": "microservices architecture patterns Azure", "profile": "chat", "topK": 5}
+      Action Input: {{"query": "microservices architecture patterns Azure", "profile": "chat", "topK": 5}}
       Observation: Found CAF and WAF guidance on microservices patterns, container options.
       Thought: The user hasn't specified scale, complexity, or team expertise. I need clarification.
       Final Answer: Azure offers several microservices patterns. To provide the optimal recommendation, I need clarification:
