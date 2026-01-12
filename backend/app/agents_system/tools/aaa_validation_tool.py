@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Type
+from typing import Any, Dict, List, Literal, Optional, Type, Union
 
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field
@@ -107,6 +107,14 @@ class AAARunValidationInput(BaseModel):
     )
 
 
+class AAARunValidationToolInput(BaseModel):
+    """Raw tool payload for validation."""
+
+    payload: Union[str, Dict[str, Any]] = Field(
+        description="A JSON object (or JSON string) matching AAARunValidationInput."
+    )
+
+
 class AAARunValidationTool(BaseTool):
     name: str = "aaa_record_validation_results"
     description: str = (
@@ -115,16 +123,39 @@ class AAARunValidationTool(BaseTool):
         "Use after consulting reference docs/MCP and include sourceCitations."
     )
 
-    args_schema: Type[BaseModel] = AAARunValidationInput
+    args_schema: Type[BaseModel] = AAARunValidationToolInput
 
     def _run(
         self,
-        findings: Optional[List[Dict[str, Any]]] = None,
-        wafEvaluations: Optional[List[Dict[str, Any]]] = None,
+        payload: Union[str, Dict[str, Any], None] = None,
+        **kwargs: Any,
     ) -> str:
+        if payload is None:
+            if "payload" in kwargs:
+                payload = kwargs["payload"]
+            else:
+                raise ValueError("Missing payload for aaa_record_validation_results")
+
+        if isinstance(payload, str):
+            try:
+                data = json.loads(payload.strip())
+            except json.JSONDecodeError as exc:
+                raise ValueError("Invalid JSON payload for validation results.") from exc
+        else:
+            data = payload
+
+        try:
+            args = AAARunValidationInput.model_validate(data)
+        except Exception as exc:
+            return f"ERROR: Validation failed for AAARunValidationInput: {str(exc)}"
+
+        findings = args.findings
+        wafEvaluations = args.wafEvaluations
+
         finding_items: List[Dict[str, Any]] = []
 
-        for f in findings or []:
+        for f_obj in findings or []:
+            f = f_obj.model_dump() if hasattr(f_obj, "model_dump") else f_obj
             citations = f.get("sourceCitations") or []
             if not citations:
                 raise ValueError(
@@ -167,7 +198,8 @@ class AAARunValidationTool(BaseTool):
             )
 
         waf_items_by_id: Dict[str, Dict[str, Any]] = {}
-        for evaluation in wafEvaluations or []:
+        for evaluation_obj in wafEvaluations or []:
+            evaluation = evaluation_obj.model_dump() if hasattr(evaluation_obj, "model_dump") else evaluation_obj
             item_id = str(evaluation.get("itemId") or "").strip()
             if not item_id:
                 raise ValueError("WAF evaluation requires itemId")
@@ -212,14 +244,14 @@ class AAARunValidationTool(BaseTool):
         if waf_items_by_id:
             updates["wafChecklist"] = {"items": list(waf_items_by_id.values())}
 
-        payload = json.dumps(updates, ensure_ascii=False, indent=2)
+        payload_json = json.dumps(updates, ensure_ascii=False, indent=2)
 
         return (
             f"Recorded validation results at {_now_iso()} (findings={len(finding_items)}, wafEvaluations={len(wafEvaluations or [])}).\n"
             "\n"
             "AAA_STATE_UPDATE\n"
             "```json\n"
-            f"{payload}\n"
+            f"{payload_json}\n"
             "```"
         )
 

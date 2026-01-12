@@ -71,7 +71,35 @@ async def postprocess_node(state: GraphState, response_message_id: str) -> Dict[
         logger.warning("Architect choice required detected; will block state updates")
     
     # 2) Extract state updates from AAA_STATE_UPDATE blocks
-    state_updates = extract_state_updates(agent_output, user_message, current_project_state)
+    # Collect updates from both agent_output and tool results in intermediate_steps
+    all_state_updates: List[Dict[str, Any]] = []
+    
+    # Check agent output
+    updates = extract_state_updates(agent_output, user_message, current_project_state)
+    if updates:
+        all_state_updates.append(updates)
+        
+    # Check each intermediate tool step for markers
+    for _, observation in intermediate_steps:
+        if isinstance(observation, str) and _AAA_STATE_UPDATE_MARKER in observation:
+            tool_updates = extract_state_updates(observation, user_message, current_project_state)
+            if tool_updates:
+                all_state_updates.append(tool_updates)
+    
+    # Merge all extracted updates
+    state_updates: Dict[str, Any] = {}
+    for update_set in all_state_updates:
+        for key, value in update_set.items():
+            if key not in state_updates:
+                state_updates[key] = value
+            elif isinstance(state_updates[key], list) and isinstance(value, list):
+                # Dedup or merge lists
+                state_updates[key] = [*state_updates[key], *value]
+            else:
+                state_updates[key] = value # Overwrite with later update
+    
+    if not state_updates:
+        state_updates = None
     
     # FR-018: Block state updates if architect choice is required
     if architect_choice_required:

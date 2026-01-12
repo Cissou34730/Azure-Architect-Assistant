@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type, Union
 
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field
@@ -54,6 +54,14 @@ class AAAGenerateCandidateInput(BaseModel):
     )
 
 
+class AAAGenerateCandidateToolInput(BaseModel):
+    """Raw tool payload for candidate generation."""
+
+    payload: Union[str, Dict[str, Any]] = Field(
+        description="A JSON object (or JSON string) matching AAAGenerateCandidateInput."
+    )
+
+
 class AAAGenerateCandidateTool(BaseTool):
     """Tool to create a CandidateArchitecture + Assumption artifacts as a state update."""
 
@@ -65,16 +73,38 @@ class AAAGenerateCandidateTool(BaseTool):
         "sourceCitations."
     )
 
-    args_schema: Type[BaseModel] = AAAGenerateCandidateInput
+    args_schema: Type[BaseModel] = AAAGenerateCandidateToolInput
 
     def _run(
         self,
-        title: str,
-        summary: str,
-        assumptions: Optional[List[str]] = None,
-        diagramIds: Optional[List[str]] = None,
-        sourceCitations: Optional[List[Dict[str, Any]]] = None,
+        payload: Union[str, Dict[str, Any], None] = None,
+        **kwargs: Any,
     ) -> str:
+        if payload is None:
+            if "payload" in kwargs:
+                payload = kwargs["payload"]
+            else:
+                raise ValueError("Missing payload for aaa_generate_candidate_architecture")
+
+        if isinstance(payload, str):
+            try:
+                data = json.loads(payload.strip())
+            except json.JSONDecodeError as exc:
+                raise ValueError("Invalid JSON payload for candidate generation.") from exc
+        else:
+            data = payload
+
+        try:
+            args = AAAGenerateCandidateInput.model_validate(data)
+        except Exception as exc:
+            return f"ERROR: Validation failed for AAAGenerateCandidateInput: {str(exc)}"
+
+        title = args.title
+        summary = args.summary
+        assumptions = args.assumptions
+        diagramIds = args.diagramIds
+        sourceCitations = args.sourceCitations
+
         candidate_id = str(uuid.uuid4())
         assumption_items: List[Dict[str, Any]] = []
         assumption_ids: List[str] = []

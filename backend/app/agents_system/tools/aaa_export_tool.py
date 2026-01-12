@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Any, Dict, Literal, Optional, Type
+from typing import Any, Dict, Literal, Optional, Type, Union
 
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field
@@ -33,6 +33,14 @@ class AAAExportInput(BaseModel):
     fileName: Optional[str] = Field(default=None, description="Suggested file name")
 
 
+class AAAExportToolInput(BaseModel):
+    """Raw tool payload for export."""
+
+    payload: Union[str, Dict[str, Any]] = Field(
+        description="A JSON object (or JSON string) matching AAAExportInput."
+    )
+
+
 class AAAExportTool(BaseTool):
     name: str = "aaa_export_state"
     description: str = (
@@ -40,21 +48,43 @@ class AAAExportTool(BaseTool):
         "Returns an AAA_EXPORT payload as a JSON code block."
     )
 
-    args_schema: Type[BaseModel] = AAAExportInput
+    args_schema: Type[BaseModel] = AAAExportToolInput
 
     def _run(
         self,
-        exportFormat: ExportFormat = "json",
-        state: Optional[Dict[str, Any]] = None,
-        pretty: bool = True,
-        fileName: Optional[str] = None,
+        payload: Union[str, Dict[str, Any], None] = None,
+        **kwargs: Any,
     ) -> str:
-        export_state = state or {}
+        if payload is None:
+            if "payload" in kwargs:
+                payload = kwargs["payload"]
+            else:
+                raise ValueError("Missing payload for aaa_export_state")
+
+        if isinstance(payload, str):
+            try:
+                data = json.loads(payload.strip())
+            except json.JSONDecodeError as exc:
+                raise ValueError("Invalid JSON payload for export.") from exc
+        else:
+            data = payload
+
+        try:
+            args = AAAExportInput.model_validate(data)
+        except Exception as exc:
+            return f"ERROR: Validation failed for AAAExportInput: {str(exc)}"
+
+        exportFormat = args.exportFormat
+        state_data = args.state
+        pretty = args.pretty
+        fileName = args.fileName
+
+        export_state = state_data or {}
 
         if exportFormat != "json":
             raise ValueError(f"Unsupported exportFormat: {exportFormat}")
 
-        payload = json.dumps(
+        payload_json = json.dumps(
             {
                 "exportedAt": _now_iso(),
                 "state": export_state,
@@ -70,7 +100,7 @@ class AAAExportTool(BaseTool):
             "\n"
             "AAA_EXPORT\n"
             "```json\n"
-            f"{payload}\n"
+            f"{payload_json}\n"
             "```"
         )
 

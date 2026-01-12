@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Type
+from typing import Any, Dict, List, Literal, Optional, Type, Union
 
 from langchain.tools import BaseTool
 from pydantic import BaseModel, Field
@@ -90,6 +90,14 @@ class AAAGenerateIacAndCostInput(BaseModel):
     )
 
 
+class AAAGenerateIacToolInput(BaseModel):
+    """Raw tool payload for IaC and cost."""
+
+    payload: Union[str, Dict[str, Any]] = Field(
+        description="A JSON object (or JSON string) matching AAAGenerateIacAndCostInput."
+    )
+
+
 class AAAGenerateIacTool(BaseTool):
     name: str = "aaa_record_iac_and_cost"
     description: str = (
@@ -98,33 +106,57 @@ class AAAGenerateIacTool(BaseTool):
         "For deterministic runs, provide pricingCatalog to avoid calling the external pricing API."
     )
 
-    args_schema: Type[BaseModel] = AAAGenerateIacAndCostInput
+    args_schema: Type[BaseModel] = AAAGenerateIacToolInput
 
     def _run(
         self,
-        iacFiles: Optional[List[Dict[str, Any]]] = None,
-        validationResults: Optional[List[Dict[str, Any]]] = None,
-        pricingLines: Optional[List[Dict[str, Any]]] = None,
-        pricingCatalog: Optional[List[Dict[str, Any]]] = None,
-        baselineReferenceTotalMonthlyCost: Optional[float] = None,
+        payload: Union[str, Dict[str, Any], None] = None,
+        **kwargs: Any,
     ) -> str:
+        if payload is None:
+            if "payload" in kwargs:
+                payload = kwargs["payload"]
+            else:
+                raise ValueError("Missing payload for aaa_record_iac_and_cost")
+
+        if isinstance(payload, str):
+            try:
+                data = json.loads(payload.strip())
+            except json.JSONDecodeError as exc:
+                raise ValueError("Invalid JSON payload for IaC and cost.") from exc
+        else:
+            data = payload
+
+        try:
+            args = AAAGenerateIacAndCostInput.model_validate(data)
+        except Exception as exc:
+            return f"ERROR: Validation failed for AAAGenerateIacAndCostInput: {str(exc)}"
+
+        iacFiles = args.iacFiles
+        validationResults = args.validationResults
+        pricingLines = args.pricingLines
+        pricingCatalog = args.pricingCatalog
+        baselineReferenceTotalMonthlyCost = args.baselineReferenceTotalMonthlyCost
+
         iac_artifact_id = str(uuid.uuid4())
-        iac_files = iacFiles or []
+        iac_files_list = [f.model_dump() if hasattr(f, "model_dump") else f for f in iacFiles or []]
+        val_results_list = [r.model_dump() if hasattr(r, "model_dump") else r for r in validationResults or []]
+        pricing_lines_list = [l.model_dump() if hasattr(l, "model_dump") else l for l in pricingLines or []]
 
         iac_artifact: Dict[str, Any] = {
             "id": iac_artifact_id,
             "createdAt": _now_iso(),
-            "files": iac_files,
-            "validationResults": validationResults or [],
+            "files": iac_files_list,
+            "validationResults": val_results_list,
         }
 
         updates: Dict[str, Any] = {}
 
-        if iac_files or (validationResults or []):
+        if iac_files_list or val_results_list:
             updates["iacArtifacts"] = [iac_artifact]
 
         cost_estimate = None
-        if pricingLines:
+        if pricing_lines_list:
             # Compute baseline cost using either provided catalog or live API
             items = pricingCatalog
             if items is None:
@@ -133,7 +165,7 @@ class AAAGenerateIacTool(BaseTool):
                     "pricingLines requires async execution (external pricing API). Use async tool call or provide pricingCatalog."
                 )
             cost_estimate = _compute_cost_estimate(
-                pricing_lines=pricingLines,
+                pricing_lines=pricing_lines_list,
                 catalog_items=items,
                 baseline_reference_total=baselineReferenceTotalMonthlyCost,
             )
@@ -141,13 +173,13 @@ class AAAGenerateIacTool(BaseTool):
         if cost_estimate is not None:
             updates["costEstimates"] = [cost_estimate]
 
-        payload = json.dumps(updates, ensure_ascii=False, indent=2)
+        payload_json = json.dumps(updates, ensure_ascii=False, indent=2)
         return (
-            f"Recorded IaC/cost artifacts at {_now_iso()} (iacFiles={len(iac_files)}, pricingLines={len(pricingLines or [])}).\n"
+            f"Recorded IaC/cost artifacts at {_now_iso()} (iacFiles={len(iac_files_list)}, pricingLines={len(pricing_lines_list)}).\n"
             "\n"
             "AAA_STATE_UPDATE\n"
             "```json\n"
-            f"{payload}\n"
+            f"{payload_json}\n"
             "```"
         )
 

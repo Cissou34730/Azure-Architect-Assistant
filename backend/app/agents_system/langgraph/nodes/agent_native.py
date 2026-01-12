@@ -75,7 +75,9 @@ def _build_system_directives(state: GraphState) -> str:
         "### Behavioral guardrails\n"
         "- Always call MCP tools for at least one search and one fetch before final answer.\n"
         "- Cite Azure/WAF/ASB sources with names and URLs; include mind map node ids when adding artifacts.\n"
-        "- Do not push back; if data is missing, ask 2 focused clarifications and propose options with trade-offs."
+        "- Challenge assumptions: If a user choice contradicts Azure WAF best practices or NFRs, you MUST explain the risk and offer alternatives.\n"
+        "- Persist decisions: Whenever a design choice is made, use the appropriate AAA tool and include the 'AAA_STATE_UPDATE' block in your response to confirm it reached the system.\n"
+        "- Proactive driving: Drive the project forward. If requirements are clear, propose the architecture; if architecture is clear, move to ADRs."
     )
 
     context_summary = state.get("context_summary")
