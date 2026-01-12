@@ -1,46 +1,29 @@
 ---
 name: uv-package-manager
-description: Efficient Python package and environment management using uv. Use this skill to manage dependencies, sync environments, and run Python scripts using the uv tool.
+description: Standard workflow for Python dependency management. Use this skill when we need to: (1) Install or remove Python packages, (2) Create or sync virtual environments, (3) Run Python scripts or tests, (4) Debug dependency conflicts, or (5) Initialize new Python projects.
 ---
 
-# UV Package Manager Skill
+# UV Workflow Guidelines
 
-## Overview
+## Core Principles
+1. **Prefer `uv run`**: Do not manually activate virtual environments. Use `uv run <command>` to execute scripts in the project context.
+2. **Lockfile Integrity**: Always run `uv sync` if `uv.lock` changes. Never manually edit `uv.lock`.
+3. **Reproducibility**: Ensure `python-version` is pinned in `pyproject.toml` via `uv python pin`.
 
-`uv` is an extremely fast Python package installer and resolver, written in Rust. It's designed as a drop-in replacement for common `pip`, `pip-tools`, and `virtualenv` workflows. This skill helps you manage the project's Python environment efficiently.
+## Common Operations
 
-## Quick Start
+### Dependency Management
+- **Add Package**: `uv add <package>` (Use `--dev` for development tools like pytest/ruff)
+- **Remove Package**: `uv remove <package>`
+- **Update All**: `uv lock --upgrade`
 
-- **Sync Environment**: `uv sync` (Installs all dependencies from `pyproject.toml` and updates `uv.lock`)
-- **Add Dependency**: `uv add <package_name>`
-- **Add Dev Dependency**: `uv add --dev <package_name>`
-- **Remove Dependency**: `uv remove <package_name>`
-- **Run Script**: `uv run <script.py>` or `uv run <command>`
-- **Lock Dependencies**: `uv lock` (Updates `uv.lock` without installing)
+### Environment
+- **Sync/Install**: `uv sync` (Run this immediately if `pyproject.toml` is pulled from git)
+- **Reset**: If environment is corrupted, delete `.venv` and run `uv sync`.
 
-## Virtual Environment Management
+### Execution
+- **Run Script**: `uv run script.py`
+- **Run Tool**: `uv run pytest`
 
-`uv` manages virtual environments automatically in a `.venv` directory at the project root.
-
-- **Create Venv**: `uv venv`
-- **Activation (Windows PowerShell)**: `.venv\Scripts\Activate.ps1`
-- **Activation (Windows Command Prompt)**: `.venv\Scripts\activate.bat`
-
-## Best Practices
-
-- **Reproducible Builds**: Always commit `uv.lock` and `pyproject.toml` to version control.
-- **Environment Isolation**: Prefer `uv run` for executing commands within the project context, as it ensures the correct environment is used without manual activation.
-- **Fast Installation**: Use `uv sync` after pulling changes to ensure your local `.venv` matches the lockfile.
-- **Python Versioning**: Use `uv python pin <version>` to specify a Python version for the project (stored in `.python-version`).
-- **Global Tools**: Use `uv tool install <package>` for tools you want available globally (e.g., `ruff`, `mypy`).
-
-## Troubleshooting
-
-- **Inconsistent Environment**: If the `.venv` seems corrupted, delete it and run `uv sync`.
-- **Dependency Conflicts**: `uv` provides detailed error messages when resolution fails. Check `pyproject.toml` for incompatible version ranges.
-- **Network Issues**: `uv` uses a cache. If you suspect cache issues, use `--no-cache` or `uv cache clean`.
-
-## Resources
-
-- [Official UV Documentation](https://docs.astral.sh/uv/)
-- [UV GitHub Repository](https://github.com/astral-sh/uv)
+## Advanced Reference
+For complex resolution behavior or workspace configuration, see [REFERENCES.md](references/uv-advanced.md).

@@ -40,8 +40,8 @@
 	- All documents and md file except README.md must go to /docs in the relevant folders
 
 	[x] What to avoid
-	- Indroduce any new frameworks or libraries unless absolutely necessary and without consent
-	- use pip to install packages
+	- Introduce any new frameworks or libraries unless absolutely necessary and without consent
+	- Do not use `pip` directly for project dependency management. Use `uv add`, `uv sync`, and `uv lock` instead to keep reproducible builds.
 
 - [x] Customize the Project
 	
