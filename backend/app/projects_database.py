@@ -3,8 +3,9 @@ Database configuration and session management.
 SQLAlchemy with async SQLite support.
 """
 
-import os
 from pathlib import Path
+import os
+from app.core.config import get_app_settings
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import StaticPool
 import logging
@@ -13,10 +14,19 @@ from app.models.project import Base
 
 logger = logging.getLogger(__name__)
 
-# Database path from environment variable
+# Database path from central AppSettings or environment variable
 BACKEND_ROOT = Path(__file__).parent.parent
 DATA_DIR = BACKEND_ROOT / "data"
-DB_PATH = Path(os.getenv("PROJECTS_DATABASE", str(DATA_DIR / "projects.db")))
+app_settings = None
+try:
+    app_settings = get_app_settings()
+except Exception:
+    app_settings = None
+
+if app_settings and app_settings.projects_database:
+    DB_PATH = Path(app_settings.projects_database)
+else:
+    DB_PATH = Path(os.getenv("PROJECTS_DATABASE", str(DATA_DIR / "projects.db")))
 
 # Handle relative paths
 if not DB_PATH.is_absolute():

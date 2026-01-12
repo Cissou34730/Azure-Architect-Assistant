@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Project, projectApi } from "../../../services/apiService";
 import { useProjectState } from "./useProjectState";
-import { useChat } from "./useChat";
 import { useProposal } from "./useProposal";
 import { useToast } from "../../../hooks/useToast";
 import { getTabs } from "../tabs";
@@ -33,11 +32,12 @@ export function useProjectDetails(projectId: string | undefined) {
         void navigate(`/projects/${projectId}/${tab.path}`);
       }
     },
-    [navigate, projectId, tabs],
+    [navigate, projectId, tabs]
   );
 
   const [textRequirements, setTextRequirements] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState("");
 
   const { success, error: showError, warning } = useToast();
 
@@ -68,23 +68,16 @@ export function useProjectDetails(projectId: string | undefined) {
 
   // Feature Hooks
   const stateHook = useProjectState(selectedProject?.id ?? null);
-  const chatHook = useChat(selectedProject?.id ?? null);
   const proposalHook = useProposal();
 
-  const loading =
-    loadingProject ||
-    stateHook.loading ||
-    chatHook.loading ||
-    proposalHook.loading;
-
-  const loadingMessage = chatHook.loadingMessage;
+  const loading = loadingProject || stateHook.loading || proposalHook.loading;
 
   // Logging helper
   const logAction = useCallback(
     (_action: string, _details?: Record<string, unknown>) => {
       // Logging disabled
     },
-    [],
+    []
   );
 
   // Sync state changes log
@@ -105,7 +98,7 @@ export function useProjectDetails(projectId: string | undefined) {
       success("Documents uploaded successfully!");
       setFiles(null);
       const fileInput = document.getElementById(
-        "file-input",
+        "file-input"
       ) as HTMLInputElement | null;
       if (fileInput) fileInput.value = "";
     } catch (error) {
@@ -119,7 +112,7 @@ export function useProjectDetails(projectId: string | undefined) {
     try {
       const updated = await projectApi.saveTextRequirements(
         selectedProject.id,
-        textRequirements,
+        textRequirements
       );
       setSelectedProject(updated); // Update local project to reflect changes
       success("Requirements saved successfully!");
@@ -137,12 +130,13 @@ export function useProjectDetails(projectId: string | undefined) {
       (!files || files.length === 0)
     ) {
       warning(
-        "Please provide either text requirements or upload documents before analyzing.",
+        "Please provide either text requirements or upload documents before analyzing."
       );
       return;
     }
 
     try {
+      setLoadingMessage("Analyzing documents...");
       const state = await stateHook.analyzeDocuments();
       setActiveTab("state");
       success("Analysis complete!");
@@ -151,18 +145,8 @@ export function useProjectDetails(projectId: string | undefined) {
       const message =
         error instanceof Error ? error.message : "Failed to analyze documents";
       showError(`Error: ${message}`);
-    }
-  };
-
-  const handleSendChatMessage = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    if (!chatHook.chatInput.trim()) return;
-
-    try {
-      await chatHook.sendMessage(chatHook.chatInput);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      showError(`Error: ${message}`);
+    } finally {
+      setLoadingMessage("");
     }
   };
 
@@ -188,9 +172,7 @@ export function useProjectDetails(projectId: string | undefined) {
 
     // Sub-hooks data
     projectState: stateHook.projectState,
-    messages: chatHook.messages,
-    chatInput: chatHook.chatInput,
-    setChatInput: chatHook.setChatInput,
+    setProjectState: stateHook.setProjectState,
     architectureProposal: proposalHook.architectureProposal,
     proposalStage: proposalHook.proposalStage,
 
@@ -198,7 +180,6 @@ export function useProjectDetails(projectId: string | undefined) {
     handleUploadDocuments,
     handleSaveTextRequirements,
     handleAnalyzeDocuments,
-    handleSendChatMessage,
     handleGenerateProposal,
     refreshState: stateHook.refreshState,
   };

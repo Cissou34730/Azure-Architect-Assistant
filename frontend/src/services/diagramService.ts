@@ -1,6 +1,4 @@
-const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
-}/api`;
+const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
 
 export const diagramApi = {
   async getDiagramSet(diagramSetId: string) {
@@ -25,7 +23,7 @@ export const diagramApi = {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(
         errorData.detail ||
-          `Failed to create diagram set: ${response.statusText}`,
+          `Failed to create diagram set: ${response.statusText}`
       );
     }
     return response.json();

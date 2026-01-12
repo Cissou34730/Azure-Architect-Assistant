@@ -9,8 +9,12 @@ from typing import Dict, Any, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
+from pydantic import ValidationError
 
 from ...models import ProjectState, Project
+from .aaa_state_models import AAAProjectState, ensure_aaa_defaults, apply_us6_enrichment
+from .mindmap_loader import update_mindmap_coverage, is_mindmap_initialized
+from .state_update_parser import merge_state_updates_no_overwrite
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +41,19 @@ async def read_project_state(
         logger.warning(f"No ProjectState found for project {project_id}")
         return None
 
-    state_data = json.loads(state_record.state)
+    raw_state = json.loads(state_record.state)
+    raw_state = ensure_aaa_defaults(raw_state)
+    try:
+        state_data = AAAProjectState.model_validate(raw_state).model_dump(
+            mode="json", exclude_none=True
+        )
+    except ValidationError as exc:
+        logger.warning(
+            "ProjectState validation failed for %s; returning raw state (%s)",
+            project_id,
+            exc,
+        )
+        state_data = raw_state
     state_data["projectId"] = project_id
     state_data["lastUpdated"] = state_record.updated_at
 
@@ -80,12 +96,26 @@ async def update_project_state(
         raise ValueError(f"ProjectState not initialized for project {project_id}")
 
     # Merge or replace
+    conflicts = []
     if merge:
-        current_state = json.loads(state_record.state)
-        # Deep merge - update nested dicts
-        updated_state = _deep_merge(current_state, updates)
+        current_state = ensure_aaa_defaults(json.loads(state_record.state))
+        merge_result = merge_state_updates_no_overwrite(current_state, updates)
+        updated_state = ensure_aaa_defaults(merge_result.merged_state)
+        conflicts = [c.__dict__ for c in merge_result.conflicts]
     else:
-        updated_state = updates
+        updated_state = ensure_aaa_defaults(updates)
+
+    # US6 enrichment: update mind map coverage and traceability without overwriting.
+    if is_mindmap_initialized():
+        updated_state = update_mindmap_coverage(updated_state)
+    updated_state = apply_us6_enrichment(updated_state)
+
+    # Validate/normalize through typed model to prevent corrupting persisted state
+    try:
+        validated = AAAProjectState.model_validate(updated_state)
+        updated_state = validated.model_dump(mode="json", exclude_none=True)
+    except ValidationError as exc:
+        raise ValueError(f"Invalid project state update payload: {exc}")
 
     # Update database record
     state_record.state = json.dumps(updated_state)
@@ -95,26 +125,24 @@ async def update_project_state(
     await db.flush()  # Flush to get updated values but don't commit
 
     # Return with metadata
-    updated_state["projectId"] = project_id
-    updated_state["lastUpdated"] = state_record.updated_at
+    response_state = dict(updated_state)
+    response_state["projectId"] = project_id
+    response_state["lastUpdated"] = state_record.updated_at
+    if conflicts:
+        response_state["conflicts"] = conflicts
 
     logger.info(f"Updated ProjectState for project {project_id}")
-    return updated_state
+    return response_state
 
 
 def _deep_merge(base: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Deep merge two dictionaries.
-    Updates values are merged into base, nested dicts are recursively merged.
-    """
+    """Deprecated: retained for compatibility, prefer merge_state_updates_no_overwrite."""
     result = base.copy()
-
     for key, value in updates.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = _deep_merge(result[key], value)
         else:
             result[key] = value
-
     return result
 
 

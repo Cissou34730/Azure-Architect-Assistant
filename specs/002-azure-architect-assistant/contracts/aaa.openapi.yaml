@@ -1,0 +1,174 @@
+openapi: 3.0.3
+info:
+  title: Azure Architect Assistant (AAA) API
+  version: 0.1.0
+  description: |
+    Draft contract for AAA capabilities scoped to an existing Project.
+    Designed to extend the existing /api/projects workflow.
+
+servers:
+  - url: /api
+
+paths:
+  /projects/{projectId}/documents:
+    post:
+      summary: Upload documents for a project
+      description: Existing endpoint (reference)
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Documents uploaded
+
+  /projects/{projectId}/analyze-docs:
+    post:
+      summary: Analyze project documents and generate/update ProjectState
+      description: Existing endpoint (reference)
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          $ref: '#/components/responses/ProjectState'
+
+  /projects/{projectId}/state:
+    get:
+      summary: Get current project state
+      description: Existing endpoint (reference)
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          $ref: '#/components/responses/ProjectState'
+
+  /projects/{projectId}/messages:
+    get:
+      summary: Get project conversation messages
+      description: Existing endpoint (reference)
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Message history
+
+  /projects/{projectId}/architecture/proposal:
+    get:
+      summary: Generate architecture proposal (SSE)
+      description: Existing endpoint (reference)
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: SSE stream
+
+  /agent/projects/{projectId}/chat:
+    post:
+      summary: Project-aware agent chat (discussion + artifact generation)
+      description: |
+        Existing endpoint. Used for all AAA discussion and for generating/updating artifacts
+        in ProjectState via the agent state update pipeline.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectAgentChatRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ProjectAgentChatResponse'
+
+  /agent/projects/{projectId}/history:
+    get:
+      summary: Get agent conversation history for a project
+      description: Existing endpoint
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Message history
+
+  /agent/health:
+    get:
+      summary: Agent system health
+      description: Existing endpoint
+      responses:
+        '200':
+          description: Health
+
+components:
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    ProjectState:
+      description: Project state response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              projectState:
+                type: object
+
+    ProjectAgentChatResponse:
+      description: Project-aware agent chat response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProjectAgentChatResponse'
+
+  schemas:
+    ProjectAgentChatRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    ProjectAgentChatResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        success:
+          type: boolean
+        project_state:
+          type: object
+        reasoning_steps:
+          type: array
+          items:
+            type: object
+            properties:
+              action:
+                type: string
+              action_input:
+                type: string
+              observation:
+                type: string
+        error:
+          type: string
+
+    SourceCitation:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [referenceDocument, mcp]
+        referenceDocumentId:
+          type: string
+          nullable: true
+        mcpQueryId:
+          type: string
+          nullable: true
+        url:
+          type: string
+        note:
+          type: string

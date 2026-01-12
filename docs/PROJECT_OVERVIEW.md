@@ -5,6 +5,7 @@ Azure Architecture Assistant is a full-stack app that helps architects analyze p
 ## Core workflows
 
 - Architecture projects: capture requirements, upload documents, analyze them into a structured state, chat to refine, and generate a proposal.
+- Azure Architect Assistant (AAA): use project-aware agent chat to generate candidates, ADRs, findings, IaC/cost narratives, and traceability artifacts into `ProjectState`.
 - Knowledge bases: create a KB, ingest sources into a vector index, and query across one or more KBs.
 - Agent chat: a ReAct-style agent that searches Microsoft documentation via MCP and answers questions with citations.
 - Diagram generation: generate Mermaid-based functional, C4 context, and C4 container diagrams from a text description.
@@ -12,6 +13,7 @@ Azure Architecture Assistant is a full-stack app that helps architects analyze p
 ## Feature areas and where to look
 
 - Projects: `backend/app/routers/project_management/` and `frontend/src/features/projects/`.
+- Azure Architect Assistant (AAA): `backend/app/agents_system/` and `frontend/src/features/aaa/`.
 - KB ingestion: `backend/app/ingestion/` and `frontend/src/components/ingestion/`.
 - KB query: `backend/app/services/kb/` and `frontend/src/components/kb/`.
 - Agent system: `backend/app/agents_system/` and `frontend/src/components/agent/`.

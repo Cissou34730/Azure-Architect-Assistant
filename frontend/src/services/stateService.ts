@@ -1,8 +1,6 @@
 import { ProjectState } from "../types/api";
 
-const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
-}/api`;
+const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
 
 export const stateApi = {
   async fetch(projectId: string): Promise<ProjectState | null> {

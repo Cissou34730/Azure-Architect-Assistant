@@ -14,6 +14,7 @@ from langchain.prompts import PromptTemplate
 from ..agents.mcp_react_agent import MCPReActAgent
 from ..tools.mcp_tool import create_mcp_tools
 from ..tools.kb_tool import create_kb_tools
+from ..tools.aaa_candidate_tool import create_aaa_tools
 from ..config.react_prompts import SYSTEM_PROMPT, REACT_TEMPLATE
 from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from ..conversation.summary_chain import SummaryChain
@@ -69,10 +70,11 @@ class AgentOrchestrator:
             openai_api_key=self.openai_settings.api_key,
         )
 
-        # Assemble tools (MCP + KB)
+        # Assemble tools (MCP + KB + AAA)
         mcp_tools = await create_mcp_tools(mcp_client)
         kb_tools = create_kb_tools()
-        tools = [*mcp_tools, *kb_tools]
+        aaa_tools = create_aaa_tools()
+        tools = [*mcp_tools, *kb_tools, *aaa_tools]
 
         # Compose ReAct prompt with tool inventory
         prompt = PromptTemplate(

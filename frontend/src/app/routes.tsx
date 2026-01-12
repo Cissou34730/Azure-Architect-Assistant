@@ -17,11 +17,6 @@ const IngestionWorkspace = lazy(() =>
     default: m.IngestionWorkspace,
   })),
 );
-const AgentChatWorkspace = lazy(() =>
-  import("../components/agent").then((m) => ({
-    default: m.AgentChatWorkspace,
-  })),
-);
 
 export const router = createBrowserRouter([
   {
@@ -60,7 +55,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "agent-chat",
-        element: <AgentChatWorkspace />,
+        element: <Navigate to="/projects" replace />,
       },
     ],
   },

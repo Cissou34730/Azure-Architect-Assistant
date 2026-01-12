@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Message, AgentResponse } from "../../../types/agent";
 
-const API_BASE = `${import.meta.env.BACKEND_URL || "http://localhost:8000"}/api`;
+const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
 
 interface UseAgentChatProps {
   selectedProjectId: string;
@@ -24,7 +24,7 @@ export function useAgentChat({
 
     try {
       const response = await fetch(
-        `${API_BASE}/agent/projects/${selectedProjectId}/history`,
+        `${API_BASE}/agent/projects/${selectedProjectId}/history`
       );
       const data = await response.json();
 

@@ -1,13 +1,11 @@
-const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
-}/api`;
+const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
 
 export const proposalApi = {
   createProposalStream(
     projectId: string,
     onProgress: (stage: string, detail?: string) => void,
     onComplete: (proposal: string) => void,
-    onError: (error: string) => void,
+    onError: (error: string) => void
   ): EventSource {
     const url = `${API_BASE}/proposals/${projectId}/stream`;
     const eventSource = new EventSource(url);

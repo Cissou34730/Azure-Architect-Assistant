@@ -1,15 +1,13 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ProjectState } from "../../../types/agent";
 
-const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
-}/api`;
+const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
 
 export function useProjectState(selectedProjectId: string) {
   const [projectState, setProjectState] = useState<ProjectState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const loadProjectState = async () => {
+  const loadProjectState = useCallback(async () => {
     if (!selectedProjectId) {
       setProjectState(null);
       return;
@@ -18,7 +16,7 @@ export function useProjectState(selectedProjectId: string) {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/projects/${selectedProjectId}/state`,
+        `${API_BASE}/projects/${selectedProjectId}/state`
       );
       const data = await response.json();
       setProjectState(data.projectState);
@@ -28,11 +26,11 @@ export function useProjectState(selectedProjectId: string) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedProjectId]);
 
   useEffect(() => {
     void loadProjectState();
-  }, [selectedProjectId, loadProjectState]);
+  }, [loadProjectState]);
 
   return {
     projectState,

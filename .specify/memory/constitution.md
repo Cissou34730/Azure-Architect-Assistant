@@ -1,26 +1,20 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════════════
-SYNC IMPACT REPORT - Constitution v1.0.0
+SYNC IMPACT REPORT - Constitution v2.0.0
 ═══════════════════════════════════════════════════════════════════════════════
 
-VERSION CHANGE: 0.0.0 → 1.0.0
-BUMP TYPE: MAJOR (Initial constitution establishment)
+VERSION CHANGE: 1.0.0 → 2.0.0
+BUMP TYPE: MAJOR (Milestone-gated deployment)
 
 RATIONALE:
-Initial creation of project constitution defining non-negotiable development
-principles, automated deployment requirements, and governance framework for
-Azure Architecture Assistant.
+Allow prototype/local development without implementing CI/CD immediately, while
+preserving a strict requirement for automated deployment before any production
+deployment.
 
 MODIFIED PRINCIPLES:
-  ✓ III. Code Self-Documentation → Explicit Naming (NON-NEGOTIABLE)
-     - Strengthened to mandate explicit names for all code elements
-     - Added prohibition on abbreviations
-     - Made NON-NEGOTIABLE
-  ✓ IV. DRY → Zero Duplication (NON-NEGOTIABLE)
-     - Strengthened from guideline to absolute requirement
-     - Added "search before implement" mandate
-     - Clarified logic vs. data distinction
-     - Made NON-NEGOTIABLE
+  ✓ II. Automated Deployment → Milestone-gated
+     - CI/CD is optional during prototype/local dev
+     - Automated deployment remains mandatory before production deployment
 
 ADDED SECTIONS:
   ✓ Core Principles (I-V including automated deployment)
@@ -73,17 +67,18 @@ A function, class, or module MUST have one, and only one, reason to change.
 
 **Rationale**: SRP is the foundation of maintainability, testability, and debuggability. Multiple responsibilities multiply complexity exponentially.
 
-### II. Automated Deployment (NON-NEGOTIABLE)
-All features MUST be automatically deployable to production with zero human intervention.
+### II. Automated Deployment (MILESTONE-GATED)
+Automated deployment is REQUIRED before the project is deployed to any production environment.
+Until then (prototype / local dev phase), implementing CI/CD is OPTIONAL and may be deferred.
 
-- Feature branches deploy automatically when merged to main
-- No manual steps in deployment pipeline
-- Infrastructure changes are code (IaC)
-- Rollback is automated
-- Deployment configuration lives in repository
-- Failed deployments block the pipeline
+- During prototype/local development:
+   - Manual run steps are allowed
+   - Changes MUST remain automatable (no one-off manual server changes)
+- Before production deployment:
+   - A CI/CD pipeline MUST exist that builds, tests, and deploys with zero manual intervention
+   - Rollback MUST be defined (automated or documented as an automated procedure)
 
-**Rationale**: Human intervention introduces errors, delays, and inconsistency. Automation ensures reliability, speed, and repeatability at scale.
+**Rationale**: Enforcing CI/CD too early can block learning and iteration; enforcing it too late creates operational risk.
 
 ### III. Explicit Naming (NON-NEGOTIABLE)
 All modules, variables, functions, classes, and methods MUST have explicit, self-documenting names.
@@ -187,7 +182,7 @@ Violations: [If any FAIL/JUSTIFIED, explain rationale and mitigation]
 
 **Quality Gates (ALL MUST PASS)**:
 - ✅ No SRP violations without justification
-- ✅ Automated deployment path defined
+- ✅ Deployment readiness: if targeting production, automated deployment path defined; otherwise mark as N/A (prototype)
 - ✅ All names explicit (no abbreviations, no unclear variable/function/class/module names)
 - ✅ Zero duplicate logic (codebase searched for existing implementations)
 - ✅ Complies with applicable `.github/*.md` instruction files
@@ -203,7 +198,7 @@ Violations: [If any FAIL/JUSTIFIED, explain rationale and mitigation]
 - Refactoring tasks MUST NOT introduce new features
 
 
-Manual gates break Principle II.
+Manual gates are acceptable during prototype/local dev, but are NOT acceptable for production deployment.
 
 ## Governance
 
@@ -223,4 +218,4 @@ Manual gates break Principle II.
 
 **Review Cadence**: Constitution review every 6 months. Emergency review on major architectural change. First review: June 2026.
 
-**Version**: 1.0.0 | **Ratified**: 2025-12-17 | **Last Amended**: 2025-12-17
+**Version**: 2.0.0 | **Ratified**: 2025-12-17 | **Last Amended**: 2026-01-08

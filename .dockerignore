@@ -1,0 +1,31 @@
+# Node
+node_modules/
+frontend/node_modules/
+
+# Builds
+frontend/dist/
+dist/
+build/
+coverage/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# VCS
+.git/
+
+# Env files
+.env*
+
+# IDE
+.vscode/
+.idea/
+
+# Repo-specific
+archive/
+backups/

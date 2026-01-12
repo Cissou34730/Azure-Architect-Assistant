@@ -1,12 +1,10 @@
 /**
  * API Service - Centralized API calls
- * Now points directly to Python backend (port 8000)
+ * Points directly to the Python backend (configured via repo .env)
  */
 
 // Point to Python backend directly (no TypeScript proxy layer)
-const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
-}/api`;
+const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
 
 export interface Project {
   id: string;
@@ -98,7 +96,7 @@ export const kbApi = {
 
   async query(
     question: string,
-    topKPerKB: number = 3,
+    topKPerKB: number = 3
   ): Promise<KBQueryResponse> {
     const response = await fetch(`${API_BASE}/query/chat`, {
       method: "POST",
@@ -119,7 +117,7 @@ export const kbApi = {
   async queryKBs(
     question: string,
     kbIds: string[],
-    topKPerKB: number = 5,
+    topKPerKB: number = 5
   ): Promise<KBQueryResponse> {
     const response = await fetch(`${API_BASE}/query/kb-query`, {
       method: "POST",
@@ -182,7 +180,7 @@ export const projectApi = {
       {
         method: "POST",
         body: formData,
-      },
+      }
     );
 
     if (!response.ok) {
@@ -192,7 +190,7 @@ export const projectApi = {
 
   async saveTextRequirements(
     projectId: string,
-    text: string,
+    text: string
   ): Promise<Project> {
     const response = await fetch(
       `${API_BASE}/projects/${projectId}/requirements`,
@@ -200,7 +198,7 @@ export const projectApi = {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ textRequirements: text }),
-      },
+      }
     );
 
     if (!response.ok) {
@@ -216,7 +214,7 @@ export const projectApi = {
       `${API_BASE}/projects/${projectId}/analyze-docs`,
       {
         method: "POST",
-      },
+      }
     );
 
     if (!response.ok) {
@@ -251,7 +249,7 @@ export const stateApi = {
 export const chatApi = {
   async sendMessage(
     projectId: string,
-    message: string,
+    message: string
   ): Promise<{
     message: string;
     projectState: ProjectState;
@@ -286,7 +284,7 @@ export const proposalApi = {
     projectId: string,
     onProgress: (stage: string, detail?: string) => void,
     onComplete: (proposal: string) => void,
-    onError: (error: string) => void,
+    onError: (error: string) => void
   ): EventSource {
     const url = `${API_BASE}/projects/${projectId}/architecture/proposal`;
     const eventSource = new EventSource(url);
@@ -315,7 +313,7 @@ export const proposalApi = {
           };
           onProgress(
             stageMessages[data.stage] || data.detail || "Processing...",
-            data.detail,
+            data.detail
           );
         }
       } catch (error) {
