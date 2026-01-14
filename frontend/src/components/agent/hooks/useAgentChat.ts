@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
-import type { Message, AgentResponse } from "../../../types/agent";
+﻿import { useState, useEffect, type Dispatch, type SetStateAction } from "react";
+import type { Message, AgentResponse, ProjectState } from "../../../types/agent";
 
 const API_BASE = `${import.meta.env.BACKEND_URL || "http://localhost:8000"}/api`;
 
 interface UseAgentChatProps {
   selectedProjectId: string;
-  onProjectStateUpdate?: (state: any) => void;
+  onProjectStateUpdate?: Dispatch<SetStateAction<ProjectState | null>>;
 }
 
 export function useAgentChat({
@@ -28,11 +28,21 @@ export function useAgentChat({
       );
       const data = await response.json();
 
-      const loadedMessages: Message[] = data.messages.map((msg: any) => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-        reasoningSteps: undefined,
-      }));
+      const loadedMessages: Message[] = Array.isArray(data?.messages)
+        ? data.messages.map((raw: unknown) => {
+            if (
+              typeof raw === "object" &&
+              raw !== null &&
+              "role" in (raw as any) &&
+              "content" in (raw as any)
+            ) {
+              const r = raw as { role: "user" | "assistant"; content: string };
+              return { role: r.role, content: String(r.content) };
+            }
+
+            return { role: "assistant", content: "(invalid message)" };
+          })
+        : [];
 
       setMessages(loadedMessages);
     } catch (error) {
@@ -72,15 +82,17 @@ export function useAgentChat({
       setMessages((prev) => [...prev, assistantMessage]);
 
       if (data.project_state && onProjectStateUpdate) {
-        onProjectStateUpdate(data.project_state);
+        try {
+          onProjectStateUpdate(data.project_state as ProjectState);
+        } catch (err) {
+          console.warn("Received project_state with unexpected shape", err);
+        }
       }
     } catch (error) {
       const errorMessage: Message = {
         role: "assistant",
         content: `Error: ${
-          error instanceof Error
-            ? error.message
-            : "Failed to get response from agent"
+          error instanceof Error ? error.message : "Failed to get response from agent"
         }`,
       };
       setMessages((prev) => [...prev, errorMessage]);
