@@ -22,7 +22,7 @@ export function ProjectSelector({
       <select
         id="project-select"
         value={selectedProjectId}
-        onChange={(e) => onProjectChange(e.target.value)}
+        onChange={(e) => { onProjectChange(e.target.value); }}
         className="flex-1 max-w-md rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
       >
         <option value="">No project (Generic mode)</option>

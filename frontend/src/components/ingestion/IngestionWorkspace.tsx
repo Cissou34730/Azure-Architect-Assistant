@@ -213,7 +213,7 @@ export function IngestionWorkspace() {
                     <Button
                       variant="primary"
                       size="sm"
-                      onClick={() => handleStartIngestion(selectedKbId)}
+                      onClick={() => { handleStartIngestion(selectedKbId); }}
                     >
                       Start Ingestion
                     </Button>

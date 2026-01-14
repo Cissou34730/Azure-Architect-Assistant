@@ -41,13 +41,13 @@ export function useKBList() {
         const healthRes = await fetch(`${baseUrl}/api/kb/health`);
         if (healthRes.ok) {
           const healthData = await healthRes.json();
-          const kbArray = (healthData?.knowledge_bases || []) as Array<{
+          const kbArray = (healthData?.knowledge_bases || []) as {
             kb_id: string;
             index_ready: boolean;
-          }>;
+          }[];
           healthIndexMap = kbArray.reduce<Record<string, boolean>>(
             (acc, kb) => {
-              acc[kb.kb_id] = kb.index_ready === true;
+              acc[kb.kb_id] = kb.index_ready;
               return acc;
             },
             {},
@@ -73,7 +73,7 @@ export function useKBList() {
           (kb) =>
             kb.status === "active" &&
             kb.profiles.includes("kb-query") &&
-            kb.index_ready !== false,
+            kb.index_ready,
         )
         .map((kb) => kb.id);
       setSelectedKBs(autoSelect);

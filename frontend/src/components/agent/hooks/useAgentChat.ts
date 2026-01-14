@@ -33,8 +33,8 @@ export function useAgentChat({
             if (
               typeof raw === "object" &&
               raw !== null &&
-              "role" in (raw as any) &&
-              "content" in (raw as any)
+              "role" in (raw as unknown) &&
+              "content" in (raw as unknown)
             ) {
               const r = raw as { role: "user" | "assistant"; content: string };
               return { role: r.role, content: String(r.content) };
@@ -83,7 +83,7 @@ export function useAgentChat({
 
       if (data.project_state && onProjectStateUpdate) {
         try {
-          onProjectStateUpdate(data.project_state as ProjectState);
+          onProjectStateUpdate(data.project_state);
         } catch (err) {
           console.warn("Received project_state with unexpected shape", err);
         }

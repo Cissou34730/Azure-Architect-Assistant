@@ -110,7 +110,7 @@ export function useIngestionJob(
       void scheduleNext();
     };
 
-    void run();
+    run();
 
     return () => {
       if (timeoutRef.current) {

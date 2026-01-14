@@ -33,7 +33,7 @@ export function DocumentsPanel({
         <h3 className="font-semibold mb-2">Text Requirements</h3>
         <textarea
           value={textRequirements}
-          onChange={(e) => onTextRequirementsChange(e.target.value)}
+          onChange={(e) => { onTextRequirementsChange(e.target.value); }}
           placeholder="Describe your project requirements here..."
           className="w-full px-3 py-2 border border-gray-300 rounded-md mb-2 text-sm"
           rows={5}
@@ -54,7 +54,7 @@ export function DocumentsPanel({
           type="file"
           multiple
           title="Select files to upload"
-          onChange={(e) => onFilesChange(e.target.files)}
+          onChange={(e) => { onFilesChange(e.target.files); }}
           className="w-full mb-2"
         />
         <button
@@ -90,12 +90,12 @@ export function DocumentsPanel({
                 r="10"
                 stroke="currentColor"
                 strokeWidth="4"
-              ></circle>
+               />
               <path
                 className="opacity-75"
                 fill="currentColor"
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
+               />
             </svg>
             <span>Analyzing...</span>
           </>

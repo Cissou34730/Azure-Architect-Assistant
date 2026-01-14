@@ -81,7 +81,7 @@ export function KBSelector({
               <input
                 type="checkbox"
                 checked={selectedKBs.includes(kb.id)}
-                onChange={() => handleToggle(kb.id)}
+                onChange={() => { handleToggle(kb.id); }}
                 disabled={
                   disabled || kb.status !== "active" || kb.index_ready === false
                 }

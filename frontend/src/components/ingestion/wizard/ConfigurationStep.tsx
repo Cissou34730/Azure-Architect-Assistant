@@ -67,7 +67,7 @@ export function ConfigurationStep({
               id="sitemap-url"
               type="text"
               value={sitemapUrl}
-              onChange={(e) => setSitemapUrl(e.target.value)}
+              onChange={(e) => { setSitemapUrl(e.target.value); }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="https://example.com/sitemap.xml"
             />
@@ -89,7 +89,7 @@ export function ConfigurationStep({
                 id="url-prefix"
                 type="text"
                 value={urlPrefix}
-                onChange={(e) => setUrlPrefix(e.target.value)}
+                onChange={(e) => { setUrlPrefix(e.target.value); }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="https://example.com/docs/section/"
               />
@@ -159,7 +159,7 @@ export function ConfigurationStep({
               id="pdf-folder"
               type="text"
               value={pdfFolderPath}
-              onChange={(e) => setPdfFolderPath(e.target.value)}
+              onChange={(e) => { setPdfFolderPath(e.target.value); }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="C:\Documents\PDFs"
             />
@@ -190,7 +190,7 @@ export function ConfigurationStep({
               id="markdown-folder"
               type="text"
               value={markdownFolderPath}
-              onChange={(e) => setMarkdownFolderPath(e.target.value)}
+              onChange={(e) => { setMarkdownFolderPath(e.target.value); }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="C:\Documentation\markdown"
             />

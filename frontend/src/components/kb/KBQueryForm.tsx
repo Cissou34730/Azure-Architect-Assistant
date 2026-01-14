@@ -21,7 +21,7 @@ export function KBQueryForm({
         </label>
         <textarea
           value={question}
-          onChange={(e) => onQuestionChange(e.target.value)}
+          onChange={(e) => { onQuestionChange(e.target.value); }}
           placeholder="E.g., What are the best practices for securing Azure SQL databases?"
           rows={3}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -35,7 +35,7 @@ export function KBQueryForm({
           >
             {isLoading ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                 Searching...
               </>
             ) : (

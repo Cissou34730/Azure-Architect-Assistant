@@ -41,7 +41,7 @@ export interface ProjectState {
     costConstraints?: string;
   };
   applicationStructure?: {
-    components?: Array<{ name: string; description: string }>;
+    components?: { name: string; description: string }[];
     integrations?: string[];
   };
   dataCompliance?: {

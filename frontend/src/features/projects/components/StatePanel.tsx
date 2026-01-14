@@ -1,4 +1,18 @@
+﻿/* eslint-disable max-lines-per-function, complexity */
 import { ProjectState } from "../../../services/apiService";
+
+// Keep types explicit and small; prefer domain mapping in services.
+
+interface NamedItem { name: string; description?: string }
+
+function isNamedItem(value: unknown): value is NamedItem {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.prototype.hasOwnProperty.call(value, "name") &&
+    typeof (value as unknown).name === "string"
+  );
+}
 
 interface StatePanelProps {
   projectState: ProjectState | null;
@@ -19,6 +33,22 @@ function Section({
       <div className="space-y-2 text-sm">{children}</div>
     </div>
   );
+}
+
+function renderMaybeNamed(value: unknown) {
+  if (typeof value === "string") return value;
+  if (isNamedItem(value)) {
+    return (
+      <>
+        <strong>{value.name}:</strong> {value.description}
+      </>
+    );
+  }
+  try {
+    return String(value);
+  } catch {
+    return "";
+  }
 }
 
 export function StatePanel({
@@ -63,26 +93,15 @@ export function StatePanel({
               <strong>Target Users:</strong> {projectState.context.targetUsers}
             </p>
             <p>
-              <strong>Scenario Type:</strong>{" "}
-              {projectState.context.scenarioType}
+              <strong>Scenario Type:</strong> {projectState.context.scenarioType}
             </p>
             <p>
               <strong>Objectives:</strong>
             </p>
             <ul className="list-disc list-inside">
-              {(projectState.context?.objectives || []).map(
-                (obj: any, i: number) => (
-                  <li key={i}>
-                    {typeof obj === "string" ? (
-                      obj
-                    ) : (
-                      <>
-                        <strong>{obj.name}:</strong> {obj.description}
-                      </>
-                    )}
-                  </li>
-                ),
-              )}
+              {(projectState.context?.objectives || []).map((obj, i) => (
+                <li key={i}>{renderMaybeNamed(obj)}</li>
+              ))}
             </ul>
           </Section>
 
@@ -106,54 +125,29 @@ export function StatePanel({
               <strong>Components:</strong>
             </p>
             <ul className="list-disc list-inside">
-              {(projectState.applicationStructure?.components || []).map(
-                (comp: any, i: number) => (
-                  <li key={i}>
-                    {typeof comp === "string" ? (
-                      comp
-                    ) : (
-                      <>
-                        <strong>{comp.name}:</strong> {comp.description}
-                      </>
-                    )}
-                  </li>
-                ),
-              )}
+              {(projectState.applicationStructure?.components || []).map((comp, i) => (
+                <li key={i}>{renderMaybeNamed(comp)}</li>
+              ))}
             </ul>
             <p>
               <strong>Integrations:</strong>
             </p>
             <ul className="list-disc list-inside">
-              {(projectState.applicationStructure?.integrations || []).map(
-                (int: any, i: number) => (
-                  <li key={i}>
-                    {typeof int === "string" ? (
-                      int
-                    ) : (
-                      <>
-                        <strong>{int.name}:</strong> {int.description}
-                      </>
-                    )}
-                  </li>
-                ),
-              )}
+              {(projectState.applicationStructure?.integrations || []).map((intg, i) => (
+                <li key={i}>{renderMaybeNamed(intg)}</li>
+              ))}
             </ul>
           </Section>
 
           <Section title="Data & Compliance">
             <p>
-              <strong>Data Types:</strong>{" "}
-              {(projectState.dataCompliance?.dataTypes || []).join(", ")}
+              <strong>Data Types:</strong> {(projectState.dataCompliance?.dataTypes || []).join(", ")}
             </p>
             <p>
-              <strong>Compliance:</strong>{" "}
-              {(projectState.dataCompliance?.complianceRequirements || []).join(
-                ", ",
-              )}
+              <strong>Compliance:</strong> {(projectState.dataCompliance?.complianceRequirements || []).join(", ")}
             </p>
             <p>
-              <strong>Data Residency:</strong>{" "}
-              {projectState.dataCompliance?.dataResidency}
+              <strong>Data Residency:</strong> {projectState.dataCompliance?.dataResidency}
             </p>
           </Section>
 
@@ -162,60 +156,30 @@ export function StatePanel({
               <strong>Constraints:</strong>
             </p>
             <ul className="list-disc list-inside">
-              {(projectState.technicalConstraints?.constraints || []).map(
-                (c: any, i: number) => (
-                  <li key={i}>
-                    {typeof c === "string" ? (
-                      c
-                    ) : (
-                      <>
-                        <strong>{c.name}:</strong> {c.description}
-                      </>
-                    )}
-                  </li>
-                ),
-              )}
+              {(projectState.technicalConstraints?.constraints || []).map((c, i) => (
+                <li key={i}>{renderMaybeNamed(c)}</li>
+              ))}
             </ul>
             <p>
               <strong>Assumptions:</strong>
             </p>
             <ul className="list-disc list-inside">
-              {(projectState.technicalConstraints?.assumptions || []).map(
-                (a: any, i: number) => (
-                  <li key={i}>
-                    {typeof a === "string" ? (
-                      a
-                    ) : (
-                      <>
-                        <strong>{a.name}:</strong> {a.description}
-                      </>
-                    )}
-                  </li>
-                ),
-              )}
+              {(projectState.technicalConstraints?.assumptions || []).map((a, i) => (
+                <li key={i}>{renderMaybeNamed(a)}</li>
+              ))}
             </ul>
           </Section>
 
           <Section title="Open Questions">
             <ul className="list-disc list-inside">
-              {(projectState.openQuestions || []).map((q: any, i: number) => (
-                <li key={i}>
-                  {typeof q === "string" ? (
-                    q
-                  ) : (
-                    <>
-                      <strong>{q.name}:</strong> {q.description}
-                    </>
-                  )}
-                </li>
+              {(projectState.openQuestions || []).map((q, i) => (
+                <li key={i}>{renderMaybeNamed(q)}</li>
               ))}
             </ul>
           </Section>
         </div>
       ) : (
-        <p className="text-gray-500">
-          No architecture sheet available. Please analyze documents first.
-        </p>
+        <p className="text-gray-500">No architecture sheet available. Please analyze documents first.</p>
       )}
     </div>
   );

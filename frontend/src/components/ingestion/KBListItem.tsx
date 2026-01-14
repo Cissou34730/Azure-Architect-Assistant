@@ -52,7 +52,7 @@ export function KBListItem({
     if (showActions) {
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
+        { document.removeEventListener("mousedown", handleClickOutside); };
     }
     return undefined;
   }, [showActions]);
@@ -122,7 +122,7 @@ export function KBListItem({
             <Button
               variant="primary"
               size="sm"
-              onClick={() => onViewProgress(kb.id)}
+              onClick={() => { onViewProgress(kb.id); }}
             >
               View Progress
             </Button>
@@ -130,7 +130,7 @@ export function KBListItem({
             <Button
               variant="success"
               size="sm"
-              onClick={() => onStartIngestion(kb.id)}
+              onClick={() => { onStartIngestion(kb.id); }}
             >
               Start Ingestion
             </Button>
@@ -150,7 +150,7 @@ export function KBListItem({
           {/* More Actions Menu */}
           <div className="relative" ref={dropdownRef}>
             <button
-              onClick={() => setShowActions(!showActions)}
+              onClick={() => { setShowActions(!showActions); }}
               onKeyDown={handleKeyDown}
               className="px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-button"
               aria-label="More actions"

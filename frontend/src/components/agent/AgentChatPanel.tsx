@@ -152,7 +152,7 @@ export function AgentChatPanel({
         <div className="flex space-x-3">
           <textarea
             value={input}
-            onChange={(e) => onInputChange(e.target.value)}
+            onChange={(e) => { onInputChange(e.target.value); }}
             onKeyPress={handleKeyPress}
             placeholder={
               selectedProjectId

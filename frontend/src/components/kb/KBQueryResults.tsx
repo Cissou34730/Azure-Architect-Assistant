@@ -83,7 +83,7 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
               {response.suggestedFollowUps.map((followUp, idx) => (
                 <button
                   key={idx}
-                  onClick={() => onFollowUp(followUp)}
+                  onClick={() => { onFollowUp(followUp); }}
                   className="block w-full text-left px-4 py-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
                 >
                   <span className="text-blue-700">💬 {followUp}</span>
