@@ -23,6 +23,11 @@ export interface AgentChatResponse {
   readonly error?: string;
 }
 
+export interface ChatMessage {
+  readonly role: string;
+  readonly content: string;
+}
+
 export const agentApi = {
   async getHealth(): Promise<AgentHealth> {
     return fetchWithErrorHandling<AgentHealth>(
@@ -76,14 +81,9 @@ export const agentApi = {
     return data.projectState;
   },
 
-   
-  async getHistory(
-    projectId: string
-    // eslint-disable-next-line @typescript-eslint/no-restricted-types
-  ): Promise<readonly Record<string, unknown>[]> {
+  async getHistory(projectId: string): Promise<readonly ChatMessage[]> {
     const data = await fetchWithErrorHandling<{
-      // eslint-disable-next-line @typescript-eslint/no-restricted-types
-      readonly messages: readonly Record<string, unknown>[];
+      readonly messages: readonly ChatMessage[];
     }>(`${API_BASE}/projects/${projectId}/messages`, {}, "get history");
     return data.messages;
   },

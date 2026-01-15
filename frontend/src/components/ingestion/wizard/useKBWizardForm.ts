@@ -2,54 +2,24 @@
  * Custom hook for KB Wizard form state and logic
  */
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { SourceType, CreateKBRequest } from "../../../types/ingestion";
 import { createKB, startIngestion } from "../../../services/ingestionApi";
 import { buildSourceConfig } from "../../../utils/ingestionConfig";
-import { generateKbId, canProceed as validateStep } from "./wizardUtils";
+import {
+  SourceInputValues,
+  SubmitParams,
+  useKBWizardState,
+  useMarkdownInputs,
+  usePDFInputs,
+  useSourceInputValues,
+  useValidationPayload,
+  useWizardValidation,
+  useWebsiteInputs,
+  useYouTubeInputs,
+} from "./useKBWizardForm.helpers";
 
-export type WizardStep = "basic" | "source" | "config" | "review";
-
-function useWebsiteState() {
-  const [urls, setUrls] = useState<string[]>([""]);
-  const [sitemapUrl, setSitemapUrl] = useState("");
-  const [urlPrefix, setUrlPrefix] = useState("");
-  return { urls, setUrls, sitemapUrl, setSitemapUrl, urlPrefix, setUrlPrefix };
-}
-
-function useYouTubeState() {
-  const [videoUrls, setVideoUrls] = useState<string[]>([""]);
-  return { videoUrls, setVideoUrls };
-}
-
-function usePDFState() {
-  const [pdfLocalPaths, setPdfLocalPaths] = useState<string[]>([""]);
-  const [pdfUrls, setPdfUrls] = useState<string[]>([""]);
-  const [pdfFolderPath, setPdfFolderPath] = useState("");
-  return {
-    pdfLocalPaths,
-    setPdfLocalPaths,
-    pdfUrls,
-    setPdfUrls,
-    pdfFolderPath,
-    setPdfFolderPath,
-  };
-}
-
-interface SubmitParams {
-  kbId: string;
-  name: string;
-  description: string;
-  sourceType: SourceType;
-  urls: string[];
-  sitemapUrl: string;
-  urlPrefix: string;
-  videoUrls: string[];
-  pdfLocalPaths: string[];
-  pdfUrls: string[];
-  pdfFolderPath: string;
-  markdownFolderPath: string;
-}
+export type { WizardStep } from "./useKBWizardForm.helpers";
 
 async function performSubmission(
   params: SubmitParams,
@@ -105,80 +75,105 @@ function useWizardSubmission(params: SubmitParams) {
   return { loading, error, setError, handleSubmit };
 }
 
-function useWizardBaseState() {
-  const [step, setStep] = useState<WizardStep>("basic");
-  const [kbId, setKbId] = useState("");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [sourceType, setSourceType] = useState<SourceType>("website");
-
-  const handleNameChange = (value: string) => {
-    setName(value);
-    if (kbId === "" || kbId === generateKbId(name)) {
-      setKbId(generateKbId(value));
-    }
-  };
-
+function buildSubmitParams({
+  kbId,
+  name,
+  description,
+  sourceType,
+  sourceInputs,
+}: {
+  kbId: string;
+  name: string;
+  description: string;
+  sourceType: SourceType;
+  sourceInputs: SourceInputValues;
+}): SubmitParams {
   return {
-    step,
-    setStep,
     kbId,
-    setKbId,
     name,
-    setName: handleNameChange,
     description,
-    setDescription,
     sourceType,
-    setSourceType,
+    urls: sourceInputs.urls,
+    sitemapUrl: sourceInputs.sitemapUrl,
+    urlPrefix: sourceInputs.urlPrefix,
+    videoUrls: sourceInputs.videoUrls,
+    pdfLocalPaths: sourceInputs.pdfLocalPaths,
+    pdfUrls: sourceInputs.pdfUrls,
+    pdfFolderPath: sourceInputs.pdfFolderPath,
+    markdownFolderPath: sourceInputs.markdownFolderPath,
   };
 }
 
-export function useKBWizardForm() {
-  const base = useWizardBaseState();
-  const web = useWebsiteState();
-  const yt = useYouTubeState();
-  const pdf = usePDFState();
-  const [markdownFolderPath, setMarkdownFolderPath] = useState("");
+interface WizardDerivedStateArgs {
+  formState: ReturnType<typeof useKBWizardState>;
+  websiteInputs: ReturnType<typeof useWebsiteInputs>;
+  youtubeInputs: ReturnType<typeof useYouTubeInputs>;
+  pdfInputs: ReturnType<typeof usePDFInputs>;
+  markdownInputs: ReturnType<typeof useMarkdownInputs>;
+}
 
-  const submission = useWizardSubmission({
-    kbId: base.kbId,
-    name: base.name,
-    description: base.description,
-    sourceType: base.sourceType,
-    urls: web.urls,
-    sitemapUrl: web.sitemapUrl,
-    urlPrefix: web.urlPrefix,
-    videoUrls: yt.videoUrls,
-    pdfLocalPaths: pdf.pdfLocalPaths,
-    pdfUrls: pdf.pdfUrls,
-    pdfFolderPath: pdf.pdfFolderPath,
-    markdownFolderPath,
+function useWizardFormDerivedState({
+  formState,
+  websiteInputs,
+  youtubeInputs,
+  pdfInputs,
+  markdownInputs,
+}: WizardDerivedStateArgs) {
+  const { step, kbId, name, description, sourceType } = formState;
+
+  const sourceInputValues = useSourceInputValues({
+    websiteInputs,
+    youtubeInputs,
+    pdfInputs,
+    markdownInputs,
   });
 
-  const canProceed = useCallback(() => {
-    return validateStep({
-      step: base.step,
-      kbId: base.kbId,
-      name: base.name,
-      sourceType: base.sourceType,
-      urls: web.urls,
-      sitemapUrl: web.sitemapUrl,
-      videoUrls: yt.videoUrls,
-      pdfLocalPaths: pdf.pdfLocalPaths,
-      pdfUrls: pdf.pdfUrls,
-      pdfFolderPath: pdf.pdfFolderPath,
-      markdownFolderPath,
-    });
-  }, [base, web, yt, pdf, markdownFolderPath]);
+  const submissionParams = buildSubmitParams({
+    kbId,
+    name,
+    description,
+    sourceType,
+    sourceInputs: sourceInputValues,
+  });
+
+  const submission = useWizardSubmission(submissionParams);
+
+  const validationPayload = useValidationPayload({
+    step,
+    kbId,
+    name,
+    sourceType,
+    sourceInputValues,
+  });
+
+  const canProceed = useWizardValidation(validationPayload);
+
+  return { submission, canProceed };
+}
+
+export function useKBWizardForm() {
+  const formState = useKBWizardState();
+
+  const websiteInputs = useWebsiteInputs();
+  const youtubeInputs = useYouTubeInputs();
+  const pdfInputs = usePDFInputs();
+  const markdownInputs = useMarkdownInputs();
+
+  const { submission, canProceed } = useWizardFormDerivedState({
+    formState,
+    websiteInputs,
+    youtubeInputs,
+    pdfInputs,
+    markdownInputs,
+  });
 
   return {
-    ...base,
+    ...formState,
     ...submission,
-    ...web,
-    ...yt,
-    ...pdf,
-    markdownFolderPath,
-    setMarkdownFolderPath,
+    ...websiteInputs,
+    ...youtubeInputs,
+    ...pdfInputs,
+    ...markdownInputs,
     canProceed,
   };
 }
