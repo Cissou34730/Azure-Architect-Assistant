@@ -1,36 +1,33 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { AgentStatus } from "../../../types/agent";
-
-const API_BASE = `${import.meta.env.BACKEND_URL || "http://localhost:8000"}/api`;
+import { agentApi } from "../../../services/agentService";
 
 export function useAgentHealth() {
   const [agentStatus, setAgentStatus] = useState<AgentStatus>("unknown");
 
-  const checkHealth = async () => {
+  const checkHealth = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/agent/health`);
-      const data = await response.json();
-      // Validate and map the status to ensure it's a valid AgentStatus
-      const status = data.status as AgentStatus;
+      const data = await agentApi.getHealth();
+      const rawStatus = data.status;
+
       if (
-        status === "healthy" ||
-        status === "not_initialized" ||
-        status === "unknown"
+        rawStatus === "healthy" ||
+        rawStatus === "not_initialized" ||
+        rawStatus === "unknown"
       ) {
-        setAgentStatus(status);
+        setAgentStatus(rawStatus);
       } else {
-        console.warn(`Unknown agent status received: ${data.status}`);
         setAgentStatus("unknown");
       }
     } catch (error) {
       console.error("Failed to check agent health:", error);
       setAgentStatus("not_initialized");
     }
-  };
+  }, []);
 
   useEffect(() => {
     void checkHealth();
-  }, []);
+  }, [checkHealth]);
 
   return { agentStatus, refreshHealth: checkHealth };
 }

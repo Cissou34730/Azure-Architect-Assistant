@@ -27,7 +27,9 @@ export function SourceTypeStep({
             type="radio"
             value="website"
             checked={sourceType === "website"}
-            onChange={(e) => { setSourceType(e.target.value as SourceType); }}
+            onChange={() => {
+              setSourceType("website");
+            }}
             className="mt-1"
           />
           <div className="ml-3">
@@ -48,7 +50,9 @@ export function SourceTypeStep({
             type="radio"
             value="youtube"
             checked={sourceType === "youtube"}
-            onChange={(e) => { setSourceType(e.target.value as SourceType); }}
+            onChange={() => {
+              setSourceType("youtube");
+            }}
             className="mt-1"
           />
           <div className="ml-3">
@@ -68,7 +72,9 @@ export function SourceTypeStep({
             type="radio"
             value="pdf"
             checked={sourceType === "pdf"}
-            onChange={(e) => { setSourceType(e.target.value as SourceType); }}
+            onChange={() => {
+              setSourceType("pdf");
+            }}
             className="mt-1"
           />
           <div className="ml-3">
@@ -88,7 +94,9 @@ export function SourceTypeStep({
             type="radio"
             value="markdown"
             checked={sourceType === "markdown"}
-            onChange={(e) => { setSourceType(e.target.value as SourceType); }}
+            onChange={() => {
+              setSourceType("markdown");
+            }}
             className="mt-1"
           />
           <div className="ml-3">

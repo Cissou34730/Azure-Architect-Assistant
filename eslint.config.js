@@ -195,7 +195,7 @@ export default tseslint.config(
         ...globals.es2021,
       },
       parserOptions: {
-        project: ["./frontend/tsconfig.json", "./frontend/tsconfig.node.json"],
+        projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -249,7 +249,7 @@ export default tseslint.config(
         ...globals.es2021,
       },
       parserOptions: {
-        project: ["./frontend/tsconfig.json", "./frontend/tsconfig.node.json"],
+        project: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },

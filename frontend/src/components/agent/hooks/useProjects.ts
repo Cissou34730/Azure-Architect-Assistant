@@ -1,35 +1,27 @@
-import { useState, useEffect } from "react";
-
-const API_BASE = `${import.meta.env.BACKEND_URL || "http://localhost:8000"}/api`;
-
-interface Project {
-  id: string;
-  name: string;
-  textRequirements: string;
-  createdAt: string;
-}
+import { useState, useEffect, useCallback } from "react";
+import { agentApi } from "../../../services/agentService";
+import type { Project } from "../../../types/agent";
 
 export function useProjects() {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<readonly Project[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/projects`);
-      const data = await response.json();
-      setProjects(data.projects || []);
+      const loadedProjects = await agentApi.getProjects();
+      setProjects(loadedProjects);
     } catch (error) {
       console.error("Failed to load projects:", error);
       setProjects([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadProjects();
-  }, []);
+  }, [loadProjects]);
 
   return { projects, isLoading, refreshProjects: loadProjects };
 }

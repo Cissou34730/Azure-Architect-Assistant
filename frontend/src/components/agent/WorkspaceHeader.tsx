@@ -1,10 +1,10 @@
 import type { AgentStatus } from "../../types/agent";
 
 interface WorkspaceHeaderProps {
-  agentStatus: AgentStatus;
-  showReasoning: boolean;
-  onClearChat: () => void;
-  onToggleReasoning: () => void;
+  readonly agentStatus: AgentStatus;
+  readonly showReasoning: boolean;
+  readonly onClearChat: () => void;
+  readonly onToggleReasoning: () => void;
 }
 
 export function WorkspaceHeader({
@@ -46,9 +46,14 @@ export function WorkspaceHeader({
   );
 }
 
-function StatusBadge({ status }: { status: AgentStatus }) {
-  const statusConfig = {
+function StatusBadge({ status }: { readonly status: AgentStatus }) {
+  const statusConfig: Record<
+    AgentStatus,
+    { readonly bg: string; readonly text: string; readonly label: string }
+  > = {
     healthy: { bg: "bg-green-100", text: "text-green-800", label: "● Ready" },
+    // Status keys come from backend API which uses snake_case
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     not_initialized: {
       bg: "bg-yellow-100",
       text: "text-yellow-800",

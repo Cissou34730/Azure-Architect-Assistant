@@ -1,8 +1,3 @@
-/**
- * useToast Hook
- * Manages toast notifications state and provides simple API
- */
-
 import { useState, useCallback } from "react";
 import type { Toast, ToastType } from "../components/common/Toast";
 
@@ -15,40 +10,35 @@ export function useToast() {
     (message: string, type: ToastType = "info", duration = 5000) => {
       const id = `toast-${++toastIdCounter}`;
       const toast: Toast = { id, message, type, duration };
-
       setToasts((prev) => [...prev, toast]);
-
       return id;
     },
-    [],
+    []
   );
 
   const success = useCallback(
-    (message: string, duration?: number) => {
-      return show(message, "success", duration);
+    (msg: string, d?: number) => {
+      show(msg, "success", d);
     },
-    [show],
+    [show]
   );
-
   const error = useCallback(
-    (message: string, duration?: number) => {
-      return show(message, "error", duration);
+    (msg: string, d?: number) => {
+      show(msg, "error", d);
     },
-    [show],
+    [show]
   );
-
   const warning = useCallback(
-    (message: string, duration?: number) => {
-      return show(message, "warning", duration);
+    (msg: string, d?: number) => {
+      show(msg, "warning", d);
     },
-    [show],
+    [show]
   );
-
   const info = useCallback(
-    (message: string, duration?: number) => {
-      return show(message, "info", duration);
+    (msg: string, d?: number) => {
+      show(msg, "info", d);
     },
-    [show],
+    [show]
   );
 
   const close = useCallback((id: string) => {
@@ -59,14 +49,5 @@ export function useToast() {
     setToasts([]);
   }, []);
 
-  return {
-    toasts,
-    show,
-    success,
-    error,
-    warning,
-    info,
-    close,
-    closeAll,
-  };
+  return { toasts, show, success, error, warning, info, close, closeAll };
 }

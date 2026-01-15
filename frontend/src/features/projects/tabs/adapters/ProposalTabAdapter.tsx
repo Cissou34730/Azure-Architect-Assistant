@@ -1,7 +1,7 @@
 import { lazy } from "react";
-import { useProjectContext } from "../../context/ProjectContext";
+import { useProjectContext } from "../../context/useProjectContext";
 
-const ProposalPanel = lazy(() =>
+const PROPOSAL_PANEL_LAZY = lazy(() =>
   import("../../components/ProposalPanel").then((m) => ({
     default: m.ProposalPanel,
   })),
@@ -15,8 +15,10 @@ export function ProposalTabAdapter() {
     loading,
   } = useProjectContext();
 
+  const PROPOSAL_PANEL = PROPOSAL_PANEL_LAZY;
+
   return (
-    <ProposalPanel
+    <PROPOSAL_PANEL
       architectureProposal={architectureProposal}
       proposalStage={proposalStage}
       onGenerateProposal={handleGenerateProposal}

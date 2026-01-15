@@ -1,90 +1,56 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { kbApi } from "../services/kbService";
+import { KbInfo } from "../types/api";
 
-interface KB {
-  id: string;
-  name: string;
-  status: string;
-  profiles: string[];
-  priority: number;
-  index_ready?: boolean;
-}
-
-interface KBListResponse {
-  knowledge_bases: KB[];
+function getAutoSelectedKBs(kbs: readonly KbInfo[]): string[] {
+  return kbs
+    .filter(
+      (kb) =>
+        kb.status === "active" &&
+        kb.profiles.includes("kb-query") &&
+        kb.indexReady
+    )
+    .map((kb) => kb.id);
 }
 
 export function useKBList() {
-  const [availableKBs, setAvailableKBs] = useState<KB[]>([]);
-  const [selectedKBs, setSelectedKBs] = useState<string[]>([]);
+  const [availableKBs, setAvailableKBs] = useState<readonly KbInfo[]>([]);
+  const [selectedKBs, setSelectedKBs] = useState<readonly string[]>([]);
   const [isLoadingKBs, setIsLoadingKBs] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void fetchKBList();
-  }, []);
-
-  const fetchKBList = async () => {
+  const fetchKBList = useCallback(async () => {
     try {
       setIsLoadingKBs(true);
       setError(null);
 
-      const baseUrl = import.meta.env.BACKEND_URL || "http://localhost:8000";
-      const response = await fetch(`${baseUrl}/api/kb/list`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch KB list: ${response.statusText}`);
-      }
+      const [listData, healthData] = await Promise.all([
+        kbApi.listKbs(),
+        kbApi.checkHealth().catch(() => null),
+      ]);
 
-      const data: KBListResponse = await response.json();
-      // Fetch health to augment list with index readiness
-      let healthIndexMap: Record<string, boolean> = {};
-      try {
-        const healthRes = await fetch(`${baseUrl}/api/kb/health`);
-        if (healthRes.ok) {
-          const healthData = await healthRes.json();
-          const kbArray = (healthData?.knowledge_bases || []) as {
-            kb_id: string;
-            index_ready: boolean;
-          }[];
-          healthIndexMap = kbArray.reduce<Record<string, boolean>>(
-            (acc, kb) => {
-              acc[kb.kb_id] = kb.index_ready;
-              return acc;
-            },
-            {},
-          );
-        } else {
-          console.warn(`[KB List] Health fetch failed: ${healthRes.status}`);
-        }
-      } catch (e) {
-        console.warn("[KB List] Health fetch error:", e);
-      }
+      const healthIndexMap: Record<string, boolean> = {};
+      healthData?.knowledgeBases.forEach((kb) => {
+        healthIndexMap[kb.kbId] = kb.indexReady;
+      });
 
-      // Merge index_ready from health into list
-      const mergedKBs = data.knowledge_bases.map((kb) => ({
+      const mergedKBs = listData.knowledgeBases.map((kb) => ({
         ...kb,
-        index_ready: healthIndexMap[kb.id] ?? kb.index_ready,
+        indexReady: healthIndexMap[kb.id] ?? kb.indexReady,
       }));
 
       setAvailableKBs(mergedKBs);
-
-      // Auto-select all active and indexed KBs with kb-query profile
-      const autoSelect = mergedKBs
-        .filter(
-          (kb) =>
-            kb.status === "active" &&
-            kb.profiles.includes("kb-query") &&
-            kb.index_ready,
-        )
-        .map((kb) => kb.id);
-      setSelectedKBs(autoSelect);
+      setSelectedKBs(getAutoSelectedKBs(mergedKBs));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setError(message);
-      console.error("[KB List] Failed to fetch:", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsLoadingKBs(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchKBList();
+  }, [fetchKBList]);
 
   return {
     availableKBs,

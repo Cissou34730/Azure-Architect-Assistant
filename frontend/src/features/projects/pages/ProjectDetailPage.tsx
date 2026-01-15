@@ -1,7 +1,7 @@
 import { useParams, Outlet } from "react-router-dom";
 import { useProjectDetails } from "../hooks/useProjectDetails";
 import { TabNavigation } from "../../../components/common";
-import { ProjectProvider } from "../context/ProjectContext";
+import { ProjectProvider } from "../context/ProjectProvider";
 import { getTabs } from "../tabs";
 
 export default function ProjectDetailPage() {
@@ -9,7 +9,7 @@ export default function ProjectDetailPage() {
   const projectDetails = useProjectDetails(projectId);
   const { selectedProject, loading, activeTab, setActiveTab } = projectDetails;
 
-  if (!selectedProject && loading) {
+  if (selectedProject === null && loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
@@ -17,7 +17,7 @@ export default function ProjectDetailPage() {
     );
   }
 
-  if (!selectedProject) {
+  if (selectedProject === null) {
     return (
       <div className="container mx-auto p-6 text-center">
         <h2 className="text-xl font-semibold text-gray-800">

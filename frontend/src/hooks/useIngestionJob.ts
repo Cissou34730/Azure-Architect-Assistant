@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { IngestionJob } from "../types/ingestion";
 import { getKBJobView } from "../services/ingestionApi";
+import { useCallbackRef } from "./useCallbackRef";
 
 interface UseIngestionJobOptions {
   pollInterval?: number; // milliseconds for active jobs
@@ -20,110 +21,88 @@ interface UseIngestionJobReturn {
   refetch: () => Promise<IngestionJob | null>;
 }
 
-/**
- * Hook to poll ingestion job status for a KB
- */
-export function useIngestionJob(
-  kbId: string | null,
-  options: UseIngestionJobOptions = {},
-): UseIngestionJobReturn {
-  const DEFAULT_ACTIVE_POLL_MS = 5000;
-  const IDLE_POLL_INTERVAL = 10000; // 10s health-check when idle
-  const {
-    pollInterval = DEFAULT_ACTIVE_POLL_MS,
-    onComplete,
-    onError,
-    enabled = true,
-  } = options;
+const DEFAULT_ACTIVE_POLL_MS = 5000;
+const IDLE_POLL_INTERVAL = 10000;
 
+function useIngestionJobSource(
+  kbId: string | null,
+  options: UseIngestionJobOptions
+) {
+  const { enabled = true } = options;
   const [job, setJob] = useState<IngestionJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const onCompleteRef = useRef<typeof onComplete>(onComplete);
-  const onErrorRef = useRef<typeof onError>(onError);
 
-  // Keep callback refs in sync without recreating effects
-  useEffect(() => {
-    onCompleteRef.current = onComplete;
-  }, [onComplete]);
-
-  useEffect(() => {
-    onErrorRef.current = onError;
-  }, [onError]);
+  const onCompleteRef = useCallbackRef(options.onComplete);
+  const onErrorRef = useCallbackRef(options.onError);
 
   const fetchStatus = useCallback(async (): Promise<IngestionJob | null> => {
-    if (!kbId || !enabled) return null;
+    if (kbId === null || !enabled) return null;
 
     try {
       const jobView = await getKBJobView(kbId);
       setJob(jobView);
       setError(null);
 
-      // Check if job completed
-      if (jobView.status === "completed" && onCompleteRef.current) {
+      if (
+        jobView.status === "completed" &&
+        onCompleteRef.current !== undefined
+      ) {
         onCompleteRef.current(jobView);
       }
       return jobView;
     } catch (err) {
-      const error =
+      const e =
         err instanceof Error ? err : new Error("Failed to fetch job status");
-      setError(error);
-      if (onErrorRef.current) onErrorRef.current(error);
+      setError(e);
+      if (onErrorRef.current !== undefined) onErrorRef.current(e);
       return null;
     } finally {
       setLoading(false);
     }
-  }, [kbId, enabled]);
+  }, [kbId, enabled, onCompleteRef, onErrorRef]);
+
+  return { job, loading, error, fetchStatus, setLoading };
+}
+
+/**
+ * Hook to poll ingestion job status for a KB
+ */
+export function useIngestionJob(
+  kbId: string | null,
+  options: UseIngestionJobOptions = {}
+): UseIngestionJobReturn {
+  const { pollInterval = DEFAULT_ACTIVE_POLL_MS, enabled = true } = options;
+  const { job, loading, error, fetchStatus, setLoading } =
+    useIngestionJobSource(kbId, options);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const run = () => {
-      if (!kbId || !enabled) {
-        setLoading(false);
-        return;
-      }
+    const scheduleNext = async () => {
+      if (kbId === null || !enabled) return;
 
-      // Clear any existing timer before starting a new loop
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+      const composed = await fetchStatus();
+      const active =
+        composed?.status === "pending" || composed?.status === "paused";
+      const nextDelay = active ? pollInterval : IDLE_POLL_INTERVAL;
 
-      const scheduleNext = async () => {
-        // If polling disabled or kbId missing, bail
-        if (!kbId || !enabled) {
-          return;
-        }
-
-        const composed = await fetchStatus();
-        // Decide next delay: fast while running/paused, slow otherwise
-        const active =
-          composed?.status === "pending" || composed?.status === "paused";
-        const nextDelay = active ? pollInterval : IDLE_POLL_INTERVAL;
-
-        timeoutRef.current = setTimeout(() => {
-          void scheduleNext();
-        }, nextDelay);
-      };
-
-      // Kick off polling loop
-      void scheduleNext();
+      timeoutRef.current = setTimeout(() => {
+        void scheduleNext();
+      }, nextDelay);
     };
 
-    run();
+    if (kbId === null || !enabled) {
+      setLoading(false);
+    } else {
+      void scheduleNext();
+    }
 
     return () => {
-      if (timeoutRef.current) {
+      if (timeoutRef.current !== null) {
         clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
       }
     };
-  }, [kbId, enabled, pollInterval, fetchStatus]);
+  }, [kbId, enabled, pollInterval, fetchStatus, setLoading]);
 
-  return {
-    job,
-    loading,
-    error,
-    refetch: fetchStatus,
-  };
+  return { job, loading, error, refetch: fetchStatus };
 }

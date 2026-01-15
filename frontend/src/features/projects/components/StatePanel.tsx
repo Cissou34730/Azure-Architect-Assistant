@@ -1,54 +1,15 @@
-﻿/* eslint-disable max-lines-per-function, complexity */
-import { ProjectState } from "../../../services/apiService";
-
-// Keep types explicit and small; prefer domain mapping in services.
-
-interface NamedItem { name: string; description?: string }
-
-function isNamedItem(value: unknown): value is NamedItem {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    Object.prototype.hasOwnProperty.call(value, "name") &&
-    typeof (value as unknown).name === "string"
-  );
-}
+﻿import { ProjectState } from "../../../types/api";
+import { ContextSection } from "./ProjectState/ContextSection";
+import { NfrSection } from "./ProjectState/NfrSection";
+import { StructureSection } from "./ProjectState/StructureSection";
+import { DataComplianceSection } from "./ProjectState/DataComplianceSection";
+import { TechnicalConstraintsSection } from "./ProjectState/TechnicalConstraintsSection";
+import { OpenQuestionsSection } from "./ProjectState/OpenQuestionsSection";
 
 interface StatePanelProps {
-  projectState: ProjectState | null;
-  onRefreshState: () => void;
-  loading: boolean;
-}
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-      <h3 className="font-semibold text-lg mb-2">{title}</h3>
-      <div className="space-y-2 text-sm">{children}</div>
-    </div>
-  );
-}
-
-function renderMaybeNamed(value: unknown) {
-  if (typeof value === "string") return value;
-  if (isNamedItem(value)) {
-    return (
-      <>
-        <strong>{value.name}:</strong> {value.description}
-      </>
-    );
-  }
-  try {
-    return String(value);
-  } catch {
-    return "";
-  }
+  readonly projectState: ProjectState | null;
+  readonly onRefreshState: () => void;
+  readonly loading: boolean;
 }
 
 export function StatePanel({
@@ -83,103 +44,23 @@ export function StatePanel({
         </button>
       </div>
 
-      {projectState ? (
+      {projectState !== null ? (
         <div className="space-y-4">
-          <Section title="Context">
-            <p>
-              <strong>Summary:</strong> {projectState.context.summary}
-            </p>
-            <p>
-              <strong>Target Users:</strong> {projectState.context.targetUsers}
-            </p>
-            <p>
-              <strong>Scenario Type:</strong> {projectState.context.scenarioType}
-            </p>
-            <p>
-              <strong>Objectives:</strong>
-            </p>
-            <ul className="list-disc list-inside">
-              {(projectState.context?.objectives || []).map((obj, i) => (
-                <li key={i}>{renderMaybeNamed(obj)}</li>
-              ))}
-            </ul>
-          </Section>
-
-          <Section title="Non-Functional Requirements">
-            <p>
-              <strong>Availability:</strong> {projectState.nfrs.availability}
-            </p>
-            <p>
-              <strong>Security:</strong> {projectState.nfrs.security}
-            </p>
-            <p>
-              <strong>Performance:</strong> {projectState.nfrs.performance}
-            </p>
-            <p>
-              <strong>Cost:</strong> {projectState.nfrs.costConstraints}
-            </p>
-          </Section>
-
-          <Section title="Application Structure">
-            <p>
-              <strong>Components:</strong>
-            </p>
-            <ul className="list-disc list-inside">
-              {(projectState.applicationStructure?.components || []).map((comp, i) => (
-                <li key={i}>{renderMaybeNamed(comp)}</li>
-              ))}
-            </ul>
-            <p>
-              <strong>Integrations:</strong>
-            </p>
-            <ul className="list-disc list-inside">
-              {(projectState.applicationStructure?.integrations || []).map((intg, i) => (
-                <li key={i}>{renderMaybeNamed(intg)}</li>
-              ))}
-            </ul>
-          </Section>
-
-          <Section title="Data & Compliance">
-            <p>
-              <strong>Data Types:</strong> {(projectState.dataCompliance?.dataTypes || []).join(", ")}
-            </p>
-            <p>
-              <strong>Compliance:</strong> {(projectState.dataCompliance?.complianceRequirements || []).join(", ")}
-            </p>
-            <p>
-              <strong>Data Residency:</strong> {projectState.dataCompliance?.dataResidency}
-            </p>
-          </Section>
-
-          <Section title="Technical Constraints">
-            <p>
-              <strong>Constraints:</strong>
-            </p>
-            <ul className="list-disc list-inside">
-              {(projectState.technicalConstraints?.constraints || []).map((c, i) => (
-                <li key={i}>{renderMaybeNamed(c)}</li>
-              ))}
-            </ul>
-            <p>
-              <strong>Assumptions:</strong>
-            </p>
-            <ul className="list-disc list-inside">
-              {(projectState.technicalConstraints?.assumptions || []).map((a, i) => (
-                <li key={i}>{renderMaybeNamed(a)}</li>
-              ))}
-            </ul>
-          </Section>
-
-          <Section title="Open Questions">
-            <ul className="list-disc list-inside">
-              {(projectState.openQuestions || []).map((q, i) => (
-                <li key={i}>{renderMaybeNamed(q)}</li>
-              ))}
-            </ul>
-          </Section>
+          <ContextSection context={projectState.context} />
+          <NfrSection nfrs={projectState.nfrs} />
+          <StructureSection structure={projectState.applicationStructure} />
+          <DataComplianceSection
+            dataCompliance={projectState.dataCompliance}
+          />
+          <TechnicalConstraintsSection
+            constraints={projectState.technicalConstraints}
+          />
+          <OpenQuestionsSection questions={projectState.openQuestions} />
         </div>
       ) : (
-        <p className="text-gray-500">No architecture sheet available. Please analyze documents first.</p>
+        <p className="text-gray-500">
+          No architecture sheet available. Please analyze documents first.
+        </p>
       )}
     </div>
   );

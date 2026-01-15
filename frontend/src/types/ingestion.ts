@@ -2,7 +2,6 @@
  * Types for KB Ingestion API
  */
 
-// Enums for better type safety
 export type JobStatus =
   | "not_started"
   | "pending"
@@ -29,73 +28,42 @@ export type SourceType =
 
 export type KBStatus = "active" | "inactive" | "archived";
 
-// Type guard functions
-export const isJobStatus = (value: string): value is JobStatus => {
-  return [
-    "not_started",
-    "pending",
-    "running",
-    "paused",
-    "completed",
-    "failed",
-  ].includes(value);
-};
-
-export const isIngestionPhase = (value: string): value is IngestionPhase => {
-  return [
-    "loading",
-    "chunking",
-    "embedding",
-    "indexing",
-    "completed",
-    "failed",
-  ].includes(value);
-};
-
 export interface JobMetrics {
-  // Crawling phase
-  readonly documents_crawled?: number;
-  readonly pages_crawled?: number;
-  readonly pages_total?: number;
-
-  // Chunking phase
-  readonly documents_cleaned?: number;
-  readonly chunks_created?: number;
-  readonly chunks_queued?: number;
-
-  // Queue status
-  readonly chunks_pending?: number;
-  readonly chunks_processing?: number;
-  readonly chunks_embedded?: number;
-  readonly chunks_failed?: number;
-
-  // Legacy
-  readonly batches_processed?: number;
-}
-
-export interface IngestionJob {
-  readonly job_id: string;
-  readonly kb_id: string;
-  readonly status: JobStatus;
-  readonly phase: IngestionPhase;
-  readonly progress: number;
-  readonly message: string;
-  readonly error: string | null;
-  readonly metrics: JobMetrics;
-  readonly started_at: string;
-  readonly completed_at: string | null;
-  readonly phase_details?: readonly PhaseDetail[];
+  readonly documentsCrawled?: number;
+  readonly pagesCrawled?: number;
+  readonly pagesTotal?: number;
+  readonly documentsCleaned?: number;
+  readonly chunksCreated?: number;
+  readonly chunksQueued?: number;
+  readonly chunksPending?: number;
+  readonly chunksProcessing?: number;
+  readonly chunksEmbedded?: number;
+  readonly chunksFailed?: number;
 }
 
 export interface PhaseDetail {
   readonly name: IngestionPhase;
   readonly status: JobStatus;
   readonly progress: number;
-  readonly items_processed?: number;
-  readonly items_total?: number;
-  readonly started_at?: string | null;
-  readonly completed_at?: string | null;
+  readonly itemsProcessed?: number;
+  readonly itemsTotal?: number;
+  readonly startedAt?: string | null;
+  readonly completedAt?: string | null;
   readonly error?: string | null;
+}
+
+export interface IngestionJob {
+  readonly jobId: string;
+  readonly kbId: string;
+  readonly status: JobStatus;
+  readonly phase: IngestionPhase;
+  readonly progress: number;
+  readonly message: string;
+  readonly error: string | null;
+  readonly metrics: JobMetrics;
+  readonly startedAt: string;
+  readonly completedAt: string | null;
+  readonly phaseDetails?: readonly PhaseDetail[];
 }
 
 export interface KnowledgeBase {
@@ -103,57 +71,57 @@ export interface KnowledgeBase {
   readonly name: string;
   readonly description?: string;
   readonly status: KBStatus;
-  readonly source_type?: SourceType;
+  readonly sourceType?: SourceType;
   readonly profiles: readonly string[];
   readonly priority: number;
   readonly indexed?: boolean;
-  readonly created_at?: string;
-  readonly last_indexed_at?: string;
+  readonly createdAt?: string;
+  readonly lastIndexedAt?: string;
 }
 
 export interface WebDocumentationConfig {
-  start_urls: readonly string[];
-  allowed_domains?: readonly string[];
-  path_prefix?: string;
-  follow_links?: boolean;
-  max_pages?: number;
+  readonly startUrls: readonly string[];
+  readonly allowedDomains?: readonly string[];
+  readonly pathPrefix?: string;
+  readonly followLinks?: boolean;
+  readonly maxPages?: number;
 }
 
 export interface WebGenericConfig {
-  urls: readonly string[];
-  follow_links?: boolean;
-  max_depth?: number;
-  same_domain_only?: boolean;
+  readonly urls: readonly string[];
+  readonly followLinks?: boolean;
+  readonly maxDepth?: number;
+  readonly sameDomainOnly?: boolean;
 }
 
 export interface PDFSourceConfig {
-  files?: readonly string[];
-  local_paths?: string[];
-  pdf_urls?: string[];
-  folder_path?: string;
+  readonly files?: readonly string[];
+  readonly localPaths?: readonly string[];
+  readonly pdfUrls?: readonly string[];
+  readonly folderPath?: string;
 }
 
 export interface MarkdownSourceConfig {
-  files?: readonly string[];
-  local_paths?: string[];
-  folder_path?: string;
-  pdf_urls?: string[]; // Added because wizard might access it on union
+  readonly files?: readonly string[];
+  readonly localPaths?: readonly string[];
+  readonly folderPath?: string;
+  readonly pdfUrls?: readonly string[];
 }
 
 export interface WebsiteSourceConfig {
-  url?: string; // used by some
-  start_url?: string; // used by wizard
-  recursive?: boolean;
-  sitemap_url?: string;
-  url_prefix?: string;
-  max_pages?: number;
-  local_paths?: string[]; // Added because wizard might access it on union
+  readonly url?: string;
+  readonly startUrl?: string;
+  readonly recursive?: boolean;
+  readonly sitemapUrl?: string;
+  readonly urlPrefix?: string;
+  readonly maxPages?: number;
+  readonly localPaths?: readonly string[];
 }
 
 export interface YoutubeSourceConfig {
-  video_urls?: readonly string[];
-  local_paths?: string[]; // Added for consistency
-  pdf_urls?: string[]; // Added for consistency
+  readonly videoUrls?: readonly string[];
+  readonly localPaths?: readonly string[];
+  readonly pdfUrls?: readonly string[];
 }
 
 export type SourceConfig =
@@ -163,49 +131,42 @@ export type SourceConfig =
   | MarkdownSourceConfig
   | WebsiteSourceConfig
   | YoutubeSourceConfig
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
   | Record<string, unknown>;
 
 export interface CreateKBRequest {
-  kb_id: string;
-  name: string;
-  description?: string;
-  source_type: SourceType;
-  source_config: SourceConfig;
-  embedding_model?: string;
-  chunk_size?: number;
-  chunk_overlap?: number;
-  profiles?: readonly string[];
-  priority?: number;
+  readonly kbId: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly sourceType: SourceType;
+  readonly sourceConfig: SourceConfig;
+  readonly embeddingModel?: string;
+  readonly chunkSize?: number;
+  readonly chunkOverlap?: number;
+  readonly profiles?: readonly string[];
+  readonly priority?: number;
 }
 
 export interface CreateKBResponse {
   readonly message: string;
-  readonly kb_id: string;
-  readonly kb_name: string;
+  readonly kbId: string;
+  readonly kbName: string;
 }
 
 export interface StartIngestionResponse {
   readonly message: string;
-  readonly job_id: string;
-  readonly kb_id: string;
+  readonly jobId: string;
+  readonly kbId: string;
 }
 
 export interface JobListResponse {
   readonly jobs: readonly IngestionJob[];
 }
 
-// API Error type
-export interface APIError {
-  readonly message: string;
-  readonly detail?: string;
-  readonly status?: number;
-}
-
-// Phase 3: KB-level status (ready | pending | paused | not_ready)
 export type KBReadyState = "ready" | "pending" | "paused" | "not_ready";
 
 export interface KBStatusSimple {
-  readonly kb_id: string;
+  readonly kbId: string;
   readonly status: KBReadyState;
   readonly metrics?: {
     readonly pending?: number;
@@ -215,10 +176,9 @@ export interface KBStatusSimple {
   };
 }
 
-// Phase 3: Persisted ingestion details
 export interface KBIngestionDetails {
-  readonly kb_id: string;
-  readonly current_phase: IngestionPhase;
-  readonly overall_progress: number;
-  readonly phase_details: readonly PhaseDetail[];
+  readonly kbId: string;
+  readonly currentPhase: IngestionPhase;
+  readonly overallProgress: number;
+  readonly phaseDetails: readonly PhaseDetail[];
 }

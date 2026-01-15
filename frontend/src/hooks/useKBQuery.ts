@@ -1,29 +1,34 @@
 import { useState } from "react";
-import { kbApi, KBQueryResponse } from "../services/apiService";
+import { kbApi } from "../services/kbService";
+import { KbQueryResponse } from "../types/api";
 import { useToast } from "./useToast";
 
 export function useKBQuery() {
   const { error: showError } = useToast();
   const [question, setQuestion] = useState("");
-  const [response, setResponse] = useState<KBQueryResponse | null>(null);
+  const [response, setResponse] = useState<KbQueryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const submitQuery = async (e?: React.FormEvent, kbIds?: string[]) => {
-    if (e) e.preventDefault();
-    if (!question.trim()) return;
+  const submitQuery = async (
+    e?: React.FormEvent,
+    kbIds?: readonly string[]
+  ) => {
+    if (e !== undefined) e.preventDefault();
+    const queryText = question.trim();
+    if (queryText === "") return;
 
     setIsLoading(true);
     setResponse(null);
 
     try {
-      let data: KBQueryResponse;
+      let data: KbQueryResponse;
 
-      if (kbIds && kbIds.length > 0) {
+      if (kbIds !== undefined && kbIds.length > 0) {
         // Manual KB selection
-        data = await kbApi.queryKBs(question.trim(), kbIds, 5);
+        data = await kbApi.queryKBs(queryText, kbIds, 5);
       } else {
         // Legacy query (fallback)
-        data = await kbApi.query(question.trim(), 3);
+        data = await kbApi.query(queryText, 3);
       }
 
       setResponse(data);

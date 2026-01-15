@@ -3,21 +3,21 @@ import type { Message } from "../../types/agent";
 import { LoadingIndicator } from "../common";
 
 interface AgentChatPanelProps {
-  messages: Message[];
-  input: string;
-  isLoading: boolean;
-  showReasoning: boolean;
-  selectedProjectId: string;
-  onInputChange: (value: string) => void;
-  onSendMessage: () => void;
+  readonly messages: readonly Message[];
+  readonly input: string;
+  readonly isLoading: boolean;
+  readonly showReasoning: boolean;
+  readonly selectedProjectId: string;
+  readonly onInputChange: (value: string) => void;
+  readonly onSendMessage: () => void;
 }
 
 function MessageBubble({
   message,
   showReasoning,
 }: {
-  message: Message;
-  showReasoning: boolean;
+  readonly message: Message;
+  readonly showReasoning: boolean;
 }) {
   return (
     <div
@@ -34,23 +34,23 @@ function MessageBubble({
 
         {message.role === "assistant" &&
           showReasoning &&
-          message.reasoningSteps &&
+          message.reasoningSteps !== undefined &&
           message.reasoningSteps.length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-300">
               <p className="text-xs font-semibold text-gray-700 mb-2">
                 Reasoning Steps:
               </p>
               <div className="space-y-2">
-                {message.reasoningSteps.map((step, stepIndex) => (
+                {message.reasoningSteps.map((step) => (
                   <div
-                    key={stepIndex}
+                    key={`${step.action}-${step.actionInput.substring(0, 20)}`}
                     className="text-xs bg-white rounded p-2 border border-gray-200"
                   >
                     <p className="font-semibold text-gray-800">
                       Action: {step.action}
                     </p>
                     <p className="text-gray-600 mt-1">
-                      Input: {step.action_input}
+                      Input: {step.actionInput}
                     </p>
                     <p className="text-gray-600 mt-1">
                       Result: {step.observation.substring(0, 100)}...
@@ -65,20 +65,20 @@ function MessageBubble({
   );
 }
 
-function EmptyChat({ selectedProjectId }: { selectedProjectId: string }) {
+function EmptyChat({ selectedProjectId }: { readonly selectedProjectId: string }) {
   return (
     <div className="text-center text-gray-500 mt-12">
       <div className="text-6xl mb-4">💬</div>
       <h3 className="text-xl font-semibold mb-2">Start a conversation</h3>
       <p className="text-sm mb-4">
-        {selectedProjectId
+        {selectedProjectId !== ""
           ? "Ask about your project architecture, requirements, or get Azure recommendations."
           : "Select a project above for context-aware assistance, or ask generic Azure questions."}
       </p>
       <div className="mt-6 space-y-2 text-left max-w-lg mx-auto">
         <p className="text-sm font-medium text-gray-700">Try asking:</p>
         <ul className="text-sm text-gray-600 space-y-1">
-          {selectedProjectId ? (
+          {selectedProjectId !== "" ? (
             <>
               <li>• &quot;We need 99.9% availability&quot;</li>
               <li>• &quot;What security measures should we implement?&quot;</li>
@@ -117,7 +117,7 @@ export function AgentChatPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       onSendMessage();
@@ -135,9 +135,9 @@ export function AgentChatPanel({
         {messages.length === 0 ? (
           <EmptyChat selectedProjectId={selectedProjectId} />
         ) : (
-          messages.map((message, index) => (
+          messages.map((message) => (
             <MessageBubble
-              key={index}
+              key={message.id ?? `msg-${message.role}-${message.content.substring(0, 20)}`}
               message={message}
               showReasoning={showReasoning}
             />
@@ -152,10 +152,12 @@ export function AgentChatPanel({
         <div className="flex space-x-3">
           <textarea
             value={input}
-            onChange={(e) => { onInputChange(e.target.value); }}
-            onKeyPress={handleKeyPress}
+            onChange={(e) => {
+              onInputChange(e.target.value);
+            }}
+            onKeyDown={handleKeyDown}
             placeholder={
-              selectedProjectId
+              selectedProjectId !== ""
                 ? "Ask about your project or specify requirements..."
                 : "Ask about Azure architecture, security, or best practices..."
             }
@@ -165,7 +167,7 @@ export function AgentChatPanel({
           />
           <button
             onClick={onSendMessage}
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || input.trim() === ""}
             className="px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
           >
             Send

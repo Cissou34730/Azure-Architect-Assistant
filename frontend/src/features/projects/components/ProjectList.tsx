@@ -1,7 +1,7 @@
-import { Project } from "../../../services/apiService";
+import { Project } from "../../../types/api";
 
 interface ProjectListProps {
-  projects: Project[];
+  projects: readonly Project[];
   selectedProject: Project | null;
   onSelectProject: (project: Project) => void;
   projectName: string;

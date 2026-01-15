@@ -31,10 +31,33 @@ export interface ErrorHandlerOptions {
   showToast?: boolean;
 }
 
+/**
+ * Extracts a readable error message from various error types
+ */
+// eslint-disable-next-line @typescript-eslint/no-restricted-types
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string" && error !== "") {
+    return error;
+  }
+  if (
+    error !== null &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return "An unexpected error occurred";
+}
+
 export function useErrorHandler() {
   const toast = useToast();
 
   const handleError = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
     (error: unknown, options: ErrorHandlerOptions = {}) => {
       const {
         message: customMessage,
@@ -43,30 +66,24 @@ export function useErrorHandler() {
         showToast = true,
       } = options;
 
-      // Extract error message
-      let errorMessage = "An unexpected error occurred";
+      const errorMessage = extractErrorMessage(error);
 
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === "string") {
-        errorMessage = error;
-      } else if (error && typeof error === "object" && "message" in error) {
-        errorMessage = String(error.message);
-      }
-
-      // Log to console if enabled
       if (logToConsole) {
-        console.error("Error:", error);
+        console.error("Error extracted:", errorMessage, error);
       }
 
-      // Show toast notification
       if (showToast) {
-        toast.error(customMessage || errorMessage, duration);
+        toast.error(
+          customMessage !== undefined && customMessage !== ""
+            ? customMessage
+            : errorMessage,
+          duration
+        );
       }
 
       return errorMessage;
     },
-    [toast],
+    [toast]
   );
 
   return {

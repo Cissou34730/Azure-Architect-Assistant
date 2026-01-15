@@ -1,16 +1,78 @@
 interface KB {
-  id: string;
-  name: string;
-  status: string;
-  profiles: string[];
-  index_ready?: boolean;
+  readonly id: string;
+  readonly name: string;
+  readonly status: string;
+  readonly profiles: readonly string[];
+  readonly indexReady?: boolean;
 }
 
 interface Props {
-  availableKBs: KB[];
-  selectedKBs: string[];
-  onSelectionChange: (kbIds: string[]) => void;
-  disabled?: boolean;
+  readonly availableKBs: readonly KB[];
+  readonly selectedKBs: readonly string[];
+  readonly onSelectionChange: (kbIds: string[]) => void;
+  readonly disabled?: boolean;
+}
+
+interface KBItemProps {
+  readonly kb: KB;
+  readonly isSelected: boolean;
+  readonly disabled?: boolean;
+  readonly onToggle: (kbId: string) => void;
+}
+
+function KBItem({ kb, isSelected, disabled, onToggle }: KBItemProps) {
+  const isActuallyDisabled =
+    disabled === true || kb.status !== "active" || kb.indexReady === false;
+
+  return (
+    <label
+      className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
+        isSelected
+          ? "bg-blue-50 border-blue-300"
+          : "bg-gray-50 border-gray-200 hover:bg-gray-100"
+      } ${
+        disabled === true || kb.indexReady === false
+          ? "opacity-50 cursor-not-allowed"
+          : ""
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={() => {
+          onToggle(kb.id);
+        }}
+        disabled={isActuallyDisabled}
+        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+      />
+      <div className="ml-3 flex-1">
+        <div className="flex items-center justify-between">
+          <span className="font-medium text-gray-900">{kb.name}</span>
+          <span
+            className={`text-xs px-2 py-1 rounded ${
+              kb.status === "active" && kb.indexReady !== false
+                ? "bg-green-100 text-green-800"
+                : "bg-yellow-100 text-yellow-800"
+            }`}
+          >
+            {kb.indexReady === false ? "not-indexed" : kb.status}
+          </span>
+        </div>
+        {kb.profiles.length > 0 && (
+          <div className="flex gap-1 mt-1">
+            {kb.profiles.map((profile) => (
+              <span
+                key={profile}
+                className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded"
+              >
+                {profile}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </label>
+  );
 }
 
 export function KBSelector({
@@ -29,7 +91,7 @@ export function KBSelector({
 
   const handleSelectAll = () => {
     const activeKBs = availableKBs
-      .filter((kb) => kb.status === "active" && kb.index_ready !== false)
+      .filter((kb) => kb.status === "active" && kb.indexReady !== false)
       .map((kb) => kb.id);
     onSelectionChange(activeKBs);
   };
@@ -48,7 +110,7 @@ export function KBSelector({
           <button
             type="button"
             onClick={handleSelectAll}
-            disabled={disabled}
+            disabled={disabled === true}
             className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
           >
             Select All
@@ -57,7 +119,7 @@ export function KBSelector({
           <button
             type="button"
             onClick={handleClearAll}
-            disabled={disabled}
+            disabled={disabled === true}
             className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
           >
             Clear
@@ -70,50 +132,13 @@ export function KBSelector({
           <p className="text-gray-500 text-sm">No knowledge bases available</p>
         ) : (
           availableKBs.map((kb) => (
-            <label
+            <KBItem
               key={kb.id}
-              className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${
-                selectedKBs.includes(kb.id)
-                  ? "bg-blue-50 border-blue-300"
-                  : "bg-gray-50 border-gray-200 hover:bg-gray-100"
-              } ${disabled || kb.index_ready === false ? "opacity-50 cursor-not-allowed" : ""}`}
-            >
-              <input
-                type="checkbox"
-                checked={selectedKBs.includes(kb.id)}
-                onChange={() => { handleToggle(kb.id); }}
-                disabled={
-                  disabled || kb.status !== "active" || kb.index_ready === false
-                }
-                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-              />
-              <div className="ml-3 flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-900">{kb.name}</span>
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      kb.status === "active" && kb.index_ready !== false
-                        ? "bg-green-100 text-green-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {kb.index_ready === false ? "not-indexed" : kb.status}
-                  </span>
-                </div>
-                {kb.profiles.length > 0 && (
-                  <div className="flex gap-1 mt-1">
-                    {kb.profiles.map((profile) => (
-                      <span
-                        key={profile}
-                        className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded"
-                      >
-                        {profile}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </label>
+              kb={kb}
+              isSelected={selectedKBs.includes(kb.id)}
+              disabled={disabled}
+              onToggle={handleToggle}
+            />
           ))
         )}
       </div>

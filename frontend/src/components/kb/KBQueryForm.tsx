@@ -1,9 +1,9 @@
 interface Props {
-  question: string;
-  isLoading: boolean;
-  onQuestionChange: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
-  onRefresh: () => void;
+  readonly question: string;
+  readonly isLoading: boolean;
+  readonly onQuestionChange: (value: string) => void;
+  readonly onSubmit: (e: React.FormEvent) => void;
+  readonly onRefresh: () => void;
 }
 
 export function KBQueryForm({
@@ -21,7 +21,9 @@ export function KBQueryForm({
         </label>
         <textarea
           value={question}
-          onChange={(e) => { onQuestionChange(e.target.value); }}
+          onChange={(e) => {
+            onQuestionChange(e.target.value);
+          }}
           placeholder="E.g., What are the best practices for securing Azure SQL databases?"
           rows={3}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -30,7 +32,7 @@ export function KBQueryForm({
         <div className="flex justify-between items-center mt-4">
           <button
             type="submit"
-            disabled={isLoading || !question.trim()}
+            disabled={isLoading || question.trim() === ""}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
           >
             {isLoading ? (

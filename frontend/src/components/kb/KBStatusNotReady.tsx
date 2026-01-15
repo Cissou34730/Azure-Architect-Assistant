@@ -1,8 +1,8 @@
-import { KBHealthResponse } from "../../services/apiService";
+import { KbHealthResponse } from "../../types/api";
 
 interface Props {
-  healthStatus: KBHealthResponse | null;
-  onRefresh: () => void;
+  readonly healthStatus: KbHealthResponse | null;
+  readonly onRefresh: () => void;
 }
 
 export function KBStatusNotReady({ healthStatus, onRefresh }: Props) {
@@ -14,33 +14,31 @@ export function KBStatusNotReady({ healthStatus, onRefresh }: Props) {
         </h2>
         <p className="text-yellow-700 mb-4">
           No knowledge bases are currently loaded. Status:{" "}
-          {healthStatus?.overall_status || "unknown"}
+          {healthStatus?.overallStatus ?? "unknown"}
         </p>
 
-        {healthStatus &&
-          healthStatus.knowledge_bases &&
-          healthStatus.knowledge_bases.length > 0 && (
-            <div className="mb-4 space-y-2">
-              {healthStatus.knowledge_bases.map((kb) => (
+        {healthStatus !== null && healthStatus.knowledgeBases.length > 0 && (
+          <div className="mb-4 space-y-2">
+              {healthStatus.knowledgeBases.map((kb) => (
                 <div
-                  key={kb.kb_id}
+                  key={kb.kbId}
                   className="flex items-center justify-between bg-white p-3 rounded"
                 >
                   <div>
-                    <span className="font-medium">{kb.kb_name}</span>
+                    <span className="font-medium">{kb.kbName}</span>
                     <span className="text-sm text-gray-600 ml-2">
-                      ({kb.kb_id})
+                      ({kb.kbId})
                     </span>
                   </div>
                   <div className="flex items-center">
                     <span
                       className={`px-2 py-1 rounded text-sm ${
-                        kb.index_ready
+                        kb.indexReady
                           ? "bg-green-100 text-green-800"
                           : "bg-red-100 text-red-800"
                       }`}
                     >
-                      {kb.index_ready ? "✓ Ready" : "✗ Not Ready"}
+                      {kb.indexReady ? "✓ Ready" : "✗ Not Ready"}
                     </span>
                   </div>
                 </div>

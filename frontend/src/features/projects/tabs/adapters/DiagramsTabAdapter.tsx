@@ -1,14 +1,14 @@
 import { lazy } from "react";
 
-const DiagramSetViewer = lazy(() =>
+const DIAGRAM_SET_VIEWER_LAZY = lazy(() =>
   import("../../../../components/diagrams/DiagramSetViewer").then((m) => ({
     default: m.DiagramSetViewer,
   })),
 );
 
 export function DiagramsTabAdapter() {
-  // Diagrams currently has hardcoded ID in original file, keeping it for now
+  const DIAGRAM_SET_VIEWER = DIAGRAM_SET_VIEWER_LAZY;
   return (
-    <DiagramSetViewer diagramSetId="aa57f645-e736-430e-bab0-e8c6a953a047" />
+    <DIAGRAM_SET_VIEWER diagramSetId="aa57f645-e736-430e-bab0-e8c6a953a047" />
   );
 }
