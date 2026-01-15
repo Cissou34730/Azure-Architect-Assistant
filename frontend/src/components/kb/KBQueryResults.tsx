@@ -1,12 +1,14 @@
-import { KBQueryResponse } from "../../services/apiService";
+import { KbQueryResponse } from "../../types/api";
 
 interface Props {
-  response: KBQueryResponse | null;
-  onFollowUp: (question: string) => void;
+  readonly response: KbQueryResponse | null;
+  readonly onFollowUp: (question: string) => void;
 }
 
 export function KBQueryResults({ response, onFollowUp }: Props) {
-  if (!response) return null;
+  if (response === null) {
+    return null;
+  }
 
   if (!response.hasResults) {
     return (
@@ -30,15 +32,15 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
       </div>
 
       {/* Sources */}
-      {response.sources && response.sources.length > 0 && (
+      {response.sources.length > 0 && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
             Sources ({response.sources.length})
           </h2>
           <div className="space-y-3">
-            {response.sources.map((source, idx) => (
+            {response.sources.map((source) => (
               <div
-                key={idx}
+                key={`${source.url}-${source.section}`}
                 className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
               >
                 <div className="flex items-start justify-between">
@@ -52,9 +54,9 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
                       {source.title}
                     </a>
                     <div className="flex items-center gap-3 mt-1">
-                      {source.kb_name && (
+                      {source.kbName !== undefined && source.kbName !== "" && (
                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
-                          {source.kb_name}
+                          {source.kbName}
                         </span>
                       )}
                       <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
@@ -73,17 +75,17 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
       )}
 
       {/* Suggested Follow-ups */}
-      {response.suggestedFollowUps &&
+      {response.suggestedFollowUps !== undefined &&
         response.suggestedFollowUps.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h2 className="text-lg font-semibold text-blue-900 mb-3">
               Suggested Follow-up Questions
             </h2>
             <div className="space-y-2">
-              {response.suggestedFollowUps.map((followUp, idx) => (
+              {response.suggestedFollowUps.map((followUp) => (
                 <button
-                  key={idx}
-                  onClick={() => onFollowUp(followUp)}
+                  key={followUp}
+                  onClick={() => { onFollowUp(followUp); }}
                   className="block w-full text-left px-4 py-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
                 >
                   <span className="text-blue-700">💬 {followUp}</span>

@@ -34,7 +34,7 @@ export function BasicInfoStep({
           id="kb-name"
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => { setName(e.target.value); }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="e.g., Azure Architecture"
         />
@@ -51,7 +51,7 @@ export function BasicInfoStep({
           id="kb-id"
           type="text"
           value={kbId}
-          onChange={(e) => setKbId(e.target.value)}
+          onChange={(e) => { setKbId(e.target.value); }}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="e.g., azure-arch"
         />
@@ -70,7 +70,7 @@ export function BasicInfoStep({
         <textarea
           id="kb-description"
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => { setDescription(e.target.value); }}
           rows={3}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Brief description of this knowledge base"

@@ -23,8 +23,8 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
   useEffect(() => {
     const duration = toast.duration ?? 5000;
     if (duration > 0) {
-      const timer = setTimeout(() => onClose(toast.id), duration);
-      return () => clearTimeout(timer);
+      const timer = setTimeout(() => { onClose(toast.id); }, duration);
+      return () => { clearTimeout(timer); };
     }
     return undefined;
   }, [toast.id, toast.duration, onClose]);
@@ -67,7 +67,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
       </svg>
       <div className="flex-1 text-sm font-medium">{toast.message}</div>
       <button
-        onClick={() => onClose(toast.id)}
+        onClick={() => { onClose(toast.id); }}
         className="shrink-0 text-current opacity-50 hover:opacity-100 transition-opacity"
         aria-label="Close notification"
       >

@@ -1,59 +1,63 @@
 export interface Message {
-  role: "user" | "assistant";
-  content: string;
-  reasoningSteps?: ReasoningStep[];
+  readonly id?: string;
+  readonly role: "user" | "assistant";
+  readonly content: string;
+  readonly reasoningSteps?: readonly ReasoningStep[];
 }
 
 export interface ReasoningStep {
-  action: string;
-  action_input: string;
-  observation: string;
+  readonly action: string;
+  readonly actionInput: string;
+  readonly observation: string;
 }
 
 export interface AgentResponse {
-  answer: string;
-  success: boolean;
-  reasoning_steps: ReasoningStep[];
-  project_state?: ProjectState;
-  error?: string;
+  readonly answer: string;
+  readonly success: boolean;
+  readonly reasoningSteps: readonly ReasoningStep[];
+  readonly projectState?: ProjectState;
+  readonly error?: string;
 }
 
 export interface Project {
-  id: string;
-  name: string;
-  textRequirements: string;
-  createdAt: string;
+  readonly id: string;
+  readonly name: string;
+  readonly textRequirements?: string;
+  readonly createdAt: string;
 }
 
 export interface ProjectState {
-  projectId?: string;
-  lastUpdated?: string;
-  context?: {
-    summary?: string;
-    objectives?: string[];
-    targetUsers?: string;
-    scenarioType?: string;
+  readonly projectId?: string;
+  readonly lastUpdated?: string;
+  readonly context?: {
+    readonly summary?: string;
+    readonly objectives?: readonly string[];
+    readonly targetUsers?: string;
+    readonly scenarioType?: string;
   };
-  nfrs?: {
-    availability?: string;
-    security?: string;
-    performance?: string;
-    costConstraints?: string;
+  readonly nfrs?: {
+    readonly availability?: string;
+    readonly security?: string;
+    readonly performance?: string;
+    readonly costConstraints?: string;
   };
-  applicationStructure?: {
-    components?: Array<{ name: string; description: string }>;
-    integrations?: string[];
+  readonly applicationStructure?: {
+    readonly components?: readonly {
+      readonly name: string;
+      readonly description: string;
+    }[];
+    readonly integrations?: readonly string[];
   };
-  dataCompliance?: {
-    dataTypes?: string[];
-    complianceRequirements?: string[];
-    dataResidency?: string;
+  readonly dataCompliance?: {
+    readonly dataTypes?: readonly string[];
+    readonly complianceRequirements?: readonly string[];
+    readonly dataResidency?: string;
   };
-  technicalConstraints?: {
-    constraints?: string[];
-    assumptions?: string[];
+  readonly technicalConstraints?: {
+    readonly constraints?: readonly string[];
+    readonly assumptions?: readonly string[];
   };
-  openQuestions?: string[];
+  readonly openQuestions?: readonly string[];
 }
 
 export type AgentStatus = "unknown" | "healthy" | "not_initialized";

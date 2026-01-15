@@ -1,7 +1,7 @@
 import { lazy } from "react";
-import { useProjectContext } from "../../context/ProjectContext";
+import { useProjectContext } from "../../context/useProjectContext";
 
-const StatePanel = lazy(() =>
+const STATE_PANEL_LAZY = lazy(() =>
   import("../../components/StatePanel").then((m) => ({
     default: m.StatePanel,
   })),
@@ -10,8 +10,10 @@ const StatePanel = lazy(() =>
 export function StateTabAdapter() {
   const { projectState, refreshState, loading } = useProjectContext();
 
+  const STATE_PANEL = STATE_PANEL_LAZY;
+
   return (
-    <StatePanel
+    <STATE_PANEL
       projectState={projectState}
       onRefreshState={refreshState}
       loading={loading}

@@ -20,7 +20,7 @@ export function TabNavigation({
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => onTabChange(tab.id)}
+            onClick={() => { onTabChange(tab.id); }}
             className={`px-4 py-2 text-sm font-medium rounded-t-lg ${
               activeTab === tab.id
                 ? "bg-blue-600 text-white"

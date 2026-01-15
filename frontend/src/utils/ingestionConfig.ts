@@ -23,59 +23,57 @@ export interface ConfigInputs {
   markdownFolderPath: string;
 }
 
+function buildWebsiteConfig(inputs: ConfigInputs): WebsiteSourceConfig {
+  const { sitemapUrl, urlPrefix, urls, maxPages } = inputs;
+  if (sitemapUrl !== "") {
+    return {
+      sitemapUrl,
+      urlPrefix: urlPrefix !== "" ? urlPrefix : undefined,
+    };
+  }
+  return {
+    startUrl: urls[0]?.trim() ?? "",
+    urlPrefix: urlPrefix !== "" ? urlPrefix : undefined,
+    maxPages: maxPages !== 0 ? maxPages : 1000,
+  };
+}
+
+function buildPDFConfig(inputs: ConfigInputs): PDFSourceConfig {
+  const { pdfLocalPaths, pdfUrls, pdfFolderPath } = inputs;
+  const localPaths = pdfLocalPaths.filter((path) => path.trim() !== "");
+  const filteredPdfUrls = pdfUrls.filter((url) => url.trim() !== "");
+
+  return {
+    localPaths: localPaths.length > 0 ? localPaths : undefined,
+    pdfUrls: filteredPdfUrls.length > 0 ? filteredPdfUrls : undefined,
+    folderPath: pdfFolderPath !== "" ? pdfFolderPath : undefined,
+  };
+}
+
 export function buildSourceConfig(
-  inputs: ConfigInputs,
+  inputs: ConfigInputs
 ):
   | WebsiteSourceConfig
   | YoutubeSourceConfig
   | PDFSourceConfig
   | MarkdownSourceConfig {
-  const {
-    sourceType,
-    urls,
-    sitemapUrl,
-    urlPrefix,
-    maxPages,
-    videoUrls,
-    pdfLocalPaths,
-    pdfUrls,
-    pdfFolderPath,
-    markdownFolderPath,
-  } = inputs;
+  const { sourceType, videoUrls, markdownFolderPath } = inputs;
 
   if (sourceType === "website") {
-    return sitemapUrl
-      ? {
-          sitemap_url: sitemapUrl,
-          url_prefix: urlPrefix || undefined,
-        }
-      : {
-          start_url: urls[0]?.trim(),
-          url_prefix: urlPrefix || undefined,
-          max_pages: maxPages || 1000,
-        };
+    return buildWebsiteConfig(inputs);
   }
 
   if (sourceType === "youtube") {
     return {
-      video_urls: videoUrls.filter((url) => url.trim()),
+      videoUrls: videoUrls.filter((url) => url.trim() !== ""),
     };
   }
 
   if (sourceType === "pdf") {
-    const config: PDFSourceConfig = {
-      local_paths: pdfLocalPaths.filter((p) => p.trim()),
-      pdf_urls: pdfUrls.filter((url) => url.trim()),
-      folder_path: pdfFolderPath || undefined,
-    };
-    // Clean empty arrays to match backend expectations
-    if (!config.local_paths?.length) delete config.local_paths;
-    if (!config.pdf_urls?.length) delete config.pdf_urls;
-    return config;
+    return buildPDFConfig(inputs);
   }
 
-  // Markdown
   return {
-    folder_path: markdownFolderPath,
+    folderPath: markdownFolderPath,
   };
 }

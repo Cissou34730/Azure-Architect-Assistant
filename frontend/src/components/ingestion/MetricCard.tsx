@@ -68,7 +68,9 @@ export function MetricCard({
   return (
     <div className={`p-4 rounded-card border ${colors.card}`}>
       <div className="flex items-center gap-2 mb-2">
-        {icon && <span className="text-xl">{icon}</span>}
+        {icon !== undefined && icon !== "" && (
+          <span className="text-xl">{icon}</span>
+        )}
         <div className="text-xs font-medium uppercase tracking-wide opacity-75">
           {label}
         </div>
@@ -82,7 +84,9 @@ export function MetricCard({
           </span>
         )}
       </div>
-      {subtext && <div className="text-xs mt-1 opacity-75">{subtext}</div>}
+      {subtext !== undefined && subtext !== "" && (
+        <div className="text-xs mt-1 opacity-75">{subtext}</div>
+      )}
       {progress !== undefined && (
         <div className="mt-2 h-1.5 bg-white/50 rounded-pill overflow-hidden">
           <div

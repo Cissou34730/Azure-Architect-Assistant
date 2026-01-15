@@ -1,24 +1,15 @@
-import { ProjectState } from "../../../services/apiService";
+﻿import { ProjectState } from "../../../types/api";
+import { ContextSection } from "./ProjectState/ContextSection";
+import { NfrSection } from "./ProjectState/NfrSection";
+import { StructureSection } from "./ProjectState/StructureSection";
+import { DataComplianceSection } from "./ProjectState/DataComplianceSection";
+import { TechnicalConstraintsSection } from "./ProjectState/TechnicalConstraintsSection";
+import { OpenQuestionsSection } from "./ProjectState/OpenQuestionsSection";
 
 interface StatePanelProps {
-  projectState: ProjectState | null;
-  onRefreshState: () => void;
-  loading: boolean;
-}
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-      <h3 className="font-semibold text-lg mb-2">{title}</h3>
-      <div className="space-y-2 text-sm">{children}</div>
-    </div>
-  );
+  readonly projectState: ProjectState | null;
+  readonly onRefreshState: () => void;
+  readonly loading: boolean;
 }
 
 export function StatePanel({
@@ -53,164 +44,18 @@ export function StatePanel({
         </button>
       </div>
 
-      {projectState ? (
+      {projectState !== null ? (
         <div className="space-y-4">
-          <Section title="Context">
-            <p>
-              <strong>Summary:</strong> {projectState.context.summary}
-            </p>
-            <p>
-              <strong>Target Users:</strong> {projectState.context.targetUsers}
-            </p>
-            <p>
-              <strong>Scenario Type:</strong>{" "}
-              {projectState.context.scenarioType}
-            </p>
-            <p>
-              <strong>Objectives:</strong>
-            </p>
-            <ul className="list-disc list-inside">
-              {(projectState.context?.objectives || []).map(
-                (obj: any, i: number) => (
-                  <li key={i}>
-                    {typeof obj === "string" ? (
-                      obj
-                    ) : (
-                      <>
-                        <strong>{obj.name}:</strong> {obj.description}
-                      </>
-                    )}
-                  </li>
-                ),
-              )}
-            </ul>
-          </Section>
-
-          <Section title="Non-Functional Requirements">
-            <p>
-              <strong>Availability:</strong> {projectState.nfrs.availability}
-            </p>
-            <p>
-              <strong>Security:</strong> {projectState.nfrs.security}
-            </p>
-            <p>
-              <strong>Performance:</strong> {projectState.nfrs.performance}
-            </p>
-            <p>
-              <strong>Cost:</strong> {projectState.nfrs.costConstraints}
-            </p>
-          </Section>
-
-          <Section title="Application Structure">
-            <p>
-              <strong>Components:</strong>
-            </p>
-            <ul className="list-disc list-inside">
-              {(projectState.applicationStructure?.components || []).map(
-                (comp: any, i: number) => (
-                  <li key={i}>
-                    {typeof comp === "string" ? (
-                      comp
-                    ) : (
-                      <>
-                        <strong>{comp.name}:</strong> {comp.description}
-                      </>
-                    )}
-                  </li>
-                ),
-              )}
-            </ul>
-            <p>
-              <strong>Integrations:</strong>
-            </p>
-            <ul className="list-disc list-inside">
-              {(projectState.applicationStructure?.integrations || []).map(
-                (int: any, i: number) => (
-                  <li key={i}>
-                    {typeof int === "string" ? (
-                      int
-                    ) : (
-                      <>
-                        <strong>{int.name}:</strong> {int.description}
-                      </>
-                    )}
-                  </li>
-                ),
-              )}
-            </ul>
-          </Section>
-
-          <Section title="Data & Compliance">
-            <p>
-              <strong>Data Types:</strong>{" "}
-              {(projectState.dataCompliance?.dataTypes || []).join(", ")}
-            </p>
-            <p>
-              <strong>Compliance:</strong>{" "}
-              {(projectState.dataCompliance?.complianceRequirements || []).join(
-                ", ",
-              )}
-            </p>
-            <p>
-              <strong>Data Residency:</strong>{" "}
-              {projectState.dataCompliance?.dataResidency}
-            </p>
-          </Section>
-
-          <Section title="Technical Constraints">
-            <p>
-              <strong>Constraints:</strong>
-            </p>
-            <ul className="list-disc list-inside">
-              {(projectState.technicalConstraints?.constraints || []).map(
-                (c: any, i: number) => (
-                  <li key={i}>
-                    {typeof c === "string" ? (
-                      c
-                    ) : (
-                      <>
-                        <strong>{c.name}:</strong> {c.description}
-                      </>
-                    )}
-                  </li>
-                ),
-              )}
-            </ul>
-            <p>
-              <strong>Assumptions:</strong>
-            </p>
-            <ul className="list-disc list-inside">
-              {(projectState.technicalConstraints?.assumptions || []).map(
-                (a: any, i: number) => (
-                  <li key={i}>
-                    {typeof a === "string" ? (
-                      a
-                    ) : (
-                      <>
-                        <strong>{a.name}:</strong> {a.description}
-                      </>
-                    )}
-                  </li>
-                ),
-              )}
-            </ul>
-          </Section>
-
-          <Section title="Open Questions">
-            <ul className="list-disc list-inside">
-              {(projectState.openQuestions || []).map((q: any, i: number) => (
-                <li key={i}>
-                  {typeof q === "string" ? (
-                    q
-                  ) : (
-                    <>
-                      <strong>{q.name}:</strong> {q.description}
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </Section>
+          <ContextSection context={projectState.context} />
+          <NfrSection nfrs={projectState.nfrs} />
+          <StructureSection structure={projectState.applicationStructure} />
+          <DataComplianceSection
+            dataCompliance={projectState.dataCompliance}
+          />
+          <TechnicalConstraintsSection
+            constraints={projectState.technicalConstraints}
+          />
+          <OpenQuestionsSection questions={projectState.openQuestions} />
         </div>
       ) : (
         <p className="text-gray-500">

@@ -3,10 +3,11 @@
  */
 
 import { useState, useCallback } from "react";
-import { Project, projectApi } from "../../../services/apiService";
+import { Project } from "../../../types/api";
+import { projectApi } from "../../../services/projectService";
 
 export const useProjects = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<readonly Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -15,12 +16,13 @@ export const useProjects = () => {
       const fetchedProjects = await projectApi.fetchAll();
       setProjects(fetchedProjects);
     } catch (error) {
-      console.error("Error fetching projects:", error);
+      const msg = error instanceof Error ? error.message : "Fetch failed";
+      console.error(`Error fetching projects: ${msg}`);
     }
   }, []);
 
   const createProject = useCallback(async (name: string) => {
-    if (!name.trim()) {
+    if (name.trim() === "") {
       throw new Error("Project name is required");
     }
 
@@ -35,46 +37,6 @@ export const useProjects = () => {
     }
   }, []);
 
-  const uploadDocuments = useCallback(
-    async (files: FileList) => {
-      if (!selectedProject) {
-        throw new Error("No project selected");
-      }
-
-      setLoading(true);
-      try {
-        await projectApi.uploadDocuments(selectedProject.id, files);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [selectedProject],
-  );
-
-  const saveTextRequirements = useCallback(
-    async (text: string) => {
-      if (!selectedProject) {
-        throw new Error("No project selected");
-      }
-
-      setLoading(true);
-      try {
-        const updatedProject = await projectApi.saveTextRequirements(
-          selectedProject.id,
-          text,
-        );
-        setProjects((prev) =>
-          prev.map((p) => (p.id === updatedProject.id ? updatedProject : p)),
-        );
-        setSelectedProject(updatedProject);
-        return updatedProject;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [selectedProject],
-  );
-
   return {
     projects,
     selectedProject,
@@ -82,7 +44,5 @@ export const useProjects = () => {
     loading,
     fetchProjects,
     createProject,
-    uploadDocuments,
-    saveTextRequirements,
   };
 };

@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { proposalApi } from "../../../services/apiService";
+import { proposalApi } from "../../../services/proposalService";
 import { useToast } from "../../../hooks/useToast";
 
 export const useProposal = () => {
@@ -17,32 +17,25 @@ export const useProposal = () => {
       setLoading(true);
       setProposalStage("Starting proposal generation...");
 
-      const eventSource = proposalApi.createProposalStream(
-        projectId,
-        // onProgress
-        (stage) => {
-          setProposalStage(stage);
+      const eventSource = proposalApi.createProposalStream(projectId, {
+        onProgress: (params) => {
+          setProposalStage(params.stage);
         },
-        // onComplete
-        (proposal) => {
+        onComplete: (proposal) => {
           setArchitectureProposal(proposal);
           setProposalStage("Refreshing architecture sheet...");
-
-          // Call completion callback
-          if (onComplete) {
+          if (onComplete !== undefined) {
             onComplete();
           }
-
           setProposalStage("");
           setLoading(false);
         },
-        // onError
-        (error) => {
-          showError(`Error: ${error}`);
+        onError: (error) => {
+          showError(error);
           setProposalStage("");
           setLoading(false);
         },
-      );
+      });
 
       // Return cleanup function
       return () => {
@@ -51,7 +44,7 @@ export const useProposal = () => {
         setLoading(false);
       };
     },
-    [showError],
+    [showError]
   );
 
   return {

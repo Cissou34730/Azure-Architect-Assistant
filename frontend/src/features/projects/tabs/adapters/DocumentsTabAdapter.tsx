@@ -1,7 +1,7 @@
 import { lazy } from "react";
-import { useProjectContext } from "../../context/ProjectContext";
+import { useProjectContext } from "../../context/useProjectContext";
 
-const DocumentsPanel = lazy(() =>
+const DOCUMENTS_PANEL_LAZY = lazy(() =>
   import("../../components/DocumentsPanel").then((m) => ({
     default: m.DocumentsPanel,
   })),
@@ -21,10 +21,14 @@ export function DocumentsTabAdapter() {
     loadingMessage,
   } = useProjectContext();
 
-  if (!selectedProject) return null;
+  if (selectedProject === null) {
+    return null;
+  }
+
+  const DOCUMENTS_PANEL = DOCUMENTS_PANEL_LAZY;
 
   return (
-    <DocumentsPanel
+    <DOCUMENTS_PANEL
       selectedProject={selectedProject}
       textRequirements={textRequirements}
       onTextRequirementsChange={setTextRequirements}

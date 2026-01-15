@@ -25,7 +25,9 @@ export function LoadingSpinner({ size = "md", message }: LoadingSpinnerProps) {
         className={`animate-spin rounded-pill border-b-2 border-accent-primary ${sizeClasses[size]}`}
         aria-hidden="true"
       />
-      {message && <p className="text-sm text-gray-600">{message}</p>}
+      {message !== undefined && message !== "" && (
+        <p className="text-sm text-gray-600">{message}</p>
+      )}
       <span className="sr-only">Loading...</span>
     </div>
   );

@@ -1,8 +1,8 @@
 interface ProposalPanelProps {
-  architectureProposal: string;
-  proposalStage: string;
-  onGenerateProposal: () => void;
-  loading: boolean;
+  readonly architectureProposal: string;
+  readonly proposalStage: string;
+  readonly onGenerateProposal: () => void;
+  readonly loading: boolean;
 }
 
 export function ProposalPanel({
@@ -19,20 +19,20 @@ export function ProposalPanel({
 
       <button
         onClick={onGenerateProposal}
-        disabled={loading && proposalStage !== ""}
+        disabled={loading}
         className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 disabled:opacity-50 mb-4 flex items-center gap-2"
       >
-        {loading && proposalStage ? "Generating..." : "Generate Proposal"}
+        {loading && proposalStage !== "" ? "Generating..." : "Generate Proposal"}
       </button>
 
-      {proposalStage && (
+      {proposalStage !== "" && (
         <div className="mb-6 p-4 bg-linear-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
           <div className="flex items-start gap-3">
             <div className="shrink-0 mt-1">
               <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce [animation-delay:150ms]"></div>
-                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce [animation-delay:300ms]"></div>
+                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce [animation-delay:150ms]" />
+                <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce [animation-delay:300ms]" />
               </div>
             </div>
             <div className="flex-1">
@@ -48,7 +48,7 @@ export function ProposalPanel({
         </div>
       )}
 
-      {architectureProposal && !proposalStage && (
+      {architectureProposal !== "" && proposalStage === "" && (
         <div className="prose max-w-none">
           <pre className="whitespace-pre-wrap bg-gray-50 p-4 rounded-md border border-gray-200">
             {architectureProposal}

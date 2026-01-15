@@ -1,30 +1,36 @@
-import { Message, ProjectState, KBSource } from "../types/api";
+import { Message, ProjectState, KbSource } from "../types/api";
+import { API_BASE } from "./config";
+import { fetchWithErrorHandling } from "./serviceError";
 
-const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
-}/api`;
+export interface SendMessageResponse {
+  readonly message: string;
+  readonly projectState: ProjectState;
+  readonly kbSources?: readonly KbSource[];
+}
 
 export const chatApi = {
   async sendMessage(
     projectId: string,
-    message: string,
-  ): Promise<{
-    message: string;
-    projectState: ProjectState;
-    kbSources?: KBSource[];
-  }> {
-    const res = await fetch(`${API_BASE}/chat/${projectId}/message`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
-    });
-    if (!res.ok) throw new Error("Failed to send message");
-    return res.json();
+    message: string
+  ): Promise<SendMessageResponse> {
+    return fetchWithErrorHandling<SendMessageResponse>(
+      `${API_BASE}/projects/${projectId}/chat`,
+      {
+        method: "POST",
+        headers: {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message }),
+      },
+      "send message"
+    );
   },
 
-  async fetchMessages(projectId: string): Promise<Message[]> {
-    const res = await fetch(`${API_BASE}/chat/${projectId}/history`);
-    if (!res.ok) throw new Error("Failed to fetch messages");
-    return res.json();
+  async fetchMessages(projectId: string): Promise<readonly Message[]> {
+    const data = await fetchWithErrorHandling<{
+      readonly messages: readonly Message[];
+    }>(`${API_BASE}/projects/${projectId}/messages`, {}, "fetch messages");
+    return data.messages;
   },
 };

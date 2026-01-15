@@ -1,7 +1,7 @@
 export function Banner() {
   const bannerMessage = import.meta.env.VITE_BANNER_MESSAGE;
 
-  if (!bannerMessage) {
+  if (bannerMessage === undefined || bannerMessage === "") {
     return null;
   }
 

@@ -32,7 +32,9 @@ export function AgentChatWorkspace() {
           agentStatus={agentStatus}
           showReasoning={showReasoning}
           onClearChat={clearChat}
-          onToggleReasoning={() => setShowReasoning(!showReasoning)}
+          onToggleReasoning={() => {
+            setShowReasoning((prev) => !prev);
+          }}
         />
 
         <ProjectSelector

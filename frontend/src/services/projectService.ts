@@ -1,72 +1,87 @@
 import { Project, ProjectState } from "../types/api";
-
-const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
-}/api`;
+import { API_BASE } from "./config";
+import { fetchWithErrorHandling } from "./serviceError";
 
 export const projectApi = {
   async get(id: string): Promise<Project> {
-    const res = await fetch(`${API_BASE}/projects/${id}`);
-    if (!res.ok) throw new Error("Failed to fetch project");
-    return res.json();
+    const data = await fetchWithErrorHandling<{ readonly project: Project }>(
+      `${API_BASE}/projects/${id}`,
+      {},
+      "get project"
+    );
+    return data.project;
   },
 
-  async fetchAll(): Promise<Project[]> {
-    const res = await fetch(`${API_BASE}/projects`);
-    if (!res.ok) throw new Error("Failed to fetch projects");
-    return res.json();
+  async fetchAll(): Promise<readonly Project[]> {
+    const data = await fetchWithErrorHandling<{
+      readonly projects: readonly Project[];
+    }>(`${API_BASE}/projects`, {}, "fetch projects");
+    return data.projects;
   },
 
   async create(name: string): Promise<Project> {
-    const res = await fetch(`${API_BASE}/projects/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    if (!res.ok) throw new Error("Failed to create project");
-    return res.json();
+    const data = await fetchWithErrorHandling<{ readonly project: Project }>(
+      `${API_BASE}/projects`,
+      {
+        method: "POST",
+        headers: {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      },
+      "create project"
+    );
+    return data.project;
   },
 
   async uploadDocuments(projectId: string, files: FileList): Promise<void> {
     const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append("files", files[i]);
-    }
+    Array.from(files).forEach((file) => {
+      formData.append("documents", file);
+    });
 
-    const res = await fetch(
-      `${API_BASE}/projects/${projectId}/documents/upload`,
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
+    await fetchWithErrorHandling<Record<string, unknown>>(
+      `${API_BASE}/projects/${projectId}/documents`,
       {
         method: "POST",
         body: formData,
       },
+      "upload documents"
     );
-    if (!res.ok) throw new Error("Failed to upload documents");
   },
 
   async saveTextRequirements(
     projectId: string,
-    text: string,
+    text: string
   ): Promise<Project> {
-    const res = await fetch(
-      `${API_BASE}/projects/${projectId}/requirements/text`,
+    const data = await fetchWithErrorHandling<{ readonly project: Project }>(
+      `${API_BASE}/projects/${projectId}/requirements`,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        method: "PUT",
+        headers: {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ textRequirements: text }),
       },
+      "save requirements"
     );
-    if (!res.ok) throw new Error("Failed to save requirements");
-    return res.json();
+
+    return data.project;
   },
 
   async analyzeDocuments(projectId: string): Promise<ProjectState> {
-    const res = await fetch(
-      `${API_BASE}/projects/${projectId}/documents/analyze`,
+    const data = await fetchWithErrorHandling<{
+      readonly projectState: ProjectState;
+    }>(
+      `${API_BASE}/projects/${projectId}/analyze-docs`,
       {
         method: "POST",
       },
+      "analyze documents"
     );
-    if (!res.ok) throw new Error("Failed to analyze documents");
-    return res.json();
+    return data.projectState;
   },
 };

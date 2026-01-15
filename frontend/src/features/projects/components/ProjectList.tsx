@@ -1,7 +1,7 @@
-import { Project } from "../../../services/apiService";
+import { Project } from "../../../types/api";
 
 interface ProjectListProps {
-  projects: Project[];
+  projects: readonly Project[];
   selectedProject: Project | null;
   onSelectProject: (project: Project) => void;
   projectName: string;
@@ -27,7 +27,7 @@ export function ProjectList({
         <input
           type="text"
           value={projectName}
-          onChange={(e) => onProjectNameChange(e.target.value)}
+          onChange={(e) => { onProjectNameChange(e.target.value); }}
           placeholder="New project name"
           className="w-full px-3 py-2 border border-gray-300 rounded-md mb-2 text-sm"
         />
@@ -44,7 +44,7 @@ export function ProjectList({
         {projects.map((project) => (
           <button
             key={project.id}
-            onClick={() => onSelectProject(project)}
+            onClick={() => { onSelectProject(project); }}
             className={`w-full text-left px-3 py-2 rounded-md text-sm ${
               selectedProject?.id === project.id
                 ? "bg-blue-100 border border-blue-500"

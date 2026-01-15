@@ -3,29 +3,30 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import {
-  ProjectState,
-  stateApi,
-  projectApi,
-} from "../../../services/apiService";
+import { ProjectState } from "../../../types/api";
+import { stateApi } from "../../../services/stateService";
+import { projectApi } from "../../../services/projectService";
 
 export const useProjectState = (projectId: string | null) => {
   const [projectState, setProjectState] = useState<ProjectState | null>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchProjectState = useCallback(async () => {
-    if (!projectId) return;
+    if (projectId === null || projectId === "") {
+      return;
+    }
 
     try {
       const state = await stateApi.fetch(projectId);
       setProjectState(state);
     } catch (error) {
-      console.error("Error fetching project state:", error);
+      const msg = error instanceof Error ? error.message : "Fetch failed";
+      console.error(`Error fetching project state: ${msg}`);
     }
   }, [projectId]);
 
   const analyzeDocuments = useCallback(async () => {
-    if (!projectId) {
+    if (projectId === null || projectId === "") {
       throw new Error("No project selected");
     }
 

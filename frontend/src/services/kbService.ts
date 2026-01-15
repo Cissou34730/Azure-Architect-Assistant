@@ -1,47 +1,71 @@
-import { KBHealthResponse, KBQueryResponse } from "../types/api";
-
-const API_BASE = `${
-  import.meta.env.BACKEND_URL || "http://localhost:8000"
-}/api`;
+import {
+  KbHealthResponse,
+  KbQueryResponse,
+  KbListResponse,
+} from "../types/api";
+import { keysToSnake } from "../utils/apiMapping";
+import { API_BASE } from "./config";
+import { fetchWithErrorHandling } from "./serviceError";
 
 export const kbApi = {
-  async checkHealth(): Promise<KBHealthResponse> {
-    const res = await fetch(`${API_BASE}/kb/health`);
-    if (!res.ok) throw new Error("Health check failed");
-    return res.json();
+  async listKbs(): Promise<KbListResponse> {
+    return fetchWithErrorHandling<KbListResponse>(
+      `${API_BASE}/kb/list`,
+      {},
+      "list KBs"
+    );
   },
 
-  async query(
-    question: string,
-    topKPerKB: number = 3,
-  ): Promise<KBQueryResponse> {
-    const res = await fetch(`${API_BASE}/kb/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        question,
-        top_k_per_kb: topKPerKB,
-      }),
-    });
-    if (!res.ok) throw new Error("Query failed");
-    return res.json();
+  async checkHealth(): Promise<KbHealthResponse> {
+    return fetchWithErrorHandling<KbHealthResponse>(
+      `${API_BASE}/kb/health`,
+      {},
+      "check health"
+    );
+  },
+
+  async query(question: string, topKPerKB = 3): Promise<KbQueryResponse> {
+    return fetchWithErrorHandling<KbQueryResponse>(
+      `${API_BASE}/query/chat`,
+      {
+        method: "POST",
+        headers: {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(
+          keysToSnake({
+            question,
+            topKPerKB,
+          })
+        ),
+      },
+      "query KBs"
+    );
   },
 
   async queryKBs(
     question: string,
-    kbIds: string[],
-    topKPerKB: number = 5,
-  ): Promise<KBQueryResponse> {
-    const res = await fetch(`${API_BASE}/kb/query/multi`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        question,
-        kb_ids: kbIds,
-        top_k_per_kb: topKPerKB,
-      }),
-    });
-    if (!res.ok) throw new Error("Multi-KB query failed");
-    return res.json();
+    kbIds: readonly string[],
+    topKPerKB = 5
+  ): Promise<KbQueryResponse> {
+    return fetchWithErrorHandling<KbQueryResponse>(
+      `${API_BASE}/query/kb-query`,
+      {
+        method: "POST",
+        headers: {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(
+          keysToSnake({
+            question,
+            kbIds,
+            topKPerKB,
+          })
+        ),
+      },
+      "query selected KBs"
+    );
   },
 };

@@ -5,7 +5,8 @@ const registry: ProjectTab[] = [];
 
 export function registerTab(tab: ProjectTab) {
   // Prevent duplicates
-  if (!registry.find((t) => t.id === tab.id)) {
+  const existing = registry.find((t) => t.id === tab.id);
+  if (existing === undefined) {
     registry.push(tab);
   }
 }

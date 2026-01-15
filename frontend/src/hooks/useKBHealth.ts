@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { kbApi, KBHealthResponse } from "../services/apiService";
+import { kbApi } from "../services/kbService";
+import { KbHealthResponse } from "../types/api";
 
 export function useKBHealth() {
-  const [healthStatus, setHealthStatus] = useState<KBHealthResponse | null>(
-    null,
+  const [healthStatus, setHealthStatus] = useState<KbHealthResponse | null>(
+    null
   );
   const [isReady, setIsReady] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
@@ -15,8 +16,7 @@ export function useKBHealth() {
       setHealthStatus(data);
 
       // Check if at least one KB is ready
-      const anyReady =
-        data.knowledge_bases?.some((kb) => kb.index_ready) ?? false;
+      const anyReady = data.knowledgeBases.some((kb) => kb.indexReady);
       setIsReady(anyReady);
     } catch (error) {
       console.error("Error checking KB health:", error);

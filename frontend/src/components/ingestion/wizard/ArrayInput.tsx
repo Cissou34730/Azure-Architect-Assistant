@@ -37,27 +37,34 @@ export function ArrayInput({
         {label}
       </label>
       <div className="space-y-2">
-        {values.map((value, index) => (
-          <div key={index} className="flex gap-2">
-            <input
-              type="text"
-              value={value}
-              onChange={(e) => updateField(index, e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder={placeholder}
-            />
-            {values.length > 1 && (
-              <button
-                type="button"
-                onClick={() => removeField(index)}
-                className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-md"
-                aria-label={`Remove ${label} ${index + 1}`}
-              >
-                ×
-              </button>
-            )}
-          </div>
-        ))}
+        {values.map((value, index) => {
+          const key = `field-${index}`;
+          return (
+            <div key={key} className="flex gap-2">
+              <input
+                type="text"
+                value={value}
+                onChange={(e) => {
+                  updateField(index, e.target.value);
+                }}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={placeholder}
+              />
+              {values.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    removeField(index);
+                  }}
+                  className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-md"
+                  aria-label={`Remove ${label} ${index + 1}`}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
       <button
         type="button"
@@ -66,7 +73,9 @@ export function ArrayInput({
       >
         + Add another
       </button>
-      {helpText && <p className="mt-1 text-xs text-gray-500">{helpText}</p>}
+      {helpText !== undefined && helpText !== "" && (
+        <p className="mt-1 text-xs text-gray-500">{helpText}</p>
+      )}
     </div>
   );
 }
