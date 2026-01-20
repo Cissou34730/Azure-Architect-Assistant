@@ -5,6 +5,7 @@ Handles startup and shutdown events for the FastAPI application.
 
 import asyncio
 import logging
+from pathlib import Path
 
 from app.core.config import get_app_settings
 from app.core.logging import configure_logging
@@ -12,6 +13,7 @@ from app.ingestion.ingestion_database import init_ingestion_database
 from app.projects_database import close_database, init_database
 from app.agents_system.runner import initialize_agent_runner, shutdown_agent_runner
 from app.services.diagram.database import init_diagram_database, close_diagram_database
+from app.agents_system.services.mindmap_loader import initialize_mindmap
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,13 @@ async def startup():
     logger.info("=" * 60)
 
     try:
+        # Load architecture mind map (required for AAA features)
+        repo_root = Path(__file__).resolve().parents[2]
+        mindmap_path = repo_root / "docs" / "arch_mindmap.json"
+        logger.info("Loading architecture mind map from %s", mindmap_path)
+        initialize_mindmap(mindmap_path)
+        logger.info("✓ Architecture mind map loaded")
+
         # Initialize database
         logger.info("Initializing database...")
         await init_database()
@@ -82,7 +91,7 @@ async def startup():
 
     except Exception as exc:
         logger.error(f"Error during startup: {exc}")
-        logger.warning("Some services may be lazy-loaded on first request")
+        raise
 
 
 async def shutdown():

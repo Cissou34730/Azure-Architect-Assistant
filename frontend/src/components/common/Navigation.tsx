@@ -17,11 +17,6 @@ export function Navigation() {
       label: "KB Management",
       ariaLabel: "Manage knowledge bases",
     },
-    {
-      to: "/agent-chat",
-      label: "Agent Chat",
-      ariaLabel: "Chat with Azure Architect Assistant",
-    },
   ];
 
   return (

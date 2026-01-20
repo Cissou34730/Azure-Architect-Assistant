@@ -198,6 +198,13 @@ Thumbs.db
 archive/
 
 # Backups (created by backup script)
+
+# Prettier/ESLint caches
+.eslintcache
+.prettier-cache
+
+# Python tooling
+.ruff_cache/
 backups/
 
 # Analysis and temporary notes

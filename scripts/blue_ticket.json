@@ -1,0 +1,7 @@
+{
+  "name": "BlueTicket",
+  "specification": {
+    "summary": "BlueTicket is a French startup launching a B2C web app to sell tickets for local events.",
+    "text": "Context\n\nBlueTicket is a French startup planning to launch a B2C web application that allows users to discover and purchase tickets for local events (concerts, talks, indie shows).\n\nBusiness goals\n\nLet the public search, reserve and pay for tickets online\n\nProvide a lightweight portal for event organizers to publish events\n\nGo live with a minimal viable product within 3 months\n\nUsers\n\nGeneral public (EU-based)\n\nIndependent event organizers\n\nFunctional & Non-functional requirements\n\nUsers authenticate with personal accounts (email; MFA preferred but not required initially)\n\nPayments handled via a third-party provider (not selected yet)\n\nRGPD-compliant\n\nData stored exclusively in the EU\n\nExpected usage:\n\n5,000 active monthly users at launch\n\nPotential growth to 50,000 within a year\n\nTarget availability: 99.5%\n\nFuture enhancement (not MVP-critical):\n\nrefunds\n\nemail notifications\n\nOut of scope (MVP)\n\nNative mobile apps\n\nAdvanced analytics or reporting"
+  }
+}

@@ -35,47 +35,108 @@ class LLMService:
 
         combined_text = "\n\n---\n\n".join(document_texts)
 
-        system_prompt = """You are an Azure Architecture Assistant. Analyze the provided project documents and extract key information to create a structured Architecture Sheet (ProjectState).
+        system_prompt = """You are an Azure Architecture Assistant.
 
-Your response MUST be a valid JSON object with the following structure:
+Analyze the provided project documents and extract:
+1) A baseline Architecture Sheet (context/NFRs/constraints)
+2) Structured requirements for the Azure Architect Assistant (AAA)
+3) Prioritized clarification questions based on gaps/ambiguities
+
+Return JSON ONLY (no markdown, no code fences) with this structure:
 {
-  "context": {
-    "summary": "Brief project summary",
-    "objectives": ["objective1", "objective2"],
-    "targetUsers": "Description of target users",
-    "scenarioType": "Type of scenario (e.g., web app, IoT, data analytics)"
-  },
-  "nfrs": {
-    "availability": "Availability requirements",
-    "security": "Security requirements",
-    "performance": "Performance requirements",
-    "costConstraints": "Cost constraints"
-  },
-  "applicationStructure": {
-    "comsponents": [{"name": "component name", "description": "component description"}],
-    "integrations": ["integration1", "integration2"]
-  },
-  "dataCompliance": {
-    "dataTypes": ["data type1", "data type2"],
-    "complianceRequirements": ["requirement1", "requirement2"],
-    "dataResidency": "Data residency requirements"
-  },
-  "technicalConstraints": {
-    "constraints": ["constraint1", "constraint2"],
-    "assumptions": ["assumption1", "assumption2"]
-  },
-  "openQuestions": ["question1", "question2"]
+    "context": {
+        "summary": "Brief project summary",
+        "objectives": ["objective1"],
+        "targetUsers": "Description of target users",
+        "scenarioType": "Type of scenario (e.g., web app, IoT, data analytics)"
+    },
+    "nfrs": {
+        "availability": "Availability requirements",
+        "security": "Security requirements",
+        "performance": "Performance requirements",
+        "costConstraints": "Cost constraints"
+    },
+    "applicationStructure": {
+        "components": [{"name": "component name", "description": "component description"}],
+        "integrations": ["integration1"]
+    },
+    "dataCompliance": {
+        "dataTypes": ["data type1"],
+        "complianceRequirements": ["requirement1"],
+        "dataResidency": "Data residency requirements"
+    },
+    "technicalConstraints": {
+        "constraints": ["constraint1"],
+        "assumptions": ["assumption1"]
+    },
+    "openQuestions": ["question1"],
+
+    "requirements": [
+        {
+            "category": "business | functional | nfr",
+            "text": "Requirement text",
+            "ambiguity": {"isAmbiguous": false, "notes": ""},
+            "sources": [
+                {"documentId": "<if present in input>", "fileName": "<if present>", "excerpt": "short quote"}
+            ]
+        }
+    ],
+    "clarificationQuestions": [
+        {
+            "question": "Clarification question",
+            "priority": 1,
+            "relatedRequirementIndexes": [0]
+        }
+    ]
 }
 
-Extract as much information as possible from the documents. For missing information, leave fields empty or use empty arrays."""
+Notes:
+- Requirement categories must be exactly one of: business, functional, nfr
+- Mark ambiguities explicitly using ambiguity.isAmbiguous + ambiguity.notes
+- If you cannot determine sources, return an empty sources array
+- Prioritize clarificationQuestions: priority=1 is highest
+"""
 
-        user_prompt = f"Analyze these project documents and extract the Architecture Sheet:\n\n{combined_text}"
+        user_prompt = (
+            "Analyze these project documents and extract the Architecture Sheet + AAA requirements.\n\n"
+            + combined_text
+        )
 
-        response = await self._complete(system_prompt, user_prompt)
-        project_state = self._parse_project_state(response)
+        try:
+            project_state = await self._complete_json(
+                system_prompt, user_prompt, max_tokens=3000
+            )
+        except Exception:
+            # Fallback to legacy parsing if JSON mode fails for any reason
+            response = await self._complete(system_prompt, user_prompt, max_tokens=3000)
+            project_state = self._parse_project_state(response)
 
-        # Analysis completion log suppressed
         return project_state
+
+    async def _complete_json(
+        self, system_prompt: str, user_prompt: str, max_tokens: int = 2000
+    ) -> Dict[str, Any]:
+        """Make an LLM call requesting JSON-only output and parse it.
+
+        Uses OpenAI JSON mode via response_format when supported by the provider.
+        """
+        messages = [
+            ChatMessage(role="system", content=system_prompt),
+            ChatMessage(role="user", content=user_prompt),
+        ]
+
+        response = await self.ai_service.chat(
+            messages=messages,
+            temperature=self.ai_service.config.default_temperature,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"},
+        )
+
+        content = response.content
+        if not content:
+            raise ValueError("LLM returned empty response")
+
+        return json.loads(content)
 
     async def process_chat_message(
         self,

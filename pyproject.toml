@@ -69,6 +69,7 @@ dependencies = [
     "langchain>=0.3.0",
     "langchain-community>=0.3.0",
     "langchain-openai>=0.2.0",
+    "langgraph>=0.2.0",
     "llama-cloud>=0.1.35",
     "llama-index-agent-openai",
     "llama-index-cli",
@@ -176,6 +177,8 @@ dependencies = [
     "pluggy==1.6.0",
     "Pygments==2.19.2",
     "pytest==9.0.1",
+    "openpyxl>=3.1.5",
+    "xlrd>=2.0.2",
 ]
 
 [project.optional-dependencies]

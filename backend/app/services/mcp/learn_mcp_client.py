@@ -83,6 +83,16 @@ class MicrosoftLearnMCPClient:
         self._connection_context = None
         self._streams = None
 
+        # Background task that owns the async context managers.
+        # AnyIO requires that a cancel scope is exited in the same task
+        # where it was entered; FastAPI startup/shutdown run in different
+        # tasks, so we keep enter/exit within a single dedicated task.
+        self._runner_task: asyncio.Task | None = None
+        self._ready_event: asyncio.Event | None = None
+        self._stop_event: asyncio.Event | None = None
+        self._startup_error: BaseException | None = None
+        self._call_lock = asyncio.Lock()
+
         logger.info(
             f"Microsoft Learn MCP client configured: endpoint={self.endpoint}, timeout={self.timeout}s"
         )
@@ -116,9 +126,64 @@ class MicrosoftLearnMCPClient:
             logger.warning("Client already initialized, skipping")
             return
 
+        if self._runner_task and not self._runner_task.done():
+            # If a previous initialize is in-flight, wait for it.
+            if self._ready_event:
+                await asyncio.wait_for(self._ready_event.wait(), timeout=self.timeout)
+            if self._startup_error:
+                raise MCPConnectionError(
+                    f"Failed to connect to Microsoft Learn MCP server: {self._startup_error}",
+                    details={"endpoint": self.endpoint, "error": str(self._startup_error)},
+                ) from self._startup_error
+            if self._initialized:
+                return
+
         try:
             logger.info(f"Initializing connection to {self.endpoint}...")
 
+            self._startup_error = None
+            self._ready_event = asyncio.Event()
+            self._stop_event = asyncio.Event()
+            self._runner_task = asyncio.create_task(
+                self._run_connection_owner(), name="mcp-microsoft-learn-client"
+            )
+
+            await asyncio.wait_for(self._ready_event.wait(), timeout=self.timeout)
+
+            if self._startup_error:
+                raise MCPConnectionError(
+                    f"Failed to connect to Microsoft Learn MCP server: {self._startup_error}",
+                    details={"endpoint": self.endpoint, "error": str(self._startup_error)},
+                ) from self._startup_error
+
+            if not self._initialized:
+                raise MCPConnectionError(
+                    "Failed to initialize Microsoft Learn MCP client",
+                    details={"endpoint": self.endpoint},
+                )
+
+        except asyncio.TimeoutError as e:
+            if self._runner_task and not self._runner_task.done():
+                self._runner_task.cancel()
+                try:
+                    await self._runner_task
+                except Exception:
+                    pass
+            raise MCPTimeoutError(
+                f"Connection to {self.endpoint} timed out after {self.timeout}s",
+                details={"endpoint": self.endpoint, "timeout": self.timeout},
+            ) from e
+        except Exception as e:
+            # Clean up partial connection (owned by the runner task)
+            await self.close()
+            raise MCPConnectionError(
+                f"Failed to connect to Microsoft Learn MCP server: {str(e)}",
+                details={"endpoint": self.endpoint, "error": str(e)},
+            ) from e
+
+    async def _run_connection_owner(self) -> None:
+        """Owns MCP connection/session context managers for the app lifetime."""
+        try:
             # Establish connection with timeout
             self._connection_context = streamablehttp_client(self.endpoint)
             self._streams = await asyncio.wait_for(
@@ -141,18 +206,23 @@ class MicrosoftLearnMCPClient:
                 f"Discovered {len(self._tools_cache)} tools."
             )
 
-        except asyncio.TimeoutError as e:
-            raise MCPTimeoutError(
-                f"Connection to {self.endpoint} timed out after {self.timeout}s",
-                details={"endpoint": self.endpoint, "timeout": self.timeout},
-            ) from e
-        except Exception as e:
-            # Clean up partial connection
-            await self._cleanup()
-            raise MCPConnectionError(
-                f"Failed to connect to Microsoft Learn MCP server: {str(e)}",
-                details={"endpoint": self.endpoint, "error": str(e)},
-            ) from e
+        except BaseException as exc:
+            self._startup_error = exc
+            logger.error(f"MCP client initialization failed: {exc}")
+        finally:
+            if self._ready_event:
+                self._ready_event.set()
+
+        # Wait until shutdown requests stop.
+        if self._stop_event:
+            try:
+                await self._stop_event.wait()
+            except Exception:
+                pass
+
+        # Cleanup in the same task that entered context managers.
+        await self._cleanup()
+        self._initialized = False
 
     async def _refresh_tools(self) -> None:
         """
@@ -203,17 +273,31 @@ class MicrosoftLearnMCPClient:
 
         Safe to call multiple times.
         """
-        if not self._initialized:
-            return
-
         try:
             logger.debug("Closing Microsoft Learn MCP client...")
-            await self._cleanup()
+            if self._stop_event:
+                self._stop_event.set()
+
+            if self._runner_task and not self._runner_task.done():
+                try:
+                    await asyncio.wait_for(self._runner_task, timeout=5.0)
+                except asyncio.TimeoutError:
+                    logger.warning("MCP client runner task did not stop within 5s; cancelling")
+                    self._runner_task.cancel()
+                    try:
+                        await self._runner_task
+                    except Exception:
+                        pass
+
             logger.debug("Microsoft Learn MCP client closed")
         except Exception as e:
             logger.warning(f"Error during MCP client close: {e}")
         finally:
             self._initialized = False
+            self._runner_task = None
+            self._ready_event = None
+            self._stop_event = None
+            self._startup_error = None
 
     async def _cleanup(self) -> None:
         """
@@ -302,11 +386,12 @@ class MicrosoftLearnMCPClient:
         try:
             logger.debug(f"Calling tool '{tool_name}' with args: {arguments}")
 
-            # Execute tool call
-            result = await asyncio.wait_for(
-                self._session.call_tool(tool_name, arguments=arguments),
-                timeout=call_timeout,
-            )
+            # Serialize calls to avoid overlapping session usage.
+            async with self._call_lock:
+                result = await asyncio.wait_for(
+                    self._session.call_tool(tool_name, arguments=arguments),
+                    timeout=call_timeout,
+                )
 
             # Normalize response
             normalized = self._normalize_response(result, tool_name)

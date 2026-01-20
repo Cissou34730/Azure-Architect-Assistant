@@ -2,8 +2,48 @@
 
 from __future__ import annotations
 
+import json
 import re
-from typing import Dict, Any, Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+
+_AAA_UPDATE_MARKER = "AAA_STATE_UPDATE"
+
+
+def _extract_json_code_block(text: str, *, marker: str) -> Optional[Dict[str, Any]]:
+    """Extract a JSON code block that appears after a marker line.
+
+    Expected format:
+      AAA_STATE_UPDATE
+      ```json
+      { ... }
+      ```
+    """
+    marker_index = text.find(marker)
+    if marker_index < 0:
+        return None
+
+    after = text[marker_index + len(marker) :]
+    fence_start = after.find("```json")
+    if fence_start < 0:
+        return None
+    after = after[fence_start + len("```json") :]
+
+    fence_end = after.find("```")
+    if fence_end < 0:
+        return None
+
+    json_text = after[:fence_end].strip()
+    if not json_text:
+        return None
+
+    try:
+        payload = json.loads(json_text)
+    except json.JSONDecodeError:
+        return None
+
+    return payload if isinstance(payload, dict) else None
 
 
 def extract_state_updates(
@@ -16,6 +56,10 @@ def extract_state_updates(
     The focus is on common non-functional requirement signals (availability, security,
     performance, cost). Returns ``None`` when no actionable updates are detected.
     """
+    structured_updates = _extract_json_code_block(agent_response, marker=_AAA_UPDATE_MARKER)
+    if structured_updates:
+        return structured_updates
+
     combined_text = f"{user_message} {agent_response}".lower()
 
     updates: Dict[str, Any] = {}
@@ -68,3 +112,100 @@ def extract_state_updates(
             )
 
     return updates or None
+
+
+@dataclass(frozen=True)
+class StateMergeConflict:
+    path: str
+    existing: Any
+    incoming: Any
+    reason: str = "overwrite_blocked"
+
+
+@dataclass(frozen=True)
+class StateMergeResult:
+    merged_state: Dict[str, Any]
+    conflicts: List[StateMergeConflict] = field(default_factory=list)
+
+
+def merge_state_updates_no_overwrite(
+    current_state: Dict[str, Any], updates: Dict[str, Any]
+) -> StateMergeResult:
+    """Merge updates into current state without overwriting existing values.
+
+    Rules (minimal, generic primitives):
+    - Scalars: if existing value is non-empty and differs, do NOT overwrite; record conflict.
+    - Dicts: recurse per key.
+    - Lists:
+      - If list items are dicts with an `id`, merge by id recursively.
+      - Otherwise, append new unique items (by equality).
+    """
+    merged_state: Dict[str, Any] = dict(current_state)
+    conflicts: List[StateMergeConflict] = []
+    _merge_into(merged_state, updates, conflicts, path="")
+    return StateMergeResult(merged_state=merged_state, conflicts=conflicts)
+
+
+def _is_missing(value: Any) -> bool:
+    return value is None or value == ""
+
+
+def _merge_into(
+    base: Dict[str, Any],
+    updates: Dict[str, Any],
+    conflicts: List[StateMergeConflict],
+    *,
+    path: str,
+) -> None:
+    for key, incoming in updates.items():
+        next_path = f"{path}.{key}" if path else str(key)
+
+        if key not in base or _is_missing(base.get(key)):
+            base[key] = incoming
+            continue
+
+        existing = base.get(key)
+
+        if isinstance(existing, dict) and isinstance(incoming, dict):
+            _merge_into(existing, incoming, conflicts, path=next_path)
+            continue
+
+        if isinstance(existing, list) and isinstance(incoming, list):
+            _merge_lists(existing, incoming, conflicts, path=next_path)
+            continue
+
+        if existing == incoming:
+            continue
+
+        # Do not overwrite non-empty values
+        if not _is_missing(incoming):
+            conflicts.append(
+                StateMergeConflict(path=next_path, existing=existing, incoming=incoming)
+            )
+
+
+def _merge_lists(
+    existing_list: List[Any],
+    incoming_list: List[Any],
+    conflicts: List[StateMergeConflict],
+    *,
+    path: str,
+) -> None:
+    existing_id_index: Dict[str, Dict[str, Any]] = {}
+    if all(isinstance(item, dict) and "id" in item for item in existing_list):
+        for item in existing_list:
+            existing_id_index[str(item["id"])] = item
+
+    for item in incoming_list:
+        if isinstance(item, dict) and "id" in item and existing_id_index:
+            item_id = str(item["id"])
+            existing_item = existing_id_index.get(item_id)
+            if existing_item is None:
+                existing_list.append(item)
+                existing_id_index[item_id] = item
+            else:
+                _merge_into(existing_item, item, conflicts, path=f"{path}[id={item_id}]")
+            continue
+
+        if item not in existing_list:
+            existing_list.append(item)
