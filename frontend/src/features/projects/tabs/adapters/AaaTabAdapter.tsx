@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { useProjectContext } from "../../context/ProjectContext";
+import { useProjectContext } from "../../context/useProjectContext";
 
 const AaaWorkspace = lazy(() =>
   import("../../../aaa/AaaWorkspace").then((m) => ({ default: m.default })),
