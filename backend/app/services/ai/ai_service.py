@@ -4,7 +4,7 @@ Single entry point for all AI operations (LLM and Embeddings).
 """
 
 import logging
-from typing import List, Optional, AsyncIterator
+from typing import List, Optional, AsyncIterator, Any
 from functools import lru_cache
 
 from .config import AIConfig
@@ -142,6 +142,30 @@ class AIService:
     def get_llm_model(self) -> str:
         """Get current LLM model name."""
         return self._llm_provider.get_model_name()
+
+    def create_chat_llm(self, **overrides) -> Any:
+        """
+        Create a LangChain-compatible chat LLM instance (ChatOpenAI) using
+        the current configuration. Caller may override parameters.
+
+        Returns a provider-specific LLM object (e.g., ChatOpenAI) ready to
+        be passed into agent/tool constructors.
+        """
+        # Lazy import to avoid hard dependency at module import time
+        try:
+            from langchain_openai import ChatOpenAI
+        except Exception:
+            # If LangChain's ChatOpenAI isn't available, fallback to provider
+            # constructs or raise a clear error.
+            raise RuntimeError("ChatOpenAI (langchain_openai) is required to create a chat LLM")
+
+        params = {
+            "model": getattr(self.config, "openai_llm_model", None),
+            "temperature": getattr(self.config, "default_temperature", 0.1),
+            "openai_api_key": getattr(self.config, "openai_api_key", None),
+        }
+        params.update(overrides)
+        return ChatOpenAI(**{k: v for k, v in params.items() if v is not None})
 
     # ============ Embedding Methods ============
 

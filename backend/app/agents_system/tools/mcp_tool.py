@@ -5,7 +5,7 @@ Provides agents with access to MCP operations and external tool execution.
 
 import json
 
-from typing import Optional, Type
+from typing import Optional, Type, Union, Any
 from pydantic import BaseModel, Field
 from langchain.tools import BaseTool
 
@@ -28,33 +28,30 @@ def _append_mcp_log(*, tool: str, query: Optional[str] = None, url: Optional[str
 
 
 class DocsSearchInput(BaseModel):
-    """Input schema for Microsoft Docs Search tool."""
+    """Single-input schema for Microsoft Docs Search tool.
 
-    query: str = Field(description="Search query for Microsoft documentation")
-    max_results: int = Field(
-        default=5, description="Maximum number of results to return"
-    )
+    Accepts either a string (query) or a dict with keys 'query' and optional 'max_results'.
+    """
+
+    payload: Union[str, dict, Any] = Field(description="Query string or dict payload")
 
 
 class DocsFetchInput(BaseModel):
-    """Input schema for Microsoft Docs Fetch tool."""
+    """Single-input schema for Microsoft Docs Fetch tool.
 
-    url: str = Field(
-        description="URL of the Microsoft Learn documentation page to fetch"
-    )
+    Accepts either a string (url) or a dict with key 'url'.
+    """
+
+    payload: Union[str, dict, Any] = Field(description="URL string or dict payload")
 
 
 class CodeSamplesInput(BaseModel):
-    """Input schema for Microsoft Code Samples Search tool."""
+    """Single-input schema for Microsoft Code Samples Search tool.
 
-    query: str = Field(description="Search query for code samples")
-    language: Optional[str] = Field(
-        default=None,
-        description="Programming language filter (e.g., 'python', 'csharp', 'javascript')",
-    )
-    max_results: int = Field(
-        default=3, description="Maximum number of code samples to return"
-    )
+    Accepts either a string (query) or a dict with keys 'query', 'language', 'max_results'.
+    """
+
+    payload: Union[str, dict, Any] = Field(description="Query string or dict payload")
 
 
 class MicrosoftDocsSearchTool(BaseTool):
@@ -74,14 +71,24 @@ class MicrosoftDocsSearchTool(BaseTool):
     def _run(self, query: str, max_results: int = 5) -> str:
         """Synchronous wrapper - not used for async agents."""
         raise NotImplementedError("Use async version (_arun)")
-
-    async def _arun(self, query: str, max_results: int = 5) -> str:
+    async def _arun(self, query: Union[str, dict, Any]) -> str:
         """Execute the search asynchronously."""
         if not self.mcp_client:
             return "Error: MCP client not initialized"
-
         try:
-            result = await search_microsoft_docs(self.mcp_client, query, max_results)
+            # Normalize input
+            if isinstance(query, str):
+                q = query
+                max_results_val = 5
+            elif isinstance(query, dict):
+                q = query.get("query")
+                max_results_val = query.get("max_results", 5)
+            else:
+                # support pydantic/other payloads
+                q = getattr(query, "query", str(query))
+                max_results_val = getattr(query, "max_results", 5)
+
+            result = await search_microsoft_docs(self.mcp_client, q, max_results_val)
 
             # Format results for agent consumption
             formatted_results = []
@@ -126,14 +133,19 @@ class MicrosoftDocsFetchTool(BaseTool):
     def _run(self, url: str) -> str:
         """Synchronous wrapper - not used for async agents."""
         raise NotImplementedError("Use async version (_arun)")
-
-    async def _arun(self, url: str) -> str:
+    async def _arun(self, url: Union[str, dict, Any]) -> str:
         """Execute the fetch asynchronously."""
         if not self.mcp_client:
             return "Error: MCP client not initialized"
-
         try:
-            result = await fetch_documentation(self.mcp_client, url)
+            if isinstance(url, str):
+                u = url
+            elif isinstance(url, dict):
+                u = url.get("url")
+            else:
+                u = getattr(url, "url", str(url))
+
+            result = await fetch_documentation(self.mcp_client, u)
 
             return (
                 f"**Documentation from:** {result['url']}\n"
@@ -169,17 +181,28 @@ class MicrosoftCodeSamplesTool(BaseTool):
     ) -> str:
         """Synchronous wrapper - not used for async agents."""
         raise NotImplementedError("Use async version (_arun)")
-
     async def _arun(
-        self, query: str, language: Optional[str] = None, max_results: int = 3
+        self, query: Union[str, dict, Any]
     ) -> str:
         """Execute the search asynchronously."""
         if not self.mcp_client:
             return "Error: MCP client not initialized"
-
         try:
+            if isinstance(query, str):
+                q = query
+                language_val = None
+                max_results_val = 3
+            elif isinstance(query, dict):
+                q = query.get("query")
+                language_val = query.get("language")
+                max_results_val = query.get("max_results", 3)
+            else:
+                q = getattr(query, "query", str(query))
+                language_val = getattr(query, "language", None)
+                max_results_val = getattr(query, "max_results", 3)
+
             result = await search_code_samples(
-                self.mcp_client, query, language, max_results
+                self.mcp_client, q, language_val, max_results_val
             )
 
             # Format code samples for agent consumption

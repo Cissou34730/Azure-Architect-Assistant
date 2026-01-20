@@ -111,11 +111,21 @@ class AAAGenerateIacTool(BaseTool):
     def _run(
         self,
         payload: Union[str, Dict[str, Any], None] = None,
+        *args: Any,
         **kwargs: Any,
     ) -> str:
+        # Accept positional dict payload for compat as well
+        if payload is None and args:
+            first = args[0]
+            if isinstance(first, dict):
+                payload = first
+
         if payload is None:
+            # Accept direct keyword args for backwards compatibility with tests
             if "payload" in kwargs:
                 payload = kwargs["payload"]
+            elif kwargs:
+                payload = kwargs
             else:
                 raise ValueError("Missing payload for aaa_record_iac_and_cost")
 

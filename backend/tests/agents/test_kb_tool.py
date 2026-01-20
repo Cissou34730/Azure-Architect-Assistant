@@ -1,6 +1,6 @@
 import pytest
 
-from app.agents_system.tools.kb_tool import KBSearchTool
+from app.agents_system.tools.kb_tool import KBSearchTool, create_kb_tools
 
 
 class DummyResult:
@@ -21,23 +21,29 @@ class DummyResult:
 
 @pytest.fixture
 def tool(monkeypatch):
-    t = KBSearchTool()
+    tools = create_kb_tools()
+    # find the legacy kb_search wrapper
+    kb_tool = next((t for t in tools if getattr(t, "name", None) == "kb_search"), None)
+    assert kb_tool is not None
 
-    # Monkeypatch the agent to avoid hitting real indices/services
+    # Monkeypatch KBSearchTool used internally by the wrapper
+    original_KBSearchTool = KBSearchTool
+
     class DummyAgent:
-        def execute(
-            self, query, profile="chat", kb_ids=None, top_k=5, metadata_filters=None
-        ):
+        def execute(self, query, profile="chat", kb_ids=None, top_k=5, metadata_filters=None):
             return DummyResult().result
 
-    monkeypatch.setattr(t, "_agent", DummyAgent())
-    return t
+    def dummy_kb_constructor():
+        t = original_KBSearchTool()
+        t._agent = DummyAgent()
+        return t
+
+    monkeypatch.setattr('app.agents_system.tools.kb_tool.KBSearchTool', dummy_kb_constructor)
+    return kb_tool
 
 
 def test_kb_search_tool_returns_cited_answer(tool):
-    output = tool._run(
-        query="How to secure Azure SQL?", profile="chat", kb_ids=None, topK=3
-    )
+    output = tool.run({"query": "How to secure Azure SQL?", "topK": 3})
     assert "This is a grounded answer." in output
     assert "Sources:" in output
     assert "Azure Architecture Guide" in output
