@@ -8,7 +8,7 @@ import os
 import logging
 import warnings
 from pathlib import Path
-from dotenv import load_dotenv
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,16 +37,10 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
-# Load environment variables from root .env (one level up from backend)
-backend_root = Path(__file__).parent.parent
-root_dir = backend_root.parent
-env_path = root_dir / ".env"
-load_dotenv(dotenv_path=env_path)
-
 settings = get_app_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
-logger.info(f"Loading environment from: {env_path}")
+logger.info("Loaded application settings via get_app_settings()")
 
 
 @asynccontextmanager
@@ -125,6 +119,13 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.getenv("BACKEND_PORT", "8000"))
-    logger.info(f"Starting server on port {port}")
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)
+    from app.core.config import get_app_settings
+
+    settings = get_app_settings()
+    logger.info(f"Starting server on port {settings.backend_port}")
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=int(settings.backend_port),
+        reload=True,
+    )

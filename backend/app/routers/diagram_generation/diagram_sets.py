@@ -139,17 +139,53 @@ async def _store_generated_diagram(
             detail=f"{diagram_type.value} generation failed after {gen_result.attempts} attempts: {gen_result.error}",
         )
 
+    # Append-only versioning: if a diagram of this type already exists for this set,
+    # store a new row and link it to the previous version.
+    previous_stmt = (
+        select(Diagram)
+        .where(
+            Diagram.diagram_set_id == diagram_set_id,
+            Diagram.diagram_type == diagram_type.value,
+        )
+        .order_by(Diagram.created_at.desc())
+        .limit(1)
+    )
+    previous_result = await session.execute(previous_stmt)
+    previous_diagram = previous_result.scalar_one_or_none()
+
+    def _next_version(version: str) -> str:
+        # Support versions like "1.0.0" or "v1.0.0"
+        prefix = "v" if version.startswith("v") else ""
+        core = version[1:] if prefix else version
+        parts = core.split(".")
+        if len(parts) != 3:
+            return f"{prefix}1.0.0"
+        major, minor, patch = parts
+        try:
+            patch_int = int(patch)
+        except ValueError:
+            return f"{prefix}1.0.0"
+        return f"{prefix}{major}.{minor}.{patch_int + 1}"
+
+    if previous_diagram:
+        version = _next_version(previous_diagram.version)
+        previous_version_id = previous_diagram.id
+    else:
+        version = "1.0.0"
+        previous_version_id = None
+
     diagram = Diagram(
         diagram_set_id=diagram_set_id,
         diagram_type=diagram_type.value,  # Convert enum to string
         source_code=gen_result.source_code,
         rendered_svg=None,  # Mermaid rendered client-side
         rendered_png=None,
-        version="1.0.0",  # Initial version
+        version=version,
+        previous_version_id=previous_version_id,
         created_at=datetime.now(timezone.utc),
     )
     session.add(diagram)
-    logger.info("Generated %s diagram (version 1.0.0)", diagram_type.value)
+    logger.info("Generated %s diagram (version %s)", diagram_type.value, version)
 
 
 async def _build_response(
