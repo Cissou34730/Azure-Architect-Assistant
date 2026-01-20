@@ -6,15 +6,61 @@ Provides a simple interface matching the router's expectations.
 
 import logging
 import uuid
-from typing import Dict, Any, Optional
+from typing import Dict, Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .graph_factory import build_project_chat_graph
 from .graph_factory_advanced import build_advanced_project_chat_graph
 from .state import GraphState
 from ...core.config import get_settings
+from .nodes.agent_native import run_stage_aware_agent
+from ..runner import get_agent_runner
 
 logger = logging.getLogger(__name__)
+
+
+async def execute_chat(user_message: str) -> Dict[str, Any]:
+    """Execute a non-project chat using the LangGraph-native tool loop.
+
+    This is used to support the plain `/api/agent/chat` endpoint when
+    `aaa_agent_engine=langgraph`.
+
+    Returns a dict compatible with AgentRunner.execute_query:
+    - output
+    - success
+    - intermediate_steps
+    - error
+    """
+    try:
+        runner = await get_agent_runner()
+
+        state: GraphState = {
+            "user_message": user_message,
+            "success": False,
+            "retry_count": 0,
+        }
+
+        result = await run_stage_aware_agent(
+            state,
+            mcp_client=getattr(runner, "mcp_client", None),
+            openai_settings=getattr(runner, "openai_settings", None),
+        )
+
+        return {
+            "output": result.get("agent_output", ""),
+            "success": bool(result.get("success", False)),
+            "intermediate_steps": result.get("intermediate_steps", []),
+            "error": result.get("error"),
+        }
+    except Exception as e:
+        logger.error("LangGraph chat execution failed: %s", e, exc_info=True)
+        return {
+            "output": "",
+            "success": False,
+            "intermediate_steps": [],
+            "error": f"LangGraph chat execution failed: {str(e)}",
+        }
 
 
 async def execute_project_chat(

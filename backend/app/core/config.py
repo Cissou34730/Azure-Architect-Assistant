@@ -6,7 +6,7 @@ Centralized settings loader with .env support.
 import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal
 
 from config import (
     get_settings as get_ingestion_settings,
@@ -19,7 +19,7 @@ from config import (
 )
 
 from dotenv import load_dotenv
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -56,8 +56,32 @@ class AppSettings(BaseSettings):
     
     # LangGraph migration feature flags (Phase 3+)
     aaa_use_langgraph: bool = Field(default=False)
+    # Preferred selection knob: explicit engine choice.
+    # Backward compatible with AAA_USE_LANGGRAPH.
+    aaa_agent_engine: Literal["langchain", "langgraph"] = Field(default="langchain")
     aaa_enable_stage_routing: bool = Field(default=False)  # Phase 5
     aaa_enable_multi_agent: bool = Field(default=False)  # Phase 6
+
+    @field_validator("aaa_agent_engine", mode="before")
+    def _normalize_agent_engine(cls, value):
+        if value is None:
+            return "langchain"
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+    @model_validator(mode="after")
+    def _apply_langgraph_compat_flags(self):
+        # If the old boolean is set, prefer LangGraph unless the engine was
+        # explicitly configured to something else.
+        if self.aaa_use_langgraph and self.aaa_agent_engine == "langchain":
+            self.aaa_agent_engine = "langgraph"
+
+        # Keep bool in sync for existing call sites.
+        if self.aaa_agent_engine == "langgraph":
+            self.aaa_use_langgraph = True
+
+        return self
 
     # Diagram generation settings
     diagrams_database: Path = Field(

@@ -20,6 +20,8 @@ from langchain_core.tools import BaseTool
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 
+from ...langchain.facade_utils import make_single_input_wrapper
+
 from ...tools.mcp_tool import create_mcp_tools
 from ...tools.kb_tool import create_kb_tools
 from ...tools.aaa_candidate_tool import create_aaa_tools
@@ -88,10 +90,44 @@ def _build_system_directives(state: GraphState) -> str:
 
 
 async def _build_tools(mcp_client: MicrosoftLearnMCPClient) -> List[BaseTool]:
+    """Build a list of tools safe for ChatOpenAI.bind_tools + ToolNode.
+
+    Some factories return lightweight wrappers for testability (e.g. kb_search).
+    LangGraph's native ToolNode requires real BaseTool instances, so we normalize
+    any legacy wrappers into proper Tool objects.
+    """
+    from langchain.tools import Tool as LcTool
+
     mcp_tools = await create_mcp_tools(mcp_client)
-    kb_tools = create_kb_tools()
+    kb_tools_any = create_kb_tools()
     aaa_tools = create_aaa_tools()
-    return [*mcp_tools, *kb_tools, *aaa_tools]
+
+    tools_any = [*mcp_tools, *kb_tools_any, *aaa_tools]
+    normalized: List[BaseTool] = []
+
+    for t in tools_any:
+        if isinstance(t, BaseTool):
+            normalized.append(t)
+            continue
+
+        name = getattr(t, "name", None) or getattr(t, "__name__", None)
+        desc = getattr(t, "description", "")
+        sync_fn = getattr(t, "run", None) or getattr(t, "__call__", None)
+        async_fn = getattr(t, "arun", None) or getattr(t, "ainvoke", None)
+        if not name or (sync_fn is None and async_fn is None):
+            continue
+
+        sync_wrapped, async_wrapped = make_single_input_wrapper(name, sync_fn or async_fn, async_fn)
+        normalized.append(
+            LcTool(
+                name=name,
+                func=sync_wrapped,
+                coroutine=async_wrapped,
+                description=desc,
+            )
+        )
+
+    return normalized
 
 
 async def run_stage_aware_agent(

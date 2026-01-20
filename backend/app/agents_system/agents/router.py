@@ -153,11 +153,19 @@ async def chat_with_agent(request: AgentChatRequest) -> AgentChatResponse:
     try:
         logger.info(f"Received chat request: {request.message[:100]}...")
 
-        # Get the agent runner
-        runner = await get_agent_runner()
+        from ...core.config import get_settings
 
-        # Execute the query
-        result = await runner.execute_query(request.message)
+        settings = get_settings()
+        if getattr(settings, "aaa_agent_engine", "langchain") == "langgraph":
+            from ..langgraph.adapter import execute_chat
+
+            result = await execute_chat(request.message)
+        else:
+            # Get the agent runner
+            runner = await get_agent_runner()
+
+            # Execute the query
+            result = await runner.execute_query(request.message)
 
         # Format intermediate steps for response
         reasoning_steps = []
@@ -223,8 +231,8 @@ async def chat_with_project_context(
     
     settings = get_settings()
     
-    # Phase 3: Feature-flagged routing
-    if settings.aaa_use_langgraph:
+    # Phase 3+: Engine routing
+    if getattr(settings, "aaa_agent_engine", "langchain") == "langgraph":
         logger.info(f"Project {project_id}: Using LangGraph execution path")
         try:
             result = await execute_project_chat(project_id, request.message, db)
