@@ -369,7 +369,7 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
             counters=job.counters,
             checkpoint=job.checkpoint,
             last_error=job.last_error,
-            started_at=None,  # TODO: Add created_at to JobView
+            started_at=job.created_at,
             finished_at=job.finished_at,
         )
     except Exception as e:
@@ -497,16 +497,17 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
         raw_metrics = queue_repo.get_queue_stats(job_id)
 
     metrics_normalized = _normalize_job_metrics(
-        status, raw_metrics, (latest_job_view.counters if latest_job_view else {})
+        status, raw_metrics, (latest_job_view.counters if latest_job_view and latest_job_view.counters else {})
     )
 
     # Map status
-    derived_status = status.status
     job_status = "not_started"
-    if derived_status == "ready":
+    if latest_job_state:
+        job_status = latest_job_state.status
+    elif status.status == "ready":
         job_status = "completed"
-    elif derived_status in ["pending", "paused"]:
-        job_status = derived_status
+    elif status.status == "pending":
+        job_status = "pending"
 
     return JobViewResponse(
         job_id=job_id,
@@ -514,8 +515,8 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
         status=job_status,
         phase=status.current_phase or "loading",
         progress=status.overall_progress,
-        message="Ingestion in progress" if job_status == "pending" else "Waiting",
-        error=None,
+        message="Ingestion in progress" if job_status in ["running", "pending"] else "Waiting",
+        error=latest_job_view.last_error if latest_job_view else None,
         metrics=metrics_normalized,
         started_at=latest_job_state.created_at,
         completed_at=latest_job_view.finished_at if latest_job_view else None,

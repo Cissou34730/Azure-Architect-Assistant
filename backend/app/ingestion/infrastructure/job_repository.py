@@ -33,6 +33,8 @@ class JobView:
     checkpoint: dict[str, Any] | None
     counters: dict[str, Any] | None
     finished_at: datetime | None
+    last_error: str | None
+    created_at: datetime
 
 
 class JobRepository:
@@ -155,11 +157,21 @@ class JobRepository:
         last_error: str | None = None,
     ) -> None:
         """Set job status and optional completion info."""
+        status_map = {
+            'not_started': DBJobStatus.NOT_STARTED.value,
+            'running': DBJobStatus.RUNNING.value,
+            'paused': DBJobStatus.PAUSED.value,
+            'completed': DBJobStatus.COMPLETED.value,
+            'failed': DBJobStatus.FAILED.value,
+            'canceled': DBJobStatus.CANCELED.value,
+        }
+        db_status = status_map.get(status, status)  # Fallback to raw if not in map
+
         with get_session() as session:
             job = session.get(IngestionJob, job_id)
             if not job:
                 raise JobNotFoundError(f'Job not found: {job_id}')
-            job.status = status
+            job.status = db_status
             job.finished_at = finished_at
             job.last_error = last_error
             job.updated_at = datetime.now(timezone.utc)
@@ -204,6 +216,8 @@ class JobRepository:
                 checkpoint=job.checkpoint,
                 counters=job.counters,
                 finished_at=job.finished_at,
+                last_error=job.last_error,
+                created_at=job.created_at,
             )
 
     def get_job_status(self, job_id: str) -> str:

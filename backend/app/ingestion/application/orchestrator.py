@@ -457,14 +457,13 @@ class IngestionOrchestrator:
             logger.info(f'Deleted indexed data for job {job_id}')
 
             # Reset job state
-            self.repo.update_job(
+            self.repo.set_job_status(
                 job_id,
                 status='not_started',
-                checkpoint=None,
-                counters=None,
                 finished_at=datetime.now(timezone.utc),
                 last_error='Canceled by user',
             )
+            self.repo.update_job(job_id, checkpoint=None, counters=None)
             logger.info(f'Reset job {job_id} to not_started')
 
         except Exception as e:
