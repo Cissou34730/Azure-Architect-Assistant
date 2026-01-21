@@ -134,6 +134,7 @@ Internal processing:
 - Map ruff refactor signals (complexity/branches/args/locals/returns/statements) to smell candidates.
 - Identify “boundary Any” sources and containment points.
 - Identify large modules and mixed responsibilities.
+- Import Integrity Scan” must run a module import sweep (project-specific: import package roots + key entrypoints)
 
 **REQUIRED OUTPUT: Audit Summary (Aggregated stats only)**
 | Issue Category | Total | Files Affected |
