@@ -273,14 +273,6 @@ class AAAManageAdrTool(BaseTool):
     ) -> str:
         return self._run(payload=payload, **kwargs)
 
-    async def _arun(
-        self,
-        payload: str | dict[str, Any] | None = None,
-        **kwargs: Any,
-    ) -> str:
-        return self._run(payload=payload, **kwargs)
-
-
 def create_adr_tools() -> list[BaseTool]:
     return [AAAManageAdrTool()]
 

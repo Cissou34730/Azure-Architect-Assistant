@@ -395,7 +395,7 @@ async def _process_legacy_updates(
 ) -> tuple[dict[str, Any], str]:
     """Extracted update processing logic to reduce complexity."""
     derived = derive_mcp_query_updates_from_steps(
-        params.intermediate_steps, params.user_message_text
+        intermediate_steps=params.intermediate_steps, user_message=params.user_message_text
     )
     state_upd = (
         extract_state_updates(params.answer, params.user_message_text, params.project_state)

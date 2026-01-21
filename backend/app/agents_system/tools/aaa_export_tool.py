@@ -106,10 +106,6 @@ class AAAExportTool(BaseTool):
     async def _arun(self, **kwargs: Any) -> str:
         return self._run(**kwargs)
 
-    async def _arun(self, **kwargs: Any) -> str:
-        return self._run(**kwargs)
-
-
 def create_export_tools() -> list[BaseTool]:
     return [AAAExportTool()]
 

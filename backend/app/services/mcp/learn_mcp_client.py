@@ -80,16 +80,16 @@ class MicrosoftLearnMCPClient:
         self.max_retries = config.get("max_retries", 3)
 
         self._session: ClientSession | None = None
-        self._tools_cache: dict[str, dict] = {}
+        self._tools_cache: dict[str, dict[str, Any]] = {}
         self._initialized = False
-        self._connection_context = None
-        self._streams = None
+        self._connection_context: Any = None
+        self._streams: Any = None
 
         # Background task that owns the async context managers.
         # AnyIO requires that a cancel scope is exited in the same task
         # where it was entered; FastAPI startup/shutdown run in different
         # tasks, so we keep enter/exit within a single dedicated task.
-        self._runner_task: asyncio.Task | None = None
+        self._runner_task: asyncio.Task[None] | None = None
         self._ready_event: asyncio.Event | None = None
         self._stop_event: asyncio.Event | None = None
         self._startup_error: BaseException | None = None
