@@ -500,14 +500,29 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
         status, raw_metrics, (latest_job_view.counters if latest_job_view and latest_job_view.counters else {})
     )
 
-    # Map status
+    # Map status and message
     job_status = "not_started"
     if latest_job_state:
         job_status = latest_job_state.status
+
     elif status.status == "ready":
         job_status = "completed"
     elif status.status == "pending":
         job_status = "pending"
+
+    # Derive user-friendly message
+    if job_status == "running":
+        message = "Ingestion in progress"
+    elif job_status == "completed":
+        message = "Ingestion complete"
+    elif job_status == "failed":
+        message = "Ingestion failed"
+    elif job_status == "paused":
+        message = "Ingestion paused"
+    elif job_status == "canceled":
+        message = "Ingestion canceled"
+    else:
+        message = "Waiting to start"
 
     return JobViewResponse(
         job_id=job_id,
@@ -515,7 +530,7 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
         status=job_status,
         phase=status.current_phase or "loading",
         progress=status.overall_progress,
-        message="Ingestion in progress" if job_status in ["running", "pending"] else "Waiting",
+        message=message,
         error=latest_job_view.last_error if latest_job_view else None,
         metrics=metrics_normalized,
         started_at=latest_job_state.created_at,
