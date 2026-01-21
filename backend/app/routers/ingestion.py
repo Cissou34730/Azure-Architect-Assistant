@@ -8,10 +8,11 @@ import asyncio
 import logging
 from contextlib import suppress
 from datetime import datetime, timezone
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from typing_extensions import TypedDict
 
 from app.ingestion.application.orchestrator import (
     IngestionOrchestrator,
