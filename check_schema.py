@@ -26,3 +26,4 @@ for row in c.fetchall():
     print(f'  {row[1]} ({row[2]})')
 
 conn.close()
+

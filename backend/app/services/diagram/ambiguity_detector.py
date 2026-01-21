@@ -5,12 +5,16 @@ that could lead to incorrect diagram generation (FR-004, FR-019).
 """
 
 import logging
-from typing import List, Dict, Any, Set
+from typing import Any
 
 from .llm_client import DiagramLLMClient
 from .prompt_builder import PromptBuilder
 
 logger = logging.getLogger(__name__)
+
+# Constants for validation logic
+MIN_DESCRIPTION_LENGTH = 10
+MIN_AMBIGUITY_TEXT_LENGTH = 5
 
 
 class AmbiguityDetector:
@@ -25,7 +29,7 @@ class AmbiguityDetector:
         self.llm_client: DiagramLLMClient = llm_client
         self.prompt_builder: PromptBuilder = PromptBuilder()
 
-    async def analyze_description(self, description: str) -> List[Dict[str, Any]]:
+    async def analyze_description(self, description: str) -> list[dict[str, Any]]:
         """Analyze input description and identify ambiguous elements.
 
         Uses LLM to detect:
@@ -56,7 +60,7 @@ class AmbiguityDetector:
             "Analyzing description for ambiguities (length: %d chars)", len(description)
         )
 
-        if not description or len(description) < 10:
+        if not description or len(description) < MIN_DESCRIPTION_LENGTH:
             logger.warning(
                 "Description too short for analysis: %d chars", len(description)
             )
@@ -86,79 +90,60 @@ class AmbiguityDetector:
             # Non-fatal error - return empty list to allow diagram generation to proceed
             return []
 
+    def _map_ambiguity_fields(self, ambiguity: dict[str, Any]) -> None:
+        """Map LLM-specific field names to internal service schema."""
+        mapping = {
+            "text": "ambiguous_text",
+            "issue": "reason",
+            "clarification": "suggested_clarification",
+        }
+        for llm_key, internal_key in mapping.items():
+            if llm_key in ambiguity and internal_key not in ambiguity:
+                ambiguity[internal_key] = ambiguity[llm_key]
+
+    def _is_ambiguity_acceptable(
+        self, ambiguity: dict[str, Any], original: str
+    ) -> bool:
+        """Check if ambiguity is grounded in original text and well-formed."""
+        text = str(ambiguity.get("ambiguous_text", "")).strip()
+
+        required_keys = ["ambiguous_text", "suggested_clarification"]
+        if not all(k in ambiguity for k in required_keys):
+            return False
+
+        if not text or text not in original:
+            return False
+
+        return len(text) >= MIN_AMBIGUITY_TEXT_LENGTH
+
     def _validate_ambiguities(
-        self, ambiguities: List[Dict[str, Any]], original_description: str
-    ) -> List[Dict[str, Any]]:
-        """Validate LLM-detected ambiguities against original description.
-
-        Filters out:
-        - Ambiguities with text not present in original description
-        - Duplicate ambiguities (same ambiguous_text)
-        - Ambiguities with missing required fields
-
-        Args:
-            ambiguities: Raw LLM output
-            original_description: Original input description for validation
-
-        Returns:
-            Filtered and validated ambiguity list
-        """
-        validated: List[Dict[str, Any]] = []
-        seen_texts: Set[str] = set()
+        self, ambiguities: list[dict[str, Any]], original_description: str
+    ) -> list[dict[str, Any]]:
+        """Validate LLM-detected ambiguities against grounded description."""
+        validated: list[dict[str, Any]] = []
+        seen_texts: set[str] = set()
 
         for ambiguity in ambiguities:
-            # Map LLM field names to expected field names
-            # LLM returns: text, issue, clarification
-            # We expect: ambiguous_text, reason, suggested_clarification
-            if "text" in ambiguity and "ambiguous_text" not in ambiguity:
-                ambiguity["ambiguous_text"] = ambiguity["text"]
-            if "issue" in ambiguity and "reason" not in ambiguity:
-                ambiguity["reason"] = ambiguity["issue"]
-            if (
-                "clarification" in ambiguity
-                and "suggested_clarification" not in ambiguity
-            ):
-                ambiguity["suggested_clarification"] = ambiguity["clarification"]
+            self._map_ambiguity_fields(ambiguity)
 
-            # Check required fields
-            if not all(
-                k in ambiguity for k in ["ambiguous_text", "suggested_clarification"]
-            ):
-                logger.warning(
-                    "Skipping ambiguity with missing fields. Has: %s",
-                    list(ambiguity.keys()),
-                )
+            if not self._is_ambiguity_acceptable(ambiguity, original_description):
                 continue
 
-            ambiguous_text = ambiguity.get("ambiguous_text", "").strip()
-
-            # Skip if text not in original description (hallucination)
-            if ambiguous_text not in original_description:
-                logger.warning("Skipping hallucinated ambiguity: '%s'", ambiguous_text)
-                continue
-
-            # Skip duplicates
+            ambiguous_text = ambiguity["ambiguous_text"].strip()
             if ambiguous_text in seen_texts:
-                logger.debug("Skipping duplicate ambiguity: '%s'", ambiguous_text)
-                continue
-
-            # Skip if ambiguous text is too short (likely noise)
-            if len(ambiguous_text) < 5:
-                logger.debug("Skipping too-short ambiguity: '%s'", ambiguous_text)
                 continue
 
             seen_texts.add(ambiguous_text)
             validated.append(
                 {
                     "ambiguous_text": ambiguous_text,
-                    "suggested_clarification": ambiguity.get(
-                        "suggested_clarification", ""
-                    ).strip(),
-                    "reason": ambiguity.get("reason", "").strip() or None,
+                    "suggested_clarification": ambiguity[
+                        "suggested_clarification"
+                    ].strip(),
+                    "reason": (ambiguity.get("reason") or "").strip() or None,
                 }
             )
 
-        logger.info(
-            "Validated %d of %d detected ambiguities", len(validated), len(ambiguities)
-        )
+        logger.info("Validated %d of %d ambiguities", len(validated), len(ambiguities))
         return validated
+

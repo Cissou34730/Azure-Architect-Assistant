@@ -1,7 +1,6 @@
-import asyncio
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from backend.app.agents_system.agents.mcp_react_agent import MCPReActAgent
 
 
@@ -15,12 +14,14 @@ async def test_mcp_react_agent_uses_ai_service_to_create_llm(monkeypatch):
     with patch('backend.app.agents_system.agents.mcp_react_agent.get_ai_service', return_value=fake_service):
         agent = MCPReActAgent(openai_api_key=None, mcp_client=MagicMock(), model='gpt-test', temperature=0.2)
         # Patch all tool factories to avoid creating real tool instances that may be multi-input
-        with patch('backend.app.agents_system.agents.mcp_react_agent.create_mcp_tools', new=AsyncMock(return_value=[])), \
-             patch('backend.app.agents_system.agents.mcp_react_agent.create_kb_tools', return_value=[]), \
-             patch('backend.app.agents_system.agents.mcp_react_agent.create_aaa_tools', return_value=[]), \
-             patch('backend.app.agents_system.agents.mcp_react_agent.AgentFacade') as AF:
+        with (
+            patch('backend.app.agents_system.agents.mcp_react_agent.create_mcp_tools', new=AsyncMock(return_value=[])),
+            patch('backend.app.agents_system.agents.mcp_react_agent.create_kb_tools', return_value=[]),
+            patch('backend.app.agents_system.agents.mcp_react_agent.create_aaa_tools', return_value=[]),
+            patch('backend.app.agents_system.agents.mcp_react_agent.AgentFacade') as mock_facade,
+        ):
             # Prevent AgentFacade.initialize from constructing a real agent
-            af_instance = AF.return_value
+            af_instance = mock_facade.return_value
             af_instance.initialize = AsyncMock()
             # initialize should call create_chat_llm on the fake service
             await agent.initialize()
@@ -36,13 +37,16 @@ async def test_initialize_forwards_callbacks_to_agent_facade(monkeypatch):
 
     with patch('backend.app.agents_system.agents.mcp_react_agent.get_ai_service', return_value=fake_service):
         agent = MCPReActAgent(openai_api_key=None, mcp_client=MagicMock(), model='gpt-test')
-        with patch('backend.app.agents_system.agents.mcp_react_agent.create_mcp_tools', new=AsyncMock(return_value=[])), \
-             patch('backend.app.agents_system.agents.mcp_react_agent.create_kb_tools', return_value=[]), \
-             patch('backend.app.agents_system.agents.mcp_react_agent.create_aaa_tools', return_value=[]):
+        with (
+            patch('backend.app.agents_system.agents.mcp_react_agent.create_mcp_tools', new=AsyncMock(return_value=[])),
+            patch('backend.app.agents_system.agents.mcp_react_agent.create_kb_tools', return_value=[]),
+            patch('backend.app.agents_system.agents.mcp_react_agent.create_aaa_tools', return_value=[]),
+            patch('backend.app.agents_system.agents.mcp_react_agent.AgentFacade') as mock_facade,
+        ):
             # Patch AgentFacade.initialize to capture callbacks
-            with patch('backend.app.agents_system.agents.mcp_react_agent.AgentFacade') as AF:
-                af_instance = AF.return_value
-                af_instance.initialize = AsyncMock()
-                callbacks = [lambda x: x]
-                await agent.initialize(callbacks=callbacks)
-                af_instance.initialize.assert_called_with(callbacks=callbacks)
+            af_instance = mock_facade.return_value
+            af_instance.initialize = AsyncMock()
+            callbacks = [lambda x: x]
+            await agent.initialize(callbacks=callbacks)
+            af_instance.initialize.assert_called_with(callbacks=callbacks)
+

@@ -4,7 +4,7 @@ Sentence-aware chunking using LlamaIndex SentenceSplitter.
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Any
 
 from llama_index.core.node_parser import SentenceSplitter
 
@@ -28,14 +28,10 @@ class SemanticChunker(BaseChunker):
             chunk_overlap: Overlap between chunks for context preservation
         """
         super().__init__(chunk_size, chunk_overlap)
-        self.splitter = SentenceSplitter(
-            chunk_size=chunk_size, chunk_overlap=chunk_overlap
-        )
-        logger.info(
-            f"SemanticChunker initialized: size={chunk_size}, overlap={chunk_overlap}"
-        )
+        self.splitter = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+        logger.info(f'SemanticChunker initialized: size={chunk_size}, overlap={chunk_overlap}')
 
-    def chunk_documents(self, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def chunk_documents(self, documents: list[Any]) -> list[dict[str, Any]]:
         """
         Chunk documents with semantic boundaries.
 
@@ -52,17 +48,17 @@ class SemanticChunker(BaseChunker):
             # Pause/cancel handled at pipeline level (batch boundaries)
 
             # Handle both LlamaIndex Document objects and dicts
-            if hasattr(doc, "text"):
+            if hasattr(doc, 'text'):
                 # LlamaIndex Document object
                 content = doc.text
                 metadata = doc.metadata or {}
             else:
                 # Dictionary format
-                content = doc.get("content", "")
-                metadata = doc.get("metadata", {})
+                content = doc.get('content', '')
+                metadata = doc.get('metadata', {})
 
             if not content:
-                logger.warning(f"Skipping document {doc_idx}: empty content")
+                logger.warning(f'Skipping document {doc_idx}: empty content')
                 continue
 
             # Split into sentence-aware chunks
@@ -71,16 +67,16 @@ class SemanticChunker(BaseChunker):
             for chunk_idx, chunk_text in enumerate(text_chunks):
                 chunks.append(
                     {
-                        "content": chunk_text,  # Fixed: use 'content' not 'text'
-                        "metadata": {
+                        'content': chunk_text,  # Fixed: use 'content' not 'text'
+                        'metadata': {
                             **metadata,
-                            "chunk_index": chunk_idx,
-                            "total_chunks": len(text_chunks),
-                            "chunk_size": len(chunk_text),
-                            "chunking_strategy": "semantic",
+                            'chunk_index': chunk_idx,
+                            'total_chunks': len(text_chunks),
+                            'chunk_size': len(chunk_text),
+                            'chunking_strategy': 'semantic',
                         },
                     }
                 )
 
-        logger.info(f"Created {len(chunks)} chunks from {len(documents)} documents")
+        logger.info(f'Created {len(chunks)} chunks from {len(documents)} documents')
         return chunks

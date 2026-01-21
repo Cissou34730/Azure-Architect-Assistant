@@ -5,6 +5,7 @@ Centralized configuration for all AI providers.
 
 import os
 from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,12 +48,12 @@ class AIConfig(BaseSettings):
         super().__init__(**kwargs)
         # Prefer central app settings for OpenAI API key fallback
         try:
-            from app.core.config import get_app_settings
+            from app.core.app_settings import get_app_settings  # noqa: PLC0415
 
             app_settings = get_app_settings()
             if not self.openai_api_key and app_settings.openai_api_key:
                 self.openai_api_key = app_settings.openai_api_key
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Last-resort fallback to environment variable
             if not self.openai_api_key:
                 self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
@@ -62,29 +63,28 @@ class AIConfig(BaseSettings):
         if self.llm_provider == "openai" and not self.openai_api_key:
             raise ValueError("OpenAI API key is required for OpenAI LLM provider")
 
-        if self.llm_provider == "azure":
-            if not all(
-                [
-                    self.azure_openai_endpoint,
-                    self.azure_openai_api_key,
-                    self.azure_llm_deployment,
-                ]
-            ):
-                raise ValueError(
-                    "Azure endpoint, API key, and deployment name required for Azure provider"
-                )
+        if self.llm_provider == "azure" and not all(
+            [
+                self.azure_openai_endpoint,
+                self.azure_openai_api_key,
+                self.azure_llm_deployment,
+            ]
+        ):
+            raise ValueError(
+                "Azure endpoint, API key, and deployment name required for Azure provider"
+            )
 
         if self.embedding_provider == "openai" and not self.openai_api_key:
             raise ValueError("OpenAI API key is required for OpenAI embedding provider")
 
-        if self.embedding_provider == "azure":
-            if not all(
-                [
-                    self.azure_openai_endpoint,
-                    self.azure_openai_api_key,
-                    self.azure_embedding_deployment,
-                ]
-            ):
-                raise ValueError(
-                    "Azure endpoint, API key, and deployment name required for Azure embeddings"
-                )
+        if self.embedding_provider == "azure" and not all(
+            [
+                self.azure_openai_endpoint,
+                self.azure_openai_api_key,
+                self.azure_embedding_deployment,
+            ]
+        ):
+            raise ValueError(
+                "Azure endpoint, API key, and deployment name required for Azure embeddings"
+            )
+

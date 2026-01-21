@@ -9,3 +9,4 @@ Handles semantic search, context retrieval, and result ranking.
 # - Context retrieval and ranking
 # - Query expansion and refinement
 # - Result formatting for LLM consumption
+

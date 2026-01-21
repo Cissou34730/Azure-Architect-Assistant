@@ -10,11 +10,11 @@ from .models import (
 )
 
 __all__ = [
-    "JobPhase",
-    "PhaseStatus",
-    "IngestionState",
-    "IngestionStateSchema",
-    "JobRuntime",
-    "PhaseState",
-    "PhaseStateSchema",
+    'IngestionState',
+    'IngestionStateSchema',
+    'JobPhase',
+    'JobRuntime',
+    'PhaseState',
+    'PhaseStateSchema',
+    'PhaseStatus',
 ]

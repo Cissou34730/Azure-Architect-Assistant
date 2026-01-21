@@ -20,10 +20,11 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Type, Union
+from typing import Any, Literal
 
 from langchain.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 from ...services.pricing.pricing_normalizer import (
     PricingMatchRequest,
@@ -51,40 +52,44 @@ class IaCFileInput(BaseModel):
 class IaCValidationResultInput(BaseModel):
     tool: str = Field(min_length=1, description="Validator name (e.g., bicep build, terraform validate)")
     status: ValidationStatus = Field(description="pass|fail|skipped")
-    output: Optional[str] = Field(default=None, description="Raw output (trimmed) or summary")
+    output: str | None = Field(default=None, description="Raw output (trimmed) or summary")
 
 
 class PricingLineItemInput(BaseModel):
     """A requested usage line for baseline pricing."""
 
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
     name: str = Field(min_length=1, description="Display name for this line")
-    serviceName: str = Field(min_length=1, description="Retail Prices serviceName")
-    armRegionName: str = Field(min_length=1, description="Retail Prices armRegionName (e.g., westeurope)")
+    service_name: str = Field(min_length=1, description="Retail Prices serviceName")
+    arm_region_name: str = Field(min_length=1, description="Retail Prices armRegionName (e.g., westeurope)")
 
-    skuName: Optional[str] = Field(default=None, description="skuName or armSkuName")
-    productNameContains: Optional[str] = Field(default=None, description="Substring match for productName")
-    meterNameContains: Optional[str] = Field(default=None, description="Substring match for meterName")
+    sku_name: str | None = Field(default=None, description="sku_name or arm_sku_name")
+    product_name_contains: str | None = Field(default=None, description="Substring match for product_name")
+    meter_name_contains: str | None = Field(default=None, description="Substring match for meter_name")
 
-    monthlyQuantity: float = Field(gt=0, description="Monthly quantity in the meter's unit")
+    monthly_quantity: float = Field(gt=0, description="Monthly quantity in the meter's unit")
 
 
 class AAAGenerateIacAndCostInput(BaseModel):
-    iacFiles: List[IaCFileInput] = Field(default_factory=list, description="IaC files to persist")
-    validationResults: List[IaCValidationResultInput] = Field(
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    iac_files: list[IaCFileInput] = Field(default_factory=list, description="IaC files to persist")
+    validation_results: list[IaCValidationResultInput] = Field(
         default_factory=list, description="Static validation results (recording only)"
     )
 
     # Cost estimation (optional)
-    pricingLines: List[PricingLineItemInput] = Field(
+    pricing_lines: list[PricingLineItemInput] = Field(
         default_factory=list,
         description="Requested pricing lines for baseline monthly cost calculation",
     )
-    pricingCatalog: Optional[List[Dict[str, Any]]] = Field(
+    pricing_catalog: list[dict[str, Any]] | None = Field(
         default=None,
         description="Optional Retail Prices Items[] payload to avoid external calls (tests/offline)",
     )
 
-    baselineReferenceTotalMonthlyCost: Optional[float] = Field(
+    baseline_reference_total_monthly_cost: float | None = Field(
         default=None,
         description="Optional baseline reference total to compute variance% against",
     )
@@ -93,7 +98,7 @@ class AAAGenerateIacAndCostInput(BaseModel):
 class AAAGenerateIacToolInput(BaseModel):
     """Raw tool payload for IaC and cost."""
 
-    payload: Union[str, Dict[str, Any]] = Field(
+    payload: str | dict[str, Any] = Field(
         description="A JSON object (or JSON string) matching AAAGenerateIacAndCostInput."
     )
 
@@ -102,90 +107,97 @@ class AAAGenerateIacTool(BaseTool):
     name: str = "aaa_record_iac_and_cost"
     description: str = (
         "Record IaC artifacts, static validation results, and optionally compute baseline monthly cost "
-        "from Azure Retail Prices API. Returns an AAA_STATE_UPDATE JSON block." 
+        "from Azure Retail Prices API. Returns an AAA_STATE_UPDATE JSON block."
         "For deterministic runs, provide pricingCatalog to avoid calling the external pricing API."
     )
 
-    args_schema: Type[BaseModel] = AAAGenerateIacToolInput
+    args_schema: type[BaseModel] = AAAGenerateIacToolInput
 
     def _run(
         self,
-        payload: Union[str, Dict[str, Any], None] = None,
-        *args: Any,
+        payload: str | dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> str:
-        # Accept positional dict payload for compat as well
-        if payload is None and args:
-            first = args[0]
-            if isinstance(first, dict):
-                payload = first
+        """Synchronous record for IaC and cost (requires offline pricing catalog)."""
+        try:
+            raw_data = self._parse_payload(payload, **kwargs)
+            args = AAAGenerateIacAndCostInput.model_validate(raw_data)
 
+            if args.pricing_lines and args.pricing_catalog is None:
+                raise ValueError(
+                    "pricingLines requires async execution (external pricing API). Use async tool call or provide pricingCatalog."
+                )
+
+            updates = self._build_updates(args, catalog_items=args.pricing_catalog)
+            return self._format_response(updates, args)
+        except Exception as exc:  # noqa: BLE001
+            return f"ERROR: {exc!s}"
+
+    async def _arun(self, payload: str | dict[str, Any] | None = None, **kwargs: Any) -> str:
+        """Asynchronous execution that can fetch live Azure prices."""
+        try:
+            raw_data = self._parse_payload(payload, **kwargs)
+            args = AAAGenerateIacAndCostInput.model_validate(raw_data)
+
+            pricing_items = args.pricing_catalog
+            if args.pricing_lines and pricing_items is None:
+                pricing_items = await self._fetch_live_prices(args.pricing_lines)
+
+            updates = self._build_updates(args, catalog_items=pricing_items)
+            return self._format_response(updates, args)
+        except Exception as exc:  # noqa: BLE001
+            return f"ERROR: {exc!s}"
+
+    def _parse_payload(self, payload: str | dict[str, Any] | None, **kwargs: Any) -> Any:
+        """Extract and parse payload from input."""
         if payload is None:
-            # Accept direct keyword args for backwards compatibility with tests
-            if "payload" in kwargs:
-                payload = kwargs["payload"]
-            elif kwargs:
-                payload = kwargs
-            else:
+            payload = kwargs.get("payload") or kwargs.get("tool_input") or kwargs
+            if not payload:
                 raise ValueError("Missing payload for aaa_record_iac_and_cost")
 
         if isinstance(payload, str):
             try:
-                data = json.loads(payload.strip())
+                return json.loads(payload.strip())
             except json.JSONDecodeError as exc:
                 raise ValueError("Invalid JSON payload for IaC and cost.") from exc
-        else:
-            data = payload
+        return payload
 
-        try:
-            args = AAAGenerateIacAndCostInput.model_validate(data)
-        except Exception as exc:
-            return f"ERROR: Validation failed for AAAGenerateIacAndCostInput: {str(exc)}"
+    def _build_updates(
+        self,
+        args: AAAGenerateIacAndCostInput,
+        catalog_items: list[dict[str, Any]] | None,
+    ) -> dict[str, Any]:
+        """Construct the state update dictionary."""
+        updates: dict[str, Any] = {}
 
-        iacFiles = args.iacFiles
-        validationResults = args.validationResults
-        pricingLines = args.pricingLines
-        pricingCatalog = args.pricingCatalog
-        baselineReferenceTotalMonthlyCost = args.baselineReferenceTotalMonthlyCost
-
-        iac_artifact_id = str(uuid.uuid4())
-        iac_files_list = [f.model_dump() if hasattr(f, "model_dump") else f for f in iacFiles or []]
-        val_results_list = [r.model_dump() if hasattr(r, "model_dump") else r for r in validationResults or []]
-        pricing_lines_list = [l.model_dump() if hasattr(l, "model_dump") else l for l in pricingLines or []]
-
-        iac_artifact: Dict[str, Any] = {
-            "id": iac_artifact_id,
-            "createdAt": _now_iso(),
-            "files": iac_files_list,
-            "validationResults": val_results_list,
-        }
-
-        updates: Dict[str, Any] = {}
+        iac_files_list = [f.model_dump() for f in args.iac_files]
+        val_results_list = [r.model_dump() for r in args.validation_results]
 
         if iac_files_list or val_results_list:
-            updates["iacArtifacts"] = [iac_artifact]
+            updates["iacArtifacts"] = [
+                {
+                    "id": str(uuid.uuid4()),
+                    "createdAt": _now_iso(),
+                    "files": iac_files_list,
+                    "validationResults": val_results_list,
+                }
+            ]
 
-        cost_estimate = None
-        if pricing_lines_list:
-            # Compute baseline cost using either provided catalog or live API
-            items = pricingCatalog
-            if items is None:
-                # Live call is async; defer to _arun for production usage.
-                raise ValueError(
-                    "pricingLines requires async execution (external pricing API). Use async tool call or provide pricingCatalog."
-                )
+        if args.pricing_lines and catalog_items is not None:
             cost_estimate = _compute_cost_estimate(
-                pricing_lines=pricing_lines_list,
-                catalog_items=items,
-                baseline_reference_total=baselineReferenceTotalMonthlyCost,
+                pricing_lines=args.pricing_lines,
+                catalog_items=catalog_items,
+                baseline_reference_total=args.baseline_reference_total_monthly_cost,
             )
-
-        if cost_estimate is not None:
             updates["costEstimates"] = [cost_estimate]
 
+        return updates
+
+    def _format_response(self, updates: dict[str, Any], args: AAAGenerateIacAndCostInput) -> str:
+        """Format the final tool output with state update block."""
         payload_json = json.dumps(updates, ensure_ascii=False, indent=2)
         return (
-            f"Recorded IaC/cost artifacts at {_now_iso()} (iacFiles={len(iac_files_list)}, pricingLines={len(pricing_lines_list)}).\n"
+            f"Recorded IaC/cost artifacts at {_now_iso()} (iacFiles={len(args.iac_files)}, pricingLines={len(args.pricing_lines)}).\n"
             "\n"
             "AAA_STATE_UPDATE\n"
             "```json\n"
@@ -193,114 +205,67 @@ class AAAGenerateIacTool(BaseTool):
             "```"
         )
 
-    async def _arun(self, **kwargs: Any) -> str:
-        # Same as _run, but allows calling the external pricing API.
-        iac_files = kwargs.get("iacFiles") or []
-        validation_results = kwargs.get("validationResults") or []
-        pricing_lines = kwargs.get("pricingLines") or []
-        pricing_catalog = kwargs.get("pricingCatalog")
-        baseline_reference_total = kwargs.get("baselineReferenceTotalMonthlyCost")
-
-        updates: Dict[str, Any] = {}
-
-        if iac_files or validation_results:
-            iac_artifact_id = str(uuid.uuid4())
-            updates["iacArtifacts"] = [
-                {
-                    "id": iac_artifact_id,
-                    "createdAt": _now_iso(),
-                    "files": iac_files,
-                    "validationResults": validation_results,
-                }
-            ]
-
-        if pricing_lines:
-            items = pricing_catalog
-            if items is None:
-                client = AzureRetailPricesClient()
-                # Query per line with a narrow filter to reduce payload.
-                items = []
-                for line in pricing_lines:
-                    service = str(line.get("serviceName") or "").strip().replace("'", "''")
-                    region = str(line.get("armRegionName") or "").strip().replace("'", "''")
-                    if not service or not region:
-                        continue
-                    filter_expr = f"serviceName eq '{service}' and armRegionName eq '{region}'"
-                    line_items = await client.query_all(filter_expr=filter_expr)
-                    items.extend(line_items)
-
-            cost_estimate = _compute_cost_estimate(
-                pricing_lines=pricing_lines,
-                catalog_items=items,
-                baseline_reference_total=baseline_reference_total,
-            )
-            updates["costEstimates"] = [cost_estimate]
-
-        payload = json.dumps(updates, ensure_ascii=False, indent=2)
-        return (
-            f"Recorded IaC/cost artifacts at {_now_iso()} (iacFiles={len(iac_files)}, pricingLines={len(pricing_lines)}).\n"
-            "\n"
-            "AAA_STATE_UPDATE\n"
-            "```json\n"
-            f"{payload}\n"
-            "```"
-        )
+    async def _fetch_live_prices(
+        self, pricing_lines: list[PricingLineItemInput]
+    ) -> list[dict[str, Any]]:
+        """Fetch matching prices for all lines from Azure Retail Prices API."""
+        client = AzureRetailPricesClient()
+        items: list[dict[str, Any]] = []
+        for line in pricing_lines:
+            service = line.service_name.replace("'", "''")
+            region = line.arm_region_name.replace("'", "''")
+            if not service or not region:
+                continue
+            filter_expr = f"serviceName eq '{service}' and armRegionName eq '{region}'"
+            line_items = await client.query_all(filter_expr=filter_expr)
+            items.extend(line_items)
+        return items
 
 
 def _compute_cost_estimate(
     *,
-    pricing_lines: List[Dict[str, Any]],
-    catalog_items: List[Dict[str, Any]],
-    baseline_reference_total: Optional[float],
-) -> Dict[str, Any]:
+    pricing_lines: list[PricingLineItemInput],
+    catalog_items: list[dict[str, Any]],
+    baseline_reference_total: float | None,
+) -> dict[str, Any]:
+    """Calculate total cost and per-line breakdown."""
     estimate_id = str(uuid.uuid4())
-    currency: Optional[str] = None
+    currency: str | None = None
 
-    line_items: List[Dict[str, Any]] = []
-    gaps: List[Dict[str, Any]] = []
+    line_items: list[dict[str, Any]] = []
+    gaps: list[dict[str, Any]] = []
     total = 0.0
 
     for line in pricing_lines:
-        name = str(line.get("name") or "").strip() or "line"
-        qty = float(line.get("monthlyQuantity") or 0)
-        if qty <= 0:
+        if line.monthly_quantity <= 0:
             continue
 
         request = PricingMatchRequest(
-            service_name=str(line.get("serviceName") or "").strip(),
-            arm_region_name=str(line.get("armRegionName") or "").strip(),
-            sku_name=(str(line.get("skuName") or "").strip() or None),
-            product_name_contains=(str(line.get("productNameContains") or "").strip() or None),
-            meter_name_contains=(str(line.get("meterNameContains") or "").strip() or None),
+            service_name=line.service_name,
+            arm_region_name=line.arm_region_name,
+            sku_name=line.sku_name,
+            product_name_contains=line.product_name_contains,
+            meter_name_contains=line.meter_name_contains,
         )
 
         match = find_best_retail_price_item(catalog_items, request)
         if not match:
-            gaps.append({"name": name, "reason": "no_match", "request": line})
+            gaps.append({"name": line.name, "reason": "no_match", "request": line.model_dump()})
             continue
 
         unit_price = extract_unit_price(match)
         if unit_price is None:
-            gaps.append({"name": name, "reason": "missing_unit_price", "request": line})
+            gaps.append(
+                {"name": line.name, "reason": "missing_unit_price", "request": line.model_dump()}
+            )
             continue
 
         currency = currency or extract_currency(match)
-
-        monthly_cost = unit_price * qty
+        monthly_cost = unit_price * line.monthly_quantity
         total += monthly_cost
+
         line_items.append(
-            {
-                "id": str(uuid.uuid4()),
-                "name": name,
-                "serviceName": match.get("serviceName"),
-                "productName": match.get("productName"),
-                "meterName": match.get("meterName"),
-                "skuName": match.get("armSkuName") or match.get("skuName"),
-                "unitOfMeasure": match.get("unitOfMeasure"),
-                "unitPrice": unit_price,
-                "monthlyQuantity": qty,
-                "monthlyCost": monthly_cost,
-            }
+            _build_line_item_result(line.name, line.monthly_quantity, monthly_cost, unit_price, match)
         )
 
     variance_pct = None
@@ -319,5 +284,27 @@ def _compute_cost_estimate(
     }
 
 
-def create_iac_tools() -> List[BaseTool]:
+def _build_line_item_result(
+    name: str,
+    qty: float,
+    cost: float,
+    unit_price: float,
+    match: dict[str, Any],
+) -> dict[str, Any]:
+    """Create a single line item result dictionary."""
+    return {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "serviceName": match.get("serviceName"),
+        "productName": match.get("productName"),
+        "meterName": match.get("meterName"),
+        "skuName": match.get("armSkuName") or match.get("skuName"),
+        "unitOfMeasure": match.get("unitOfMeasure"),
+        "unitPrice": unit_price,
+        "monthlyQuantity": qty,
+        "monthlyCost": cost,
+    }
+
+
+def create_iac_tools() -> list[BaseTool]:
     return [AAAGenerateIacTool()]

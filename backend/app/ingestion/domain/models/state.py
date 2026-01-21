@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 try:
     from pydantic import BaseModel, Field
@@ -22,18 +22,18 @@ class IngestionState:
 
     kb_id: str
     job_id: str
-    status: str = "pending"  # pending | running | completed | failed
-    phase: str = "loading"
+    status: str = 'pending'  # pending | running | completed | failed
+    phase: str = 'loading'
     progress: int = 0
-    metrics: Dict[str, Any] = field(default_factory=dict)
-    message: str = ""
-    error: Optional[str] = None
-    created_at: Optional[datetime] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    metrics: dict[str, Any] = field(default_factory=dict)
+    message: str = ''
+    error: str | None = None
+    created_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
     # Phase-level tracking (populated from phase_tracker)
-    phases: Dict[str, Any] = field(default_factory=dict)
+    phases: dict[str, Any] = field(default_factory=dict)
 
     def get_overall_status(self) -> str:
         """
@@ -49,28 +49,28 @@ class IngestionState:
             return self.status
 
         phase_statuses = [
-            p.get("status", PhaseStatus.NOT_STARTED.value) for p in self.phases.values()
+            p.get('status', PhaseStatus.NOT_STARTED.value) for p in self.phases.values()
         ]
 
         # Check for failures
         if PhaseStatus.FAILED.value in phase_statuses:
-            return "failed"
+            return 'failed'
 
         # Check if all completed
         if all(s == PhaseStatus.COMPLETED.value for s in phase_statuses):
-            return "completed"
+            return 'completed'
 
         # Check if any running or paused
         if (
             PhaseStatus.RUNNING.value in phase_statuses
             or PhaseStatus.PAUSED.value in phase_statuses
         ):
-            return "running"
+            return 'running'
 
         # Default to current status
         return self.status
 
-    def get_current_phase(self) -> Optional[str]:
+    def get_current_phase(self) -> str | None:
         """
         Determine which phase is currently active.
 
@@ -82,7 +82,7 @@ class IngestionState:
             return self.phase
 
         # Phase order
-        phase_order = [
+        phase_order: list[str] = [
             JobPhase.LOADING.value,
             JobPhase.CHUNKING.value,
             JobPhase.EMBEDDING.value,
@@ -92,20 +92,16 @@ class IngestionState:
         # First check for active phases (running or paused)
         for phase_name in phase_order:
             if phase_name in self.phases:
-                status = self.phases[phase_name].get(
-                    "status", PhaseStatus.NOT_STARTED.value
-                )
+                status = self.phases[phase_name].get('status', PhaseStatus.NOT_STARTED.value)
                 if status in (PhaseStatus.RUNNING.value, PhaseStatus.PAUSED.value):
-                    return phase_name
+                    return str(phase_name)
 
         # Then check for first not-started phase
         for phase_name in phase_order:
             if phase_name in self.phases:
-                status = self.phases[phase_name].get(
-                    "status", PhaseStatus.NOT_STARTED.value
-                )
+                status = self.phases[phase_name].get('status', PhaseStatus.NOT_STARTED.value)
                 if status == PhaseStatus.NOT_STARTED.value:
-                    return phase_name
+                    return str(phase_name)
 
         # All phases completed or failed
         return None
@@ -130,7 +126,7 @@ class IngestionState:
 
         for phase_name in phase_order:
             if phase_name in self.phases:
-                phase_progress = self.phases[phase_name].get("progress", 0)
+                phase_progress = self.phases[phase_name].get('progress', 0)
                 total_progress += (phase_progress * weight_per_phase) // 100
 
         return min(100, total_progress)
@@ -143,22 +139,22 @@ if PYDANTIC_AVAILABLE:
 
         kb_id: str
         job_id: str
-        status: str = Field(default="pending")
-        phase: str = Field(default="loading")
+        status: str = Field(default='pending')
+        phase: str = Field(default='loading')
         progress: int = Field(default=0, ge=0, le=100)
-        metrics: Dict[str, Any] = Field(default_factory=dict)
-        message: str = Field(default="")
-        error: Optional[str] = None
-        created_at: Optional[datetime] = None
-        started_at: Optional[datetime] = None
-        completed_at: Optional[datetime] = None
-        phases: Dict[str, Any] = Field(default_factory=dict)
+        metrics: dict[str, Any] = Field(default_factory=dict)
+        message: str = Field(default='')
+        error: str | None = None
+        created_at: datetime | None = None
+        started_at: datetime | None = None
+        completed_at: datetime | None = None
+        phases: dict[str, Any] = Field(default_factory=dict)
 
         # Pydantic v2 config; use plain dict to avoid import issues
-        model_config = {"from_attributes": True}
+        model_config = {'from_attributes': True}
 
         @classmethod
-        def from_state(cls, state: IngestionState) -> "IngestionStateSchema":
+        def from_state(cls, state: IngestionState) -> IngestionStateSchema:
             """Convert dataclass to pydantic model."""
             return cls(
                 kb_id=state.kb_id,

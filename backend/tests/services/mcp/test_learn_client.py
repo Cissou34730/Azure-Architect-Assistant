@@ -180,5 +180,6 @@ class TestMicrosoftLearnMCPClientIntegration:
         config = {"endpoint": "https://learn.microsoft.com/api/mcp"}
 
         async with MicrosoftLearnMCPClient(config) as client:
-            with pytest.raises(MCPCapabilityError, match="Tool.*not found"):
+            with pytest.raises(MCPCapabilityError, match=r"Tool.*not found"):
                 await client.call_tool("nonexistent_tool", {})
+

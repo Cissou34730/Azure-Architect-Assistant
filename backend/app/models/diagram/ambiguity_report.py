@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Boolean
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -35,3 +35,4 @@ class AmbiguityReport(Base):
 
     def __repr__(self) -> str:
         return f"<AmbiguityReport(id={self.id}, resolved={self.resolved})>"
+

@@ -2,8 +2,9 @@
 
 import pytest
 
-from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from app.services.mcp import operations
+from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from app.services.mcp.operations.learn_operations import search_microsoft_docs
 
 
 @pytest.fixture
@@ -28,18 +29,16 @@ class TestLearnOperations:
         )
 
         assert result is not None
-        assert "results" in result
-        assert "query" in result
         assert result["query"] == "Azure Container Apps"
-        assert "total_results" in result
         assert isinstance(result["results"], list)
+        assert len(result["results"]) > 0
 
-        # Verify result structure matches actual response
-        if len(result["results"]) > 0:
-            first_result = result["results"][0]
-            assert "title" in first_result
-            assert "content" in first_result
-            assert "contentUrl" in first_result
+        self._verify_doc_result(result["results"][0])
+
+    def _verify_doc_result(self, first_result: dict) -> None:
+        assert "title" in first_result
+        assert "content" in first_result
+        assert "contentUrl" in first_result
 
     @pytest.mark.asyncio
     async def test_search_microsoft_docs_with_max_results(self, mcp_client):
@@ -75,18 +74,17 @@ class TestLearnOperations:
         )
 
         assert result is not None
-        assert "samples" in result
-        assert "query" in result
         assert result["query"] == "Azure Blob Storage upload"
         assert isinstance(result["samples"], list)
+        assert len(result["samples"]) > 0
 
-        # Verify sample structure matches actual response
-        if len(result["samples"]) > 0:
-            first_sample = result["samples"][0]
-            assert "description" in first_sample
-            assert "codeSnippet" in first_sample
-            assert "language" in first_sample
-            assert "link" in first_sample
+        self._verify_sample_result(result["samples"][0])
+
+    def _verify_sample_result(self, first_sample: dict) -> None:
+        assert "description" in first_sample
+        assert "codeSnippet" in first_sample
+        assert "language" in first_sample
+        assert "link" in first_sample
 
     @pytest.mark.asyncio
     async def test_search_code_samples_with_language(self, mcp_client):
@@ -107,19 +105,18 @@ class TestLearnOperations:
         result = await operations.get_azure_guidance(mcp_client, "Azure Container Apps")
 
         assert result is not None
-        assert "topic" in result
         assert result["topic"] == "Azure Container Apps"
-        assert "documentation" in result
-        assert "code_samples" in result
         assert "summary" in result
 
         # Verify documentation section
-        assert "results" in result["documentation"]
         assert len(result["documentation"]["results"]) > 0
 
         # Verify code samples section
-        if result["code_samples"] and not result["code_samples"].get("error"):
-            assert "samples" in result["code_samples"]
+        self._verify_guidance_code_samples(result.get("code_samples"))
+
+    def _verify_guidance_code_samples(self, code_samples: dict | None) -> None:
+        if code_samples and not code_samples.get("error"):
+            assert "samples" in code_samples
 
     @pytest.mark.asyncio
     async def test_get_azure_guidance_without_code(self, mcp_client):
@@ -141,8 +138,6 @@ class TestOperationsComparison:
     @pytest.mark.asyncio
     async def test_search_docs_response_format(self, mcp_client):
         """Verify new implementation returns expected response format."""
-        from app.services.mcp.operations.learn_operations import search_microsoft_docs
-
         query = "Azure SQL Database"
 
         result = await search_microsoft_docs(mcp_client, query, max_results=3)
@@ -154,3 +149,4 @@ class TestOperationsComparison:
         assert result["query"] == query
         assert isinstance(result["results"], list)
         assert len(result["results"]) <= 3
+

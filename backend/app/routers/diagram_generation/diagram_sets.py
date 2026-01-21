@@ -5,18 +5,19 @@ Main entry point for diagram generation from architecture descriptions.
 
 import asyncio
 import logging
-from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from pydantic import BaseModel, Field
+from typing import Any
 
-from app.models.diagram import DiagramSet, Diagram, AmbiguityReport, DiagramType
-from app.services.diagram.database import get_diagram_session
-from app.services.diagram.llm_client import DiagramLLMClient
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.diagram import AmbiguityReport, Diagram, DiagramSet, DiagramType
 from app.services.diagram.ambiguity_detector import AmbiguityDetector
+from app.services.diagram.database import get_diagram_session
 from app.services.diagram.diagram_generator import DiagramGenerator, GenerationResult
+from app.services.diagram.llm_client import DiagramLLMClient
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class CreateDiagramSetRequest(BaseModel):
         max_length=50000,
         description="Functional requirements or technical design description",
     )
-    adr_id: Optional[str] = Field(
+    adr_id: str | None = Field(
         None,
         pattern=r"^[A-Za-z0-9-]+$",
         description="Optional ADR identifier to link diagrams",
@@ -61,7 +62,7 @@ class AmbiguityReportResponse(BaseModel):
     id: str
     diagram_set_id: str
     ambiguous_text: str
-    suggested_clarification: Optional[str] = None
+    suggested_clarification: str | None = None
     resolved: bool = False
     created_at: str
 
@@ -72,12 +73,12 @@ class DiagramSetResponse(BaseModel):
     """Response model for complete diagram set."""
 
     id: str
-    adr_id: Optional[str] = None
+    adr_id: str | None = None
     input_description: str
     created_at: str
     updated_at: str
-    diagrams: List[DiagramResponse]
-    ambiguities: List[AmbiguityReportResponse]
+    diagrams: list[DiagramResponse]
+    ambiguities: list[AmbiguityReportResponse]
 
 
 # --- Helper Functions ---
@@ -90,7 +91,7 @@ def _get_llm_client() -> DiagramLLMClient:
 
 
 async def _store_ambiguities(
-    session: AsyncSession, diagram_set_id: str, ambiguities_data: List[Dict[str, Any]]
+    session: AsyncSession, diagram_set_id: str, ambiguities_data: list[dict[str, Any]]
 ) -> None:
     """Store detected ambiguities in database.
 
@@ -158,7 +159,8 @@ async def _store_generated_diagram(
         prefix = "v" if version.startswith("v") else ""
         core = version[1:] if prefix else version
         parts = core.split(".")
-        if len(parts) != 3:
+        version_parts_count = 3
+        if len(parts) != version_parts_count:
             return f"{prefix}1.0.0"
         major, minor, patch = parts
         try:
@@ -357,8 +359,8 @@ async def create_diagram_set(
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal server error: {str(e)}",
-        )
+            detail=f"Internal server error: {e!s}",
+        ) from e
 
 
 @router.get(
@@ -444,3 +446,4 @@ async def get_diagram_set(
             for a in ambiguities
         ],
     )
+

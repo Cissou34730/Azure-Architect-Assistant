@@ -4,30 +4,28 @@ Provides multi-source KB query, project management, and architecture workflow.
 Migrated from split TypeScript/Python architecture to unified Python backend.
 """
 
-import os
 import logging
 import warnings
-from pathlib import Path
-
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Import routers
-from app.routers.kb_query import router as kb_query_router
-from app.routers.kb_management import router as kb_management_router
-from app.routers.project_management import router as project_router
-from app.routers.ingestion import router as ingestion_router
-from app.agents_system.agents.router import router as agent_router
-from app.routers.diagram_generation import router as diagram_generation_router
-
 # Import lifecycle management
 from app import lifecycle
-from app.routers.ingestion import cleanup_running_tasks
-from app.core.config import get_app_settings
-from app.core.logging import configure_logging
+from app.agents_system.agents.router import router as agent_router
+from app.core.app_logging import configure_logging
+from app.core.app_settings import get_app_settings
 from app.core.signals import install_ingestion_signal_handlers
+from app.routers.diagram_generation import router as diagram_generation_router
+from app.routers.ingestion import cleanup_running_tasks
+from app.routers.ingestion import router as ingestion_router
+from app.routers.kb_management import router as kb_management_router
+
+# Import routers
+from app.routers.kb_query import router as kb_query_router
+from app.routers.project_management import router as project_router
 from app.services.diagram.database import close_diagram_database
 
 # Suppress third-party Pydantic v2 warnings from dependencies not yet updated
@@ -119,13 +117,14 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    from app.core.config import get_app_settings
+    from app.core.app_settings import get_app_settings
 
     settings = get_app_settings()
     logger.info(f"Starting server on port {settings.backend_port}")
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104
         port=int(settings.backend_port),
         reload=True,
     )
+

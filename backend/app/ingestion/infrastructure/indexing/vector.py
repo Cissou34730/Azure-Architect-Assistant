@@ -4,24 +4,34 @@ Builds vector indexes from pre-embedded documents using LlamaIndex.
 Responsible ONLY for indexing - embedding is done separately.
 """
 
-import os
 import json
 import logging
-from typing import List, Optional, Callable
+import os
+from collections.abc import Callable
+from typing import Any, cast
 
+from llama_index.core import Document as LlamaDocument
 from llama_index.core import (
-    VectorStoreIndex,
     Settings,
     StorageContext,
+    VectorStoreIndex,
     load_index_from_storage,
 )
-from llama_index.core import Document as LlamaDocument
 
-from .builder_base import BaseIndexBuilder
+from app.ingestion.domain.phase_tracker import IngestionPhase
 from app.services.ai import get_ai_service
 from app.services.ai.adapters import AIServiceLLM
 
+from .builder_base import BaseIndexBuilder
+
 logger = logging.getLogger(__name__)
+
+# Constants
+INDEX_DOCSTORE_FILE = "docstore.json"
+INDEX_PROGRESS_BATCH_SIZE = 100
+INDEX_P_START = 25
+INDEX_P_BATCH = 50
+INDEX_P_COMPLETE = 100
 
 
 class VectorIndexBuilder(BaseIndexBuilder):
@@ -35,182 +45,158 @@ class VectorIndexBuilder(BaseIndexBuilder):
         self,
         kb_id: str,
         storage_dir: str,
-        embedding_model: str = None,
-        generation_model: str = None,
-    ):
+        embedding_model: str | None = None,
+        generation_model: str | None = None,
+    ) -> None:
         """
         Initialize vector index builder.
-
-        Args:
-            kb_id: Knowledge base identifier
-            storage_dir: Directory for index storage
-            embedding_model: Model name (for metadata only, uses config default if not provided)
-            generation_model: Model for LLM/generation tasks (uses config default if not provided)
         """
-        # Get config defaults if not provided
         ai_service = get_ai_service()
-        embedding_model = embedding_model or ai_service.config.openai_embedding_model
-        generation_model = generation_model or ai_service.config.openai_llm_model
+        emb_model = embedding_model or ai_service.config.openai_embedding_model
+        gen_model = generation_model or ai_service.config.openai_llm_model
 
-        super().__init__(kb_id, storage_dir, embedding_model, generation_model)
+        super().__init__(kb_id, storage_dir, emb_model, gen_model)
 
         # Initialize LlamaIndex LLM using AIService adapter
-        Settings.llm = AIServiceLLM(ai_service, model_name=generation_model)
-
+        Settings.llm = AIServiceLLM(ai_service, model_name=gen_model)
         self.logger.info(f"VectorIndexBuilder ready KB={kb_id} storage={storage_dir}")
 
     def build_index(
         self,
-        embedded_documents: List[LlamaDocument],
-        progress_callback: Optional[Callable] = None,
-        state=None,
+        embedded_documents: Any,
+        progress_callback: Callable[..., Any] | None = None,
+        state: Any | None = None,
     ) -> str:
-        """
-        Build vector index from PRE-EMBEDDED documents.
-        Expects documents that already have embeddings generated.
-
-        Args:
-            embedded_documents: List of LlamaIndex Documents WITH embeddings already set
-            progress_callback: Optional callback(phase, progress, message, metrics)
-            state: Optional IngestionState for cooperative pause/cancel checking
-
-        Returns:
-            Path to the created index
-        """
-        from app.ingestion.domain.phase_tracker import IngestionPhase
-
+        """Build vector index from PRE-EMBEDDED documents."""
         self.logger.info(f"Index build start KB={self.kb_id}")
 
         if not embedded_documents:
             self.logger.warning("No documents provided for indexing")
             return self.storage_dir
 
-        # Validate that documents have embeddings
-        missing_embeddings = [
-            i
-            for i, doc in enumerate(embedded_documents)
-            if not hasattr(doc, "embedding") or doc.embedding is None
-        ]
-        if missing_embeddings:
-            self.logger.error(
-                f"{len(missing_embeddings)} documents missing embeddings at indices: {missing_embeddings[:10]}"
-            )
-            raise ValueError(
-                f"Documents must have embeddings set before indexing. Found {len(missing_embeddings)} without embeddings."
-            )
+        self._validate_embeddings(embedded_documents)
 
-        # Load state to see if we're resuming
-        processing_state = self._load_state()
-        last_indexed_id = processing_state.get("last_indexed_id", 0)
-        chunks_total = processing_state.get("chunks_total", 0)
-        batches_processed = processing_state.get("batches_processed", 0)
+        # Load state and existing index
+        proc_state = self._load_state()
+        last_id = proc_state.get("last_indexed_id", 0)
+        index = self._try_load_existing_index(last_id)
 
-        # Try to load existing index
-        index = None
-        if os.path.exists(os.path.join(self.storage_dir, "docstore.json")):
-            try:
-                storage_context = StorageContext.from_defaults(
-                    persist_dir=self.storage_dir
-                )
-                index = load_index_from_storage(storage_context)
-                self.logger.info(f"Resuming index from doc_id {last_indexed_id + 1}")
-            except Exception as e:
-                self.logger.warning(
-                    f"Could not load existing index: {e}, building from scratch"
-                )
-                index = None
-
-        # Filter documents to only process new ones
-        if last_indexed_id > 0:
-            new_docs = [
-                d
-                for d in embedded_documents
-                if d.metadata.get("doc_id", 0) > last_indexed_id
-            ]
-            documents_to_process = new_docs
-        else:
-            documents_to_process = embedded_documents
-
-        if not documents_to_process:
+        # Filter and process
+        to_process = self._filter_documents(embedded_documents, last_id)
+        if not to_process:
             self.logger.info("Index up to date (no new documents)")
             return self.storage_dir
 
-        if progress_callback:
-            progress_callback(
-                IngestionPhase.INDEXING,
-                0,
-                f"Building index from {len(documents_to_process)} documents...",
-                {"documents": len(documents_to_process)},
-            )
-
-        # Build or update index from pre-embedded documents
-        self.logger.info(f"Indexing {len(documents_to_process)} pre-embedded documents")
+        self._log_and_callback(progress_callback, to_process)
 
         if index is None:
-            # Build new index from pre-embedded documents
             if progress_callback:
-                progress_callback(
-                    IngestionPhase.INDEXING, 25, "Creating new vector index...", {}
-                )
-            index = VectorStoreIndex(documents_to_process, show_progress=True)
+                progress_callback(IngestionPhase.INDEXING, INDEX_P_START, "Creating new index...", {})
+            index = VectorStoreIndex(to_process, show_progress=True)
         else:
-            # Append to existing index
-            if progress_callback:
-                progress_callback(
-                    IngestionPhase.INDEXING,
-                    25,
-                    f"Appending {len(documents_to_process)} documents to existing index...",
-                    {},
-                )
-            for doc in documents_to_process:
+            self._update_existing_index(index, to_process, progress_callback)
+
+        return self._persist_index_and_state(index, to_process, proc_state, progress_callback)
+
+    def _validate_embeddings(self, docs: list[LlamaDocument]) -> None:
+        """Ensure all documents have embeddings set."""
+        missing = [i for i, d in enumerate(docs) if not hasattr(d, "embedding") or d.embedding is None]
+        if missing:
+            raise ValueError(f"Found {len(missing)} documents missing embeddings. Indexing requires pre-embedded docs.")
+
+    def _try_load_existing_index(self, last_id: int) -> VectorStoreIndex | None:
+        """Try to load existing index from storage."""
+        if not os.path.exists(os.path.join(self.storage_dir, INDEX_DOCSTORE_FILE)):
+            return None
+
+        try:
+            storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
+            index = load_index_from_storage(storage_context)
+            self.logger.info(f"Resuming index from doc_id {last_id + 1}")
+            return cast(VectorStoreIndex, index)
+        except (OSError, ValueError, RuntimeError) as e:
+            self.logger.warning(f"Could not load existing index: {e}, building from scratch")
+            return None
+
+    def _filter_documents(self, docs: list[LlamaDocument], last_id: int) -> list[LlamaDocument]:
+        """Filter list to only includes documents not yet indexed."""
+        if last_id <= 0:
+            return docs
+        return [d for d in docs if d.metadata.get("doc_id", 0) > last_id]
+
+    def _log_and_callback(self, cb: Callable[..., Any] | None, to_process: list[LlamaDocument]) -> None:
+        """Log indexing start and trigger callback."""
+        msg = f"Building index from {len(to_process)} documents..."
+        self.logger.info(msg)
+        if cb:
+            cb(IngestionPhase.INDEXING, 0, msg, {"documents": len(to_process)})
+
+    def _update_existing_index(
+        self,
+        index: VectorStoreIndex,
+        to_process: list[LlamaDocument],
+        progress_callback: Callable[..., Any] | None
+    ) -> None:
+        """Update existing index with batches and progress callbacks."""
+        for i in range(0, len(to_process), INDEX_PROGRESS_BATCH_SIZE):
+            batch = to_process[i : i + INDEX_PROGRESS_BATCH_SIZE]
+            for doc in batch:
                 index.insert(doc)
 
-        if progress_callback:
-            progress_callback(
-                IngestionPhase.INDEXING, 75, "Persisting index to storage...", {}
-            )
+            if progress_callback:
+                progress = INDEX_P_START + int((i / len(to_process)) * INDEX_P_BATCH)
+                progress_callback(
+                    IngestionPhase.INDEXING,
+                    progress,
+                    f"Indexed {i + len(batch)}/{len(to_process)} documents",
+                    {"indexed": i + len(batch), "total": len(to_process)},
+                )
 
-        # Persist index
+    def _persist_index_and_state(
+        self,
+        index: VectorStoreIndex,
+        to_process: list[LlamaDocument],
+        proc_state: dict[str, Any],
+        progress_callback: Callable[..., Any] | None
+    ) -> str:
+        """Persist index to disk and update internal state."""
+        if progress_callback:
+            progress_callback(IngestionPhase.INDEXING, INDEX_P_COMPLETE - 5, "Persisting index...", {})
+
         os.makedirs(self.storage_dir, exist_ok=True)
         index.storage_context.persist(persist_dir=self.storage_dir)
 
-        # Update state with newly indexed doc_ids
-        if documents_to_process:
-            max_doc_id = max(d.metadata.get("doc_id", 0) for d in documents_to_process)
-            new_chunks_total = chunks_total + len(documents_to_process)
-            self._save_state(max_doc_id, new_chunks_total, batches_processed + 1)
+        # Update and save state
+        if to_process:
+            max_id = max(d.metadata.get("doc_id", 0) for d in to_process)
+            proc_state["last_indexed_id"] = max_id
+            proc_state["chunks_total"] = proc_state.get("chunks_total", 0) + len(to_process)
+            proc_state["batches_processed"] = proc_state.get("batches_processed", 0) + 1
+            self._save_state(proc_state)
 
         # Save metadata
-        self._save_index_metadata(len(embedded_documents), len(documents_to_process))
+        self._save_index_metadata(len(to_process))
 
         if progress_callback:
             progress_callback(
                 IngestionPhase.INDEXING,
-                100,
-                f"Index complete: {len(documents_to_process)} documents indexed",
-                {"documents": len(documents_to_process)},
+                INDEX_P_COMPLETE,
+                f"Index complete: {len(to_process)} documents indexed",
+                {"documents": len(to_process)},
             )
 
-        self.logger.info("=" * 70)
-        self.logger.info("Vector index build complete!")
-        self.logger.info(f"  Documents indexed: {len(documents_to_process)}")
-        self.logger.info(f"  Storage: {self.storage_dir}")
-        self.logger.info("=" * 70)
-
+        self.logger.info(f"Index build complete: {self.storage_dir}")
         return self.storage_dir
 
-    def _save_index_metadata(self, doc_count: int, indexed_count: int):
-        """Save index metadata"""
+    def _save_index_metadata(self, indexed_count: int) -> None:
+        """Save index metadata in JSON format."""
         metadata_file = os.path.join(self.storage_dir, "metadata.json")
-
         metadata = {
             "kb_id": self.kb_id,
-            "documents": doc_count,
             "indexed_documents": indexed_count,
             "embedding_model": self.embedding_model,
             "generation_model": self.generation_model,
             "index_type": "vector",
         }
-
         with open(metadata_file, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2)

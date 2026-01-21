@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List, Optional, Dict
 
 
 @dataclass
@@ -15,8 +14,9 @@ class SummaryChain:
     def disabled(cls) -> "SummaryChain":
         return cls(enabled=False)
 
-    def summarize(self, messages: List[Dict[str, str]]) -> Optional[SummaryResult]:
+    def summarize(self, messages: list[dict[str, str]]) -> SummaryResult | None:
         if not self.enabled:
             return None
         # No-op stub: return None to avoid changing behavior by default
         return None
+

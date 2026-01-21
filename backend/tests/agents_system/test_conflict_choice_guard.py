@@ -17,3 +17,4 @@ def test_extract_architect_choice_required_section_extracts_until_state_update_m
     assert section is not None
     assert section.startswith("Architect choice required:")
     assert "AAA_STATE_UPDATE" not in section
+

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, LargeBinary
+from sqlalchemy import Column, DateTime, ForeignKey, LargeBinary, String, Text
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -54,3 +54,4 @@ class Diagram(Base):
         return (
             f"<Diagram(id={self.id}, type={self.diagram_type}, version={self.version})>"
         )
+

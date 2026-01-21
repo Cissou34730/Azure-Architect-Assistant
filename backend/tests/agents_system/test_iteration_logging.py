@@ -44,3 +44,4 @@ def test_derive_uncovered_topic_questions_limits_to_three() -> None:
     )
     assert len(questions) <= 3
     assert all(isinstance(q, str) and q for q in questions)
+

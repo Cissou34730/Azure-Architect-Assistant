@@ -4,7 +4,6 @@ Validates diagram syntax before storage to catch errors early and enable retry l
 """
 
 import logging
-from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -15,8 +14,8 @@ class ValidationResult:
     """Result of syntax validation."""
 
     is_valid: bool
-    error: Optional[str] = None
-    error_line: Optional[int] = None
+    error: str | None = None
+    error_line: int | None = None
 
     def __bool__(self) -> bool:
         return self.is_valid
@@ -24,6 +23,30 @@ class ValidationResult:
 
 class SyntaxValidator:
     """Validates diagram syntax for Mermaid and PlantUML."""
+
+    def _check_balanced_brackets(self, source_code: str) -> list[str]:
+        """Check for balanced brackets/parentheses."""
+        errors: list[str] = []
+        brackets: dict[str, str] = {"[": "]", "(": ")", "{": "}"}
+        stack: list[tuple[str, int]] = []
+        for i, char in enumerate(source_code):
+            if char in brackets:
+                stack.append((char, i))
+            elif char in brackets.values():
+                if not stack:
+                    errors.append(f"Unmatched closing bracket '{char}' at position {i}")
+                    break
+                opening, _ = stack.pop()
+                if brackets[opening] != char:
+                    errors.append(
+                        f"Mismatched brackets: '{opening}' closed with '{char}'"
+                    )
+                    break
+
+        if stack:
+            opening, pos = stack[-1]
+            errors.append(f"Unclosed bracket '{opening}' opened at position {pos}")
+        return errors
 
     async def validate_mermaid_syntax(self, source_code: str) -> ValidationResult:
         """Validate Mermaid diagram syntax.
@@ -43,11 +66,11 @@ class SyntaxValidator:
             return ValidationResult(is_valid=False, error="Empty source code")
 
         # Basic syntax checks (expand as needed)
-        errors: List[str] = []
+        errors: list[str] = []
 
         # Check for required diagram type declaration
         first_line: str = source_code.strip().split("\n")[0].strip()
-        valid_types: List[str] = [
+        valid_types: list[str] = [
             "flowchart",
             "graph",
             "sequenceDiagram",
@@ -70,31 +93,11 @@ class SyntaxValidator:
             )
 
         # Check for balanced brackets/parentheses
-        brackets: Dict[str, str] = {"[": "]", "(": ")", "{": "}"}
-        stack: List[Tuple[str, int]] = []
-        for i, char in enumerate(source_code):
-            if char in brackets.keys():
-                stack.append((char, i))
-            elif char in brackets.values():
-                if not stack:
-                    errors.append(f"Unmatched closing bracket '{char}' at position {i}")
-                    break
-                opening, _ = stack.pop()
-                if brackets[opening] != char:
-                    errors.append(
-                        f"Mismatched brackets: '{opening}' closed with '{char}'"
-                    )
-                    break
-
-        if stack:
-            opening, pos = stack[-1]
-            errors.append(f"Unclosed bracket '{opening}' opened at position {pos}")
+        errors.extend(self._check_balanced_brackets(source_code))
 
         # Check for basic syntax patterns in flowcharts
-        if first_line.startswith(("flowchart", "graph")):
-            # Check for valid arrow syntax
-            if "-->" not in source_code and "---" not in source_code:
-                logger.warning("Flowchart contains no arrows (might be incomplete)")
+        if first_line.startswith(("flowchart", "graph")) and "-->" not in source_code and "---" not in source_code:
+            logger.warning("Flowchart contains no arrows (might be incomplete)")
 
         if errors:
             error_msg = "; ".join(errors)
@@ -137,3 +140,4 @@ class SyntaxValidator:
         # For now, assume valid if basic structure present
         logger.info("PlantUML basic structure validated (full validation deferred)")
         return ValidationResult(is_valid=True)
+

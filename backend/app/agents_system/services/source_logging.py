@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .aaa_state_models import (
     MCPQuery,
@@ -27,9 +27,9 @@ def new_reference_document(
     *,
     category: str,
     title: str,
-    url: Optional[str] = None,
-    accessed_at: Optional[str] = None,
-    document_id: Optional[str] = None,
+    url: str | None = None,
+    accessed_at: str | None = None,
+    document_id: str | None = None,
 ) -> ReferenceDocument:
     return ReferenceDocument(
         id=document_id or str(uuid.uuid4()),
@@ -40,14 +40,14 @@ def new_reference_document(
     )
 
 
-def new_mcp_query(
+def new_mcp_query(  # noqa: PLR0913
     *,
     query_text: str,
     phase: MCPQueryPhase,
-    result_urls: Optional[List[str]] = None,
-    selected_snippets: Optional[List[str]] = None,
-    executed_at: Optional[str] = None,
-    query_id: Optional[str] = None,
+    result_urls: list[str] | None = None,
+    selected_snippets: list[str] | None = None,
+    executed_at: str | None = None,
+    query_id: str | None = None,
 ) -> MCPQuery:
     return MCPQuery(
         id=query_id or str(uuid.uuid4()),
@@ -62,9 +62,9 @@ def new_mcp_query(
 def new_reference_citation(
     *,
     reference_document_id: str,
-    url: Optional[str] = None,
-    note: Optional[str] = None,
-    citation_id: Optional[str] = None,
+    url: str | None = None,
+    note: str | None = None,
+    citation_id: str | None = None,
 ) -> SourceCitation:
     return SourceCitation(
         id=citation_id or str(uuid.uuid4()),
@@ -78,9 +78,9 @@ def new_reference_citation(
 def new_mcp_citation(
     *,
     mcp_query_id: str,
-    url: Optional[str] = None,
-    note: Optional[str] = None,
-    citation_id: Optional[str] = None,
+    url: str | None = None,
+    note: str | None = None,
+    citation_id: str | None = None,
 ) -> SourceCitation:
     return SourceCitation(
         id=citation_id or str(uuid.uuid4()),
@@ -91,11 +91,12 @@ def new_mcp_citation(
     )
 
 
-def append_reference_document_update(doc: ReferenceDocument) -> Dict[str, Any]:
+def append_reference_document_update(doc: ReferenceDocument) -> dict[str, Any]:
     """Return a state update payload that appends a reference document."""
     return {"referenceDocuments": [doc.model_dump()]}
 
 
-def append_mcp_query_update(query: MCPQuery) -> Dict[str, Any]:
+def append_mcp_query_update(query: MCPQuery) -> dict[str, Any]:
     """Return a state update payload that appends an MCP query."""
     return {"mcpQueries": [query.model_dump()]}
+

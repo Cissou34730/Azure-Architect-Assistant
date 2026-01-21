@@ -1,12 +1,13 @@
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Project
+
 from ..project_models import CreateProjectRequest, UpdateRequirementsRequest
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ class ProjectService:
 
     async def create_project(
         self, request: CreateProjectRequest, db: AsyncSession
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         if not request.name or not request.name.strip():
             raise ValueError("Project name is required")
 
@@ -32,34 +33,35 @@ class ProjectService:
         await db.refresh(project)
 
         logger.info(f"Project created: {project.id} - {project.name}")
-        return project.to_dict()
+        return cast(dict[str, Any], project.to_dict())
 
-    async def list_projects(self, db: AsyncSession) -> List[Dict[str, Any]]:
+    async def list_projects(self, db: AsyncSession) -> list[dict[str, Any]]:
         result = await db.execute(select(Project))
         projects = result.scalars().all()
         logger.info(f"Listing {len(projects)} projects")
-        return [p.to_dict() for p in projects]
+        return [cast(dict[str, Any], p.to_dict()) for p in projects]
 
     async def get_project(
         self, project_id: str, db: AsyncSession
-    ) -> Dict[str, Any] | None:
+    ) -> dict[str, Any] | None:
         result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
         if not project:
             return None
-        return project.to_dict()
+        return cast(dict[str, Any], project.to_dict())
 
     async def update_requirements(
         self, project_id: str, request: UpdateRequirementsRequest, db: AsyncSession
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
         if not project:
             raise ValueError("Project not found")
 
-        project.text_requirements = request.textRequirements
+        project.text_requirements = request.text_requirements
         await db.commit()
         await db.refresh(project)
 
         logger.info(f"Requirements updated for project: {project_id}")
-        return project.to_dict()
+        return cast(dict[str, Any], project.to_dict())
+

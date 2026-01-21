@@ -6,8 +6,8 @@ Person and System elements, and Container diagrams only contain Container elemen
 
 import logging
 import re
-from typing import List, Set
 from dataclasses import dataclass
+from typing import ClassVar
 
 from app.models.diagram import DiagramType
 
@@ -19,7 +19,7 @@ class C4ValidationResult:
     """Result of C4 compliance validation."""
 
     is_valid: bool
-    violations: List[str]
+    violations: list[str]
 
     def __bool__(self) -> bool:
         return self.is_valid
@@ -29,7 +29,7 @@ class C4ComplianceValidator:
     """Validates C4 diagram abstraction level compliance."""
 
     # Allowed elements per C4 diagram type
-    C4_CONTEXT_ELEMENTS: Set[str] = {
+    C4_CONTEXT_ELEMENTS: ClassVar[set[str]] = {
         "Person",
         "System",
         "System_Ext",
@@ -37,7 +37,7 @@ class C4ComplianceValidator:
         "SystemDb",
         "SystemQueue",
     }
-    C4_CONTAINER_ELEMENTS: Set[str] = {
+    C4_CONTAINER_ELEMENTS: ClassVar[set[str]] = {
         "Container",
         "ContainerDb",
         "ContainerQueue",
@@ -72,10 +72,10 @@ class C4ComplianceValidator:
             )
             return C4ValidationResult(is_valid=True, violations=[])
 
-        violations: List[str] = []
+        violations: list[str] = []
 
         # Extract all C4 element types from diagram source
-        elements_used: Set[str] = self._extract_c4_elements(diagram_source)
+        elements_used: set[str] = self._extract_c4_elements(diagram_source)
 
         if diagram_type == DiagramType.C4_CONTEXT:
             violations = self._validate_context_elements(elements_used)
@@ -91,7 +91,7 @@ class C4ComplianceValidator:
 
         return C4ValidationResult(is_valid=is_valid, violations=violations)
 
-    def _extract_c4_elements(self, source_code: str) -> Set[str]:
+    def _extract_c4_elements(self, source_code: str) -> set[str]:
         """Extract all C4 element types from diagram source.
 
         Matches patterns like:
@@ -111,12 +111,12 @@ class C4ComplianceValidator:
         pattern = r"\b([A-Z][a-zA-Z_]*)\s*\("
 
         matches = re.finditer(pattern, source_code)
-        elements: Set[str] = {match.group(1) for match in matches}
+        elements: set[str] = {match.group(1) for match in matches}
 
         logger.debug("Extracted C4 elements: %s", elements)
         return elements
 
-    def _validate_context_elements(self, elements_used: Set[str]) -> List[str]:
+    def _validate_context_elements(self, elements_used: set[str]) -> list[str]:
         """Validate C4 Context diagram elements.
 
         Context diagrams (Level 1) should only contain:
@@ -133,9 +133,9 @@ class C4ComplianceValidator:
         Returns:
             List of violation messages
         """
-        violations: List[str] = []
+        violations: list[str] = []
 
-        disallowed_elements: Set[str] = elements_used - self.C4_CONTEXT_ELEMENTS
+        disallowed_elements: set[str] = elements_used - self.C4_CONTEXT_ELEMENTS
 
         for element in disallowed_elements:
             if element.startswith("Container"):
@@ -152,7 +152,7 @@ class C4ComplianceValidator:
 
         return violations
 
-    def _validate_container_elements(self, elements_used: Set[str]) -> List[str]:
+    def _validate_container_elements(self, elements_used: set[str]) -> list[str]:
         """Validate C4 Container diagram elements.
 
         Container diagrams (Level 2) should contain:
@@ -172,9 +172,9 @@ class C4ComplianceValidator:
         Returns:
             List of violation messages
         """
-        violations: List[str] = []
+        violations: list[str] = []
 
-        disallowed_elements: Set[str] = elements_used - self.C4_CONTAINER_ELEMENTS
+        disallowed_elements: set[str] = elements_used - self.C4_CONTAINER_ELEMENTS
 
         for element in disallowed_elements:
             if element in ["System", "SystemDb", "SystemQueue"]:
@@ -191,3 +191,4 @@ class C4ComplianceValidator:
                 )
 
         return violations
+

@@ -101,3 +101,4 @@ def test_project_state_validates_iac_and_cost_artifacts() -> None:
     validated = AAAProjectState.model_validate(payload)
     assert validated.iacArtifacts[0].files[0].format == "terraform"
     assert validated.costEstimates[0].totalMonthlyCost == pytest.approx(12.34)
+

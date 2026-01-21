@@ -8,9 +8,8 @@ Usage:
 from __future__ import annotations
 
 import sys
-from pathlib import Path
-from typing import List
 from datetime import datetime, timezone
+from pathlib import Path
 
 # Ensure backend package is on sys.path
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -29,7 +28,7 @@ from app.ingestion.models import (  # noqa: E402
 )
 
 
-def mark_completed(kb_ids: List[str]) -> None:
+def mark_completed(kb_ids: list[str]) -> None:
     init_ingestion_database()
     with get_session() as session:
         jobs = (
@@ -91,3 +90,4 @@ def mark_completed(kb_ids: List[str]) -> None:
 if __name__ == "__main__":
     kb_ids = sys.argv[1:] if len(sys.argv) > 1 else ["waf", "nist-sp"]
     mark_completed(kb_ids)
+

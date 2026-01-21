@@ -5,15 +5,16 @@ Provides read/write access to ProjectState from database.
 
 import json
 import logging
-from typing import Dict, Any, Optional
+from datetime import datetime, timezone
+from typing import Any
+
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timezone
-from pydantic import ValidationError
 
-from ...models import ProjectState, Project
-from .aaa_state_models import AAAProjectState, ensure_aaa_defaults, apply_us6_enrichment
-from .mindmap_loader import update_mindmap_coverage, is_mindmap_initialized
+from ...models import Project, ProjectState
+from .aaa_state_models import AAAProjectState, apply_us6_enrichment, ensure_aaa_defaults
+from .mindmap_loader import is_mindmap_initialized, update_mindmap_coverage
 from .state_update_parser import merge_state_updates_no_overwrite
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 async def read_project_state(
     project_id: str, db: AsyncSession
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     Read ProjectState from database.
 
@@ -62,8 +63,8 @@ async def read_project_state(
 
 
 async def update_project_state(
-    project_id: str, updates: Dict[str, Any], db: AsyncSession, merge: bool = True
-) -> Dict[str, Any]:
+    project_id: str, updates: dict[str, Any], db: AsyncSession, merge: bool = True
+) -> dict[str, Any]:
     """
     Update ProjectState in database.
 
@@ -115,7 +116,7 @@ async def update_project_state(
         validated = AAAProjectState.model_validate(updated_state)
         updated_state = validated.model_dump(mode="json", exclude_none=True)
     except ValidationError as exc:
-        raise ValueError(f"Invalid project state update payload: {exc}")
+        raise ValueError(f"Invalid project state update payload: {exc}") from exc
 
     # Update database record
     state_record.state = json.dumps(updated_state)
@@ -135,7 +136,7 @@ async def update_project_state(
     return response_state
 
 
-def _deep_merge(base: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
+def _deep_merge(base: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
     """Deprecated: retained for compatibility, prefer merge_state_updates_no_overwrite."""
     result = base.copy()
     for key, value in updates.items():
@@ -157,72 +158,92 @@ async def get_project_context_summary(project_id: str, db: AsyncSession) -> str:
     Returns:
         Formatted string with project context
     """
-    # Get project
+    # Get project info
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
-
     if not project:
         return f"Project {project_id} not found"
 
     # Get state
     state = await read_project_state(project_id, db)
-
     if not state:
-        return f"Project: {project.name}\nNo architecture state available yet."
+        return f"PROJECT: {project.name}\nNo architecture state available yet."
 
-    # Format summary
     summary_parts = [f"PROJECT: {project.name}", f"Created: {project.created_at}", ""]
 
-    # Context
-    if "context" in state:
-        ctx = state["context"]
-        summary_parts.append("CONTEXT:")
-        if ctx.get("summary"):
-            summary_parts.append(f"  Summary: {ctx['summary']}")
-        if ctx.get("objectives"):
-            summary_parts.append(f"  Objectives: {', '.join(ctx['objectives'])}")
-        if ctx.get("targetUsers"):
-            summary_parts.append(f"  Target Users: {ctx['targetUsers']}")
-        if ctx.get("scenarioType"):
-            summary_parts.append(f"  Scenario: {ctx['scenarioType']}")
-        summary_parts.append("")
+    _add_project_context_section(summary_parts, state)
+    _add_nfr_section(summary_parts, state)
+    _add_application_structure_section(summary_parts, state)
+    _add_open_questions_section(summary_parts, state)
 
-    # NFRs
-    if "nfrs" in state:
-        nfrs = state["nfrs"]
-        summary_parts.append("NON-FUNCTIONAL REQUIREMENTS:")
-        if nfrs.get("availability"):
-            summary_parts.append(f"  Availability: {nfrs['availability']}")
-        if nfrs.get("security"):
-            summary_parts.append(f"  Security: {nfrs['security']}")
-        if nfrs.get("performance"):
-            summary_parts.append(f"  Performance: {nfrs['performance']}")
-        if nfrs.get("costConstraints"):
-            summary_parts.append(f"  Cost: {nfrs['costConstraints']}")
-        summary_parts.append("")
+    return "\n".join(summary_parts).strip()
 
-    # Application Structure
-    if "applicationStructure" in state:
-        app_struct = state["applicationStructure"]
-        summary_parts.append("APPLICATION STRUCTURE:")
-        if app_struct.get("components"):
-            summary_parts.append(
-                f"  Components: {len(app_struct['components'])} defined"
+
+def _add_project_context_section(parts: list[str], state: dict[str, Any]) -> None:
+    """Add general context fields to summary."""
+    ctx = state.get("context")
+    if not ctx:
+        return
+
+    parts.append("CONTEXT:")
+    if ctx.get("summary"):
+        parts.append(f"  Summary: {ctx['summary']}")
+    if ctx.get("objectives"):
+        parts.append(f"  Objectives: {', '.join(ctx['objectives'])}")
+    if ctx.get("targetUsers"):
+        parts.append(f"  Target Users: {ctx['targetUsers']}")
+    if ctx.get("scenarioType"):
+        parts.append(f"  Scenario: {ctx['scenarioType']}")
+    parts.append("")
+
+
+def _add_nfr_section(parts: list[str], state: dict[str, Any]) -> None:
+    """Add Non-Functional Requirements to summary."""
+    nfrs = state.get("nfrs")
+    if not nfrs:
+        return
+
+    parts.append("NON-FUNCTIONAL REQUIREMENTS:")
+    if nfrs.get("availability"):
+        parts.append(f"  Availability: {nfrs['availability']}")
+    if nfrs.get("security"):
+        parts.append(f"  Security: {nfrs['security']}")
+    if nfrs.get("performance"):
+        parts.append(f"  Performance: {nfrs['performance']}")
+    if nfrs.get("costConstraints"):
+        parts.append(f"  Cost: {nfrs['costConstraints']}")
+    parts.append("")
+
+
+def _add_application_structure_section(parts: list[str], state: dict[str, Any]) -> None:
+    """Add components and integrations to summary."""
+    app_struct = state.get("applicationStructure")
+    if not app_struct:
+        return
+
+    parts.append("APPLICATION STRUCTURE:")
+    components = app_struct.get("components", [])
+    if components:
+        parts.append(f"  Components: {len(components)} defined")
+        for comp in components[:3]:  # Show first 3
+            parts.append(
+                f"    - {comp.get('name', 'Unnamed')}: {comp.get('description', '')[:50]}"
             )
-            for comp in app_struct["components"][:3]:  # Show first 3
-                summary_parts.append(
-                    f"    - {comp.get('name', 'Unnamed')}: {comp.get('description', '')[:50]}"
-                )
-        if app_struct.get("integrations"):
-            summary_parts.append(
-                f"  Integrations: {', '.join(app_struct['integrations'][:5])}"
-            )
-        summary_parts.append("")
 
-    # Open Questions
-    if "openQuestions" in state and state["openQuestions"]:
-        summary_parts.append("OPEN QUESTIONS:")
-        for q in state["openQuestions"][:5]:
-            summary_parts.append(f"  - {q}")
+    integrations = app_struct.get("integrations", [])
+    if integrations:
+        parts.append(f"  Integrations: {', '.join(integrations[:5])}")
+    parts.append("")
 
-    return "\n".join(summary_parts)
+
+def _add_open_questions_section(parts: list[str], state: dict[str, Any]) -> None:
+    """Add high-priority open questions to summary."""
+    questions = state.get("openQuestions", [])
+    if not questions:
+        return
+
+    parts.append("OPEN QUESTIONS:")
+    for q in questions[:5]:
+        parts.append(f"  - {q}")
+    parts.append("")
+

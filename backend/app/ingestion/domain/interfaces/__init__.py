@@ -1,12 +1,12 @@
 """Domain interfaces and protocols for ingestion components."""
 
-from .repository import RepositoryProtocol
 from .lifecycle import LifecycleManagerProtocol
-from .worker import ProducerWorkerProtocol, ConsumerWorkerProtocol
+from .repository import RepositoryProtocol
+from .worker import ConsumerWorkerProtocol, ProducerWorkerProtocol
 
 __all__ = [
-    "RepositoryProtocol",
-    "LifecycleManagerProtocol",
-    "ProducerWorkerProtocol",
-    "ConsumerWorkerProtocol",
+    'ConsumerWorkerProtocol',
+    'LifecycleManagerProtocol',
+    'ProducerWorkerProtocol',
+    'RepositoryProtocol',
 ]

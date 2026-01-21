@@ -5,10 +5,15 @@ Loads and manages multiple knowledge base configurations.
 
 import json
 import logging
+import os
+import shutil
+import stat
+import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, cast
 
-from app.core.config import get_kb_storage_root
+from app.core.app_settings import get_kb_storage_root
+
 from .models import KBConfig
 
 logger = logging.getLogger(__name__)
@@ -17,7 +22,7 @@ logger = logging.getLogger(__name__)
 class KBManager:
     """Manages multiple knowledge bases."""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None) -> None:
         """
         Initialize KB manager.
 
@@ -36,17 +41,17 @@ class KBManager:
                 resolved_config_path = self.backend_root / resolved_config_path
 
         self.config_path = resolved_config_path
-        self.knowledge_bases: Dict[str, KBConfig] = {}
+        self.knowledge_bases: dict[str, KBConfig] = {}
         self._load_config()
 
-    def _load_config(self):
+    def _load_config(self) -> None:
         """Load knowledge base configurations from config.json."""
         try:
             if not self.config_path.exists():
                 logger.warning(f"Config file not found: {self.config_path}")
                 return
 
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 config = json.load(f)
 
             for kb_dict in config.get("knowledge_bases", []):
@@ -54,18 +59,18 @@ class KBManager:
                 self.knowledge_bases[kb.id] = kb
                 logger.info(f"Loaded KB: {kb.id} ({kb.name}) - Status: {kb.status}")
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Failed to load KB config: {e}")
 
-    def get_kb(self, kb_id: str) -> Optional[KBConfig]:
+    def get_kb(self, kb_id: str) -> KBConfig | None:
         """Get KB configuration by ID."""
         return self.knowledge_bases.get(kb_id)
 
-    def get_active_kbs(self) -> List[KBConfig]:
+    def get_active_kbs(self) -> list[KBConfig]:
         """Get all active knowledge bases."""
         return [kb for kb in self.knowledge_bases.values() if kb.is_active]
 
-    def get_kbs_for_profile(self, profile: str) -> List[KBConfig]:
+    def get_kbs_for_profile(self, profile: str) -> list[KBConfig]:
         """
         Get knowledge bases that support given profile.
 
@@ -83,7 +88,7 @@ class KBManager:
         # Sort by priority (lower number = higher priority)
         return sorted(kbs, key=lambda kb: kb.priority)
 
-    def list_kbs(self) -> List[Dict]:
+    def list_kbs(self) -> list[dict[str, Any]]:
         """List all knowledge bases with basic info."""
         return [
             {
@@ -100,19 +105,19 @@ class KBManager:
         """Check if a KB with given ID exists."""
         return kb_id in self.knowledge_bases
 
-    def get_kb_config(self, kb_id: str) -> Dict:
+    def get_kb_config(self, kb_id: str) -> dict[str, Any]:
         """Get raw KB configuration dictionary."""
         kb = self.get_kb(kb_id)
         if not kb:
             raise ValueError(f"KB '{kb_id}' not found")
 
         # Return full config dict
-        with open(self.config_path, "r", encoding="utf-8") as f:
+        with open(self.config_path, encoding="utf-8") as f:
             config = json.load(f)
 
         for kb_dict in config.get("knowledge_bases", []):
             if kb_dict["id"] == kb_id:
-                return kb_dict
+                return cast(dict[str, Any], kb_dict)
 
         raise ValueError(f"KB '{kb_id}' not found in config")
 
@@ -121,7 +126,7 @@ class KBManager:
         kb_dir = self.kb_root / kb_id
         return str(kb_dir / "index")
 
-    def create_kb(self, kb_id: str, kb_config: Dict):
+    def create_kb(self, kb_id: str, kb_config: dict[str, Any]) -> None:
         """
         Create a new knowledge base.
 
@@ -147,7 +152,7 @@ class KBManager:
 
         # Add to config.json
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 config = json.load(f)
         except FileNotFoundError:
             config = {"knowledge_bases": []}
@@ -162,7 +167,7 @@ class KBManager:
 
         logger.info(f"Created KB: {kb_id}")
 
-    def update_kb_config(self, kb_id: str, kb_config: Dict):
+    def update_kb_config(self, kb_id: str, kb_config: dict[str, Any]) -> None:
         """
         Update KB configuration.
 
@@ -174,7 +179,7 @@ class KBManager:
             raise ValueError(f"KB '{kb_id}' not found")
 
         # Load current config
-        with open(self.config_path, "r", encoding="utf-8") as f:
+        with open(self.config_path, encoding="utf-8") as f:
             config = json.load(f)
 
         # Update KB in list
@@ -192,7 +197,7 @@ class KBManager:
 
         logger.info(f"Updated KB: {kb_id}")
 
-    def delete_kb(self, kb_id: str):
+    def delete_kb(self, kb_id: str) -> None:
         """
         Delete a knowledge base and all its data.
 
@@ -204,7 +209,7 @@ class KBManager:
 
         # Remove from config.json
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 config = json.load(f)
         except FileNotFoundError:
             config = {"knowledge_bases": []}
@@ -220,19 +225,13 @@ class KBManager:
         kb_dir = self.kb_root / kb_id
 
         if kb_dir.exists():
-            import shutil
-            import time
-
             # Try to delete with retries (handles Windows file locking issues)
             max_retries = 3
             for attempt in range(max_retries):
                 try:
                     # On Windows, use onerror handler to handle permission issues
-                    def handle_remove_readonly(func, path, exc):
+                    def handle_remove_readonly(func: Any, path: str, exc: Any) -> None:
                         """Handle readonly files on Windows"""
-                        import stat
-                        import os
-
                         os.chmod(path, stat.S_IWRITE)
                         func(path)
 
@@ -250,10 +249,16 @@ class KBManager:
                             f"Failed to delete KB directory after {max_retries} attempts: {e}"
                         )
                         raise ValueError(
-                            f"Failed to delete KB data: {str(e)}. Files may be in use."
-                        )
+                            f"Failed to delete KB data: {e!s}. Files may be in use."
+                        ) from e
 
         # Reload config
         self._load_config()
 
         logger.info(f"Deleted KB: {kb_id}")
+
+        # Reload config
+        self._load_config()
+
+        logger.info(f"Deleted KB: {kb_id}")
+

@@ -13,7 +13,7 @@ def _ensure_backend_on_path() -> None:
 
 _ensure_backend_on_path()
 
-from app.core.config import get_settings
+from app.core.app_settings import get_settings
 from app.agents_system.runner import get_agent_runner
 from app.lifecycle import startup as app_startup, shutdown as app_shutdown
 from app.projects_database import AsyncSessionLocal
@@ -71,3 +71,4 @@ if __name__ == "__main__":
     args = p.parse_args()
 
     asyncio.run(run_dialogue(args.project_id, args.messages))
+

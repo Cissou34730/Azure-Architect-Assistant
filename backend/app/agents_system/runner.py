@@ -5,11 +5,11 @@ Delegates composition to AgentOrchestrator to keep runner thin.
 """
 
 import logging
-from typing import Optional
 
-from .orchestrator.orchestrator import AgentOrchestrator
-from ..services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from config.settings import OpenAISettings
+
+from ..services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from .orchestrator.orchestrator import AgentOrchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -17,18 +17,29 @@ logger = logging.getLogger(__name__)
 class AgentRunner:
     """
     Runner for the Azure Architect Assistant agent system.
-
-    Responsible for:
-    - Configuration loading
-    - Dependency injection (MCP client, OpenAI)
-    - Agent initialization via orchestrator
-    - Graceful lifecycle management
     """
+
+    _instance: "AgentRunner | None" = None
+
+    @classmethod
+    def get_instance(cls) -> "AgentRunner":
+        """Get the global agent runner instance."""
+        if cls._instance is None:
+            raise RuntimeError(
+                "Agent runner not initialized. "
+                "Ensure it's initialized in FastAPI startup event."
+            )
+        return cls._instance
+
+    @classmethod
+    def set_instance(cls, instance: "AgentRunner | None") -> None:
+        """Set or clear the global agent runner instance."""
+        cls._instance = instance
 
     def __init__(
         self,
-        openai_settings: Optional[OpenAISettings] = None,
-        mcp_client: Optional[MicrosoftLearnMCPClient] = None,
+        openai_settings: OpenAISettings | None = None,
+        mcp_client: MicrosoftLearnMCPClient | None = None,
     ):
         """
         Initialize the agent runner.
@@ -39,7 +50,7 @@ class AgentRunner:
         """
         self.openai_settings = openai_settings or OpenAISettings()
         self.mcp_client = mcp_client
-        self.orchestrator: Optional[AgentOrchestrator] = None
+        self.orchestrator: AgentOrchestrator | None = None
 
         logger.info("AgentRunner initialized")
 
@@ -71,7 +82,7 @@ class AgentRunner:
         logger.info("Agent system initialization complete")
 
     async def execute_query(
-        self, user_query: str, project_context: Optional[str] = None
+        self, user_query: str, project_context: str | None = None
     ) -> dict:
         """
         Execute a user query through the agent.
@@ -135,10 +146,6 @@ class AgentRunner:
         return health
 
 
-# Global runner instance (initialized by FastAPI lifecycle)
-_agent_runner: Optional[AgentRunner] = None
-
-
 async def get_agent_runner() -> AgentRunner:
     """
     Get the global agent runner instance.
@@ -149,15 +156,7 @@ async def get_agent_runner() -> AgentRunner:
     Raises:
         RuntimeError: If runner not initialized
     """
-    global _agent_runner
-
-    if _agent_runner is None:
-        raise RuntimeError(
-            "Agent runner not initialized. "
-            "Ensure it's initialized in FastAPI startup event."
-        )
-
-    return _agent_runner
+    return AgentRunner.get_instance()
 
 
 async def initialize_agent_runner(mcp_client: MicrosoftLearnMCPClient) -> None:
@@ -167,12 +166,11 @@ async def initialize_agent_runner(mcp_client: MicrosoftLearnMCPClient) -> None:
     Args:
         mcp_client: Initialized MCP client instance
     """
-    global _agent_runner
-
     logger.info("Initializing global agent runner...")
 
-    _agent_runner = AgentRunner(mcp_client=mcp_client)
-    await _agent_runner.initialize()
+    runner = AgentRunner(mcp_client=mcp_client)
+    await runner.initialize()
+    AgentRunner.set_instance(runner)
 
     logger.info("Global agent runner initialized")
 
@@ -181,10 +179,11 @@ async def shutdown_agent_runner() -> None:
     """
     Shutdown the global agent runner (called from FastAPI shutdown).
     """
-    global _agent_runner
+    try:
+        runner = AgentRunner.get_instance()
+        await runner.shutdown()
+        AgentRunner.set_instance(None)
+        logger.info("Global agent runner shutdown")
+    except RuntimeError:
+        pass
 
-    if _agent_runner:
-        await _agent_runner.shutdown()
-        _agent_runner = None
-
-    logger.info("Global agent runner shutdown")

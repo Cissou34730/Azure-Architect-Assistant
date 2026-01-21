@@ -6,7 +6,7 @@ to consult required references and MCP servers before answering.
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Any
 
 from ..state import GraphState
 from .stage_routing import ProjectStage
@@ -14,7 +14,7 @@ from .stage_routing import ProjectStage
 logger = logging.getLogger(__name__)
 
 
-def _mindmap_gaps(mindmap_coverage: Dict[str, Any]) -> List[str]:
+def _mindmap_gaps(mindmap_coverage: dict[str, Any]) -> list[str]:
     topics = []
     if not mindmap_coverage:
         return topics
@@ -28,18 +28,18 @@ def _mindmap_gaps(mindmap_coverage: Dict[str, Any]) -> List[str]:
     return topics[:5]
 
 
-async def build_research_plan_node(state: GraphState) -> Dict[str, Any]:
+async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
     """
     Create a research plan and stage directives for the agent.
 
     Ensures every turn asks for at least one MCP lookup and at least one
     authoritative Azure reference citation.
     """
-    user_message = state.get("user_message", "")
+    state.get("user_message", "")
     stage_value = state.get("next_stage") or ProjectStage.CLARIFY.value
     mindmap_cov = state.get("mindmap_coverage") or {}
 
-    plan: List[str] = []
+    plan: list[str] = []
 
     if stage_value == ProjectStage.PROPOSE_CANDIDATE.value:
         plan = [
@@ -89,3 +89,4 @@ async def build_research_plan_node(state: GraphState) -> Dict[str, Any]:
         "research_plan": plan,
         "stage_directives": stage_directives,
     }
+

@@ -5,9 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.agents_system.services.project_context import update_project_state
 from app.models import Project, ProjectState
 from app.models.project import Base
-from app.agents_system.services.project_context import update_project_state
 
 
 @pytest.mark.asyncio
@@ -54,3 +54,4 @@ async def test_update_project_state_no_overwrite_surfaces_conflicts() -> None:
         assert persisted is not None
         persisted_state = json.loads(persisted.state)
         assert persisted_state.get("nfrs", {}).get("availability") == "99.9%"
+

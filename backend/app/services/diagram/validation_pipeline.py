@@ -4,15 +4,15 @@ Coordinates all diagram validation layers before storage.
 """
 
 import logging
-from typing import Optional, List
 from dataclasses import dataclass
 
-from .syntax_validator import SyntaxValidator, ValidationResult
-from .semantic_validator import SemanticValidator, SemanticValidationResult
-from .visual_quality_checker import VisualQualityChecker, QualityReport
+from app.models.diagram import DiagramType
+
 from .c4_compliance_validator import C4ComplianceValidator, C4ValidationResult
 from .llm_client import DiagramLLMClient
-from app.models.diagram import DiagramType
+from .semantic_validator import SemanticValidationResult, SemanticValidator
+from .syntax_validator import SyntaxValidator, ValidationResult
+from .visual_quality_checker import QualityReport, VisualQualityChecker
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +22,12 @@ class PipelineValidationResult:
     """Combined result from all validation layers."""
 
     is_valid: bool
-    syntax_result: Optional[ValidationResult] = None
-    semantic_result: Optional[SemanticValidationResult] = None
-    quality_report: Optional[QualityReport] = None
-    c4_result: Optional[C4ValidationResult] = None
-    error_message: Optional[str] = None
-    retry_feedback: Optional[str] = None  # Feedback for LLM retry
+    syntax_result: ValidationResult | None = None
+    semantic_result: SemanticValidationResult | None = None
+    quality_report: QualityReport | None = None
+    c4_result: C4ValidationResult | None = None
+    error_message: str | None = None
+    retry_feedback: str | None = None  # Feedback for LLM retry
 
     def __bool__(self) -> bool:
         return self.is_valid
@@ -37,7 +37,7 @@ class ValidationPipeline:
     """Orchestrates 5-layer validation pipeline for diagrams."""
 
     def __init__(
-        self, llm_client: DiagramLLMClient, plantuml_jar_path: Optional[str] = None
+        self, llm_client: DiagramLLMClient, plantuml_jar_path: str | None = None
     ) -> None:
         """Initialize validation pipeline with validators.
 
@@ -49,7 +49,7 @@ class ValidationPipeline:
         self.semantic_validator: SemanticValidator = SemanticValidator(llm_client)
         self.c4_validator: C4ComplianceValidator = C4ComplianceValidator()
         self.quality_checker: VisualQualityChecker = VisualQualityChecker()
-        self.plantuml_jar_path: Optional[str] = plantuml_jar_path
+        self.plantuml_jar_path: str | None = plantuml_jar_path
 
     async def validate_diagram(
         self, diagram_source: str, diagram_type: DiagramType, input_description: str
@@ -212,7 +212,7 @@ class ValidationPipeline:
         Returns:
             Feedback string for LLM retry prompt
         """
-        feedback_parts: List[str] = []
+        feedback_parts: list[str] = []
 
         if semantic_result.missing_elements:
             feedback_parts.append(
@@ -245,3 +245,4 @@ class ValidationPipeline:
             f"- {violation}" for violation in c4_result.violations
         )
         return feedback
+

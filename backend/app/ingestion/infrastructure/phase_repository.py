@@ -5,20 +5,19 @@ Phase status repository.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Dict, Optional
 
 from sqlalchemy import select
 
+from app.ingestion.domain.enums import PhaseStatus
+from app.ingestion.domain.models import PhaseState
 from app.ingestion.ingestion_database import get_session
 from app.ingestion.models import IngestionPhaseStatus, PhaseStatusDB
-from app.ingestion.domain.models import PhaseState
-from app.ingestion.domain.enums import PhaseStatus
 
 
 class PhaseRepository:
     """Persisted phase tracking."""
 
-    def get_phase_status(self, job_id: str, phase_name: str) -> Optional[PhaseState]:
+    def get_phase_status(self, job_id: str, phase_name: str) -> PhaseState | None:
         with get_session() as session:
             result = session.execute(
                 select(IngestionPhaseStatus).where(
@@ -31,12 +30,10 @@ class PhaseRepository:
                 return None
             return self._db_phase_to_domain(db_phase)
 
-    def get_all_phase_statuses(self, job_id: str) -> Dict[str, PhaseState]:
+    def get_all_phase_statuses(self, job_id: str) -> dict[str, PhaseState]:
         with get_session() as session:
             result = session.execute(
-                select(IngestionPhaseStatus).where(
-                    IngestionPhaseStatus.job_id == job_id
-                )
+                select(IngestionPhaseStatus).where(IngestionPhaseStatus.job_id == job_id)
             )
             phases = result.scalars().all()
             return {p.phase_name: self._db_phase_to_domain(p) for p in phases}
@@ -79,9 +76,9 @@ class PhaseRepository:
         job_id: str,
         phase_name: str,
         *,
-        progress: Optional[int] = None,
-        items_processed: Optional[int] = None,
-        items_total: Optional[int] = None,
+        progress: int | None = None,
+        items_processed: int | None = None,
+        items_total: int | None = None,
     ) -> None:
         """
         Update phase progress and mark status as running.

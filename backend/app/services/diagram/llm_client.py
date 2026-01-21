@@ -1,17 +1,18 @@
 """Diagram-specific OpenAI LLM client with retry logic and rate limiting."""
 
-from typing import Dict, Any
+import json
 import logging
+from typing import Any
 
-from openai import AsyncOpenAI, APIError, RateLimitError, APITimeoutError
+from openai import APIError, APITimeoutError, AsyncOpenAI, RateLimitError
 from tenacity import (
     retry,
+    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type,
 )
 
-from app.core.config import get_app_settings, get_openai_settings
+from app.core.app_settings import get_app_settings, get_openai_settings
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ class DiagramLLMClient:
         self,
         prompt: str,
         temperature: float = 0.2,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Use LLM to validate diagram semantics.
 
@@ -137,8 +138,6 @@ class DiagramLLMClient:
             if not content:
                 raise ValueError("LLM returned empty validation response")
 
-            import json
-
             return json.loads(content)
 
         except APIError as e:
@@ -146,13 +145,13 @@ class DiagramLLMClient:
             raise
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in validation response: {e}")
-            raise ValueError(f"LLM returned invalid JSON: {e}")
+            raise ValueError(f"LLM returned invalid JSON: {e}") from e
 
     async def detect_ambiguities(
         self,
         description: str,
         temperature: float = 0.4,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Detect ambiguities in architecture description using LLM.
 
@@ -209,11 +208,9 @@ Focus on:
             if not content:
                 return {"ambiguities": []}
 
-            import json
-
             return json.loads(content)
 
-        except Exception as e:
+        except (APIError, json.JSONDecodeError) as e:
             logger.error(f"Ambiguity detection error: {e}")
             return {"ambiguities": []}
 
@@ -248,3 +245,4 @@ Focus on:
                 content = content[:-3]
 
         return content.strip()
+

@@ -3,10 +3,13 @@ SQLAlchemy models for projects and related entities.
 Migrated from TypeScript backend.
 """
 
-from sqlalchemy import Column, String, Text, ForeignKey
-from sqlalchemy.orm import relationship, declarative_base
-from datetime import datetime, timezone
+import json
 import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from sqlalchemy import Column, ForeignKey, String, Text
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -39,13 +42,13 @@ class Project(Base):
         "ConversationMessage", back_populates="project", cascade="all, delete-orphan"
     )
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, str | None]:
         """Convert to dictionary for API responses."""
         return {
-            "id": self.id,
-            "name": self.name,
+            "id": str(self.id),
+            "name": str(self.name),
             "textRequirements": self.text_requirements,
-            "createdAt": self.created_at,
+            "createdAt": str(self.created_at),
         }
 
 
@@ -70,15 +73,15 @@ class ProjectDocument(Base):
     # Relationships
     project = relationship("Project", back_populates="documents")
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, str | None]:
         """Convert to dictionary for API responses."""
         return {
-            "id": self.id,
-            "projectId": self.project_id,
-            "fileName": self.file_name,
-            "mimeType": self.mime_type,
-            "rawText": self.raw_text,
-            "uploadedAt": self.uploaded_at,
+            "id": str(self.id),
+            "projectId": str(self.project_id),
+            "fileName": str(self.file_name),
+            "mimeType": str(self.mime_type),
+            "rawText": str(self.raw_text),
+            "uploadedAt": str(self.uploaded_at),
         }
 
 
@@ -100,13 +103,11 @@ class ProjectState(Base):
     # Relationships
     project = relationship("Project", back_populates="states")
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
-        import json
-
-        state_data = json.loads(self.state)
-        state_data["projectId"] = self.project_id
-        state_data["lastUpdated"] = self.updated_at
+        state_data: dict[str, Any] = json.loads(str(self.state))
+        state_data["projectId"] = str(self.project_id)
+        state_data["lastUpdated"] = str(self.updated_at)
         return state_data
 
 
@@ -131,17 +132,16 @@ class ConversationMessage(Base):
     # Relationships
     project = relationship("Project", back_populates="messages")
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
-        import json
-
-        result = {
-            "id": self.id,
-            "projectId": self.project_id,
-            "role": self.role,
-            "content": self.content,
-            "timestamp": self.timestamp,
+        result: dict[str, Any] = {
+            "id": str(self.id),
+            "projectId": str(self.project_id),
+            "role": str(self.role),
+            "content": str(self.content),
+            "timestamp": str(self.timestamp),
         }
         if self.waf_sources:
-            result["wafSources"] = json.loads(self.waf_sources)
+            result["wafSources"] = json.loads(str(self.waf_sources))
         return result
+

@@ -6,15 +6,17 @@ Vector store indexing with idempotency checks and cleanup support.
 import logging
 import os
 import shutil
-from typing import Optional
 from pathlib import Path
+from typing import cast
 
 from llama_index.core import (
-    VectorStoreIndex,
-    StorageContext,
-    load_index_from_storage,
     Document,
+    StorageContext,
+    VectorStoreIndex,
+    load_index_from_storage,
 )
+
+from app.ingestion.domain.embedding.embedder import EmbeddingResult
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,7 @@ class Indexer:
     Uses LlamaIndex VectorStoreIndex with disk persistence.
     """
 
-    def __init__(self, kb_id: str, storage_base_dir: Optional[str] = None):
+    def __init__(self, kb_id: str, storage_base_dir: str | None = None):
         """
         Initialize indexer.
 
@@ -37,44 +39,38 @@ class Indexer:
 
         # Use absolute path to avoid backend/backend/data issue
         if storage_base_dir is None:
-            backend_root = Path(
-                __file__
-            ).parent.parent.parent.parent  # Navigate to backend/
-            storage_base_dir = str(backend_root / "data" / "knowledge_bases")
+            backend_root = Path(__file__).parent.parent.parent.parent  # Navigate to backend/
+            storage_base_dir = str(backend_root / 'data' / 'knowledge_bases')
 
-        self.storage_dir = os.path.join(storage_base_dir, kb_id, "index")
-        self._index: Optional[VectorStoreIndex] = None
-        self._indexed_hashes = set()  # In-memory cache of indexed content_hashes
+        self.storage_dir = os.path.join(storage_base_dir, kb_id, 'index')
+        self._index: VectorStoreIndex | None = None
+        self._indexed_hashes: set[str] = set()  # In-memory cache of indexed content_hashes
 
-        logger.info(f"Indexer initialized: kb_id={kb_id}, storage={self.storage_dir}")
+        logger.info(f'Indexer initialized: kb_id={kb_id}, storage={self.storage_dir}')
 
-    def _load_index(self) -> Optional[VectorStoreIndex]:
+    def _load_index(self) -> VectorStoreIndex | None:
         """Load existing index from storage if available."""
         if self._index is not None:
             return self._index
 
-        if os.path.exists(os.path.join(self.storage_dir, "docstore.json")):
+        if os.path.exists(os.path.join(self.storage_dir, 'docstore.json')):
             try:
-                storage_context = StorageContext.from_defaults(
-                    persist_dir=self.storage_dir
-                )
-                self._index = load_index_from_storage(storage_context)
+                storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
+                self._index = cast(VectorStoreIndex, load_index_from_storage(storage_context))
 
                 # Build hash cache from existing documents
                 docstore = self._index.docstore
-                for doc_id in docstore.docs.keys():
+                for doc_id in docstore.docs:
                     doc = docstore.get_document(doc_id)
                     if doc and doc.metadata:
-                        content_hash = doc.metadata.get("content_hash")
+                        content_hash = doc.metadata.get('content_hash')
                         if content_hash:
                             self._indexed_hashes.add(content_hash)
 
-                logger.info(
-                    f"Loaded existing index with {len(self._indexed_hashes)} documents"
-                )
+                logger.info(f'Loaded existing index with {len(self._indexed_hashes)} documents')
                 return self._index
-            except Exception as e:
-                logger.warning(f"Could not load existing index: {e}")
+            except (OSError, ValueError, RuntimeError) as e:
+                logger.warning(f'Could not load existing index: {e}')
                 self._index = None
                 self._indexed_hashes.clear()
 
@@ -92,7 +88,7 @@ class Indexer:
             True if already indexed, False otherwise
         """
         if kb_id != self.kb_id:
-            raise ValueError(f"KB ID mismatch: expected {self.kb_id}, got {kb_id}")
+            raise ValueError(f'KB ID mismatch: expected {self.kb_id}, got {kb_id}')
 
         # Try cache first
         if content_hash in self._indexed_hashes:
@@ -106,7 +102,7 @@ class Indexer:
 
         return False
 
-    def index(self, kb_id: str, embedding_result) -> None:
+    def index(self, kb_id: str, embedding_result: EmbeddingResult) -> None:
         """
         Index an embedding to the vector store.
 
@@ -118,10 +114,10 @@ class Indexer:
             ValueError: If kb_id mismatch or embedding invalid
         """
         if kb_id != self.kb_id:
-            raise ValueError(f"KB ID mismatch: expected {self.kb_id}, got {kb_id}")
+            raise ValueError(f'KB ID mismatch: expected {self.kb_id}, got {kb_id}')
 
         if not embedding_result.vector:
-            raise ValueError("Embedding result has no vector")
+            raise ValueError('Embedding result has no vector')
 
         # Create LlamaIndex Document with embedding
         doc = Document(
@@ -139,7 +135,7 @@ class Indexer:
             os.makedirs(self.storage_dir, exist_ok=True)
             index = VectorStoreIndex([doc])
             self._index = index
-            logger.info(f"Created new index for KB {kb_id}")
+            logger.info(f'Created new index for KB {kb_id}')
         else:
             # Insert into existing index
             index.insert(doc)
@@ -150,7 +146,7 @@ class Indexer:
         # Persist immediately (atomic write)
         index.storage_context.persist(persist_dir=self.storage_dir)
 
-        logger.debug(f"Indexed chunk {embedding_result.content_hash[:8]}")
+        logger.debug(f'Indexed chunk {embedding_result.content_hash[:8]}')
 
     def delete_by_job(self, job_id: str, kb_id: str) -> None:
         """
@@ -166,23 +162,17 @@ class Indexer:
             which is deferred for simplicity.
         """
         if kb_id != self.kb_id:
-            raise ValueError(f"KB ID mismatch: expected {self.kb_id}, got {kb_id}")
+            raise ValueError(f'KB ID mismatch: expected {self.kb_id}, got {kb_id}')
 
         if os.path.exists(self.storage_dir):
             try:
                 shutil.rmtree(self.storage_dir)
-                logger.info(
-                    f"Deleted index directory for KB {kb_id}: {self.storage_dir}"
-                )
+                logger.info(f'Deleted index directory for KB {kb_id}: {self.storage_dir}')
             except Exception as e:
-                logger.error(
-                    f"Failed to delete index directory {self.storage_dir}: {e}"
-                )
+                logger.error(f'Failed to delete index directory {self.storage_dir}: {e}')
                 raise
         else:
-            logger.warning(
-                f"Index directory does not exist, nothing to delete: {self.storage_dir}"
-            )
+            logger.warning(f'Index directory does not exist, nothing to delete: {self.storage_dir}')
 
         # Clear in-memory state
         self._index = None

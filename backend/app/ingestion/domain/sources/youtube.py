@@ -3,18 +3,19 @@ YouTube Source Handler
 Handles YouTube transcript ingestion with LLM-powered distillation.
 """
 
-import re
 import logging
-from typing import List, Dict, Any, Optional
+import re
 from datetime import datetime
+from typing import Any, cast
 
 from llama_index.core import Document
 from llama_index.readers.youtube_transcript import YoutubeTranscriptReader
 from pydantic import BaseModel, Field
 
-from .handler_base import BaseSourceHandler
 from app.services.ai import get_ai_service
 from app.services.ai.adapters import AIServiceLLM
+
+from .handler_base import BaseSourceHandler
 
 logger = logging.getLogger(__name__)
 
@@ -27,27 +28,25 @@ logger = logging.getLogger(__name__)
 class KeyConcept(BaseModel):
     """Extracted key concept from transcript"""
 
-    name: str = Field(description="Name of the concept or technical term")
-    definition: str = Field(description="Definition, rule, or constraint")
+    name: str = Field(description='Name of the concept or technical term')
+    definition: str = Field(description='Definition, rule, or constraint')
 
 
 class TechnicalQA(BaseModel):
     """Question/Answer pair for better retrieval"""
 
-    question: str = Field(description="Question an architect would ask")
-    answer: str = Field(description="Precise technical answer")
+    question: str = Field(description='Question an architect would ask')
+    answer: str = Field(description='Precise technical answer')
 
 
 class DistilledTranscript(BaseModel):
     """Complete distilled transcript output"""
 
-    key_concepts: List[KeyConcept] = Field(
-        default_factory=list, description="Key concepts and facts"
+    key_concepts: list[KeyConcept] = Field(
+        default_factory=list, description='Key concepts and facts'
     )
-    technical_qa: List[TechnicalQA] = Field(
-        default_factory=list, description="Technical Q&A pairs"
-    )
-    summary: str = Field(description="One-paragraph summary of main topics")
+    technical_qa: list[TechnicalQA] = Field(default_factory=list, description='Technical Q&A pairs')
+    summary: str = Field(description='One-paragraph summary of main topics')
 
 
 # ============================================================================
@@ -55,41 +54,41 @@ class DistilledTranscript(BaseModel):
 # ============================================================================
 
 YOUTUBE_DISTILLATION_PROMPT = """### ROLE
-You are a Senior Technical Writer at Microsoft, specializing in Azure Architecture. 
+You are a Senior Technical Writer at Microsoft, specializing in Azure Architecture.
 Your mission is to convert raw spoken transcripts into dense, structured technical documentation for a Knowledge Base (RAG).
 
 ### INSTRUCTIONS
 Analyze the provided transcript and extract two types of structured information:
 
-1. **FACTS & RULES**: 
+1. **FACTS & RULES**:
    - Indisputable technical statements
    - Limits (quotas, latencies, constraints)
    - Firm recommendations (Do/Don't patterns)
    - Key concept definitions
    - Best practices and patterns
 
-2. **TECHNICAL Q&A**: 
+2. **TECHNICAL Q&A**:
    - Transform narrative explanations into clear Question/Answer pairs
    - The question must reflect what an architect would ask
    - The answer must be the specific technical solution from the text
    - Critical for retrieval: write questions an architect would naturally search for
 
 ### CLEANING RULES
-- **IGNORE**: 
+- **IGNORE**:
   - Oral fillers ("um", "so", "you see", "basically")
   - Jokes and personal anecdotes
   - Introductions and marketing fluff
   - Greetings ("Hello everyone", "Thanks for watching")
-  
-- **SYNTHESIZE**: 
+
+- **SYNTHESIZE**:
   - If the speaker takes 5 sentences to say something, extract the essence
   - Example: "So like, what happens is, you know, the SLA is actually 99.9%" → "SLA = 99.9%"
-  
-- **CONTEXT**: 
+
+- **CONTEXT**:
   - Define acronyms at first mention (e.g., "App Service Environment (ASE)")
   - Use full technical names for Azure services
-  
-- **LANGUAGE**: 
+
+- **LANGUAGE**:
   - Keep Azure technical terms in English
   - Write explanations in clear, professional language
 
@@ -112,15 +111,15 @@ class YouTubeSourceHandler(BaseSourceHandler):
     Converts raw transcripts into structured knowledge (concepts + Q&A).
     """
 
-    def __init__(self, kb_id: str, job=None, state=None):
+    def __init__(self, kb_id: str, job: Any | None = None, state: Any | None = None) -> None:
         super().__init__(kb_id, job=job, state=state)
         self.reader = YoutubeTranscriptReader()
         # Use AIService adapter for LlamaIndex compatibility
         ai_service = get_ai_service()
         self.llm = AIServiceLLM(ai_service)
-        logger.info(f"YouTubeSourceHandler initialized for KB: {kb_id}")
+        logger.info(f'YouTubeSourceHandler initialized for KB: {kb_id}')
 
-    def ingest(self, config: Dict[str, Any]) -> List[Document]:
+    def ingest(self, config: dict[str, Any]) -> list[Document]:
         """
         Ingest YouTube videos from config.
 
@@ -130,8 +129,8 @@ class YouTubeSourceHandler(BaseSourceHandler):
         Returns:
             List of Documents
         """
-        video_urls = config.get("video_urls", [])
-        metadata = config.get("metadata", {})
+        video_urls = config.get('video_urls', [])
+        metadata = config.get('metadata', {})
 
         all_docs = []
         for url in video_urls:
@@ -143,8 +142,8 @@ class YouTubeSourceHandler(BaseSourceHandler):
         return all_docs
 
     def ingest_video(
-        self, video_url: str, metadata: Optional[Dict[str, Any]] = None
-    ) -> List[Document]:
+        self, video_url: str, metadata: dict[str, Any] | None = None
+    ) -> list[Document]:
         """
         Ingest YouTube video transcript with distillation.
 
@@ -157,13 +156,13 @@ class YouTubeSourceHandler(BaseSourceHandler):
         """
         try:
             video_id = self._extract_video_id(video_url)
-            logger.info(f"Ingesting YouTube video: {video_id}")
+            logger.info(f'Ingesting YouTube video: {video_id}')
 
             # Load transcript
             transcript_docs = self.reader.load_data(ytlinks=[video_url])
 
             if not transcript_docs:
-                logger.warning(f"No transcript found for {video_url}")
+                logger.warning(f'No transcript found for {video_url}')
                 return []
 
             transcript_text = transcript_docs[0].get_content()
@@ -174,29 +173,29 @@ class YouTubeSourceHandler(BaseSourceHandler):
             # Create documents for better retrieval
             documents = []
             base_metadata = {
-                "source_type": "youtube",
-                "video_url": video_url,
-                "video_id": video_id,
-                "kb_id": self.kb_id,
-                "date_ingested": datetime.now().isoformat(),
+                'source_type': 'youtube',
+                'video_url': video_url,
+                'video_id': video_id,
+                'kb_id': self.kb_id,
+                'date_ingested': datetime.now().isoformat(),
                 **(metadata or {}),
             }
 
             # 1. Summary document
             summary_doc = Document(
-                text=f"# Video Summary\n\n{distilled.summary}",
-                metadata={**base_metadata, "content_type": "summary"},
+                text=f'# Video Summary\n\n{distilled.summary}',
+                metadata={**base_metadata, 'content_type': 'summary'},
             )
             documents.append(summary_doc)
 
             # 2. Concept documents (one per concept)
             for concept in distilled.key_concepts:
                 concept_doc = Document(
-                    text=f"**{concept.name}**: {concept.definition}",
+                    text=f'**{concept.name}**: {concept.definition}',
                     metadata={
                         **base_metadata,
-                        "content_type": "concept",
-                        "concept_name": concept.name,
+                        'content_type': 'concept',
+                        'concept_name': concept.name,
                     },
                 )
                 documents.append(concept_doc)
@@ -204,25 +203,23 @@ class YouTubeSourceHandler(BaseSourceHandler):
             # 3. Q&A documents (one per Q&A pair)
             for qa in distilled.technical_qa:
                 qa_doc = Document(
-                    text=f"**Q: {qa.question}**\n\nA: {qa.answer}",
+                    text=f'**Q: {qa.question}**\n\nA: {qa.answer}',
                     metadata={
                         **base_metadata,
-                        "content_type": "qa",
-                        "question": qa.question,
+                        'content_type': 'qa',
+                        'question': qa.question,
                     },
                 )
                 documents.append(qa_doc)
 
             logger.info(
-                f"Distilled {video_id}: {len(distilled.key_concepts)} concepts, "
-                f"{len(distilled.technical_qa)} Q&A pairs"
+                f'Distilled {video_id}: {len(distilled.key_concepts)} concepts, '
+                f'{len(distilled.technical_qa)} Q&A pairs'
             )
             return documents
 
         except Exception as e:
-            logger.error(
-                f"Failed to ingest YouTube video {video_url}: {e}", exc_info=True
-            )
+            logger.error(f'Failed to ingest YouTube video {video_url}: {e}', exc_info=True)
             return []
 
     def _distill_transcript(self, transcript: str) -> DistilledTranscript:
@@ -231,24 +228,22 @@ class YouTubeSourceHandler(BaseSourceHandler):
         prompt = YOUTUBE_DISTILLATION_PROMPT.format(transcript=transcript)
 
         try:
-            response = self.llm.structured_predict(
-                output_cls=DistilledTranscript, prompt=prompt
-            )
-            return response
+            response = self.llm.structured_predict(output_cls=DistilledTranscript, prompt=prompt)
+            return cast(DistilledTranscript, response)
 
-        except Exception as e:
-            logger.error(f"Distillation failed: {e}")
+        except (ValueError, RuntimeError, ConnectionError) as e:
+            logger.error(f'Distillation failed: {e}')
             # Return minimal structure
             return DistilledTranscript(
-                key_concepts=[], technical_qa=[], summary="Failed to distill transcript"
+                key_concepts=[], technical_qa=[], summary='Failed to distill transcript'
             )
 
     def _extract_video_id(self, url: str) -> str:
         """Extract video ID from YouTube URL"""
         patterns = [
-            r"(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([^&]+)",
-            r"(?:https?://)?(?:www\.)?youtu\.be/([^?]+)",
-            r"(?:https?://)?(?:www\.)?youtube\.com/embed/([^?]+)",
+            r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([^&]+)',
+            r'(?:https?://)?(?:www\.)?youtu\.be/([^?]+)',
+            r'(?:https?://)?(?:www\.)?youtube\.com/embed/([^?]+)',
         ]
 
         for pattern in patterns:
@@ -256,9 +251,9 @@ class YouTubeSourceHandler(BaseSourceHandler):
             if match:
                 return match.group(1)
 
-        raise ValueError(f"Could not extract video ID from {url}")
+        raise ValueError(f'Could not extract video ID from {url}')
 
-    def ingest_playlist(self, playlist_url: str) -> List[Document]:
+    def ingest_playlist(self, playlist_url: str) -> list[Document]:
         """
         Ingest entire YouTube playlist.
 
@@ -269,5 +264,5 @@ class YouTubeSourceHandler(BaseSourceHandler):
             List of Documents from all videos
         """
         # TODO: Implement playlist parsing
-        logger.warning("Playlist ingestion not yet implemented")
+        logger.warning('Playlist ingestion not yet implemented')
         return []

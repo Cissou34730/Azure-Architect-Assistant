@@ -4,20 +4,21 @@ Provides agents with access to MCP operations and external tool execution.
 """
 
 import json
+from typing import Any
 
-from typing import Optional, Type, Union, Any
-from pydantic import BaseModel, Field
 from langchain.tools import BaseTool
+from pydantic import BaseModel, ConfigDict, Field
 
+from ...services.mcp.exceptions import MCPError
 from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from ...services.mcp.operations.learn_operations import (
-    search_microsoft_docs,
     fetch_documentation,
     search_code_samples,
+    search_microsoft_docs,
 )
 
 
-def _append_mcp_log(*, tool: str, query: Optional[str] = None, url: Optional[str] = None, urls: Optional[list[str]] = None) -> str:
+def _append_mcp_log(*, tool: str, query: str | None = None, url: str | None = None, urls: list[str] | None = None) -> str:
     payload = {
         "tool": tool,
         "query": query,
@@ -33,7 +34,7 @@ class DocsSearchInput(BaseModel):
     Accepts either a string (query) or a dict with keys 'query' and optional 'max_results'.
     """
 
-    payload: Union[str, dict, Any] = Field(description="Query string or dict payload")
+    payload: str | dict[str, Any] | Any = Field(description="Query string or dict payload")
 
 
 class DocsFetchInput(BaseModel):
@@ -42,7 +43,7 @@ class DocsFetchInput(BaseModel):
     Accepts either a string (url) or a dict with key 'url'.
     """
 
-    payload: Union[str, dict, Any] = Field(description="URL string or dict payload")
+    payload: str | dict[str, Any] | Any = Field(description="URL string or dict payload")
 
 
 class CodeSamplesInput(BaseModel):
@@ -51,7 +52,7 @@ class CodeSamplesInput(BaseModel):
     Accepts either a string (query) or a dict with keys 'query', 'language', 'max_results'.
     """
 
-    payload: Union[str, dict, Any] = Field(description="Query string or dict payload")
+    payload: str | dict[str, Any] | Any = Field(description="Query string or dict payload")
 
 
 class MicrosoftDocsSearchTool(BaseTool):
@@ -62,16 +63,19 @@ class MicrosoftDocsSearchTool(BaseTool):
     Use this to find relevant documentation pages, guides, and best practices.
     Returns up to max_results content chunks with title, content excerpt, and URL.
     Example queries: 'Azure Private Link for SQL', 'WAF Security checklist', 'Container Apps networking'"""
-    args_schema: Type[BaseModel] = DocsSearchInput
+    args_schema: type[BaseModel] = DocsSearchInput
 
-    mcp_client: Optional[MicrosoftLearnMCPClient] = None
+    # Use ClassVar if they are not to be validated by pydantic;
+    # but here mcp_client is likely meant to be an instance attribute
+    mcp_client: MicrosoftLearnMCPClient | None = None
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def _run(self, query: str, max_results: int = 5) -> str:
         """Synchronous wrapper - not used for async agents."""
         raise NotImplementedError("Use async version (_arun)")
-    async def _arun(self, query: Union[str, dict, Any]) -> str:
+
+    async def _arun(self, query: str | dict[str, Any] | Any) -> str:
         """Execute the search asynchronously."""
         if not self.mcp_client:
             return "Error: MCP client not initialized"
@@ -81,7 +85,7 @@ class MicrosoftDocsSearchTool(BaseTool):
                 q = query
                 max_results_val = 5
             elif isinstance(query, dict):
-                q = query.get("query")
+                q = query.get("query", "")
                 max_results_val = query.get("max_results", 5)
             else:
                 # support pydantic/other payloads
@@ -104,14 +108,14 @@ class MicrosoftDocsSearchTool(BaseTool):
                 )
 
             return (
-                f"Found {result['total_results']} results for '{query}':\n\n"
+                f"Found {result['total_results']} results for '{q}':\n\n"
                 + "\n".join(formatted_results)
-                + _append_mcp_log(tool=self.name, query=query, urls=urls)
+                + _append_mcp_log(tool=self.name, query=q, urls=urls)
             )
-        except Exception as e:
-            return f"Error searching Microsoft docs: {str(e)}" + _append_mcp_log(
+        except (MCPError, RuntimeError, ValueError) as e:
+            return f"Error searching Microsoft docs: {e!s}" + _append_mcp_log(
                 tool=self.name,
-                query=query,
+                query=str(query),
                 urls=[],
             )
 
@@ -124,16 +128,17 @@ class MicrosoftDocsFetchTool(BaseTool):
     Use this when you need complete documentation content, tutorials, or detailed guides.
     Requires a valid Microsoft Learn URL (e.g., https://learn.microsoft.com/...).
     Returns the full page content in markdown format."""
-    args_schema: Type[BaseModel] = DocsFetchInput
+    args_schema: type[BaseModel] = DocsFetchInput
 
-    mcp_client: Optional[MicrosoftLearnMCPClient] = None
+    mcp_client: MicrosoftLearnMCPClient | None = None
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def _run(self, url: str) -> str:
         """Synchronous wrapper - not used for async agents."""
         raise NotImplementedError("Use async version (_arun)")
-    async def _arun(self, url: Union[str, dict, Any]) -> str:
+
+    async def _arun(self, url: str | dict[str, Any] | Any) -> str:
         """Execute the fetch asynchronously."""
         if not self.mcp_client:
             return "Error: MCP client not initialized"
@@ -141,7 +146,7 @@ class MicrosoftDocsFetchTool(BaseTool):
             if isinstance(url, str):
                 u = url
             elif isinstance(url, dict):
-                u = url.get("url")
+                u = url.get("url", "")
             else:
                 u = getattr(url, "url", str(url))
 
@@ -151,13 +156,13 @@ class MicrosoftDocsFetchTool(BaseTool):
                 f"**Documentation from:** {result['url']}\n"
                 f"**Length:** {result['length']} characters\n\n"
                 f"{result['content']}"
-                + _append_mcp_log(tool=self.name, url=url, urls=[url])
+                + _append_mcp_log(tool=self.name, url=u, urls=[u])
             )
-        except Exception as e:
-            return f"Error fetching documentation from {url}: {str(e)}" + _append_mcp_log(
+        except (MCPError, RuntimeError, ValueError) as e:
+            return f"Error fetching documentation from {url}: {e!s}" + _append_mcp_log(
                 tool=self.name,
-                url=url,
-                urls=[url],
+                url=str(url),
+                urls=[str(url)],
             )
 
 
@@ -170,30 +175,30 @@ class MicrosoftCodeSamplesTool(BaseTool):
     Can filter by programming language (python, csharp, javascript, etc.).
     Returns code snippets with descriptions and links to full examples.
     Example queries: 'Azure Blob Storage upload', 'Cosmos DB query', 'Key Vault secrets'"""
-    args_schema: Type[BaseModel] = CodeSamplesInput
+    args_schema: type[BaseModel] = CodeSamplesInput
 
-    mcp_client: Optional[MicrosoftLearnMCPClient] = None
+    mcp_client: MicrosoftLearnMCPClient | None = None
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def _run(
-        self, query: str, language: Optional[str] = None, max_results: int = 3
+        self, query: str, language: str | None = None, max_results: int = 3
     ) -> str:
         """Synchronous wrapper - not used for async agents."""
         raise NotImplementedError("Use async version (_arun)")
-    async def _arun(
-        self, query: Union[str, dict, Any]
-    ) -> str:
+
+    async def _arun(self, query: str | dict[str, Any] | Any) -> str:
         """Execute the search asynchronously."""
         if not self.mcp_client:
             return "Error: MCP client not initialized"
         try:
+            q = ""
+            language_val = None
+            max_results_val = 3
             if isinstance(query, str):
                 q = query
-                language_val = None
-                max_results_val = 3
             elif isinstance(query, dict):
-                q = query.get("query")
+                q = query.get("query", "")
                 language_val = query.get("language")
                 max_results_val = query.get("max_results", 3)
             else:
@@ -221,16 +226,16 @@ class MicrosoftCodeSamplesTool(BaseTool):
                     f"   ```\n"
                 )
 
-            lang_filter = f" (filtered by {language})" if language else ""
+            lang_filter = f" (filtered by {language_val})" if language_val else ""
             return (
-                f"Found {result['total_samples']} code samples for '{query}'{lang_filter}:\n\n"
+                f"Found {result['total_samples']} code samples for '{q}'{lang_filter}:\n\n"
                 + "\n".join(formatted_samples)
-                + _append_mcp_log(tool=self.name, query=query, urls=urls)
+                + _append_mcp_log(tool=self.name, query=q, urls=urls)
             )
-        except Exception as e:
-            return f"Error searching code samples: {str(e)}" + _append_mcp_log(
+        except (MCPError, RuntimeError, ValueError) as e:
+            return f"Error searching code samples: {e!s}" + _append_mcp_log(
                 tool=self.name,
-                query=query,
+                query=str(query),
                 urls=[],
             )
 
@@ -252,3 +257,4 @@ async def create_mcp_tools(mcp_client: MicrosoftLearnMCPClient) -> list[BaseTool
     ]
 
     return tools
+

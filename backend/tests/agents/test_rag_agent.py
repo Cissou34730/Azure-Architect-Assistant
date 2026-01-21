@@ -56,3 +56,4 @@ def test_rag_agent_specific_kbs(agent):
     assert "Specific KBs:" in res["answer"]
     assert res["kbs_queried"] == ["caf", "security"]
     assert res["kb_count"] == 2
+

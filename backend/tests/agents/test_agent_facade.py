@@ -1,6 +1,4 @@
-import asyncio
 import pytest
-
 from backend.app.agents_system.langchain.agent_facade import AgentFacade
 
 
@@ -35,3 +33,4 @@ async def test_ainvoke_normalization(monkeypatch):
     res = await facade.ainvoke({"input": "world"})
     assert res["output"] == "ai:world"
     assert res["intermediate_steps"] == []
+

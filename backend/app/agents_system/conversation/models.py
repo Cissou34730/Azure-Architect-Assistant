@@ -9,3 +9,4 @@ Defines structures for messages, turns, and conversation state including checkli
 # - ConversationTurn model (user input, agent response, tool calls)
 # - ConversationState model with checklist state integration
 # - Serialization/deserialization for persistence
+

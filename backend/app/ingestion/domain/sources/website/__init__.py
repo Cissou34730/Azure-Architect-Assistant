@@ -2,4 +2,4 @@
 
 from .handler import WebsiteSourceHandler
 
-__all__ = ["WebsiteSourceHandler"]
+__all__ = ['WebsiteSourceHandler']

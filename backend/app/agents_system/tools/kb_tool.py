@@ -2,10 +2,14 @@
 KB tools wrapping existing RAG services for use by the ReAct agent.
 """
 
-from typing import Optional, List, Union, Any
-from langchain.tools import BaseTool
-from pydantic import PrivateAttr
 import asyncio
+import contextlib
+import json
+from pathlib import Path
+from typing import Any
+
+from langchain.tools import BaseTool, Tool
+from pydantic import PrivateAttr
 
 from ..agents.rag_agent import RAGAgent, build_cited_reply
 
@@ -27,45 +31,80 @@ class KBSearchTool(BaseTool):
         super().__init__()
         self._agent = RAGAgent()
 
-    def _run(self, payload: Union[str, dict, Any]) -> str:
-        # Normalize payload to (query, profile, kb_ids, topK)
+    def _run(self, payload: str | dict | Any) -> str:
+        # Normalize payload to (query, profile, kb_ids, top_k)
         if isinstance(payload, str):
             query = payload
             profile = "chat"
             kb_ids = None
-            topK = 5
+            top_k = 5
         elif isinstance(payload, dict):
             query = payload.get("query")
             profile = payload.get("profile", "chat")
             kb_ids = payload.get("kb_ids")
-            topK = payload.get("topK", 5)
+            top_k = payload.get("top_k") or payload.get("topK") or 5
         else:
             # object-like
             query = getattr(payload, "query", str(payload))
             profile = getattr(payload, "profile", "chat")
             kb_ids = getattr(payload, "kb_ids", None)
-            topK = getattr(payload, "topK", 5)
+            top_k = getattr(payload, "top_k", getattr(payload, "topK", 5))
 
-        result = self._agent.execute(query, profile=profile, kb_ids=kb_ids, top_k=topK)
+        result = self._agent.execute(query, profile=profile, kb_ids=kb_ids, top_k=top_k)
         payload_out = build_cited_reply(result)
         return payload_out["assistantMessage"]
 
-    async def _arun(self, payload: Union[str, dict, Any]) -> str:
+    async def _arun(self, payload: str | dict | Any) -> str:
         # Wrap the sync call to keep tool signature consistent
         return await asyncio.to_thread(self._run, payload)
 
 
-def create_kb_tools() -> List[BaseTool]:
+def _discover_specific_kb_tools() -> list[BaseTool]:
+    """Helper to discover and build per-KB search tools."""
+    specific_tools: list[BaseTool] = []
+    with contextlib.suppress(Exception):
+        cfg_path = Path(__file__).parents[2] / "data" / "knowledge_bases" / "config.json"
+        if cfg_path.exists():
+            with open(cfg_path, encoding="utf-8") as fh:
+                cfg = json.load(fh)
+            for kb_entry in cfg.get("knowledge_bases", []):
+                if kb_entry.get("status") != "active":
+                    continue
+                kb_id = kb_entry.get("id")
+                kb_name = kb_entry.get("name") or kb_id
+
+                def _build_kb_tool(kid: str, kname: str) -> BaseTool:
+                    class PerKBTool(BaseTool):
+                        name: str = f"kb_{kid}_search"
+                        description: str = f"Search KB: {kname} (id={kid})"
+
+                        def _run(self, payload: Any) -> str:
+                            tool = KBSearchTool()
+                            if isinstance(payload, str):
+                                payload_obj = {"query": payload, "kb_ids": [kid]}
+                            elif isinstance(payload, dict):
+                                payload_obj = dict(payload)
+                                payload_obj.setdefault("kb_ids", [kid])
+                            else:
+                                payload_obj = {"query": str(payload), "kb_ids": [kid]}
+                            return tool._run(payload_obj)
+
+                        async def _arun(self, payload: Any) -> str:
+                            return await asyncio.to_thread(self._run, payload)
+                    return PerKBTool()
+
+                specific_tools.append(_build_kb_tool(str(kb_id), str(kb_name)))
+    return specific_tools
+
+
+def create_kb_tools() -> list[BaseTool]:
     """Factory returning KB-related tools for the agent."""
-    tools: List[BaseTool] = []
+    tools: list[BaseTool] = []
 
     # Add a legacy 'kb_search' wrapper that delegates to KBSearchTool.
-    # Use a lightweight wrapper (not inheriting BaseTool) to avoid pydantic/BaseTool instantiation
-    # failures during import in test environments.
     # Provide a lightweight legacy wrapper named 'kb_search' for tests and
-    # scripting that exposes `run`/`arun` and a `func` attribute so callers
-    # and LangChain validators behave sensibly.
-    try:
+    # scripting.
+    with contextlib.suppress(Exception):
         class KBSearchWrapper:
             name = "kb_search"
             description = "Search across configured KBs (legacy wrapper)"
@@ -75,112 +114,33 @@ def create_kb_tools() -> List[BaseTool]:
                 self.func = self.run
 
             def get(self, key, default=None):
-                # Provide mapping-like access used by some LangChain validators
                 return getattr(self, key, default)
 
             def run(self, payload):
-                tool = KBSearchTool()
-                return tool._run(payload)
+                return KBSearchTool()._run(payload)
 
             async def arun(self, payload):
-                tool = KBSearchTool()
-                return await tool._arun(payload)
+                return await KBSearchTool()._arun(payload)
 
-        tools.append(KBSearchWrapper())
-    except Exception:
-        pass
+        tools.append(KBSearchWrapper())  # type: ignore
 
-    # Also expose a real langchain Tool for agent initialization. Use a
-    # distinct name so tests that expect 'kb_search' to be a lightweight
-    # object still pass.
-    try:
-        from langchain.tools import Tool
-
+    # Also expose a real langchain Tool for agent initialization.
+    with contextlib.suppress(Exception):
         def _kb_search_for_agent(single_input):
-            # Normalize input (string, dict) then delegate
             if isinstance(single_input, str):
-                try:
-                    import json as _json
-
-                    payload = _json.loads(single_input)
-                except Exception:
+                payload = None
+                with contextlib.suppress(Exception):
+                    payload = json.loads(single_input)
+                if not payload:
                     payload = single_input
             else:
                 payload = single_input
-            tool = KBSearchTool()
-            return tool._run(payload)
+            return KBSearchTool()._run(payload)
 
         tools.append(Tool(name="kb_search_agent", func=_kb_search_for_agent, description="Agent-facing KB search (internal)"))
-    except Exception:
-        # If langchain Tool construction fails, ignore and rely on lightweight wrapper
-        pass
 
     # Try to discover configured KBs and create per-KB single-input tools
-    try:
-        import json
-        from pathlib import Path
-        from langchain.tools import Tool
-
-        cfg_path = Path(__file__).parents[2] / "data" / "knowledge_bases" / "config.json"
-        if cfg_path.exists():
-            with open(cfg_path, "r", encoding="utf-8") as fh:
-                cfg = json.load(fh)
-            for kb in cfg.get("knowledge_bases", []):
-                if kb.get("status") != "active":
-                    continue
-                kb_id = kb.get("id")
-                kb_name = kb.get("name") or kb_id
-
-                # Create a simple single-input wrapper function that calls KBSearchTool._arun with kb_ids prefilled
-                def make_kb_callable(kb_id_inner):
-                    async def _call(payload):
-                        tool = KBSearchTool()
-                        # Ensure the RAG agent inside is initialized
-                        if isinstance(payload, str):
-                            payload_obj = {"query": payload, "kb_ids": [kb_id_inner]}
-                        elif isinstance(payload, dict):
-                            payload_obj = dict(payload)
-                            payload_obj.setdefault("kb_ids", [kb_id_inner])
-                        else:
-                            payload_obj = {"query": str(payload), "kb_ids": [kb_id_inner]}
-                        return await tool._arun(payload_obj)
-
-                    def sync_wrapper(input=None, **kwargs):
-                        if input is not None:
-                            payload = input
-                        elif kwargs:
-                            payload = kwargs
-                        else:
-                            payload = None
-                        return asyncio.run(_call(payload))
-
-                    return sync_wrapper
-
-                # Create a small BaseTool subclass per KB to avoid Tool signature validation issues
-                try:
-                    class PerKBTool(BaseTool):
-                        name = f"kb_{kb_id}_search"
-                        description = f"Search KB: {kb_name} (id={kb_id})"
-
-                        def _run(self, payload):
-                            tool = KBSearchTool()
-                            if isinstance(payload, str):
-                                payload_obj = {"query": payload, "kb_ids": [kb_id]}
-                            elif isinstance(payload, dict):
-                                payload_obj = dict(payload)
-                                payload_obj.setdefault("kb_ids", [kb_id])
-                            else:
-                                payload_obj = {"query": str(payload), "kb_ids": [kb_id]}
-                            return tool._run(payload_obj)
-
-                        async def _arun(self, payload):
-                            return await asyncio.to_thread(self._run, payload)
-
-                    tools.append(PerKBTool())
-                except Exception:
-                    continue
-    except Exception:
-        # If discovery fails, return the basic list
-        pass
+    tools.extend(_discover_specific_kb_tools())
 
     return tools
+

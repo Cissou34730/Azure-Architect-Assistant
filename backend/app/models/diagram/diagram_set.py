@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, Text, DateTime
+from sqlalchemy import Column, DateTime, String, Text
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -43,3 +43,4 @@ class DiagramSet(Base):
 
     def __repr__(self) -> str:
         return f"<DiagramSet(id={self.id}, adr_id={self.adr_id})>"
+

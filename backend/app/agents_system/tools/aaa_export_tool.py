@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Any, Dict, Literal, Optional, Type, Union
+from typing import Any, Literal
 
 from langchain.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic.alias_generators import to_camel
 
 
 def _now_iso() -> str:
@@ -27,16 +28,18 @@ ExportFormat = Literal["json"]
 
 
 class AAAExportInput(BaseModel):
-    exportFormat: ExportFormat = Field(default="json", description="Export format")
-    state: Dict[str, Any] = Field(description="ProjectState.state payload to export")
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    export_format: ExportFormat = Field(default="json", description="Export format")
+    state: dict[str, Any] = Field(description="ProjectState.state payload to export")
     pretty: bool = Field(default=True, description="Pretty-print JSON")
-    fileName: Optional[str] = Field(default=None, description="Suggested file name")
+    file_name: str | None = Field(default=None, description="Suggested file name")
 
 
 class AAAExportToolInput(BaseModel):
     """Raw tool payload for export."""
 
-    payload: Union[str, Dict[str, Any]] = Field(
+    payload: str | dict[str, Any] = Field(
         description="A JSON object (or JSON string) matching AAAExportInput."
     )
 
@@ -48,72 +51,60 @@ class AAAExportTool(BaseTool):
         "Returns an AAA_EXPORT payload as a JSON code block."
     )
 
-    args_schema: Type[BaseModel] = AAAExportToolInput
+    args_schema: type[BaseModel] = AAAExportToolInput
 
     def _run(
         self,
-        payload: Union[str, Dict[str, Any], None] = None,
-        *args: Any,
+        payload: str | dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> str:
-        # Accept positional dict payload for compat
-        if payload is None and args:
-            first = args[0]
-            if isinstance(first, dict):
-                payload = first
+        try:
+            raw_data = self._parse_payload(payload, **kwargs)
+            args = self._validate_args(raw_data)
 
+            payload_json = json.dumps(
+                {
+                    "exportedAt": _now_iso(),
+                    "state": args.state or {},
+                },
+                ensure_ascii=False,
+                indent=2 if args.pretty else None,
+            )
+
+            suggested = args.file_name or "aaa-export.json"
+
+            return (
+                f"Exported AAA state to {suggested} at {_now_iso()}.\n"
+                "\n"
+                "AAA_EXPORT\n"
+                "```json\n"
+                f"{payload_json}\n"
+                "```"
+            )
+        except Exception as exc:  # noqa: BLE001
+            return f"ERROR: {exc!s}"
+
+    def _parse_payload(self, payload: str | dict[str, Any] | None, **kwargs: Any) -> dict[str, Any]:
         if payload is None:
-            # Accept direct keyword args for backwards compatibility with tests
-            if "payload" in kwargs:
-                payload = kwargs["payload"]
-            elif kwargs:
-                # Use kwargs as payload (tests pass exportFormat/state as kwargs)
-                payload = kwargs
-            else:
+            payload = kwargs.get("payload") or kwargs.get("tool_input") or kwargs
+            if not payload:
                 raise ValueError("Missing payload for aaa_export_state")
 
         if isinstance(payload, str):
             try:
-                data = json.loads(payload.strip())
+                return json.loads(payload.strip())
             except json.JSONDecodeError as exc:
                 raise ValueError("Invalid JSON payload for export.") from exc
-        else:
-            data = payload
+        return payload if isinstance(payload, dict) else {}
 
+    def _validate_args(self, data: dict[str, Any]) -> AAAExportInput:
         try:
-            args = AAAExportInput.model_validate(data)
-        except Exception as exc:
-            return f"ERROR: Validation failed for AAAExportInput: {str(exc)}"
+            return AAAExportInput.model_validate(data)
+        except ValidationError as exc:
+            raise ValueError(f"Validation failed: {exc!s}") from exc
 
-        exportFormat = args.exportFormat
-        state_data = args.state
-        pretty = args.pretty
-        fileName = args.fileName
-
-        export_state = state_data or {}
-
-        if exportFormat != "json":
-            raise ValueError(f"Unsupported exportFormat: {exportFormat}")
-
-        payload_json = json.dumps(
-            {
-                "exportedAt": _now_iso(),
-                "state": export_state,
-            },
-            ensure_ascii=False,
-            indent=2 if pretty else None,
-        )
-
-        suggested = fileName or "aaa-export.json"
-
-        return (
-            f"Exported AAA state to {suggested} at {_now_iso()}.\n"
-            "\n"
-            "AAA_EXPORT\n"
-            "```json\n"
-            f"{payload_json}\n"
-            "```"
-        )
+    async def _arun(self, **kwargs: Any) -> str:
+        return self._run(**kwargs)
 
     async def _arun(self, **kwargs: Any) -> str:
         return self._run(**kwargs)
@@ -121,3 +112,4 @@ class AAAExportTool(BaseTool):
 
 def create_export_tools() -> list[BaseTool]:
     return [AAAExportTool()]
+

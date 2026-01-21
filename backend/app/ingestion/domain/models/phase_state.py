@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
 
 try:
     from pydantic import BaseModel, Field
@@ -24,10 +23,10 @@ class PhaseState:
     status: PhaseStatus = PhaseStatus.NOT_STARTED
     progress: int = 0  # 0-100
     items_processed: int = 0
-    items_total: Optional[int] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    error: Optional[str] = None
+    items_total: int | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error: str | None = None
 
     def start(self) -> None:
         """Mark phase as running."""
@@ -54,9 +53,7 @@ class PhaseState:
         self.completed_at = datetime.now(timezone.utc)
         self.error = error
 
-    def update_progress(
-        self, items_processed: int, items_total: Optional[int] = None
-    ) -> None:
+    def update_progress(self, items_processed: int, items_total: int | None = None) -> None:
         """Update progress metrics."""
         self.items_processed = items_processed
         if items_total is not None:
@@ -64,9 +61,7 @@ class PhaseState:
 
         # Calculate percentage
         if self.items_total and self.items_total > 0:
-            self.progress = min(
-                100, int((self.items_processed / self.items_total) * 100)
-            )
+            self.progress = min(100, int((self.items_processed / self.items_total) * 100))
         else:
             # If total unknown, show progress but cap at 99 until completed
             self.progress = min(99, self.items_processed)
@@ -77,7 +72,7 @@ class PhaseState:
 
     def is_active(self) -> bool:
         """Check if phase is actively running."""
-        return self.status == PhaseStatus.RUNNING
+        return bool(self.status == PhaseStatus.RUNNING)
 
 
 if PYDANTIC_AVAILABLE:
@@ -89,16 +84,16 @@ if PYDANTIC_AVAILABLE:
         status: str = Field(default=PhaseStatus.NOT_STARTED.value)
         progress: int = Field(default=0, ge=0, le=100)
         items_processed: int = Field(default=0)
-        items_total: Optional[int] = None
-        started_at: Optional[datetime] = None
-        completed_at: Optional[datetime] = None
-        error: Optional[str] = None
+        items_total: int | None = None
+        started_at: datetime | None = None
+        completed_at: datetime | None = None
+        error: str | None = None
 
         # Pydantic v2 config; use plain dict to avoid import issues
-        model_config = {"from_attributes": True}
+        model_config = {'from_attributes': True}
 
         @classmethod
-        def from_phase_state(cls, phase: PhaseState) -> "PhaseStateSchema":
+        def from_phase_state(cls, phase: PhaseState) -> PhaseStateSchema:
             """Convert dataclass to pydantic model."""
             return cls(
                 phase_name=phase.phase_name,

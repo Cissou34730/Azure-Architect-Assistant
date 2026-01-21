@@ -4,13 +4,13 @@ Orchestrates LLM-powered diagram generation with validation pipeline.
 """
 
 import logging
-from typing import Optional
 from dataclasses import dataclass
+
+from app.models.diagram import DiagramType
 
 from .llm_client import DiagramLLMClient
 from .prompt_builder import PromptBuilder
-from .validation_pipeline import ValidationPipeline, PipelineValidationResult
-from app.models.diagram import DiagramType
+from .validation_pipeline import PipelineValidationResult, ValidationPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +20,11 @@ class GenerationResult:
     """Result of diagram generation attempt."""
 
     success: bool
-    source_code: Optional[str] = None
-    diagram_type: Optional[DiagramType] = None
+    source_code: str | None = None
+    diagram_type: DiagramType | None = None
     attempts: int = 0
-    validation_result: Optional[PipelineValidationResult] = None
-    error: Optional[str] = None
+    validation_result: PipelineValidationResult | None = None
+    error: str | None = None
 
 
 class DiagramGenerator:
@@ -46,7 +46,7 @@ class DiagramGenerator:
         )
 
     async def generate_mermaid_functional(
-        self, description: str, max_retries: Optional[int] = None
+        self, description: str, max_retries: int | None = None
     ) -> GenerationResult:
         """Generate Mermaid functional flow diagram.
 
@@ -73,7 +73,7 @@ class DiagramGenerator:
         )
 
     async def generate_c4_context(
-        self, description: str, max_retries: Optional[int] = None
+        self, description: str, max_retries: int | None = None
     ) -> GenerationResult:
         """Generate C4 Context diagram (Level 1).
 
@@ -99,7 +99,7 @@ class DiagramGenerator:
         )
 
     async def generate_c4_container(
-        self, description: str, max_retries: Optional[int] = None
+        self, description: str, max_retries: int | None = None
     ) -> GenerationResult:
         """Generate C4 Container diagram (Level 2).
 
@@ -125,8 +125,8 @@ class DiagramGenerator:
         )
 
     async def _execute_generation_attempt(
-        self, description: str, diagram_type: DiagramType, previous_error: Optional[str]
-    ) -> tuple[Optional[str], Optional[str]]:
+        self, description: str, diagram_type: DiagramType, previous_error: str | None
+    ) -> tuple[str | None, str | None]:
         """Execute single diagram generation attempt.
 
         Args:
@@ -159,7 +159,7 @@ class DiagramGenerator:
 
         except Exception as e:
             logger.error("Generation exception: %s", str(e), exc_info=True)
-            return None, f"Generation exception: {str(e)}"
+            return None, f"Generation exception: {e!s}"
 
     async def _validate_and_create_result(
         self,
@@ -167,7 +167,7 @@ class DiagramGenerator:
         diagram_type: DiagramType,
         description: str,
         attempt: int,
-    ) -> tuple[bool, Optional[GenerationResult], Optional[str]]:
+    ) -> tuple[bool, GenerationResult | None, str | None]:
         """Validate generated diagram and create result if valid.
 
         Args:
@@ -227,7 +227,7 @@ class DiagramGenerator:
         Returns:
             GenerationResult with final outcome
         """
-        previous_error: Optional[str] = None
+        previous_error: str | None = None
 
         for attempt in range(1, max_retries + 1):
             logger.info(
@@ -268,3 +268,4 @@ class DiagramGenerator:
             attempts=max_retries,
             error=f"Failed after {max_retries} attempts. Last error: {previous_error}",
         )
+

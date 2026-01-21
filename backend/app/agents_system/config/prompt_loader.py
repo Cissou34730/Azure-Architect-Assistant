@@ -5,7 +5,7 @@ Loads prompts from YAML files for easy editing without code changes.
 
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 
@@ -17,6 +17,15 @@ class PromptLoader:
     Load and cache agent prompts from external YAML files.
     Supports hot-reload for dynamic prompt updates.
     """
+
+    _instance: "PromptLoader | None" = None
+
+    @classmethod
+    def get_instance(cls) -> "PromptLoader":
+        """Get or create the global singleton instance."""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
 
     def __init__(self, prompts_dir: Path | str | None = None):
         """
@@ -34,12 +43,12 @@ class PromptLoader:
             prompts_dir = backend_root / "config" / "prompts"
 
         self.prompts_dir = Path(prompts_dir)
-        self._cache: Dict[str, Any] = {}
+        self._cache: dict[str, Any] = {}
         self._file_path = self.prompts_dir / "agent_prompts.yaml"
 
         logger.info(f"PromptLoader initialized with directory: {self.prompts_dir}")
 
-    def load_prompts(self, force_reload: bool = False) -> Dict[str, Any]:
+    def load_prompts(self, force_reload: bool = False) -> dict[str, Any]:
         """
         Load prompts from YAML file.
 
@@ -65,7 +74,7 @@ class PromptLoader:
 
         try:
             logger.info(f"Loading prompts from {self._file_path}")
-            with open(self._file_path, "r", encoding="utf-8") as f:
+            with open(self._file_path, encoding="utf-8") as f:
                 prompts = yaml.safe_load(f)
 
             if not prompts:
@@ -104,7 +113,7 @@ class PromptLoader:
         prompts = self.load_prompts()
         return prompts.get("conflict_resolution_prompt", "")
 
-    def get_few_shot_examples(self) -> list[Dict[str, str]]:
+    def get_few_shot_examples(self) -> list[dict[str, str]]:
         """Get few-shot examples."""
         prompts = self.load_prompts()
         return prompts.get("few_shot_examples", [])
@@ -116,16 +125,9 @@ class PromptLoader:
         logger.info("Prompts reloaded successfully")
 
 
-# Global singleton instance
-_loader: PromptLoader | None = None
-
-
 def get_prompt_loader() -> PromptLoader:
     """Get or create the global prompt loader instance."""
-    global _loader
-    if _loader is None:
-        _loader = PromptLoader()
-    return _loader
+    return PromptLoader.get_instance()
 
 
 # Convenience functions for backward compatibility
@@ -152,3 +154,4 @@ def get_conflict_resolution_prompt() -> str:
 def reload_prompts() -> None:
     """Force reload all prompts from file."""
     get_prompt_loader().reload()
+

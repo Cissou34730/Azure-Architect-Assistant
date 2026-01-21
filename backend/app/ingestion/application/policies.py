@@ -3,22 +3,22 @@ Policy utilities for the ingestion orchestrator.
 """
 
 from enum import Enum
-from typing import List, Optional
+from typing import ClassVar
 
 
 class StepName(str, Enum):
     """Pipeline step identifiers."""
 
-    LOAD = "load"
-    CHUNK = "chunk"
-    EMBED = "embed"
-    INDEX = "index"
+    LOAD = 'load'
+    CHUNK = 'chunk'
+    EMBED = 'embed'
+    INDEX = 'index'
 
 
 class WorkflowDefinition:
     """Defines pipeline step order and transitions."""
 
-    ORDER: List[StepName] = [
+    ORDER: ClassVar[list[StepName]] = [
         StepName.LOAD,
         StepName.CHUNK,
         StepName.EMBED,
@@ -30,7 +30,7 @@ class WorkflowDefinition:
         return cls.ORDER[0]
 
     @classmethod
-    def get_next_step(cls, current: StepName) -> Optional[StepName]:
+    def get_next_step(cls, current: StepName) -> StepName | None:
         try:
             idx = cls.ORDER.index(current)
             return cls.ORDER[idx + 1] if idx + 1 < len(cls.ORDER) else None
@@ -49,4 +49,5 @@ class RetryPolicy:
         return attempt < self.max_attempts
 
     def get_backoff_delay(self, attempt: int) -> float:
-        return min(2**attempt * self.backoff_multiplier, 60.0)
+        delay = float(2**attempt) * self.backoff_multiplier
+        return min(delay, 60.0)

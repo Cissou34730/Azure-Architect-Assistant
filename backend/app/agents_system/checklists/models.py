@@ -10,3 +10,4 @@ Defines structures for checklists, items, and state tracking.
 # - ChecklistState model (current_checklist, progress, history)
 # - Status enum (not_started, in_progress, completed, blocked)
 # - Validation rules for state transitions
+

@@ -3,16 +3,35 @@ Schema migration: Add orchestrator fields to ingestion_jobs table.
 Adds: checkpoint, counters, heartbeat_at, finished_at, last_error
 """
 
-import sqlite3
 import logging
+import sqlite3
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
-def migrate():
-    """Add orchestrator-specific columns to ingestion_jobs table."""
+def _get_missing_columns(cursor: sqlite3.Cursor) -> list[str]:
+    """Identify which required columns are missing in ingestion_jobs table."""
+    cursor.execute("PRAGMA table_info(ingestion_jobs)")
+    columns = {row[1] for row in cursor.fetchall()}
 
+    needed = [
+        ("checkpoint", "TEXT"),
+        ("counters", "TEXT"),
+        ("heartbeat_at", "TIMESTAMP"),
+        ("finished_at", "TIMESTAMP"),
+        ("last_error", "TEXT"),
+    ]
+
+    return [
+        f"ALTER TABLE ingestion_jobs ADD COLUMN {col} {dtype}"
+        for col, dtype in needed
+        if col not in columns
+    ]
+
+
+def migrate() -> None:
+    """Add orchestrator-specific columns to ingestion_jobs table."""
     # Locate database - go up from migrations to app to backend to root
     db_path = (
         Path(__file__).parent.parent.parent.parent.parent
@@ -28,39 +47,14 @@ def migrate():
     logger.info(f"Running migration on {db_path}")
 
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
     try:
-        # Check if columns already exist
-        cursor.execute("PRAGMA table_info(ingestion_jobs)")
-        columns = {row[1] for row in cursor.fetchall()}
-
-        migrations = []
-
-        if "checkpoint" not in columns:
-            migrations.append("ALTER TABLE ingestion_jobs ADD COLUMN checkpoint TEXT")
-
-        if "counters" not in columns:
-            migrations.append("ALTER TABLE ingestion_jobs ADD COLUMN counters TEXT")
-
-        if "heartbeat_at" not in columns:
-            migrations.append(
-                "ALTER TABLE ingestion_jobs ADD COLUMN heartbeat_at TIMESTAMP"
-            )
-
-        if "finished_at" not in columns:
-            migrations.append(
-                "ALTER TABLE ingestion_jobs ADD COLUMN finished_at TIMESTAMP"
-            )
-
-        if "last_error" not in columns:
-            migrations.append("ALTER TABLE ingestion_jobs ADD COLUMN last_error TEXT")
+        cursor = conn.cursor()
+        migrations = _get_missing_columns(cursor)
 
         if not migrations:
             logger.info("All columns already exist, migration not needed")
             return
 
-        # Execute migrations
         for sql in migrations:
             logger.info(f"Executing: {sql}")
             cursor.execute(sql)
@@ -76,6 +70,6 @@ def migrate():
         conn.close()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     migrate()

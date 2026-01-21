@@ -3,10 +3,11 @@ Base Embedder
 Abstract base class for embedding strategies.
 """
 
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
 import logging
-from app.core.config import get_openai_settings
+from abc import ABC, abstractmethod
+from typing import Any
+
+from app.core.app_settings import get_openai_settings
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 class BaseEmbedder(ABC):
     """Abstract base class for document embedders"""
 
-    def __init__(self, model_name: Optional[str] = None):
+    def __init__(self, model_name: str | None = None):
         """
         Initialize embedder.
 
@@ -24,10 +25,10 @@ class BaseEmbedder(ABC):
         if model_name is None:
             model_name = get_openai_settings().embedding_model
         self.model_name = model_name
-        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self.logger = logging.getLogger(f'{__name__}.{self.__class__.__name__}')
 
     @abstractmethod
-    def embed_documents(self, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def embed_documents(self, documents: list[dict[str, Any]]) -> list[Any]:
         """
         Generate embeddings for documents.
 
@@ -39,7 +40,7 @@ class BaseEmbedder(ABC):
         """
         pass
 
-    def validate_documents(self, documents: List[Dict[str, Any]]) -> bool:
+    def validate_documents(self, documents: list[dict[str, Any]]) -> bool:
         """
         Validate document structure.
 
@@ -50,15 +51,15 @@ class BaseEmbedder(ABC):
             True if valid, False otherwise
         """
         if not documents:
-            self.logger.error("No documents provided")
+            self.logger.error('No documents provided')
             return False
 
         for i, doc in enumerate(documents):
-            if "content" not in doc:
+            if 'content' not in doc:
                 self.logger.error(f"Document {i} missing 'content' field")
                 return False
 
-            if not doc["content"]:
-                self.logger.warning(f"Document {i} has empty content")
+            if not doc['content']:
+                self.logger.warning(f'Document {i} has empty content')
 
         return True

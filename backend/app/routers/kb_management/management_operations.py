@@ -4,10 +4,11 @@ Service layer handling KB listing, health checks, and KB CRUD.
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Any, cast
 
 from app.kb import KBManager
 from app.kb.service import KnowledgeBaseService
+
 from .management_models import CreateKBRequest
 
 logger = logging.getLogger(__name__)
@@ -16,12 +17,20 @@ logger = logging.getLogger(__name__)
 class KBManagementService:
     """Service layer for KB management operations"""
 
-    def __init__(self):
+    _instance: "KBManagementService | None" = None
+
+    def __new__(cls) -> "KBManagementService":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self) -> None:
+        # Singleton already initialized via __new__
         pass
 
     def create_knowledge_base(
         self, request: CreateKBRequest, manager: KBManager
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Create a new knowledge base.
 
@@ -66,7 +75,7 @@ class KBManagementService:
             "kb_name": request.name,
         }
 
-    def list_knowledge_bases(self, manager: KBManager) -> List[Dict[str, Any]]:
+    def list_knowledge_bases(self, manager: KBManager) -> list[dict[str, Any]]:
         """
         List all available knowledge bases.
 
@@ -77,9 +86,9 @@ class KBManagementService:
             List of KB information dictionaries
         """
         kbs_info = manager.list_kbs()
-        return kbs_info  # Listing log suppressed
+        return cast(list[dict[str, Any]], kbs_info)  # Listing log suppressed
 
-    def check_health(self, manager: KBManager) -> Dict[str, Any]:
+    def check_health(self, manager: KBManager) -> dict[str, Any]:
         """
         Check health status of all knowledge bases.
 
@@ -90,7 +99,7 @@ class KBManagementService:
             Dictionary with overall status and per-KB health info
         """
         # Build health by checking index readiness per KB via KB service
-        health_dict: Dict[str, Dict[str, Any]] = {}
+        health_dict: dict[str, dict[str, Any]] = {}
         for kb in manager.knowledge_bases.values():
             try:
                 if not kb.is_active:
@@ -106,7 +115,7 @@ class KBManagementService:
                 status = "ready" if ready else "not-indexed"
                 health_dict[kb.id] = {"name": kb.name, "status": status, "error": None}
             except Exception as exc:
-                logger.error(f"Health check failed for KB {kb.id}: {exc}")
+                logger.exception("Health check failed for KB %s", kb.id)
                 health_dict[kb.id] = {
                     "name": kb.name,
                     "status": "error",
@@ -144,13 +153,7 @@ class KBManagementService:
         return {"overall_status": overall_status, "knowledge_bases": kb_health}
 
 
-# Singleton instance
-_management_service = None
-
-
 def get_management_service() -> KBManagementService:
     """Get singleton management service instance"""
-    global _management_service
-    if _management_service is None:
-        _management_service = KBManagementService()
-    return _management_service
+    return KBManagementService()
+

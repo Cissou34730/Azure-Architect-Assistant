@@ -16,10 +16,11 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Type, Union
+from typing import Any, Literal
 
 from langchain.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic.alias_generators import to_camel
 
 
 def _now_iso() -> str:
@@ -32,6 +33,8 @@ ADRAction = Literal["create", "revise", "supersede"]
 
 class AAAManageAdrInput(BaseModel):
     """Input schema for creating or revising an ADR."""
+
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
 
     action: ADRAction = Field(
         description=(
@@ -50,26 +53,26 @@ class AAAManageAdrInput(BaseModel):
     decision: str = Field(min_length=1, description="The decision")
     consequences: str = Field(min_length=1, description="Consequences/tradeoffs")
 
-    relatedRequirementIds: List[str] = Field(
+    related_requirement_ids: list[str] = Field(
         default_factory=list,
         description="Requirement IDs that this ADR is based on (must be non-empty)",
     )
-    relatedMindMapNodeIds: List[str] = Field(
+    related_mind_map_node_ids: list[str] = Field(
         default_factory=list,
         description="Mind map node IDs tied to this ADR (best-effort)",
     )
 
-    relatedDiagramIds: List[str] = Field(
+    related_diagram_ids: list[str] = Field(
         default_factory=list,
         description="Diagram IDs linked to this ADR (best-effort)",
     )
-    relatedWafEvidenceIds: List[str] = Field(
+    related_waf_evidence_ids: list[str] = Field(
         default_factory=list,
         description=(
             "WAF evidence identifiers (e.g., checklist item ids) linked to this ADR (best-effort)"
         ),
     )
-    missingEvidenceReason: Optional[str] = Field(
+    missing_evidence_reason: str | None = Field(
         default=None,
         description=(
             "Required when no relatedDiagramIds and no relatedWafEvidenceIds are provided. "
@@ -77,16 +80,14 @@ class AAAManageAdrInput(BaseModel):
         ),
     )
 
-    sourceCitations: List[Dict[str, Any]] = Field(
+    source_citations: list[dict[str, Any]] = Field(
         default_factory=list,
         description="SourceCitation[] objects (must include at least one)",
     )
 
-    supersedesAdrId: Optional[str] = Field(
+    supersedes_adr_id: str | None = Field(
         default=None,
-        description=(
-            "When action is 'revise' or 'supersede', the ADR id being superseded."
-        ),
+        description="When action is 'revise' or 'supersede', the ADR id being superseded.",
     )
 
 
@@ -99,7 +100,7 @@ class AAAManageAdrToolInput(BaseModel):
     single payload and validate after JSON parsing.
     """
 
-    payload: Union[str, Dict[str, Any]] = Field(
+    payload: str | dict[str, Any] = Field(
         description=(
             "A JSON object (or JSON string) matching AAAManageAdrInput. Example: "
             "{\"action\":\"create\",\"title\":...,\"context\":...,\"decision\":...,\"consequences\":...,\"relatedRequirementIds\":[...],\"sourceCitations\":[...],...}"
@@ -116,181 +117,170 @@ class AAAManageAdrTool(BaseTool):
         "ADR version that references an existing ADR via supersedesAdrId."
     )
 
-    args_schema: Type[BaseModel] = AAAManageAdrToolInput
+    args_schema: type[BaseModel] = AAAManageAdrToolInput
 
     def _run(
         self,
-        payload: Union[str, Dict[str, Any], None] = None,
+        payload: str | dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> str:
+        try:
+            raw_data = self._parse_payload(payload, **kwargs)
+            args = self._validate_args(raw_data)
+            adr_id = str(uuid.uuid4())
+            adr = self._build_adr(adr_id, args)
+            trace_links = self._build_trace_links(adr_id, args)
+
+            updates = {
+                "adrs": [adr],
+                "traceabilityLinks": trace_links,
+            }
+
+            payload_str = json.dumps(updates, ensure_ascii=False, indent=2)
+            verb = self._get_verb(args.action)
+
+            return (
+                f"{verb} ADR '{adr['title']}' (id={adr_id}) at {_now_iso()}.\n"
+                "\n"
+                "AAA_STATE_UPDATE\n"
+                "```json\n"
+                f"{payload_str}\n"
+                "```"
+            )
+        except Exception as exc:  # noqa: BLE001
+            # Return error to agent as string rather than raising to caller
+            return f"ERROR: {exc!s}"
+
+    def _parse_payload(
+        self, payload: str | dict[str, Any] | None, **kwargs: Any
+    ) -> dict[str, Any]:
         if payload is None:
-            if "payload" in kwargs:
-                payload = kwargs["payload"]
-            elif "tool_input" in kwargs:
-                payload = kwargs["tool_input"]
-            else:
+            payload = kwargs.get("payload") or kwargs.get("tool_input")
+            if payload is None:
                 raise ValueError("Missing payload for aaa_manage_adr")
 
         if isinstance(payload, str):
-            raw = payload.strip()
             try:
-                data: Dict[str, Any] = json.loads(raw)
+                return json.loads(payload.strip())
             except json.JSONDecodeError as exc:
                 raise ValueError(
-                    "Invalid JSON payload for aaa_manage_adr. Provide a JSON object in Action Input."
+                    "Invalid JSON payload. Provide a JSON object in Action Input."
                 ) from exc
-        elif isinstance(payload, dict):
-            data = payload
-        else:
-            raise ValueError("Invalid payload type for aaa_manage_adr")
+        if isinstance(payload, dict):
+            return payload
+        raise ValueError("Invalid payload type for aaa_manage_adr")
 
+    def _validate_args(self, data: dict[str, Any]) -> AAAManageAdrInput:
         try:
             args = AAAManageAdrInput.model_validate(data)
-        except Exception as exc:
-            # Provide a friendly, structured error so the agent can ask
-            # for missing/invalid fields instead of failing hard.
-            err_text = str(exc)
-            # Attempt to extract missing field names from the Pydantic message
-            # This is best-effort and intentionally simple.
+            self._check_constraints(args)
+            return args
+        except ValidationError as exc:
             missing = []
-            try:
-                # Look for "field required" occurrences
-                for line in err_text.splitlines():
-                    if "Field required" in line or "field required" in line:
-                        # previous token typically contains the field name
-                        parts = line.split()
-                        if parts:
-                            missing.append(parts[0].strip("'\"`"))
-            except Exception:
-                missing = []
-
+            for err in exc.errors():
+                if err["type"] == "missing":
+                    loc = ".".join(str(i) for i in err["loc"])
+                    missing.append(loc)
             hint = (
-                "Validation failed for AAAManageAdrInput. Missing or invalid fields: "
-                + (", ".join(missing) if missing else "unknown")
-                + ". Provide a JSON object matching the schema: action, title, context, decision, consequences, relatedRequirementIds, sourceCitations, ..."
+                "Validation failed. Missing or invalid fields: "
+                + (", ".join(missing) if missing else "see schema")
+                + ". Ensure you provide action, title, context, decision, consequences, relatedRequirementIds, sourceCitations."
             )
-            return f"ERROR: {hint}"
+            # Re-wrap as ValueError to be caught by _run
+            raise ValueError(hint) from exc
 
-        action = args.action
-        title = args.title
-        status = args.status
-        context = args.context
-        decision = args.decision
-        consequences = args.consequences
-        relatedRequirementIds = args.relatedRequirementIds
-        relatedMindMapNodeIds = args.relatedMindMapNodeIds
-        relatedDiagramIds = args.relatedDiagramIds
-        relatedWafEvidenceIds = args.relatedWafEvidenceIds
-        missingEvidenceReason = args.missingEvidenceReason
-        sourceCitations = args.sourceCitations
-        supersedesAdrId = args.supersedesAdrId
-
-        requirement_ids = [rid.strip() for rid in (relatedRequirementIds or []) if rid and rid.strip()]
-        if not requirement_ids:
+    def _check_constraints(self, args: AAAManageAdrInput) -> None:
+        if not args.related_requirement_ids:
             raise ValueError(
-                "ADR must link to at least one requirement id (SC-005). Provide relatedRequirementIds." 
+                "ADR must link to at least one requirement id (SC-005). Provide relatedRequirementIds."
             )
-
-        citations = sourceCitations or []
-        if not citations:
+        if not args.source_citations:
             raise ValueError(
-                "ADR must include at least one source citation (SC-011). Provide sourceCitations." 
+                "ADR must include at least one source citation (SC-011). Provide sourceCitations."
+            )
+        if (
+            not args.related_diagram_ids
+            and not args.related_waf_evidence_ids
+            and not (args.missing_evidence_reason or "").strip()
+        ):
+            raise ValueError(
+                "When no diagram/WAF evidence links are available, you must provide missingEvidenceReason (SC-005)."
             )
 
-        diagram_ids = [did.strip() for did in (relatedDiagramIds or []) if did and did.strip()]
-        waf_ids = [wid.strip() for wid in (relatedWafEvidenceIds or []) if wid and wid.strip()]
-        if not diagram_ids and not waf_ids:
-            reason = (missingEvidenceReason or "").strip()
-            if not reason:
-                raise ValueError(
-                    "When no diagram/WAF evidence links are available, you must provide missingEvidenceReason (SC-005)."
-                )
-        else:
-            reason = (missingEvidenceReason or "").strip() or None
+        if args.action in ("revise", "supersede") and not (args.supersedes_adr_id or "").strip():
+            raise ValueError(
+                "action='revise' or 'supersede' requires supersedesAdrId (the prior ADR id)."
+            )
 
-        if action in ("revise", "supersede"):
-            if not (supersedesAdrId or "").strip():
-                raise ValueError(
-                    "action='revise' or 'supersede' requires supersedesAdrId (the prior ADR id)."
-                )
-
-        adr_id = str(uuid.uuid4())
-        adr: Dict[str, Any] = {
+    def _build_adr(self, adr_id: str, args: AAAManageAdrInput) -> dict[str, Any]:
+        adr: dict[str, Any] = {
             "id": adr_id,
-            "title": title.strip(),
-            "status": status,
-            "context": context.strip(),
-            "decision": decision.strip(),
-            "consequences": consequences.strip(),
-            "relatedRequirementIds": requirement_ids,
-            "relatedMindMapNodeIds": [
-                mid.strip() for mid in (relatedMindMapNodeIds or []) if mid and mid.strip()
-            ],
-            "sourceCitations": citations,
+            "title": args.title.strip(),
+            "status": args.status,
+            "context": args.context.strip(),
+            "decision": args.decision.strip(),
+            "consequences": args.consequences.strip(),
+            "relatedRequirementIds": [r.strip() for r in args.related_requirement_ids],
+            "relatedMindMapNodeIds": [m.strip() for m in args.related_mind_map_node_ids],
+            "sourceCitations": args.source_citations,
             "createdAt": _now_iso(),
         }
+        if args.supersedes_adr_id:
+            adr["supersedesAdrId"] = args.supersedes_adr_id
+        if args.related_diagram_ids:
+            adr["relatedDiagramIds"] = [d.strip() for d in args.related_diagram_ids]
+        if args.related_waf_evidence_ids:
+            adr["relatedWafEvidenceIds"] = [w.strip() for w in args.related_waf_evidence_ids]
+        if args.missing_evidence_reason:
+            adr["missingEvidenceReason"] = args.missing_evidence_reason.strip()
+        return adr
 
-        if action in ("revise", "supersede"):
-            adr["supersedesAdrId"] = supersedesAdrId
+    def _build_trace_links(self, adr_id: str, args: AAAManageAdrInput) -> list[dict[str, Any]]:
+        links = []
 
-        if diagram_ids:
-            adr["relatedDiagramIds"] = diagram_ids
-        if waf_ids:
-            adr["relatedWafEvidenceIds"] = waf_ids
-        if reason:
-            adr["missingEvidenceReason"] = reason
-
-        trace_links: List[Dict[str, Any]] = []
-
-        def _link(to_type: str, to_id: str) -> None:
-            trace_links.append(
+        def _add(t: str, tid: str) -> None:
+            links.append(
                 {
                     "id": str(uuid.uuid4()),
                     "fromType": "adr",
                     "fromId": adr_id,
-                    "toType": to_type,
-                    "toId": to_id,
+                    "toType": t,
+                    "toId": tid,
                 }
             )
 
-        for req_id in requirement_ids:
-            _link("requirement", req_id)
-        for node_id in adr.get("relatedMindMapNodeIds", []) or []:
-            _link("mindMapNode", node_id)
-        for diagram_id in diagram_ids:
-            _link("diagram", diagram_id)
-        for waf_id in waf_ids:
-            _link("wafEvidence", waf_id)
+        for rid in args.related_requirement_ids:
+            _add("requirement", rid.strip())
+        for nid in args.related_mind_map_node_ids:
+            _add("mindMapNode", nid.strip())
+        for did in args.related_diagram_ids:
+            _add("diagram", did.strip())
+        for wid in args.related_waf_evidence_ids:
+            _add("wafEvidence", wid.strip())
+        return links
 
-        updates: Dict[str, Any] = {
-            "adrs": [adr],
-            "traceabilityLinks": trace_links,
-        }
-
-        payload = json.dumps(updates, ensure_ascii=False, indent=2)
-
-        verb = {
+    def _get_verb(self, action: ADRAction) -> str:
+        return {
             "create": "Created",
             "revise": "Created revised",
             "supersede": "Created superseding",
         }.get(action, "Created")
 
-        return (
-            f"{verb} ADR '{adr['title']}' (id={adr_id}) at {_now_iso()}.\n"
-            "\n"
-            "AAA_STATE_UPDATE\n"
-            "```json\n"
-            f"{payload}\n"
-            "```"
-        )
+    async def _arun(
+        self,
+        payload: str | dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> str:
+        return self._run(payload=payload, **kwargs)
 
     async def _arun(
         self,
-        payload: Union[str, Dict[str, Any], None] = None,
+        payload: str | dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> str:
         return self._run(payload=payload, **kwargs)
 
 
-def create_adr_tools() -> List[BaseTool]:
+def create_adr_tools() -> list[BaseTool]:
     return [AAAManageAdrTool()]
+

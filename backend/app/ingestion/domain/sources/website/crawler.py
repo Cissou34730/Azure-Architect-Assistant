@@ -1,351 +1,272 @@
-"""
-Website Crawler - Orchestrate crawling with checkpointing
-"""
-
 import logging
+import re
 import time
-import requests
-from typing import List, Set
+from collections.abc import Generator
 from datetime import datetime
+from typing import Any
 from urllib.parse import urljoin, urlparse
-from bs4 import BeautifulSoup
 
-from llama_index.core import Document
+import requests
 import trafilatura
+from bs4 import BeautifulSoup
+from llama_index.core import Document
 
 logger = logging.getLogger(__name__)
+
+# Constants
+DEFAULT_TIMEOUT = 15
+MAX_RETRIES = 3
+DEFAULT_MAX_PAGES = 1000
+DEFAULT_BATCH_SIZE = 10
+RATE_LIMIT_DELAY = 0.5
+RETRY_DELAY = 2.0
+MAX_ERRORS_COUNT = 5
+MAX_REJECTED_COUNT = 10
+LOG_INTERVAL = 20
+HTTP_BAD_REQUEST = 400
+HTTP_INTERNAL_ERROR = 500
+
+EXCLUDED_EXTENSIONS = (
+    '.pdf',
+    '.zip',
+    '.png',
+    '.jpg',
+    '.gif',
+    '.svg',
+    '.mp4',
+    '.exe',
+)
 
 
 class WebsiteCrawler:
     """
-    Orchestrates website crawling with link discovery and checkpointing.
-    Makes single HTTP request per URL to extract both content and links.
+    Orchestrates website crawling with link discovery and support for batching.
     """
 
-    def __init__(self, kb_id: str, job=None, state=None):
+    def __init__(self, kb_id: str, job: Any | None = None, state: Any | None = None) -> None:
         self.kb_id = kb_id
-        self.job = job  # Optional: for cancellation support
-        self.state = state  # Thread-safe state checking
+        self.job = job
+        self.state = state
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        self.timeout = 15
-        self.max_retries = 3
+        self.timeout = DEFAULT_TIMEOUT
+        self.max_retries = MAX_RETRIES
+        self.base_domain = ''
+        self.semantic_path = ''
+        self._invalid_url_count = 0
+        self._rejected_count = 0
+
+    def _queue_new_links(
+        self, links: list[str], visited: set[str], to_visit: list[str]
+    ) -> None:
+        """Add new, non-visited, non-queued links to the visit queue."""
+        for link in links:
+            if link not in visited and link not in to_visit:
+                to_visit.append(link)
 
     def crawl(
         self,
         start_url: str,
-        url_prefix: str = None,
-        max_pages: int = 1000,
-        checkpoint_interval: int = 50,
-        batch_size: int = 10,
-    ):
-        """
-        Crawl a website starting from start_url, yielding batches of documents.
-
-        Args:
-            start_url: Starting URL
-            url_prefix: Only crawl URLs starting with this prefix (defaults to start_url)
-            max_pages: Maximum pages to crawl
-            checkpoint_interval: Save checkpoint every N pages
-            batch_size: Number of documents to yield per batch
-
-        Yields:
-            Batches of Documents (list of up to batch_size documents)
-        """
-        # Use start_url as prefix if not provided
+        url_prefix: str | None = None,
+        max_pages: int = DEFAULT_MAX_PAGES,
+        batch_size: int = DEFAULT_BATCH_SIZE,
+    ) -> Generator[list[Document], None, None]:
+        """Crawl a website yields batches of documents."""
         if not url_prefix:
             url_prefix = start_url.rstrip("/")
 
-        # Extract semantic path (handles language codes like /en-us/)
         self.semantic_path = self._extract_semantic_path(url_prefix)
         self.base_domain = urlparse(url_prefix).netloc
 
-        # Reduced verbose logging: keep only high-level start/end and cancellations
-
-        # Store start_url and url_prefix for state saving
-        self.start_url = start_url
-        self.url_prefix = url_prefix
-
-        # Initialize state - MUST track visited URLs to prevent infinite loops
+        visited: set[str] = set()
+        to_visit: list[str] = [self._normalize_url(start_url)]
+        current_batch: list[Document] = []
         last_id = 0
-        visited: Set[str] = set()  # Critical: prevents re-crawling and infinite loops
-        to_visit: List[str] = [start_url]
-        current_batch: List[Document] = []
-        total_documents = 0
-        pages_since_checkpoint = 0
         failed_count = 0
 
         logger.info(f"Crawler start: {start_url} (limit={max_pages})")
 
         while to_visit and len(visited) < max_pages:
-            # Cooperative pause/cancel check using shared state
-            # State check removed - run to completion model
+            url = self._get_next_valid_url(to_visit, visited)
+            if not url:
+                break
 
-            url = to_visit.pop(0)
-
-            # Skip if already visited or doesn't match semantic path
-            if url in visited or not self._is_valid_url(url):
-                # DEBUG: Log why URL was skipped (first few times)
-                if url in visited:
-                    pass  # Already visited is expected
-                else:
-                    if not hasattr(self, "_invalid_url_count"):
-                        self._invalid_url_count = 0
-                    self._invalid_url_count += 1
-                    if self._invalid_url_count <= 5:
-                        logger.info(f"Skipping invalid URL: {url}")
-                continue
-
-            # Assign sequential ID and mark as visited
             last_id += 1
             visited.add(url)
 
-            # Removed per-URL progress log
-
-            # Fetch page once and extract both content and links
-            html_content, final_url = self._fetch_html_with_redirect(url)
-
-            if not html_content:
-                logger.warning("  ✗ Failed to fetch page")
+            doc, final_url, links = self._fetch_and_process_url(url, last_id)
+            if not doc and not links:
                 failed_count += 1
-                # Still save state periodically
-                pages_since_checkpoint += 1
-                if pages_since_checkpoint >= checkpoint_interval:
-                    self._save_state(visited, failed_count, to_visit, last_id)
-                    pages_since_checkpoint = 0
-                time.sleep(0.2)
+                time.sleep(RATE_LIMIT_DELAY)
                 continue
 
-            # If redirected, mark final URL as visited too
-            if final_url and final_url != url:
-                # Suppress redirect detail log
-                visited.add(final_url)
+            self._handle_redirect(url, final_url, visited)
 
-            # Extract clean text content using trafilatura
-            content = trafilatura.extract(
-                html_content, include_comments=False, include_tables=True
-            )
-            if content:
-                doc = Document(
-                    text=content,
-                    metadata={
-                        "doc_id": last_id,
-                        "source_type": "website",
-                        "url": final_url or url,  # Use final URL after redirect
-                        "original_url": url if final_url and final_url != url else None,
-                        "kb_id": self.kb_id,
-                        "date_ingested": datetime.now().isoformat(),
-                    },
-                )
+            if doc:
                 current_batch.append(doc)
-                total_documents += 1
-                # Suppress per-document ingestion log
-
-                # Yield batch when it reaches batch_size
                 if len(current_batch) >= batch_size:
-                    # Batch yield (log removed for verbosity reduction)
                     yield current_batch
                     current_batch = []
-            else:
-                logger.warning("  ✗ Failed to extract content")
 
-            # Extract links from same HTML
-            # Link extraction (details suppressed)
-            links = self._extract_links(html_content, final_url or url)
+            self._queue_new_links(links, visited, to_visit)
+            self._log_progress(len(visited), len(to_visit))
+            time.sleep(RATE_LIMIT_DELAY)
 
-            if links:
-                new_count = 0
-                for link in links:
-                    if link not in visited and link not in to_visit:
-                        to_visit.append(link)
-                        new_count += 1
-
-                # DEBUG: Log link extraction stats
-                if len(visited) <= 5 or len(visited) % 20 == 0:
-                    logger.info(
-                        f"  → Found {len(links)} links, {new_count} new, queue size: {len(to_visit)}"
-                    )
-
-                # Queue growth summary omitted for verbosity reduction
-
-            # Per-iteration queue status suppressed
-
-            # Queue growth summary omitted for verbosity reduction
-
-            # Per-iteration queue status suppressed
-
-            # Rate limiting
-            time.sleep(0.5)
-
-        # DEBUG: Log why crawl stopped
-        logger.info("=" * 70)
-        # Yield any remaining documents in final batch
         if current_batch:
             yield current_batch
 
-        # DEBUG: Log why crawl stopped
-        logger.info("=" * 70)
-        logger.info("CRAWLER STOPPED")
-        logger.info(f"  Visited: {len(visited)} pages")
-        logger.info(f"  Max pages: {max_pages}")
-        logger.info(f"  Queue empty: {len(to_visit) == 0}")
-        logger.info(f"  Hit max pages: {len(visited) >= max_pages}")
-        logger.info("=" * 70)
-        logger.info(f"Failed: {failed_count} pages")
-        logger.info("=" * 70)
+        self._log_summary(visited, to_visit, max_pages, failed_count)
+
+    def _fetch_and_process_url(self, url: str, last_id: int) -> tuple[Document | None, str | None, list[str]]:
+        """Fetch HTML, extract document and links in one step."""
+        content, final_url = self._fetch_html_with_redirect(url)
+        if not content:
+            return None, None, []
+
+        actual_url = final_url or url
+        doc = self._extract_document(content, actual_url, last_id)
+        links = self._extract_links(content, actual_url)
+        return doc, final_url, links
+
+    def _handle_redirect(self, url: str, final_url: str | None, visited: set[str]) -> None:
+        """Add normalized final URL to visited if it differs from the original."""
+        if final_url and final_url != url:
+            visited.add(self._normalize_url(final_url))
+
+    def _log_progress(self, visited_count: int, queue_count: int) -> None:
+        """Log crawl progress periodically."""
+        if visited_count <= MAX_ERRORS_COUNT or visited_count % LOG_INTERVAL == 0:
+            logger.info(f"  → Progress: {visited_count} visited, {queue_count} queue")
+
+    def _get_next_valid_url(self, to_visit: list[str], visited: set[str]) -> str | None:
+        """Get the next URL from the queue that hasn't been visited and is valid."""
+        while to_visit:
+            url = to_visit.pop(0)
+            if url in visited or not self._is_valid_url(url):
+                self._log_skipped_url(url, url in visited)
+                continue
+            return url
+        return None
+
+    def _log_skipped_url(self, url: str, already_visited: bool) -> None:
+        """Log skipped URL if it's the first few times."""
+        if already_visited:
+            return
+        self._invalid_url_count += 1
+        if self._invalid_url_count <= MAX_ERRORS_COUNT:
+            logger.info(f'Skipping invalid URL: {url}')
+
+    def _log_summary(
+        self, visited: set[str], to_visit: list[str], max_pages: int, failed: int
+    ) -> None:
+        """Log crawl completion summary."""
+        logger.info('=' * 70)
+        logger.info('CRAWLER STOPPED')
+        logger.info(f'  Visited: {len(visited)} pages')
+        logger.info(f'  Queue empty: {not to_visit}')
+        logger.info(f'  Hit limit: {len(visited) >= max_pages}')
+        logger.info(f'  Failed: {failed} pages')
+        logger.info('=' * 70)
+
+    def _extract_document(self, html: str, url: str, doc_id: int) -> Document | None:
+        """Extract clean text content and wrap in Document."""
+        content = trafilatura.extract(html, include_comments=False, include_tables=True)
+        if not content:
+            logger.warning(f'  ✗ Failed to extract content from {url}')
+            return None
+
+        return Document(
+            text=content,
+            metadata={
+                'doc_id': doc_id,
+                'source_type': 'website',
+                'url': url,
+                'kb_id': self.kb_id,
+                'date_ingested': datetime.now().isoformat(),
+            },
+        )
 
     def _extract_semantic_path(self, url: str) -> str:
-        """
-        Extract semantic path from URL, removing language codes.
-
-        Examples:
-            https://learn.microsoft.com/en-us/azure/caf/ -> /azure/caf/
-            https://learn.microsoft.com/azure/caf/ -> /azure/caf/
-            https://learn.microsoft.com/fr-fr/azure/caf/ -> /azure/caf/
-        """
+        """Extract semantic path from URL, removing language codes."""
         parsed = urlparse(url)
         path = parsed.path
-
-        # Remove language codes (e.g., /en-us/, /fr-fr/, /ja-jp/)
-        # Pattern: /xx-xx/ at the start of path
-        import re
-
-        path = re.sub(r"^/[a-z]{2}-[a-z]{2}/", "/", path)
-
-        return path.rstrip("/")
+        # Remove language codes (e.g., /en-us/, /fr-fr/)
+        path = re.sub(r'^/[a-z]{2}-[a-z]{2}/', '/', path)
+        return path.rstrip('/')
 
     def _is_valid_url(self, url: str) -> bool:
-        """
-        Check if URL matches the semantic path (ignoring language codes).
-        """
+        """Check if URL matches the semantic path and is not a media file."""
         parsed = urlparse(url)
 
-        # Must be same domain
         if parsed.netloc != self.base_domain:
             return False
 
-        # Extract semantic path from this URL
         url_semantic_path = self._extract_semantic_path(url)
-
-        # Check if it starts with our target semantic path
         if not url_semantic_path.startswith(self.semantic_path):
-            # DEBUG: Log rejected URLs (first few times only)
-            if not hasattr(self, "_rejected_count"):
-                self._rejected_count = 0
             self._rejected_count += 1
-            if self._rejected_count <= 10:
-                logger.debug(f"Rejected URL (path mismatch): {url}")
-                logger.debug(f"  URL path: {url_semantic_path}")
-                logger.debug(f"  Required: {self.semantic_path}")
+            if self._rejected_count <= MAX_REJECTED_COUNT:
+                logger.debug(f'Rejected path mismatch: {url}')
             return False
 
-        # Exclude media files
-        excluded_extensions = (
-            ".pdf",
-            ".zip",
-            ".png",
-            ".jpg",
-            ".gif",
-            ".svg",
-            ".mp4",
-            ".exe",
-        )
-        if url.lower().endswith(excluded_extensions):
-            return False
+        return not url.lower().endswith(EXCLUDED_EXTENSIONS)
 
-        return True
-
-    def _fetch_html_with_redirect(self, url: str):
-        """
-        Fetch HTML content from URL with retries.
-        Follows redirects automatically and returns final URL.
-
-        Returns:
-            Tuple of (html_content, final_url) or (None, None) on failure
-        """
+    def _fetch_html_with_redirect(self, url: str) -> tuple[str | None, str | None]:
+        """Fetch HTML content with retries and redirect following."""
         for attempt in range(self.max_retries):
             try:
                 response = requests.get(
                     url,
                     timeout=self.timeout,
                     headers=self.headers,
-                    allow_redirects=True,  # Follow redirects
+                    allow_redirects=True,
                 )
                 response.raise_for_status()
-
-                # Get final URL after redirects
                 final_url = response.url if response.history else url
-
                 return response.text, final_url
+
             except requests.exceptions.HTTPError as e:
-                # Don't retry on 4xx client errors (404, 403, etc.)
-                if 400 <= e.response.status_code < 500:
-                    logger.warning(
-                        f"  ✗ Client error {e.response.status_code}: {url} (skipping)"
-                    )
+                # Don't retry on 4xx errors
+                status = e.response.status_code
+                if HTTP_BAD_REQUEST <= status < HTTP_INTERNAL_ERROR:
+                    logger.warning(f'  ✗ Client error {status}: {url}')
                     return None, None
-                # Retry on 5xx server errors
-                if attempt < self.max_retries - 1:
-                    logger.warning(f"  Server error: {e}, retrying in 2 seconds...")
-                    time.sleep(2)
-                else:
-                    logger.error(f"  Failed after {self.max_retries} attempts: {e}")
-                    return None, None
+                self._handle_retry(attempt, str(e))
             except requests.exceptions.RequestException as e:
-                # Retry on network errors
-                if attempt < self.max_retries - 1:
-                    logger.warning(f"  Request failed: {e}, retrying in 2 seconds...")
-                    time.sleep(2)
-                else:
-                    logger.error(f"  Failed after {self.max_retries} attempts: {e}")
-                    return None, None
+                self._handle_retry(attempt, str(e))
+
         return None, None
 
-    def _extract_links(self, html: str, current_url: str) -> List[str]:
-        """
-        Extract all valid links from HTML content.
-        """
+    def _handle_retry(self, attempt: int, error: str) -> None:
+        """Log retry attempt if possible."""
+        if attempt < self.max_retries - 1:
+            logger.warning(f'  Retry delayed ({attempt + 1}/{self.max_retries}): {error}')
+            time.sleep(RETRY_DELAY)
+        else:
+            logger.error(f'  Failed after {self.max_retries} attempts')
+
+    def _extract_links(self, html: str, current_url: str) -> list[str]:
+        """Extract all valid links from HTML content."""
         try:
-            soup = BeautifulSoup(html, "lxml")
+            soup = BeautifulSoup(html, 'lxml')
             links = []
-
-            for anchor in soup.find_all("a", href=True):
-                href = anchor["href"]
-
-                # Skip fragments, javascript, mailto
-                if href.startswith(("#", "javascript:", "mailto:")):
+            for anchor in soup.find_all('a', href=True):
+                href = anchor['href']
+                if href.startswith(('#', 'javascript:', 'mailto:')):
                     continue
-
-                # Convert to absolute URL
                 absolute_url = urljoin(current_url, href)
-
-                # Normalize (remove fragment and trailing slash)
                 normalized_url = self._normalize_url(absolute_url)
-
-                # Validate against semantic path
                 if normalized_url and self._is_valid_url(normalized_url):
                     links.append(normalized_url)
-
-            # Deduplicate
             return list(set(links))
-
-        except Exception as e:
-            logger.error(f"  Error extracting links: {e}")
+        except (ValueError, RuntimeError) as e:
+            logger.error(f'  Error extracting links: {e}')
             return []
 
     def _normalize_url(self, url: str) -> str:
-        """
-        Normalize URL by removing fragments and trailing slashes.
-        """
+        """Normalize URL by removing fragments and trailing slashes."""
         try:
-            # Remove fragment
-            url = url.split("#")[0]
-            # Remove trailing slash
-            url = url.rstrip("/")
-            # Validate
-            if not url.startswith(("http://", "https://")):
-                return ""
-            return url
-        except Exception:
-            return ""
+            url = url.split('#')[0].rstrip('/')
+            return url if url.startswith(('http://', 'https://')) else ''
+        except (ValueError, AttributeError):
+            return ''

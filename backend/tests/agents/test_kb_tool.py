@@ -27,14 +27,14 @@ def tool(monkeypatch):
     assert kb_tool is not None
 
     # Monkeypatch KBSearchTool used internally by the wrapper
-    original_KBSearchTool = KBSearchTool
+    original_kb_search_tool = KBSearchTool
 
     class DummyAgent:
         def execute(self, query, profile="chat", kb_ids=None, top_k=5, metadata_filters=None):
             return DummyResult().result
 
     def dummy_kb_constructor():
-        t = original_KBSearchTool()
+        t = original_kb_search_tool()
         t._agent = DummyAgent()
         return t
 
@@ -47,3 +47,4 @@ def test_kb_search_tool_returns_cited_answer(tool):
     assert "This is a grounded answer." in output
     assert "Sources:" in output
     assert "Azure Architecture Guide" in output
+

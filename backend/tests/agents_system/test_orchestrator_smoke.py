@@ -7,7 +7,7 @@ async def test_orchestrator_execute_smoke(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     # Import after env patch
-    from app.agents_system.orchestrator.orchestrator import AgentOrchestrator
+    from app.agents_system.orchestrator.orchestrator import AgentOrchestrator  # noqa: PLC0415
 
     # Dummy agent to bypass real LLM/tool execution
     class DummyAgent:
@@ -52,3 +52,4 @@ async def test_orchestrator_execute_smoke(monkeypatch):
     assert isinstance(result, dict)
     assert result.get("success") is True
     assert "echo: hello world" in result.get("output", "")
+

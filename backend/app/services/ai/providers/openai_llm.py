@@ -3,11 +3,12 @@ OpenAI LLM Provider Implementation
 """
 
 import logging
-from typing import List, AsyncIterator
+from collections.abc import AsyncIterator
+
 from openai import AsyncOpenAI
 
-from ..interfaces import LLMProvider, ChatMessage, LLMResponse
 from ..config import AIConfig
+from ..interfaces import ChatMessage, LLMProvider, LLMResponse
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class OpenAILLMProvider(LLMProvider):
 
     async def chat(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         temperature: float = 0.7,
         max_tokens: int = 1000,
         stream: bool = False,
@@ -76,7 +77,7 @@ class OpenAILLMProvider(LLMProvider):
             raise
 
     async def _stream_chat(
-        self, messages: List[dict], temperature: float, max_tokens: int, **kwargs
+        self, messages: list[dict], temperature: float, max_tokens: int, **kwargs
     ) -> AsyncIterator[str]:
         """Stream chat completion."""
         try:
@@ -107,3 +108,4 @@ class OpenAILLMProvider(LLMProvider):
     def get_model_name(self) -> str:
         """Get current model name."""
         return self.model
+

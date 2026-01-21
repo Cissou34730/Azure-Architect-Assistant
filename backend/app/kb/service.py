@@ -3,19 +3,26 @@ Knowledge Base Index Service
 Manages index loading/caching only; query logic lives in app.services.kb.
 """
 
-import os
 import logging
-from typing import Dict, Optional
-from llama_index.core import VectorStoreIndex, StorageContext, Settings
+import os
+from typing import cast
 
-from .knowledge_base_manager import KBConfig
+from llama_index.core import (
+    Settings,
+    StorageContext,
+    VectorStoreIndex,
+    load_index_from_storage,
+)
+
 from app.services.ai import get_ai_service
-from app.services.ai.adapters import AIServiceLLM, AIServiceEmbedding
+from app.services.ai.adapters import AIServiceEmbedding, AIServiceLLM
+
+from .models import KBConfig
 
 logger = logging.getLogger(__name__)
 
 # Global index cache across all KBs
-_INDEX_CACHE: Dict[str, VectorStoreIndex] = {}
+_INDEX_CACHE: dict[str, VectorStoreIndex] = {}
 
 
 class KnowledgeBaseService:
@@ -37,7 +44,7 @@ class KnowledgeBaseService:
 
         logger.info(f"[{self.kb_id}] Service initialized - Storage: {self.storage_dir}")
 
-    def _ensure_settings(self):
+    def _ensure_settings(self) -> None:
         """Lazy configuration of LlamaIndex settings."""
         if not self._settings_configured:
             # Get unified AI service
@@ -63,15 +70,13 @@ class KnowledgeBaseService:
             logger.info(f"[{self.kb_id}] Using cached index")
             return _INDEX_CACHE[cache_key]
 
-        from llama_index.core import load_index_from_storage
-
         logger.info(f"[{self.kb_id}] Loading index from {self.storage_dir}")
 
         if not os.path.exists(self.storage_dir):
             raise FileNotFoundError(f"Index not found: {self.storage_dir}")
 
         storage_context = StorageContext.from_defaults(persist_dir=self.storage_dir)
-        index = load_index_from_storage(storage_context)
+        index = cast(VectorStoreIndex, load_index_from_storage(storage_context))
 
         _INDEX_CACHE[cache_key] = index
         logger.info(f"[{self.kb_id}] Index loaded and cached")
@@ -91,7 +96,9 @@ class KnowledgeBaseService:
         return os.path.exists(docstore_path)
 
 
-def clear_index_cache(kb_id: Optional[str] = None, storage_dir: Optional[str] = None):
+def clear_index_cache(
+    kb_id: str | None = None, storage_dir: str | None = None
+) -> None:
     """
     Clear cached indexes from memory.
 
@@ -99,8 +106,6 @@ def clear_index_cache(kb_id: Optional[str] = None, storage_dir: Optional[str] = 
         kb_id: KB ID to clear (optional, for logging)
         storage_dir: Storage directory path to remove from cache
     """
-    global _INDEX_CACHE
-
     if storage_dir:
         if storage_dir in _INDEX_CACHE:
             del _INDEX_CACHE[storage_dir]
@@ -118,3 +123,4 @@ def clear_index_cache(kb_id: Optional[str] = None, storage_dir: Optional[str] = 
 def get_cached_index_count() -> int:
     """Get number of cached indexes."""
     return len(_INDEX_CACHE)
+

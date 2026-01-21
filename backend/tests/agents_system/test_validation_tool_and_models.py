@@ -1,6 +1,6 @@
-import json
 
 import pytest
+from pydantic import ValidationError
 
 from app.agents_system.services.aaa_state_models import AAAProjectState
 from app.agents_system.services.state_update_parser import extract_state_updates
@@ -115,5 +115,6 @@ def test_finding_requires_citation() -> None:
         ]
     }
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         AAAProjectState.model_validate(payload)
+

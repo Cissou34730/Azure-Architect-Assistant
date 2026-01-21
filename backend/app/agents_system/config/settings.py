@@ -62,7 +62,7 @@ class Settings(BaseSettings):
                 f"Create it at {config_path} or set MCP_CONFIG_PATH environment variable."
             )
 
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             return json.load(f)
 
     def get_mcp_server_config(self, server_name: str) -> dict[str, Any]:
@@ -91,3 +91,4 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+

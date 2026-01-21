@@ -4,7 +4,7 @@ Service layer handling query orchestration.
 """
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any, cast
 
 from app.services.kb import MultiKBQueryService, QueryProfile
 
@@ -14,7 +14,15 @@ logger = logging.getLogger(__name__)
 class KBQueryService:
     """Service layer for KB query operations"""
 
-    def __init__(self):
+    _instance: "KBQueryService | None" = None
+
+    def __new__(cls) -> "KBQueryService":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self) -> None:
+        # Singleton already initialized via __new__
         pass
 
     def query_with_profile(
@@ -22,8 +30,8 @@ class KBQueryService:
         service: MultiKBQueryService,
         question: str,
         profile: QueryProfile,
-        top_k_per_kb: Optional[int] = None,
-    ) -> Dict[str, Any]:
+        top_k_per_kb: int | None = None,
+    ) -> dict[str, Any]:
         """
         Query knowledge bases using specified profile.
 
@@ -40,15 +48,15 @@ class KBQueryService:
         result = service.query_profile(
             question=question, profile=profile, top_k_per_kb=top_k_per_kb
         )
-        return result
+        return cast(dict[str, Any], result)
 
     def query_specific_kbs(
         self,
         service: MultiKBQueryService,
         question: str,
-        kb_ids: List[str],
+        kb_ids: list[str],
         top_k_per_kb: int = 5,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Query specific knowledge bases manually.
 
@@ -65,16 +73,10 @@ class KBQueryService:
         result = service.query_kbs(
             question=question, kb_ids=kb_ids, top_k_per_kb=top_k_per_kb
         )
-        return result
-
-
-# Singleton instance
-_query_service = None
+        return cast(dict[str, Any], result)
 
 
 def get_query_service() -> KBQueryService:
     """Get singleton query service instance"""
-    global _query_service
-    if _query_service is None:
-        _query_service = KBQueryService()
-    return _query_service
+    return KBQueryService()
+

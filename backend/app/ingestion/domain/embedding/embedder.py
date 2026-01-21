@@ -6,9 +6,11 @@ Extracts embedding logic without orchestration dependencies.
 
 import logging
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import Any
 
 from llama_index.embeddings.openai import OpenAIEmbedding
+
+from app.ingestion.domain.chunking.adapter import Chunk
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +27,10 @@ class EmbeddingResult:
         metadata: Chunk metadata
     """
 
-    vector: List[float]
+    vector: list[float]
     content_hash: str
     text: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class Embedder:
@@ -37,7 +39,7 @@ class Embedder:
     Generates vector embeddings without orchestration coupling.
     """
 
-    def __init__(self, model_name: str = "text-embedding-3-small"):
+    def __init__(self, model_name: str = 'text-embedding-3-small'):
         """
         Initialize embedder.
 
@@ -46,9 +48,9 @@ class Embedder:
         """
         self.model_name = model_name
         self.embedding_client = OpenAIEmbedding(model=model_name)
-        logger.info(f"Embedder initialized: model={model_name}")
+        logger.info(f'Embedder initialized: model={model_name}')
 
-    async def embed(self, chunk) -> EmbeddingResult:
+    async def embed(self, chunk: Chunk) -> EmbeddingResult:
         """
         Generate embedding for a chunk.
 
@@ -63,12 +65,12 @@ class Embedder:
             RuntimeError: If embedding generation fails
         """
         if not chunk.text or not chunk.text.strip():
-            raise ValueError("Cannot embed empty chunk text")
+            raise ValueError('Cannot embed empty chunk text')
 
         try:
             # Log OpenAI API call
             logger.info(
-                f"→ Calling OpenAI API: model={self.model_name}, chunk={chunk.content_hash[:8]}, size={len(chunk.text)} chars"
+                f'→ Calling OpenAI API: model={self.model_name}, chunk={chunk.content_hash[:8]}, size={len(chunk.text)} chars'
             )
 
             # Generate embedding (sync call, but fast enough)
@@ -77,11 +79,11 @@ class Embedder:
 
             # Log successful response
             logger.info(
-                f"✓ OpenAI API response: {len(vector)} dimensions, chunk={chunk.content_hash[:8]}"
+                f'✓ OpenAI API response: {len(vector)} dimensions, chunk={chunk.content_hash[:8]}'
             )
 
             if not vector:
-                raise RuntimeError("Embedding generation returned empty vector")
+                raise RuntimeError('Embedding generation returned empty vector')
 
             return EmbeddingResult(
                 vector=vector,
@@ -91,5 +93,5 @@ class Embedder:
             )
 
         except Exception as e:
-            logger.error(f"✗ OpenAI API error for chunk {chunk.content_hash[:8]}: {e}")
-            raise RuntimeError(f"Embedding generation failed: {e}") from e
+            logger.error(f'✗ OpenAI API error for chunk {chunk.content_hash[:8]}: {e}')
+            raise RuntimeError(f'Embedding generation failed: {e}') from e

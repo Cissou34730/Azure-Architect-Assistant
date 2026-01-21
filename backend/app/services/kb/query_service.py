@@ -4,13 +4,13 @@ Query execution logic for single KB and multi-KB orchestration.
 """
 
 import logging
-from typing import Dict, List, Optional
 from enum import Enum
+
+from llama_index.core import Settings
 
 from app.kb import KBManager
 from app.kb.models import KBConfig
 from app.kb.service import KnowledgeBaseService
-from llama_index.core import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -30,15 +30,18 @@ class KBQueryService:
         self.similarity_threshold = similarity_threshold
 
     def query(
-        self, question: str, top_k: int = 5, metadata_filters: Optional[Dict] = None
-    ) -> Dict:
+        self, question: str, top_k: int = 5, metadata_filters: dict | None = None
+    ) -> dict:
         logger.info("[%s] Processing query: %s...", self.kb_id, question[:100])
 
         index = KnowledgeBaseService(self.kb_config).get_index()
         retriever = index.as_retriever(similarity_top_k=top_k)
 
         if metadata_filters:
-            from llama_index.core.vector_stores import MetadataFilter, MetadataFilters
+            from llama_index.core.vector_stores import (  # noqa: PLC0415
+                MetadataFilter,
+                MetadataFilters,
+            )
 
             filters = MetadataFilters(
                 filters=[
@@ -65,9 +68,9 @@ class KBQueryService:
                 "kb_name": self.kb_name,
             }
 
-        context_parts: List[str] = []
-        sources: List[Dict] = []
-        scores: List[float] = []
+        context_parts: list[str] = []
+        sources: list[dict] = []
+        scores: list[float] = []
         for i, node in enumerate(filtered, 1):
             context_parts.append(f"[Source {i} - {self.kb_name}]\n{node.text}\n")
             sources.append(
@@ -114,7 +117,7 @@ class MultiKBQueryService:
 
     def __init__(self, kb_manager: KBManager):
         self.kb_manager = kb_manager
-        self._kb_services: Dict[str, KBQueryService] = {}
+        self._kb_services: dict[str, KBQueryService] = {}
         logger.info("MultiKBQueryService initialized")
 
     def _get_kb_service(self, kb_config: KBConfig) -> KBQueryService:
@@ -127,8 +130,8 @@ class MultiKBQueryService:
         question: str,
         profile: QueryProfile,
         top_k_per_kb: int = 3,
-        metadata_filters: Optional[Dict] = None,
-    ) -> Dict:
+        metadata_filters: dict | None = None,
+    ) -> dict:
         logger.info("Query with profile: %s", profile.value)
 
         kb_configs = self.kb_manager.get_kbs_for_profile(profile.value)
@@ -141,7 +144,7 @@ class MultiKBQueryService:
                 "kbs_queried": [],
             }
 
-        results: List[Dict] = []
+        results: list[dict] = []
         for kb_config in kb_configs:
             try:
                 service = self._get_kb_service(kb_config)
@@ -152,7 +155,7 @@ class MultiKBQueryService:
                 )
                 if outcome["has_results"]:
                     results.append(outcome)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.error("Failed to query KB %s: %s", kb_config.id, exc)
 
         if not results:
@@ -166,9 +169,9 @@ class MultiKBQueryService:
         return self._merge_results(results, question, profile)
 
     def _merge_results(
-        self, all_results: List[Dict], question: str, profile: QueryProfile
-    ) -> Dict:
-        sources: List[Dict] = []
+        self, all_results: list[dict], question: str, profile: QueryProfile
+    ) -> dict:
+        sources: list[dict] = []
         for result in all_results:
             sources.extend(result["sources"])
 
@@ -203,13 +206,13 @@ class MultiKBQueryService:
     def query_specific_kbs(
         self,
         question: str,
-        kb_ids: List[str],
+        kb_ids: list[str],
         top_k: int = 5,
-        metadata_filters: Optional[Dict] = None,
-    ) -> Dict:
+        metadata_filters: dict | None = None,
+    ) -> dict:
         logger.info("Query specific KBs: %s", kb_ids)
 
-        results: List[Dict] = []
+        results: list[dict] = []
         for kb_id in kb_ids:
             kb_config = self.kb_manager.get_kb(kb_id)
             if not kb_config or not kb_config.is_active:
@@ -225,7 +228,7 @@ class MultiKBQueryService:
                 )
                 if outcome["has_results"]:
                     results.append(outcome)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 logger.error("Failed to query KB %s: %s", kb_id, exc)
 
         if not results:
@@ -241,13 +244,14 @@ class MultiKBQueryService:
     def query_kbs(
         self,
         question: str,
-        kb_ids: List[str],
+        kb_ids: list[str],
         top_k_per_kb: int = 5,
-        metadata_filters: Optional[Dict] = None,
-    ) -> Dict:
+        metadata_filters: dict | None = None,
+    ) -> dict:
         return self.query_specific_kbs(
             question=question,
             kb_ids=kb_ids,
             top_k=top_k_per_kb,
             metadata_filters=metadata_filters,
         )
+

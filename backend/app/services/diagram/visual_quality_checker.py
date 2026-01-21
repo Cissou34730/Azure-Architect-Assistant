@@ -6,7 +6,6 @@ Non-blocking - logs warnings for quality issues but doesn't fail generation.
 
 import logging
 import re
-from typing import List, Set, Tuple
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -17,8 +16,8 @@ class QualityReport:
     """Quality assessment report for diagram."""
 
     is_acceptable: bool
-    issues: List[str]
-    warnings: List[str]
+    issues: list[str]
+    warnings: list[str]
     severity: str  # "INFO", "WARNING", "ERROR"
     metrics: dict
 
@@ -35,26 +34,43 @@ class VisualQualityChecker:
     MAX_EDGES = 30  # Avoid spaghetti
     MAX_DEPTH = 5  # Avoid deep nesting
 
+    def _validate_thresholds(
+        self, nodes: list[str], edges: list[str], orphans: set[str], depth: int
+    ) -> tuple[list[str], list[str]]:
+        """Validate calculated metrics against visual quality thresholds."""
+        issues = []
+        warnings = []
+
+        if len(nodes) > self.MAX_NODES:
+            warnings.append(
+                f"High node count ({len(nodes)}>{self.MAX_NODES}): "
+                "Consider splitting into multiple diagrams"
+            )
+
+        if len(edges) > self.MAX_EDGES:
+            warnings.append(
+                f"High edge count ({len(edges)}>{self.MAX_EDGES}): "
+                "Diagram may be too complex"
+            )
+
+        if orphans:
+            issues.append(
+                f"Orphan nodes detected ({len(orphans)}): {', '.join(list(orphans)[:5])}"
+            )
+
+        if depth > self.MAX_DEPTH:
+            warnings.append(
+                f"Deep nesting ({depth} levels): Consider flattening structure"
+            )
+
+        return issues, warnings
+
     async def check_mermaid_visual_quality(self, source_code: str) -> QualityReport:
-        """Check Mermaid diagram visual quality metrics.
-
-        Analyzes:
-        - Node count (≤20 recommended)
-        - Edge count (≤30 recommended)
-        - Orphan nodes (0 expected)
-        - Depth/nesting (≤5 levels)
-
-        Args:
-            source_code: Mermaid source code
-
-        Returns:
-            QualityReport with issues/warnings (non-blocking)
-        """
+        """Check Mermaid diagram visual quality metrics."""
         logger.info(
             "Checking Mermaid visual quality (length: %d chars)", len(source_code)
         )
 
-        # Extract nodes and edges
         nodes = self._extract_mermaid_nodes(source_code)
         edges = self._extract_mermaid_edges(source_code)
         orphans = self._find_orphan_nodes(nodes, edges)
@@ -67,29 +83,7 @@ class VisualQualityChecker:
             "depth": depth,
         }
 
-        issues = []
-        warnings = []
-
-        # Check thresholds
-        if len(nodes) > self.MAX_NODES:
-            warnings.append(
-                f"High node count ({len(nodes)}>{self.MAX_NODES}): Consider splitting into multiple diagrams"
-            )
-
-        if len(edges) > self.MAX_EDGES:
-            warnings.append(
-                f"High edge count ({len(edges)}>{self.MAX_EDGES}): Diagram may be too complex"
-            )
-
-        if orphans:
-            issues.append(
-                f"Orphan nodes detected ({len(orphans)}): {', '.join(list(orphans)[:5])}"
-            )
-
-        if depth > self.MAX_DEPTH:
-            warnings.append(
-                f"Deep nesting ({depth} levels): Consider flattening structure"
-            )
+        issues, warnings = self._validate_thresholds(nodes, edges, orphans, depth)
 
         # Determine severity
         severity = "ERROR" if issues else ("WARNING" if warnings else "INFO")
@@ -119,7 +113,7 @@ class VisualQualityChecker:
             metrics=metrics,
         )
 
-    def _extract_mermaid_nodes(self, source_code: str) -> Set[str]:
+    def _extract_mermaid_nodes(self, source_code: str) -> set[str]:
         """Extract node IDs from Mermaid diagram.
 
         Matches patterns like:
@@ -135,7 +129,7 @@ class VisualQualityChecker:
         Returns:
             Set of node IDs
         """
-        nodes: Set[str] = set()
+        nodes: set[str] = set()
 
         # Pattern for flowchart nodes: ID[text] or ID(text) or ID{text}
         flowchart_pattern = r"\b([A-Za-z0-9_]+)[\[\(\{]"
@@ -146,7 +140,7 @@ class VisualQualityChecker:
         nodes.update(re.findall(c4_pattern, source_code))
 
         # Filter out Mermaid keywords
-        keywords: Set[str] = {
+        keywords: set[str] = {
             "graph",
             "flowchart",
             "TB",
@@ -163,7 +157,7 @@ class VisualQualityChecker:
 
         return nodes
 
-    def _extract_mermaid_edges(self, source_code: str) -> List[Tuple[str, str]]:
+    def _extract_mermaid_edges(self, source_code: str) -> list[tuple[str, str]]:
         """Extract edges/relationships from Mermaid diagram.
 
         Matches arrow patterns like:
@@ -178,7 +172,7 @@ class VisualQualityChecker:
         Returns:
             List of (from_node, to_node) tuples
         """
-        edges: List[Tuple[str, str]] = []
+        edges: list[tuple[str, str]] = []
 
         # Pattern for flowchart arrows: A --> B
         arrow_pattern = (
@@ -193,8 +187,8 @@ class VisualQualityChecker:
         return edges
 
     def _find_orphan_nodes(
-        self, nodes: Set[str], edges: List[Tuple[str, str]]
-    ) -> Set[str]:
+        self, nodes: set[str], edges: list[tuple[str, str]]
+    ) -> set[str]:
         """Find nodes not connected to any edges.
 
         Args:
@@ -204,7 +198,7 @@ class VisualQualityChecker:
         Returns:
             Set of orphan node IDs
         """
-        connected_nodes: Set[str] = set()
+        connected_nodes: set[str] = set()
         for from_node, to_node in edges:
             connected_nodes.add(from_node)
             connected_nodes.add(to_node)
@@ -226,17 +220,18 @@ class VisualQualityChecker:
         max_depth: int = 0
         current_depth: int = 0
 
-        lines: List[str] = source_code.split("\n")
-        for line in lines:
-            line = line.strip()
+        lines: list[str] = source_code.split("\n")
+        for raw_line in lines:
+            line = raw_line.strip()
 
             # Check for subgraph or Boundary opening
-            if line.startswith("subgraph") or "Boundary" in line and "(" in line:
+            if line.startswith("subgraph") or ("Boundary" in line and "(" in line):
                 current_depth += 1
                 max_depth = max(max_depth, current_depth)
 
             # Check for end
-            if line == "end" or line == "}":
+            if line in {"end", "}"}:
                 current_depth = max(0, current_depth - 1)
 
         return max_depth
+

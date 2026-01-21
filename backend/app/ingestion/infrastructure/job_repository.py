@@ -6,19 +6,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, cast
 
 from sqlalchemy import select, update
 
+from app.ingestion.domain.enums import JobPhase, PhaseStatus
+from app.ingestion.domain.errors import JobNotFoundError
+from app.ingestion.domain.models import IngestionState
 from app.ingestion.ingestion_database import get_session
 from app.ingestion.models import (
     IngestionJob,
     IngestionPhaseStatus,
+)
+from app.ingestion.models import (
     JobStatus as DBJobStatus,
 )
-from app.ingestion.domain.models import IngestionState
-from app.ingestion.domain.enums import JobPhase, PhaseStatus
-from app.ingestion.domain.errors import JobNotFoundError
 
 
 @dataclass
@@ -28,9 +30,9 @@ class JobView:
     id: str
     kb_id: str
     status: str
-    checkpoint: Optional[Dict[str, Any]]
-    counters: Optional[Dict[str, Any]]
-    finished_at: Optional[datetime]
+    checkpoint: dict[str, Any] | None
+    counters: dict[str, Any] | None
+    finished_at: datetime | None
 
 
 class JobRepository:
@@ -40,7 +42,7 @@ class JobRepository:
         self,
         kb_id: str,
         source_type: str,
-        source_config: Dict[str, Any],
+        source_config: dict[str, Any],
         priority: int = 0,
     ) -> str:
         """Create a new ingestion job and return its ID."""
@@ -56,7 +58,7 @@ class JobRepository:
                 total_items=0,
                 processed_items=0,
                 priority=priority,
-                current_phase="loading",
+                current_phase='loading',
                 phase_progress={},
             )
             session.add(job)
@@ -64,9 +66,9 @@ class JobRepository:
             job_id = job.id
 
         self.initialize_phase_statuses(job_id)
-        return job_id
+        return cast(str, job_id)
 
-    def get_latest_job(self, kb_id: str) -> Optional[IngestionState]:
+    def get_latest_job(self, kb_id: str) -> IngestionState | None:
         """Get the most recent job for a knowledge base."""
         with get_session() as session:
             result = session.execute(
@@ -80,7 +82,7 @@ class JobRepository:
                 return None
             return self._job_to_state(job)
 
-    def get_latest_job_record(self, kb_id: str) -> Optional[IngestionJob]:
+    def get_latest_job_record(self, kb_id: str) -> IngestionJob | None:
         """Return the latest ORM job record for a KB (raw DB model)."""
         with get_session() as session:
             result = session.execute(
@@ -91,7 +93,7 @@ class JobRepository:
             )
             return result.scalars().first()
 
-    def get_latest_job_id(self, kb_id: str) -> Optional[str]:
+    def get_latest_job_id(self, kb_id: str) -> str | None:
         """Return the latest job_id (UUID) for a KB."""
         with get_session() as session:
             result = session.execute(
@@ -106,12 +108,12 @@ class JobRepository:
     def update_job_status(self, job_id: str, status: str) -> None:
         """Update job status and timestamp (expects canonical job statuses)."""
         status_map = {
-            "not_started": DBJobStatus.NOT_STARTED.value,
-            "running": DBJobStatus.RUNNING.value,
-            "paused": DBJobStatus.PAUSED.value,
-            "completed": DBJobStatus.COMPLETED.value,
-            "failed": DBJobStatus.FAILED.value,
-            "canceled": DBJobStatus.CANCELED.value,
+            'not_started': DBJobStatus.NOT_STARTED.value,
+            'running': DBJobStatus.RUNNING.value,
+            'paused': DBJobStatus.PAUSED.value,
+            'completed': DBJobStatus.COMPLETED.value,
+            'failed': DBJobStatus.FAILED.value,
+            'canceled': DBJobStatus.CANCELED.value,
         }
         db_status = status_map.get(status, DBJobStatus.NOT_STARTED.value)
 
@@ -156,7 +158,7 @@ class JobRepository:
         with get_session() as session:
             job = session.get(IngestionJob, job_id)
             if not job:
-                raise JobNotFoundError(f"Job not found: {job_id}")
+                raise JobNotFoundError(f'Job not found: {job_id}')
             job.status = status
             job.finished_at = finished_at
             job.last_error = last_error
@@ -165,29 +167,19 @@ class JobRepository:
     def update_job(
         self,
         job_id: str,
-        *,
-        status: Optional[str] = None,
-        checkpoint: Optional[Dict[str, Any]] = None,
-        counters: Optional[Dict[str, Any]] = None,
-        finished_at: Optional[datetime] = None,
-        last_error: Optional[str] = None,
+        checkpoint: dict[str, Any] | None = None,
+        counters: dict[str, Any] | None = None,
     ) -> None:
-        """Update job fields."""
+        """Update job progress fields."""
         with get_session() as session:
             job = session.get(IngestionJob, job_id)
             if not job:
-                raise JobNotFoundError(f"Job not found: {job_id}")
+                raise JobNotFoundError(f'Job not found: {job_id}')
 
-            if status is not None:
-                job.status = status
             if checkpoint is not None:
                 job.checkpoint = checkpoint
             if counters is not None:
                 job.counters = counters
-            if finished_at is not None:
-                job.finished_at = finished_at
-            if last_error is not None:
-                job.last_error = last_error
             job.updated_at = datetime.now(timezone.utc)
 
     def update_heartbeat(self, job_id: str) -> None:
@@ -204,7 +196,7 @@ class JobRepository:
         with get_session() as session:
             job = session.get(IngestionJob, job_id)
             if not job:
-                raise JobNotFoundError(f"Job not found: {job_id}")
+                raise JobNotFoundError(f'Job not found: {job_id}')
             return JobView(
                 id=job.id,
                 kb_id=job.kb_id,

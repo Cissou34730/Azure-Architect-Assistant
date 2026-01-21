@@ -4,7 +4,7 @@ Abstract base class for document chunking strategies.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import Any
 
 
 class BaseChunker(ABC):
@@ -22,7 +22,7 @@ class BaseChunker(ABC):
         self.chunk_overlap = chunk_overlap
 
     @abstractmethod
-    def chunk_documents(self, documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def chunk_documents(self, documents: list[Any]) -> list[dict[str, Any]]:
         """
         Chunk documents into smaller pieces.
 

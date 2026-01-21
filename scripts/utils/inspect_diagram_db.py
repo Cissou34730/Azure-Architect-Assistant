@@ -34,3 +34,4 @@ def inspect_db(path: str) -> None:
 if __name__ == '__main__':
     for p in PATHS:
         inspect_db(p)
+

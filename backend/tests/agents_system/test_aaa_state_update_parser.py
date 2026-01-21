@@ -35,3 +35,4 @@ def test_extract_state_updates_falls_back_to_heuristics_when_no_block() -> None:
     updates = extract_state_updates(response, user_message=response, current_state={})
     assert updates is not None
     assert updates.get("nfrs", {}).get("availability")
+

@@ -3,14 +3,13 @@ Logging configuration helpers for the FastAPI backend.
 """
 
 import logging
-from typing import Iterable
-
+from collections.abc import Iterable
 
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
-def configure_logging(level: str = "INFO", noisy_loggers: Iterable[str] = None) -> None:
+def configure_logging(level: str = "INFO", noisy_loggers: Iterable[str] | None = None) -> None:
     """
     Configure root and framework loggers with a consistent format.
 
@@ -36,3 +35,4 @@ def configure_logging(level: str = "INFO", noisy_loggers: Iterable[str] = None) 
     # Quiet down noisy HTTP clients by default.
     for noisy in noisy_loggers or ["httpx", "openai", "urllib3", "httpcore"]:
         logging.getLogger(noisy).setLevel(logging.WARNING)
+

@@ -3,12 +3,13 @@ LLM Service for document analysis, chat, and proposal generation.
 Uses unified AI service layer for provider abstraction.
 """
 
-import logging
 import json
+import logging
 import re
-from typing import Dict, List, Any, Optional, Callable
+from collections.abc import Callable
+from typing import Any
 
-from app.services.ai import get_ai_service, ChatMessage
+from app.services.ai import ChatMessage, get_ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class LLMService:
         self.model = self.ai_service.get_llm_model()
         logger.info(f"LLMService ready with model: {self.model}")
 
-    async def analyze_documents(self, document_texts: List[str]) -> Dict[str, Any]:
+    async def analyze_documents(self, document_texts: list[str]) -> dict[str, Any]:
         """
         Analyze documents and extract ProjectState structure.
 
@@ -106,7 +107,7 @@ Notes:
             project_state = await self._complete_json(
                 system_prompt, user_prompt, max_tokens=3000
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Fallback to legacy parsing if JSON mode fails for any reason
             response = await self._complete(system_prompt, user_prompt, max_tokens=3000)
             project_state = self._parse_project_state(response)
@@ -115,7 +116,7 @@ Notes:
 
     async def _complete_json(
         self, system_prompt: str, user_prompt: str, max_tokens: int = 2000
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Make an LLM call requesting JSON-only output and parse it.
 
         Uses OpenAI JSON mode via response_format when supported by the provider.
@@ -141,10 +142,10 @@ Notes:
     async def process_chat_message(
         self,
         user_message: str,
-        current_state: Dict[str, Any],
-        recent_messages: List[Dict[str, Any]],
-        kb_sources: Optional[List[Dict[str, Any]]] = None,
-    ) -> Dict[str, Any]:
+        current_state: dict[str, Any],
+        recent_messages: list[dict[str, Any]],
+        kb_sources: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """
         Process chat message and update project state.
 
@@ -193,8 +194,8 @@ Notes:
 
     async def generate_architecture_proposal(
         self,
-        state: Dict[str, Any],
-        on_progress: Optional[Callable[[str, Optional[str]], None]] = None,
+        state: dict[str, Any],
+        on_progress: Callable[[str, str | None], None] | None = None,
     ) -> str:
         """
         Generate comprehensive architecture proposal.
@@ -259,7 +260,7 @@ Use clear headings, bullet points, and technical details. Reference Azure Well-A
 
         return response.content
 
-    def _parse_project_state(self, response: str) -> Dict[str, Any]:
+    def _parse_project_state(self, response: str) -> dict[str, Any]:
         """Parse ProjectState from LLM response."""
         # Extract JSON from response
         json_match = re.search(r"\{[\s\S]*\}", response)
@@ -271,8 +272,8 @@ Use clear headings, bullet points, and technical details. Reference Azure Well-A
         return parsed
 
     def _parse_chat_response(
-        self, response: str, current_state: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, response: str, current_state: dict[str, Any]
+    ) -> dict[str, Any]:
         """Parse chat response and extract updated state if present."""
         # Try to find JSON in response
         json_match = re.search(r"\{[\s\S]*\}", response)
@@ -303,7 +304,7 @@ Use clear headings, bullet points, and technical details. Reference Azure Well-A
         }
 
     def _build_chat_system_prompt(
-        self, state: Dict[str, Any], kb_context: str, has_kb_context: bool
+        self, state: dict[str, Any], kb_context: str, has_kb_context: bool
     ) -> str:
         """Build system prompt for chat."""
         state_json = json.dumps(state, indent=2)
@@ -331,12 +332,18 @@ Always be helpful, professional, and technically accurate."""
 
 
 # Singleton instance
-_llm_service: Optional[LLMService] = None
+class LLMServiceSingleton:
+    """Manages a singleton instance of LLMService."""
+    _instance: LLMService | None = None
 
+    @classmethod
+    def get_instance(cls) -> LLMService:
+        """Get or create the singleton instance."""
+        if cls._instance is None:
+            cls._instance = LLMService()
+        return cls._instance
 
 def get_llm_service() -> LLMService:
     """Get or create LLM service instance."""
-    global _llm_service
-    if _llm_service is None:
-        _llm_service = LLMService()
-    return _llm_service
+    return LLMServiceSingleton.get_instance()
+

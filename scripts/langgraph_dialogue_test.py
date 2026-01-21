@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import sys
@@ -88,3 +88,4 @@ if __name__ == "__main__":
     args = p.parse_args()
 
     asyncio.run(run_test(args.project_id, args.message))
+

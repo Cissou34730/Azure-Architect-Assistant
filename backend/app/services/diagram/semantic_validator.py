@@ -4,13 +4,14 @@ Verifies that generated diagrams accurately represent the input description,
 not just syntactically correct.
 """
 
-import logging
 import json
-from typing import Dict, Any, List
+import logging
 from dataclasses import dataclass
+from typing import Any
+
+from app.models.diagram import DiagramType
 
 from .llm_client import DiagramLLMClient
-from app.models.diagram import DiagramType
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +21,8 @@ class SemanticValidationResult:
     """Result of semantic validation."""
 
     is_valid: bool
-    missing_elements: List[str]
-    incorrect_relationships: List[str]
+    missing_elements: list[str]
+    incorrect_relationships: list[str]
     suggestions: str
 
     def __bool__(self) -> bool:
@@ -103,7 +104,7 @@ class SemanticValidator:
                 is_valid=True,
                 missing_elements=[],
                 incorrect_relationships=[],
-                suggestions=f"Validation error (non-blocking): {str(e)}",
+                suggestions=f"Validation error (non-blocking): {e!s}",
             )
 
     def _build_validation_prompt(
@@ -148,7 +149,7 @@ Be strict: mark as invalid if significant elements are missing or relationships 
 """
         return prompt
 
-    def _parse_validation_result(self, llm_response: str) -> Dict[str, Any]:
+    def _parse_validation_result(self, llm_response: str) -> dict[str, Any]:
         """Parse LLM validation response (JSON format).
 
         Args:
@@ -162,7 +163,7 @@ Be strict: mark as invalid if significant elements are missing or relationships 
         """
         try:
             # Try parsing as JSON
-            result: Dict[str, Any] = json.loads(llm_response)
+            result: dict[str, Any] = json.loads(llm_response)
 
             # Validate required fields
             if "is_valid" not in result:
@@ -187,5 +188,6 @@ Be strict: mark as invalid if significant elements are missing or relationships 
                 "is_valid": False,
                 "missing_elements": [],
                 "incorrect_relationships": [],
-                "suggestions": f"Validation parsing error: {str(e)}",
+                "suggestions": f"Validation parsing error: {e!s}",
             }
+

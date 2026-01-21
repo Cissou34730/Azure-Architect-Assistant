@@ -14,3 +14,4 @@ if __name__ == '__main__':
         print('AgentFacade initialized successfully')
     except Exception as e:
         print('AgentFacade initialize failed:', repr(e))
+

@@ -10,3 +10,4 @@ Manages persistence and retrieval of conversation history.
 # - Efficient retrieval with pagination
 # - Memory compression and summarization triggers
 # - Conversation search and filtering
+

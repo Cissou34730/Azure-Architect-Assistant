@@ -46,3 +46,4 @@ def check_database(db_path, db_name):
 if __name__ == "__main__":
     check_database("backend/data/projects.db", "Projects Database")
     check_database("backend/data/ingestion.db", "Ingestion Database")
+

@@ -6,24 +6,28 @@ See docs/SYSTEM_ARCHITECTURE.md for a pipeline overview.
 
 import asyncio
 import logging
+from contextlib import suppress
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.ingestion.application.orchestrator import (
     IngestionOrchestrator,
-    WorkflowDefinition,
     RetryPolicy,
+    WorkflowDefinition,
 )
-from app.ingestion.application.status_query_service import StatusQueryService
+from app.ingestion.application.status_query_service import (
+    KBPersistedStatus,
+    StatusQueryService,
+)
 from app.ingestion.infrastructure import (
     create_job_repository,
     create_queue_repository,
 )
-from app.service_registry import get_kb_manager
 from app.kb import KBManager
+from app.service_registry import get_kb_manager
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +39,9 @@ class StartIngestionRequest(BaseModel):
     """Request to start ingestion for a KB."""
 
     source_type: str
-    source_config: Dict[str, Any]
-    embedding_model: Optional[str] = "text-embedding-3-small"
-    chunking: Optional[Dict[str, Any]] = None
+    source_config: dict[str, Any]
+    embedding_model: str | None = "text-embedding-3-small"
+    chunking: dict[str, Any] | None = None
 
 
 class JobStatusResponse(BaseModel):
@@ -46,11 +50,11 @@ class JobStatusResponse(BaseModel):
     job_id: str
     kb_id: str
     status: str
-    counters: Optional[Dict[str, Any]] = None
-    checkpoint: Optional[Dict[str, Any]] = None
-    last_error: Optional[str] = None
-    started_at: Optional[datetime] = None
-    finished_at: Optional[datetime] = None
+    counters: dict[str, Any] | None = None
+    checkpoint: dict[str, Any] | None = None
+    last_error: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
 
 
 class JobViewResponse(BaseModel):
@@ -62,23 +66,23 @@ class JobViewResponse(BaseModel):
     phase: str
     progress: int
     message: str
-    error: Optional[str]
-    metrics: Dict[str, Any]
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
-    phase_details: Optional[Any] = None
+    error: str | None
+    metrics: dict[str, Any]
+    started_at: datetime | None
+    completed_at: datetime | None
+    phase_details: Any | None = None
 
 
 # Global repository instance
 repo = create_job_repository()
 
 # Track running orchestrator tasks for graceful shutdown
-_running_tasks: Dict[str, asyncio.Task] = {}  # job_id -> task mapping
+_running_tasks: dict[str, asyncio.Task[Any]] = {}  # job_id -> task mapping
 
 
 async def run_orchestrator_background(
-    job_id: str, kb_id: str, kb_config: Dict[str, Any]
-):
+    job_id: str, kb_id: str, kb_config: dict[str, Any]
+) -> None:
     """
     Background task to run orchestrator.
 
@@ -87,8 +91,6 @@ async def run_orchestrator_background(
         kb_id: Knowledge base identifier
         kb_config: KB configuration
     """
-    import asyncio
-
     orchestrator = IngestionOrchestrator(
         repo=repo,
         workflow=WorkflowDefinition(),
@@ -105,12 +107,13 @@ async def run_orchestrator_background(
         logger.exception(f"Orchestrator failed for job {job_id}: {e}")
     finally:
         # Remove from tracking
-        if job_id in _running_tasks:
-            del _running_tasks[job_id]
+        _running_tasks.pop(job_id, None)
 
 
 @router.post("/kb/{kb_id}/start", response_model=JobStatusResponse)
-async def start_ingestion(kb_id: str, kb_manager: KBManager = Depends(get_kb_manager)):
+async def start_ingestion(
+    kb_id: str, kb_manager: KBManager = Depends(get_kb_manager)
+) -> JobStatusResponse:
     """
     Start ingestion for a knowledge base.
     Fetches KB configuration from KBManager (like legacy endpoint).
@@ -122,8 +125,6 @@ async def start_ingestion(kb_id: str, kb_manager: KBManager = Depends(get_kb_man
     Returns:
         Job status response
     """
-    import asyncio
-
     try:
         # Get KB configuration from manager (like legacy endpoint)
         if not kb_manager.kb_exists(kb_id):
@@ -171,11 +172,13 @@ async def start_ingestion(kb_id: str, kb_manager: KBManager = Depends(get_kb_man
 
     except Exception as e:
         logger.exception(f"Failed to start ingestion for KB {kb_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to start ingestion: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to start ingestion: {e}"
+        ) from e
 
 
 @router.post("/kb/{kb_id}/pause")
-async def pause_ingestion(kb_id: str):
+async def pause_ingestion(kb_id: str) -> dict[str, Any]:
     """
     Pause ingestion job for a KB by cancelling the running task.
     This mimics the old threading.Event pattern: signal stop, wait for graceful exit.
@@ -199,7 +202,7 @@ async def pause_ingestion(kb_id: str):
 
         if not task:
             # Task not running, just update database
-            repo.update_job(job_id, status="paused")
+            repo.set_job_status(job_id, status="paused")
             logger.info(f"Job {job_id} not running - marked as paused in database")
             return {
                 "status": "paused",
@@ -229,11 +232,13 @@ async def pause_ingestion(kb_id: str):
 
     except Exception as e:
         logger.exception(f"Failed to pause job for KB {kb_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to pause job: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to pause job: {e}") from e
 
 
 @router.post("/kb/{kb_id}/resume")
-async def resume_ingestion(kb_id: str, kb_manager: KBManager = Depends(get_kb_manager)):
+async def resume_ingestion(
+    kb_id: str, kb_manager: KBManager = Depends(get_kb_manager)
+) -> dict[str, Any]:
     """
     Resume paused ingestion job for a KB.
     Restarts the orchestrator from the saved checkpoint.
@@ -245,8 +250,6 @@ async def resume_ingestion(kb_id: str, kb_manager: KBManager = Depends(get_kb_ma
     Returns:
         Success message
     """
-    import asyncio
-
     try:
         # Get latest job for this KB
         job_id = repo.get_latest_job_id(kb_id)
@@ -291,7 +294,7 @@ async def resume_ingestion(kb_id: str, kb_manager: KBManager = Depends(get_kb_ma
         IngestionOrchestrator.clear_shutdown_flag()
 
         # Update status to running
-        repo.update_job(job_id, status="running")
+        repo.set_job_status(job_id, status="running")
 
         # Restart orchestrator task from checkpoint
         task = asyncio.create_task(
@@ -310,11 +313,11 @@ async def resume_ingestion(kb_id: str, kb_manager: KBManager = Depends(get_kb_ma
 
     except Exception as e:
         logger.exception(f"Failed to resume job for KB {kb_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to resume job: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to resume job: {e}") from e
 
 
 @router.post("/kb/{kb_id}/cancel")
-async def cancel_ingestion(kb_id: str):
+async def cancel_ingestion(kb_id: str) -> dict[str, Any]:
     """
     Cancel ingestion job for a KB and trigger cleanup.
 
@@ -335,17 +338,16 @@ async def cancel_ingestion(kb_id: str):
                 status_code=404, detail=f"No job found for KB '{kb_id}'"
             )
 
-        repo.update_job(job_id, status="canceled")
+        repo.set_job_status(job_id, status="canceled")
         logger.info(f"Canceled job {job_id} for KB {kb_id}")
         return {"status": "canceled", "job_id": job_id, "kb_id": kb_id}
     except Exception as e:
         logger.exception(f"Failed to cancel job for KB {kb_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to cancel job: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to cancel job: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to cancel job: {e}") from e
 
 
 @router.get("/kb/{job_id}/status", response_model=JobStatusResponse)
-async def get_job_status(job_id: str):
+async def get_job_status(job_id: str) -> JobStatusResponse:
     """
     Get job status and progress.
 
@@ -372,11 +374,13 @@ async def get_job_status(job_id: str):
         )
     except Exception as e:
         logger.exception(f"Failed to get status for job {job_id}: {e}")
-        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Job not found: {job_id}"
+        ) from e
 
 
 @router.get("/kb/{kb_id}/details")
-async def get_kb_ingestion_details(kb_id: str):
+async def get_kb_ingestion_details(kb_id: str) -> dict[str, Any]:
     """
     Get detailed ingestion status for a KB including phase details.
     This endpoint provides comprehensive status information for the frontend.
@@ -387,8 +391,6 @@ async def get_kb_ingestion_details(kb_id: str):
     Returns:
         Detailed ingestion status with phase breakdown
     """
-    from app.ingestion.application.status_query_service import StatusQueryService
-
     try:
         status_service = StatusQueryService()
         status = status_service.get_status(kb_id)
@@ -401,7 +403,7 @@ async def get_kb_ingestion_details(kb_id: str):
                 counters = job.counters
             else:
                 counters = {}
-        except Exception:
+        except Exception:  # noqa: BLE001
             counters = {}
 
         return {
@@ -414,25 +416,63 @@ async def get_kb_ingestion_details(kb_id: str):
         }
     except Exception as e:
         logger.exception(f"Failed to get ingestion details for KB {kb_id}: {e}")
-        raise HTTPException(status_code=404, detail=f"KB details not found: {kb_id}")
+        raise HTTPException(
+            status_code=404, detail=f"KB details not found: {kb_id}"
+        ) from e
+
+
+def _normalize_job_metrics(
+    status: KBPersistedStatus, raw_queue_metrics: dict[str, int], counters: dict[str, int]
+) -> dict[str, int]:
+    """Consolidate metrics from queue stats, phase details, and job counters."""
+
+    def phase_items(name: str, key: str = "items_processed") -> int:
+        for pd in status.phase_details:
+            if pd.get("name") == name:
+                return pd.get(key, 0) or 0
+        return 0
+
+    pending = raw_queue_metrics.get("pending", 0)
+    processing = raw_queue_metrics.get("processing", 0)
+    done = raw_queue_metrics.get("done", 0)
+    error = raw_queue_metrics.get("error", 0)
+
+    chunks_queued = pending + processing + done + error
+
+    metrics = {
+        "chunks_pending": pending,
+        "chunks_processing": processing,
+        "chunks_embedded": done or phase_items("indexing"),
+        "chunks_failed": error,
+        "chunks_queued": chunks_queued or phase_items("chunking", "items_total"),
+        "documents_crawled": phase_items("loading"),
+        "documents_cleaned": phase_items("chunking"),
+        "chunks_created": phase_items("chunking"),
+    }
+
+    if counters:
+        metrics["documents_crawled"] = counters.get(
+            "docs_seen", metrics["documents_crawled"]
+        )
+        metrics["chunks_created"] = counters.get(
+            "chunks_seen", metrics["chunks_created"]
+        )
+        metrics["chunks_embedded"] = counters.get(
+            "chunks_processed", metrics["chunks_embedded"]
+        )
+    return metrics
 
 
 @router.get("/kb/{kb_id}/job-view", response_model=JobViewResponse)
 async def get_kb_job_view(kb_id: str) -> JobViewResponse:
-    """
-    Return a full ingestion job view for a KB (single call for frontend).
-    Combines persisted job, phases, and queue metrics into a unified shape.
-    """
+    """Return a combined ingestion job view for a KB (single frontend call)."""
     status_service = StatusQueryService()
     job_repo = create_job_repository()
     queue_repo = create_queue_repository()
 
     status = status_service.get_status(kb_id)
     latest_job_state = job_repo.get_latest_job(kb_id)
-    latest_job_id = job_repo.get_latest_job_id(kb_id)
-    latest_job_view = job_repo.get_job(latest_job_id) if latest_job_id else None
 
-    # No job yet; synthesize a not_started view
     if not latest_job_state:
         return JobViewResponse(
             job_id=f"{kb_id}-job",
@@ -449,130 +489,57 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
         )
 
     job_id = latest_job_state.job_id
+    latest_job_view = job_repo.get_job(job_id) if job_id else None
 
     # Queue metrics (pending/processing/done/error)
-    raw_metrics: Dict[str, Any] = {}
-    try:
-        qs = queue_repo.get_queue_stats(job_id)
-        raw_metrics = {
-            "pending": qs.get("pending", 0),
-            "processing": qs.get("processing", 0),
-            "done": qs.get("done", 0),
-            "error": qs.get("error", 0),
-        }
-    except Exception:
-        raw_metrics = {}
+    raw_metrics: dict[str, int] = {}
+    with suppress(Exception):
+        raw_metrics = queue_repo.get_queue_stats(job_id)
 
-    # Phase-derived counts
-    def phase_items(name: str, key: str = "items_processed") -> int:
-        for pd in status.phase_details:
-            if pd.get("name") == name:
-                return pd.get(key, 0) or 0
-        return 0
-
-    chunks_queued = (
-        raw_metrics.get("pending", 0)
-        + raw_metrics.get("processing", 0)
-        + raw_metrics.get("done", 0)
-        + raw_metrics.get("error", 0)
+    metrics_normalized = _normalize_job_metrics(
+        status, raw_metrics, (latest_job_view.counters if latest_job_view else {})
     )
 
-    metrics_normalized = {
-        "chunks_pending": raw_metrics.get("pending", 0),
-        "chunks_processing": raw_metrics.get("processing", 0),
-        "chunks_embedded": raw_metrics.get("done", 0) or phase_items("indexing"),
-        "chunks_failed": raw_metrics.get("error", 0),
-        "chunks_queued": chunks_queued or phase_items("chunking", "items_total"),
-        "documents_crawled": phase_items("loading"),
-        "documents_cleaned": phase_items("chunking"),
-        "chunks_created": phase_items("chunking"),
-    }
-
-    # Merge any persisted counters (docs_seen/chunks_seen/etc.) for richer metrics
-    counters = latest_job_view.counters or {} if latest_job_view else {}
-    if counters:
-        metrics_normalized["documents_crawled"] = counters.get(
-            "docs_seen", metrics_normalized["documents_crawled"]
-        )
-        metrics_normalized["chunks_created"] = counters.get(
-            "chunks_seen", metrics_normalized["chunks_created"]
-        )
-        metrics_normalized["chunks_embedded"] = counters.get(
-            "chunks_processed", metrics_normalized["chunks_embedded"]
-        )
-
-    # Map persisted status to job-level status
+    # Map status
     derived_status = status.status
+    job_status = "not_started"
     if derived_status == "ready":
         job_status = "completed"
-    elif derived_status == "pending":
-        job_status = "pending"
-    elif derived_status == "paused":
-        job_status = "paused"
-    else:
-        job_status = "not_started"
-
-    # Use persisted phase/current_phase directly (no inference)
-    current_phase = status.current_phase or "loading"
-    phase_details = status.phase_details
+    elif derived_status in ["pending", "paused"]:
+        job_status = derived_status
 
     return JobViewResponse(
         job_id=job_id,
         kb_id=kb_id,
         status=job_status,
-        phase=current_phase or "loading",
+        phase=status.current_phase or "loading",
         progress=status.overall_progress,
         message="Ingestion in progress" if job_status == "pending" else "Waiting",
         error=None,
         metrics=metrics_normalized,
         started_at=latest_job_state.created_at,
         completed_at=latest_job_view.finished_at if latest_job_view else None,
-        phase_details=phase_details,
+        phase_details=status.phase_details,
     )
 
 
-async def cleanup_running_tasks():
-    """
-    Cleanup function to gracefully stop all running ingestion tasks.
-    Called during application shutdown.
-    """
-    import asyncio
-
-    logger.warning("=" * 80)
-    logger.warning(
-        f"cleanup_running_tasks CALLED - {len(_running_tasks)} tasks running"
-    )
-    logger.warning(f"Task job_ids: {list(_running_tasks.keys())}")
-    logger.warning("=" * 80)
-
-    if not _running_tasks:
-        logger.warning("No running tasks to clean up")
-        return
-
-    # Snapshot tasks to avoid race conditions while we manipulate the dict
-    tasks_snapshot = list(_running_tasks.items())
-
-    logger.warning("Step 1: Setting shutdown flag on orchestrators...")
-    from app.ingestion.application.orchestrator import IngestionOrchestrator
-
-    IngestionOrchestrator.request_shutdown()
-
-    # Proactively mark jobs as paused so they can be resumed even if tasks ignore cancellation
-    logger.warning("Step 1b: Marking jobs as paused in the repository...")
-    for job_id, _ in tasks_snapshot:
+async def _pause_running_jobs(tasks: list[tuple[str, asyncio.Task[Any]]]) -> None:
+    """Proactively mark all running jobs as paused in the repository."""
+    logger.warning("Step 1b: Marking jobs as paused...")
+    for job_id, _ in tasks:
         try:
             repo.set_job_status(job_id, status="paused")
-        except Exception as exc:  # pragma: no cover - defensive logging
+        except Exception as exc:  # noqa: BLE001
             logger.warning(f"Could not mark job {job_id} as paused: {exc}")
 
-    # Give tasks time to checkpoint on their own before we cancel them
-    logger.warning("Step 2: Waiting 2 seconds for tasks to checkpoint gracefully...")
-    await asyncio.sleep(2.0)
 
-    # Cancel any tasks that haven't stopped yet
+def _cancel_active_tasks(
+    tasks: list[tuple[str, asyncio.Task[Any]]]
+) -> list[tuple[str, asyncio.Task[Any]]]:
+    """Cancel all tasks that haven't finished yet and return those still pending."""
     logger.warning("Step 3: Cancelling tasks that are still running...")
     pending = []
-    for job_id, task in tasks_snapshot:
+    for job_id, task in tasks:
         if task.done():
             logger.warning(f"  Task for job {job_id} already finished")
             _running_tasks.pop(job_id, None)
@@ -581,31 +548,57 @@ async def cleanup_running_tasks():
         logger.warning(f"  Cancelling task for job {job_id}: {task.get_name()}")
         task.cancel()
         pending.append((job_id, task))
+    return pending
 
-    if pending:
-        logger.warning(
-            f"Step 4: Waiting for up to 5 seconds for {len(pending)} task(s) to stop..."
-        )
-        done, still_running = await asyncio.wait(
-            [t for _, t in pending],
-            timeout=5.0,
-            return_when=asyncio.ALL_COMPLETED,
-        )
 
-        for job_id, task in pending:
-            if task in done:
-                _running_tasks.pop(job_id, None)
-                logger.warning(f"  Task for job {job_id} stopped")
-        if still_running:
-            hanging = [t.get_name() for t in still_running]
-            logger.warning(
-                f"  Tasks still running after timeout: {hanging} - allowing shutdown to continue"
-            )
-    else:
+async def _wait_for_cancellation(pending: list[tuple[str, asyncio.Task[Any]]]) -> None:
+    """Wait for active tasks to finalize after cancellation signal."""
+    if not pending:
         logger.warning("Step 4: All tasks stopped gracefully")
+        return
+
+    logger.warning(
+        f"Step 4: Waiting for up to 5s for {len(pending)} task(s) to stop..."
+    )
+    done, still_running = await asyncio.wait(
+        [t for _, t in pending],
+        timeout=5.0,
+        return_when=asyncio.ALL_COMPLETED,
+    )
+
+    for job_id, task in pending:
+        if task in done:
+            _running_tasks.pop(job_id, None)
+            logger.warning(f"  Task for job {job_id} stopped")
+
+    if still_running:
+        hanging = [t.get_name() for t in still_running]
+        logger.warning(f"  Tasks still running after timeout: {hanging}")
+
+
+async def cleanup_running_tasks() -> None:
+    """Cleanup function to gracefully stop all running ingestion tasks."""
+    logger.warning("=" * 80)
+    logger.warning(f"cleanup_running_tasks: {len(_running_tasks)} active")
+    logger.warning("=" * 80)
+
+    if not _running_tasks:
+        logger.warning("No running tasks to clean up")
+        return
+
+    tasks_snapshot = list(_running_tasks.items())
+    logger.warning("Step 1: Setting shutdown flag on orchestrators...")
+    IngestionOrchestrator.request_shutdown()
+
+    await _pause_running_jobs(tasks_snapshot)
+
+    logger.warning("Step 2: Waiting 2s for tasks to checkpoint gracefully...")
+    await asyncio.sleep(2.0)
+
+    pending = _cancel_active_tasks(tasks_snapshot)
+    await _wait_for_cancellation(pending)
 
     logger.warning("=" * 80)
-    logger.warning(
-        "cleanup_running_tasks COMPLETE - All ingestion tasks stopped (or marked paused)"
-    )
+    logger.warning("cleanup_running_tasks COMPLETE")
     logger.warning("=" * 80)
+

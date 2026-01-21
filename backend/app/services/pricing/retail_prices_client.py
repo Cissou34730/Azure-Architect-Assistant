@@ -14,18 +14,17 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
-
 
 DEFAULT_BASE_URL = "https://prices.azure.com/api/retail/prices"
 
 
 @dataclass(frozen=True)
 class RetailPricesQueryResult:
-    items: List[Dict[str, Any]]
-    next_page_link: Optional[str]
+    items: list[dict[str, Any]]
+    next_page_link: str | None
 
 
 class AzureRetailPricesClient:
@@ -40,8 +39,8 @@ class AzureRetailPricesClient:
         self._timeout = timeout_seconds
         self._max_retries = max_retries
 
-    async def _get_json(self, url: str, *, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        last_exc: Optional[Exception] = None
+    async def _get_json(self, url: str, *, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        last_exc: Exception | None = None
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             for attempt in range(self._max_retries + 1):
                 try:
@@ -60,7 +59,7 @@ class AzureRetailPricesClient:
         raise RuntimeError(f"Azure Retail Prices API request failed after retries: {last_exc}")
 
     async def query_once(self, *, filter_expr: str, top: int = 1000) -> RetailPricesQueryResult:
-        params: Dict[str, Any] = {"$filter": filter_expr, "$top": top}
+        params: dict[str, Any] = {"$filter": filter_expr, "$top": top}
         data = await self._get_json(self._base_url, params=params)
         items = data.get("Items") or data.get("items") or []
         next_link = data.get("NextPageLink") or data.get("nextPageLink")
@@ -68,12 +67,12 @@ class AzureRetailPricesClient:
             items = []
         return RetailPricesQueryResult(items=items, next_page_link=next_link)
 
-    async def query_all(self, *, filter_expr: str, top: int = 1000, max_pages: int = 25) -> List[Dict[str, Any]]:
+    async def query_all(self, *, filter_expr: str, top: int = 1000, max_pages: int = 25) -> list[dict[str, Any]]:
         """Query and return all items following pagination.
 
         The API can return very large result sets; callers should provide a narrow filter.
         """
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         page = await self.query_once(filter_expr=filter_expr, top=top)
         results.extend(page.items)
 
@@ -90,3 +89,4 @@ class AzureRetailPricesClient:
             pages += 1
 
         return results
+

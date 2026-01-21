@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any
 
 from .state import IngestionState
 
@@ -20,9 +21,9 @@ class JobRuntime:
     pause_event: threading.Event = field(default_factory=threading.Event)
     canceled: bool = False
     lock: threading.Lock = field(default_factory=threading.Lock)
-    producer_thread: Optional[threading.Thread] = None
-    consumer_thread: Optional[threading.Thread] = None
-    producer_target: Optional[Callable[..., Any]] = None
-    consumer_target: Optional[Callable[..., Any]] = None
-    producer_args: Tuple[Any, ...] = field(default_factory=tuple)
-    producer_kwargs: Dict[str, Any] = field(default_factory=dict)
+    producer_thread: threading.Thread | None = None
+    consumer_thread: threading.Thread | None = None
+    producer_target: Callable[..., Any] | None = None
+    consumer_target: Callable[..., Any] | None = None
+    producer_args: tuple[Any, ...] = field(default_factory=tuple)
+    producer_kwargs: dict[str, Any] = field(default_factory=dict)

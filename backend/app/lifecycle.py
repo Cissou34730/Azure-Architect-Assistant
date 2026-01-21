@@ -7,18 +7,18 @@ import asyncio
 import logging
 from pathlib import Path
 
-from app.core.config import get_app_settings
-from app.core.logging import configure_logging
+from app.agents_system.runner import initialize_agent_runner, shutdown_agent_runner
+from app.agents_system.services.mindmap_loader import initialize_mindmap
+from app.core.app_logging import configure_logging
+from app.core.app_settings import get_app_settings
 from app.ingestion.ingestion_database import init_ingestion_database
 from app.projects_database import close_database, init_database
-from app.agents_system.runner import initialize_agent_runner, shutdown_agent_runner
-from app.services.diagram.database import init_diagram_database, close_diagram_database
-from app.agents_system.services.mindmap_loader import initialize_mindmap
+from app.service_registry import ServiceRegistry, get_kb_manager
+from app.services.diagram.database import close_diagram_database, init_diagram_database
+from app.services.mcp.exceptions import MCPError
+from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
 logger = logging.getLogger(__name__)
-
-# Global reference to MCP client for proper cleanup
-_mcp_client_instance = None
 
 
 async def startup():
@@ -56,8 +56,6 @@ async def startup():
         logger.info("Diagram database ready")
 
         # Load KB manager (configs only, no index preload)
-        from app.service_registry import get_kb_manager
-
         logger.info("Loading KB Manager...")
         kb_mgr = get_kb_manager()
         logger.info(f"KB Manager ready ({len(kb_mgr.list_kbs())} knowledge bases)")
@@ -65,9 +63,6 @@ async def startup():
 
         # Initialize agent system with MCP client
         try:
-            global _mcp_client_instance
-            from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
-
             logger.info("Initializing MCP client for agent system...")
             # Load MCP config from centralized core settings
             app_settings = get_app_settings()
@@ -75,13 +70,13 @@ async def startup():
 
             mcp_client = MicrosoftLearnMCPClient(mcp_config)
             await mcp_client.initialize()
-            _mcp_client_instance = mcp_client  # Store for cleanup
+            ServiceRegistry.set_mcp_client(mcp_client)  # Store for cleanup
             logger.info("✓ MCP client initialized")
 
             logger.info("Initializing agent system...")
             await initialize_agent_runner(mcp_client)
             logger.info("✓ Agent system ready")
-        except Exception as e:
+        except (MCPError, RuntimeError, ValueError) as e:
             logger.warning(f"Failed to initialize agent system: {e}")
             logger.warning("Agent chat endpoints will not be available")
 
@@ -98,8 +93,6 @@ async def shutdown():
     """
     Cleanup on shutdown - stop running ingestion jobs gracefully.
     """
-    global _mcp_client_instance
-
     logger.info("=" * 60)
     logger.info("SHUTDOWN: Cleaning up services...")
     logger.info("=" * 60)
@@ -109,23 +102,24 @@ async def shutdown():
         logger.info("Shutting down agent system...")
         await shutdown_agent_runner()
         logger.info("✓ Agent system shutdown")
-    except Exception as e:
+    except (RuntimeError, ValueError) as e:
         logger.warning(f"Error shutting down agent system: {e}")
 
     # Close MCP client in the same event loop where it was initialized
-    if _mcp_client_instance:
+    mcp_client = ServiceRegistry.get_mcp_client()
+    if mcp_client:
         try:
             logger.info("Closing MCP client...")
             # Properly close with reasonable timeout
-            await asyncio.wait_for(_mcp_client_instance.close(), timeout=5.0)
-            _mcp_client_instance = None
+            await asyncio.wait_for(mcp_client.close(), timeout=5.0)
+            ServiceRegistry.set_mcp_client(None)  # type: ignore # Clear reference
             logger.info("✓ MCP client closed cleanly")
         except asyncio.TimeoutError:
             logger.warning("MCP client close timed out after 5s")
-            _mcp_client_instance = None
-        except Exception as e:
+            ServiceRegistry.set_mcp_client(None)  # type: ignore
+        except (MCPError, RuntimeError) as e:
             logger.warning(f"Error closing MCP client: {e}")
-            _mcp_client_instance = None
+            ServiceRegistry.set_mcp_client(None)  # type: ignore
 
     # Close database connections
     await close_database()
@@ -135,9 +129,10 @@ async def shutdown():
         logger.info("Closing diagram database...")
         await close_diagram_database()
         logger.info("✓ Diagram database closed")
-    except Exception as e:
+    except (RuntimeError, ValueError, ImportError) as e:
         logger.warning(f"Error closing diagram database: {e}")
 
     logger.info("=" * 60)
     logger.info("SHUTDOWN COMPLETE")
     logger.info("=" * 60)
+

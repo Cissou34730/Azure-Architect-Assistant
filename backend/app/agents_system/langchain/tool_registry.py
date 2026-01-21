@@ -1,14 +1,14 @@
 """
 ToolRegistry: provide a single place to build and expose tools for agents.
 """
-from typing import List, Any
+from typing import Any
 
-from ..tools.mcp_tool import create_mcp_tools
-from ..tools.kb_tool import create_kb_tools
 from ..tools.aaa_candidate_tool import create_aaa_tools
+from ..tools.kb_tool import create_kb_tools
+from ..tools.mcp_tool import create_mcp_tools
 
 
-async def build_tools(mcp_client=None) -> List[Any]:
+async def build_tools(mcp_client=None) -> list[Any]:
     # Keep signature flexible: some callers may pass a client, others not.
     tools = []
     if mcp_client is not None:
@@ -17,3 +17,4 @@ async def build_tools(mcp_client=None) -> List[Any]:
     tools.extend(create_kb_tools())
     tools.extend(create_aaa_tools())
     return tools
+

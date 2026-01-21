@@ -6,21 +6,23 @@ Centralized settings loader with .env support.
 import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Literal
-
-from config import (
-    get_settings as get_ingestion_settings,
-    get_kb_defaults,
-    get_openai_settings,
-    get_kb_storage_root,
-    KBDefaults,
-    OpenAISettings,
-    IngestionSettings,
-)
+from typing import Any, Literal
 
 from dotenv import load_dotenv
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from config import (
+    IngestionSettings,
+    KBDefaults,
+    OpenAISettings,
+    get_kb_defaults,
+    get_kb_storage_root,
+    get_openai_settings,
+)
+from config import (
+    get_settings as get_ingestion_settings,
+)
 
 
 def _default_env_path() -> Path:
@@ -41,7 +43,7 @@ class AppSettings(BaseSettings):
 
     env: str = Field("development")
     backend_port: int = Field(8000)
-    cors_allow_origins: List[str] = Field(default_factory=lambda: ["*"])
+    cors_allow_origins: list[str] = Field(default_factory=lambda: ["*"])
     log_level: str = Field("INFO")
 
     # Agent system settings
@@ -53,7 +55,7 @@ class AppSettings(BaseSettings):
     )
     mcp_default_timeout: int = Field(30)
     mcp_max_retries: int = Field(3)
-    
+
     # LangGraph migration feature flags (Phase 3+)
     aaa_use_langgraph: bool = Field(default=False)
     # Preferred selection knob: explicit engine choice.
@@ -63,6 +65,7 @@ class AppSettings(BaseSettings):
     aaa_enable_multi_agent: bool = Field(default=False)  # Phase 6
 
     @field_validator("aaa_agent_engine", mode="before")
+    @classmethod
     def _normalize_agent_engine(cls, value):
         if value is None:
             return "langchain"
@@ -110,18 +113,21 @@ class AppSettings(BaseSettings):
     vite_banner_message: str | None = None
 
     @field_validator("cors_allow_origins", mode="before")
+    @classmethod
     def _split_origins(cls, value):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
     @field_validator("mcp_config_path", mode="before")
+    @classmethod
     def _resolve_mcp_path(cls, value):
         if isinstance(value, str):
             return Path(value)
         return value
 
     @field_validator("diagrams_database", mode="before")
+    @classmethod
     def _normalize_diagrams_db(cls, value):
         repo_root = Path(__file__).resolve().parents[3]
         if isinstance(value, Path):
@@ -140,7 +146,7 @@ class AppSettings(BaseSettings):
 
     # Pydantic v2 config is defined via model_config above.
 
-    def load_mcp_config(self) -> Dict[str, Any]:
+    def load_mcp_config(self) -> dict[str, Any]:
         """
         Load MCP configuration from file.
 
@@ -157,10 +163,10 @@ class AppSettings(BaseSettings):
                 f"Create it or set MCP_CONFIG_PATH environment variable."
             )
 
-        with open(self.mcp_config_path, "r", encoding="utf-8") as f:
+        with open(self.mcp_config_path, encoding="utf-8") as f:
             return json.load(f)
 
-    def get_mcp_server_config(self, server_name: str) -> Dict[str, Any]:
+    def get_mcp_server_config(self, server_name: str) -> dict[str, Any]:
         """
         Get configuration for a specific MCP server.
 
@@ -184,7 +190,7 @@ class AppSettings(BaseSettings):
         return config[server_name]
 
 
-@lru_cache()
+@lru_cache
 def get_app_settings() -> AppSettings:
     """Return cached application settings (loads .env once)."""
     load_dotenv(dotenv_path=_default_env_path())
@@ -208,14 +214,15 @@ def get_backend_root() -> Path:
 # Convenience re-exports for legacy ingestion settings
 __all__ = [
     "AppSettings",
+    "IngestionSettings",
+    "KBDefaults",
+    "OpenAISettings",
     "get_app_settings",
-    "get_settings",
     "get_backend_root",
     "get_ingestion_settings",
     "get_kb_defaults",
-    "get_openai_settings",
     "get_kb_storage_root",
-    "KBDefaults",
-    "OpenAISettings",
-    "IngestionSettings",
+    "get_openai_settings",
+    "get_settings",
 ]
+

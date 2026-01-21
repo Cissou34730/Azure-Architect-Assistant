@@ -11,6 +11,7 @@ Available tools:
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 from typing import Any
@@ -22,6 +23,7 @@ from .exceptions import (
     MCPCapabilityError,
     MCPConfigurationError,
     MCPConnectionError,
+    MCPError,
     MCPProtocolError,
     MCPTimeoutError,
     MCPUnexpectedResponseError,
@@ -111,36 +113,43 @@ class MicrosoftLearnMCPClient:
                 f"Invalid endpoint URL: {endpoint}. Must start with http:// or https://"
             )
 
+    async def _wait_for_existing_initialization(self) -> None:
+        """Wait for an in-flight initialization to complete."""
+        if self._ready_event:
+            await asyncio.wait_for(self._ready_event.wait(), timeout=self.timeout)
+        if self._startup_error:
+            raise MCPConnectionError(
+                f"Failed to connect to Microsoft Learn MCP server: {self._startup_error}",
+                details={"endpoint": self.endpoint, "error": str(self._startup_error)},
+            ) from self._startup_error
+
+    def _check_startup_error(self) -> None:
+        """Verify if any error occurred during background startup."""
+        if self._startup_error:
+            raise MCPConnectionError(
+                f"Failed to connect to Microsoft Learn MCP server: {self._startup_error}",
+                details={"endpoint": self.endpoint, "error": str(self._startup_error)},
+            ) from self._startup_error
+
+        if not self._initialized:
+            raise MCPConnectionError(
+                "Failed to initialize Microsoft Learn MCP client",
+                details={"endpoint": self.endpoint},
+            )
+
     async def initialize(self) -> None:
-        """
-        Initialize connection to Microsoft Learn MCP server.
-
-        Establishes session, discovers available tools, and caches tool schemas.
-
-        Raises:
-            MCPConnectionError: If connection fails
-            MCPProtocolError: If server response is invalid
-            MCPTimeoutError: If initialization times out
-        """
+        """Initialize connection to Microsoft Learn MCP server."""
         if self._initialized:
             logger.warning("Client already initialized, skipping")
             return
 
         if self._runner_task and not self._runner_task.done():
-            # If a previous initialize is in-flight, wait for it.
-            if self._ready_event:
-                await asyncio.wait_for(self._ready_event.wait(), timeout=self.timeout)
-            if self._startup_error:
-                raise MCPConnectionError(
-                    f"Failed to connect to Microsoft Learn MCP server: {self._startup_error}",
-                    details={"endpoint": self.endpoint, "error": str(self._startup_error)},
-                ) from self._startup_error
+            await self._wait_for_existing_initialization()
             if self._initialized:
                 return
 
         try:
-            logger.info(f"Initializing connection to {self.endpoint}...")
-
+            logger.info("Initializing connection to %s...", self.endpoint)
             self._startup_error = None
             self._ready_event = asyncio.Event()
             self._stop_event = asyncio.Event()
@@ -149,37 +158,24 @@ class MicrosoftLearnMCPClient:
             )
 
             await asyncio.wait_for(self._ready_event.wait(), timeout=self.timeout)
-
-            if self._startup_error:
-                raise MCPConnectionError(
-                    f"Failed to connect to Microsoft Learn MCP server: {self._startup_error}",
-                    details={"endpoint": self.endpoint, "error": str(self._startup_error)},
-                ) from self._startup_error
-
-            if not self._initialized:
-                raise MCPConnectionError(
-                    "Failed to initialize Microsoft Learn MCP client",
-                    details={"endpoint": self.endpoint},
-                )
+            self._check_startup_error()
 
         except asyncio.TimeoutError as e:
             if self._runner_task and not self._runner_task.done():
                 self._runner_task.cancel()
-                try:
+                with contextlib.suppress(Exception):
                     await self._runner_task
-                except Exception:
-                    pass
             raise MCPTimeoutError(
                 f"Connection to {self.endpoint} timed out after {self.timeout}s",
                 details={"endpoint": self.endpoint, "timeout": self.timeout},
             ) from e
         except Exception as e:
-            # Clean up partial connection (owned by the runner task)
             await self.close()
             raise MCPConnectionError(
-                f"Failed to connect to Microsoft Learn MCP server: {str(e)}",
+                f"Failed to connect to Microsoft Learn MCP server: {e!s}",
                 details={"endpoint": self.endpoint, "error": str(e)},
             ) from e
+
 
     async def _run_connection_owner(self) -> None:
         """Owns MCP connection/session context managers for the app lifetime."""
@@ -206,7 +202,7 @@ class MicrosoftLearnMCPClient:
                 f"Discovered {len(self._tools_cache)} tools."
             )
 
-        except BaseException as exc:
+        except BaseException as exc:  # noqa: BLE001
             self._startup_error = exc
             logger.error(f"MCP client initialization failed: {exc}")
         finally:
@@ -215,10 +211,8 @@ class MicrosoftLearnMCPClient:
 
         # Wait until shutdown requests stop.
         if self._stop_event:
-            try:
+            with contextlib.suppress(Exception):
                 await self._stop_event.wait()
-            except Exception:
-                pass
 
         # Cleanup in the same task that entered context managers.
         await self._cleanup()
@@ -264,7 +258,7 @@ class MicrosoftLearnMCPClient:
 
         except Exception as e:
             raise MCPProtocolError(
-                f"Failed to discover tools: {str(e)}", details={"error": str(e)}
+                f"Failed to discover tools: {e!s}", details={"error": str(e)}
             ) from e
 
     async def close(self) -> None:
@@ -284,20 +278,56 @@ class MicrosoftLearnMCPClient:
                 except asyncio.TimeoutError:
                     logger.warning("MCP client runner task did not stop within 5s; cancelling")
                     self._runner_task.cancel()
-                    try:
+                    with contextlib.suppress(Exception):
                         await self._runner_task
-                    except Exception:
-                        pass
 
             logger.debug("Microsoft Learn MCP client closed")
-        except Exception as e:
+        except (asyncio.CancelledError, MCPError) as e:
             logger.warning(f"Error during MCP client close: {e}")
+        except Exception:
+            logger.exception("Unexpected error during MCP client close")
         finally:
             self._initialized = False
             self._runner_task = None
             self._ready_event = None
             self._stop_event = None
             self._startup_error = None
+
+    async def _cleanup_session(self) -> None:
+        """Internal helper to close the MCP session (innermost)."""
+        if not self._session:
+            return
+        try:
+            logger.debug("Closing MCP session")
+            await asyncio.wait_for(self._session.__aexit__(None, None, None), timeout=5.0)
+        except asyncio.TimeoutError:
+            logger.warning("Session close timed out")
+        except (asyncio.CancelledError, MCPError) as e:
+            logger.warning(f"Error closing session: {e}")
+        except Exception:
+            logger.exception("Unexpected error closing session")
+        finally:
+            self._session = None
+
+    async def _cleanup_connection_context(self) -> None:
+        """Internal helper to close the MCP connection context (outermost)."""
+        if not (self._connection_context and self._streams):
+            return
+        try:
+            logger.debug("Closing MCP connection context")
+            await asyncio.wait_for(
+                self._connection_context.__aexit__(None, None, None),
+                timeout=5.0,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Connection context close timed out")
+        except (asyncio.CancelledError, MCPError) as e:
+            logger.warning(f"Error closing connection context: {e}")
+        except Exception:
+            logger.exception("Unexpected error closing connection context")
+        finally:
+            self._connection_context = None
+            self._streams = None
 
     async def _cleanup(self) -> None:
         """
@@ -307,38 +337,12 @@ class MicrosoftLearnMCPClient:
         of initialization to ensure clean shutdown.
         """
         try:
-            # Close session first (innermost context manager)
-            if self._session:
-                try:
-                    logger.debug("Closing MCP session")
-                    await asyncio.wait_for(
-                        self._session.__aexit__(None, None, None), timeout=5.0
-                    )
-                except asyncio.TimeoutError:
-                    logger.warning("Session close timed out")
-                except Exception as e:
-                    logger.warning(f"Error closing session: {e}")
-                finally:
-                    self._session = None
-
-            # Close connection context (outermost context manager)
-            if self._connection_context and self._streams:
-                try:
-                    logger.debug("Closing MCP connection context")
-                    await asyncio.wait_for(
-                        self._connection_context.__aexit__(None, None, None),
-                        timeout=5.0,
-                    )
-                except asyncio.TimeoutError:
-                    logger.warning("Connection context close timed out")
-                except Exception as e:
-                    logger.warning(f"Error closing connection context: {e}")
-                finally:
-                    self._connection_context = None
-                    self._streams = None
-
-        except Exception as e:
+            await self._cleanup_session()
+            await self._cleanup_connection_context()
+        except (asyncio.CancelledError, MCPError) as e:
             logger.warning(f"Error during cleanup: {e}")
+        except Exception:
+            logger.exception("Unexpected error during cleanup")
 
     def list_tools(self) -> list[dict]:
         """
@@ -411,7 +415,7 @@ class MicrosoftLearnMCPClient:
         except Exception as e:
             logger.error(f"Tool call '{tool_name}' failed: {e}")
             raise MCPUnexpectedResponseError(
-                f"Tool call failed: {str(e)}",
+                f"Tool call failed: {e!s}",
                 details={"tool": tool_name, "arguments": arguments, "error": str(e)},
             ) from e
 
@@ -438,6 +442,20 @@ class MicrosoftLearnMCPClient:
                 f"Tool arguments must be a dictionary, got {type(arguments).__name__}",
                 details={"tool": tool_name, "arguments_type": type(arguments).__name__},
             )
+
+    def _parse_content_block(self, block: Any) -> Any:
+        """Parse a single content block from MCP response."""
+        if not (hasattr(block, "type") and block.type == "text"):
+            return str(block)
+
+        text = getattr(block, "text", "")
+        # Try to parse as JSON if it looks like JSON
+        if text.strip().startswith(("{", "[")):
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                return text
+        return text
 
     def _normalize_response(self, result: Any, tool_name: str) -> dict[str, Any]:
         """
@@ -468,40 +486,28 @@ class MicrosoftLearnMCPClient:
                 return {"tool": tool_name, "content": None, "error": None}
 
             # Handle text content
-            parsed_content = []
-            for block in content_blocks:
-                if hasattr(block, "type") and block.type == "text":
-                    text = block.text
-                    # Try to parse as JSON if it looks like JSON
-                    if text.strip().startswith(("{", "[")):
-                        try:
-                            parsed_content.append(json.loads(text))
-                        except json.JSONDecodeError:
-                            parsed_content.append(text)
-                    else:
-                        parsed_content.append(text)
-                else:
-                    parsed_content.append(str(block))
+            parsed_content = [self._parse_content_block(block) for block in content_blocks]
 
             # Return single item if only one content block
             final_content = (
                 parsed_content[0] if len(parsed_content) == 1 else parsed_content
             )
 
-            response = {
+            return {
                 "tool": tool_name,
                 "content": final_content,
                 "error": None,
-                "isError": hasattr(result, "isError") and result.isError,
+                "isError": getattr(result, "isError", False),
             }
 
-            return response
-
         except Exception as e:
+            if isinstance(e, MCPUnexpectedResponseError):
+                raise
             raise MCPUnexpectedResponseError(
-                f"Failed to normalize response: {str(e)}",
+                f"Failed to normalize response: {e!s}",
                 details={"tool": tool_name, "error": str(e), "result": str(result)},
             ) from e
+
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -511,3 +517,4 @@ class MicrosoftLearnMCPClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.close()
+

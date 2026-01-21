@@ -263,7 +263,7 @@ async def get_azure_guidance(
         try:
             samples = await search_code_samples(client, topic, max_results=3)
             result["code_samples"] = samples
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"Failed to fetch code samples: {e}")
             result["code_samples"] = {"samples": [], "error": str(e)}
 
@@ -281,3 +281,4 @@ async def get_azure_guidance(
 
     logger.info(f"Successfully retrieved Azure guidance for: {topic}")
     return result
+

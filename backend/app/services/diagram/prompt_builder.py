@@ -1,6 +1,6 @@
 """Prompt builder for diagram generation with shared patterns."""
 
-from typing import Optional
+
 from app.models.diagram import DiagramType
 
 
@@ -16,7 +16,7 @@ class PromptBuilder:
     def build_generation_prompt(
         description: str,
         diagram_type: DiagramType,
-        previous_error: Optional[str] = None,
+        previous_error: str | None = None,
     ) -> str:
         """
         Build prompt for diagram generation.
@@ -61,11 +61,11 @@ Use Mermaid C4Context syntax:
 ```mermaid
 C4Context
     title System Context diagram for [System Name]
-    
+
     Person(user, "User", "External user")
     System(system, "Main System", "Core functionality")
     System_Ext(external, "External System", "Third party")
-    
+
     Rel(user, system, "Uses")
     Rel(system, external, "Calls API")
 ```
@@ -84,15 +84,15 @@ Use Mermaid C4Container syntax:
 ```mermaid
 C4Container
     title Container diagram for [System Name]
-    
+
     Person(user, "User")
-    
+
     Container_Boundary(c1, "System Name") {
         Container(web, "Web Application", "React", "UI")
         Container(api, "API", "FastAPI", "Backend")
         ContainerDb(db, "Database", "PostgreSQL", "Data storage")
     }
-    
+
     Rel(user, web, "Uses", "HTTPS")
     Rel(web, api, "Calls", "REST")
     Rel(api, db, "Reads/Writes", "SQL")
@@ -209,3 +209,4 @@ Previous generation failed validation:
 
 Fix the issues and regenerate. Return ONLY the corrected diagram code.
 """
+

@@ -13,7 +13,7 @@ def _ensure_backend_on_path() -> None:
 
 _ensure_backend_on_path()
 
-from app.core.config import get_settings
+from app.core.app_settings import get_settings
 from app.agents_system.runner import initialize_agent_runner, shutdown_agent_runner, get_agent_runner
 from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
@@ -65,3 +65,4 @@ if __name__ == "__main__":
     args = p.parse_args()
 
     asyncio.run(main(args.message))
+

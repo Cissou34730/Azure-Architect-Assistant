@@ -3,7 +3,7 @@ Dataclasses and task metadata for orchestrator steps.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .policies import StepName
 
@@ -25,6 +25,6 @@ class ProcessingTask:
     job_id: str
     kb_id: str
     step: StepName
-    payload: Dict[str, Any]
-    batch_id: Optional[int] = None
-    chunk_index: Optional[int] = None
+    payload: dict[str, Any]
+    batch_id: int | None = None
+    chunk_index: int | None = None

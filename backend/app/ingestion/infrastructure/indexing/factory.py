@@ -4,7 +4,7 @@ Creates appropriate index builder based on type.
 """
 
 import logging
-from typing import Optional
+from typing import Any, ClassVar
 
 from .builder_base import BaseIndexBuilder
 from .vector import VectorIndexBuilder
@@ -16,17 +16,20 @@ class IndexBuilderFactory:
     """Factory to create appropriate index builder based on type"""
 
     # Builder registry
-    BUILDERS = {"vector": VectorIndexBuilder, "default": VectorIndexBuilder}
+    BUILDERS: ClassVar[dict[str, type[BaseIndexBuilder]]] = {
+        'vector': VectorIndexBuilder,
+        'default': VectorIndexBuilder,
+    }
 
     @classmethod
     def create_builder(
         cls,
-        index_type: str = "vector",
-        kb_id: str = None,
-        storage_dir: str = None,
-        embedding_model: Optional[str] = None,
-        generation_model: Optional[str] = None,
-        **kwargs,
+        index_type: str = 'vector',
+        kb_id: str | None = None,
+        storage_dir: str | None = None,
+        embedding_model: str | None = None,
+        generation_model: str | None = None,
+        **kwargs: Any,
     ) -> BaseIndexBuilder:
         """
         Create index builder based on type.
@@ -46,17 +49,15 @@ class IndexBuilderFactory:
             ValueError: If index_type is unknown or required params missing
         """
         if not kb_id or not storage_dir:
-            raise ValueError("kb_id and storage_dir are required")
+            raise ValueError('kb_id and storage_dir are required')
 
         builder_class = cls.BUILDERS.get(index_type.lower())
 
         if not builder_class:
-            available = ", ".join(cls.BUILDERS.keys())
-            raise ValueError(
-                f"Unknown index type: '{index_type}'. Available types: {available}"
-            )
+            available = ', '.join(cls.BUILDERS.keys())
+            raise ValueError(f"Unknown index type: '{index_type}'. Available types: {available}")
 
-        logger.info(f"Creating {builder_class.__name__} for KB: {kb_id}")
+        logger.info(f'Creating {builder_class.__name__} for KB: {kb_id}')
         return builder_class(
             kb_id=kb_id,
             storage_dir=storage_dir,
@@ -66,7 +67,7 @@ class IndexBuilderFactory:
         )
 
     @classmethod
-    def register_builder(cls, index_type: str, builder_class: type):
+    def register_builder(cls, index_type: str, builder_class: type[BaseIndexBuilder]) -> None:
         """
         Register custom index builder.
 
@@ -75,14 +76,12 @@ class IndexBuilderFactory:
             builder_class: Builder class (must inherit from BaseIndexBuilder)
         """
         if not issubclass(builder_class, BaseIndexBuilder):
-            raise TypeError(f"{builder_class} must inherit from BaseIndexBuilder")
+            raise TypeError(f'{builder_class} must inherit from BaseIndexBuilder')
 
         cls.BUILDERS[index_type.lower()] = builder_class
-        logger.info(
-            f"Registered custom builder: {index_type} -> {builder_class.__name__}"
-        )
+        logger.info(f'Registered custom builder: {index_type} -> {builder_class.__name__}')
 
     @classmethod
-    def list_types(cls) -> list:
+    def list_types(cls) -> list[str]:
         """Get list of available index types"""
         return list(cls.BUILDERS.keys())

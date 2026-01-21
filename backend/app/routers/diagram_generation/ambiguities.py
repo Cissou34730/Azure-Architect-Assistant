@@ -4,14 +4,14 @@ Handles ambiguity detection results and resolution tracking for diagram generati
 """
 
 import logging
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.diagram import AmbiguityReport, DiagramSet
 from app.services.diagram.database import get_diagram_session
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class AmbiguityReportResponse(BaseModel):
     id: str
     diagram_set_id: str
     ambiguous_text: str
-    suggested_clarification: Optional[str] = None
+    suggested_clarification: str | None = None
     resolved: bool = False
     created_at: str
 
@@ -47,15 +47,15 @@ class ResolveAmbiguityRequest(BaseModel):
 
 @router.get(
     "/{diagram_set_id}/ambiguities",
-    response_model=List[AmbiguityReportResponse],
+    response_model=list[AmbiguityReportResponse],
     summary="Get ambiguity reports for diagram set",
     description="List all detected ambiguities with resolution status (FR-019)",
 )
 async def get_ambiguities(
     diagram_set_id: str,
-    resolved: Optional[bool] = None,
+    resolved: bool | None = None,
     session: AsyncSession = Depends(get_diagram_session),
-) -> List[AmbiguityReportResponse]:
+) -> list[AmbiguityReportResponse]:
     """Get ambiguity reports for a diagram set.
 
     Args:
@@ -182,3 +182,4 @@ async def resolve_ambiguity(
         resolved=ambiguity.resolved,
         created_at=ambiguity.created_at.isoformat(),
     )
+

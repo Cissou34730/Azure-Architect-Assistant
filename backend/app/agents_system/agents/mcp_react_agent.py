@@ -6,23 +6,25 @@ Phase 2: Allows optional injection of LLM, tools, and prompt to enable orchestra
 Falls back to internal initialization when not provided to preserve behavior.
 """
 
-import logging
-from typing import Optional, List, Iterable, Any
 import inspect
-from langchain_openai import ChatOpenAI
-from ...services.ai.ai_service import get_ai_service
+import logging
+from collections.abc import Iterable
+from typing import Any
+
 from langchain.prompts import PromptTemplate
 from langchain.tools import BaseTool
+from langchain_openai import ChatOpenAI
 
+from ...services.ai.ai_service import get_ai_service
+from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+
+# build_tools previously used by older flow; tools are created via create_* helpers here
+from ..config.react_prompts import REACT_TEMPLATE, SYSTEM_PROMPT
 from ..langchain.agent_facade import AgentFacade
 from ..langchain.prompt_builder import build_prompt_template
-# build_tools previously used by older flow; tools are created via create_* helpers here
-
-from ..config.react_prompts import SYSTEM_PROMPT, REACT_TEMPLATE
-from ..tools.mcp_tool import create_mcp_tools
-from ..tools.kb_tool import create_kb_tools
 from ..tools.aaa_candidate_tool import create_aaa_tools
-from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from ..tools.kb_tool import create_kb_tools
+from ..tools.mcp_tool import create_mcp_tools
 
 logger = logging.getLogger(__name__)
 
@@ -35,19 +37,19 @@ class MCPReActAgent:
     If not provided, builds defaults internally (backward compatible).
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
-        openai_api_key: Optional[str] = None,
-        mcp_client: Optional[MicrosoftLearnMCPClient] = None,
-        model: Optional[str] = None,
+        openai_api_key: str | None = None,
+        mcp_client: MicrosoftLearnMCPClient | None = None,
+        model: str | None = None,
         temperature: float = 0.1,
         max_iterations: int = 8,
         max_execution_time: int = 60,
         verbose: bool = True,
         # Optional injected dependencies
-        llm: Optional[ChatOpenAI] = None,
-        tools: Optional[List[BaseTool]] = None,
-        prompt: Optional[PromptTemplate] = None,
+        llm: ChatOpenAI | None = None,
+        tools: list[BaseTool] | None = None,
+        prompt: PromptTemplate | None = None,
     ):
         self.openai_api_key = openai_api_key
         self.mcp_client = mcp_client
@@ -58,71 +60,74 @@ class MCPReActAgent:
         self.verbose = verbose
 
         # Injected or to be initialized
-        self.llm: Optional[ChatOpenAI] = llm
-        self.tools: List[BaseTool] = tools or []
-        self.prompt: Optional[PromptTemplate] = prompt
-        self.agent_facade: Optional[AgentFacade] = None
+        self.llm: ChatOpenAI | None = llm
+        self.tools: list[BaseTool] = tools or []
+        self.prompt: PromptTemplate | None = prompt
+        self.agent_facade: AgentFacade | None = None
 
         logger.info(
             f"MCPReActAgent initialized (model={model}, temperature={temperature}, injected_llm={'yes' if llm else 'no'})"
         )
 
-    async def initialize(self, callbacks: Optional[Iterable[Any]] = None) -> None:
+    async def initialize(self, callbacks: Iterable[Any] | None = None) -> None:
         """Initialize the agent components asynchronously. Must be called before use."""
-        # Initialize LLM if not injected
-        if self.llm is None:
-            # Use centralized AIService to construct Chat LLM instances. This
-            # allows provider/config centralization and easier testing.
-            ai_service = get_ai_service()
-            llm_kwargs = {}
-            if self.model:
-                llm_kwargs["model"] = self.model
-            if self.temperature is not None:
-                llm_kwargs["temperature"] = self.temperature
-            # Let AIService use environment config for API keys if not provided
-            self.llm = ai_service.create_chat_llm(**llm_kwargs)
+        self._initialize_llm()
+        await self._initialize_tools()
+        self._initialize_prompt()
+        await self._initialize_facade(callbacks)
+        logger.info("MCPReActAgent initialization complete")
 
-        # Create tools if not injected
-        if not self.tools:
-            if not self.mcp_client:
-                raise ValueError("MCP client required to build tools")
-            mcp_tools = await create_mcp_tools(self.mcp_client)
-            kb_tools = create_kb_tools()
-            aaa_tools = create_aaa_tools()
-            self.tools = [*mcp_tools, *kb_tools, *aaa_tools]
-            logger.info(
-                f"Initialized {len(self.tools)} tools: {[t.name for t in self.tools]}"
-            )
+    def _initialize_llm(self) -> None:
+        """Construct the Chat LLM instance if not injected."""
+        if self.llm is not None:
+            return
 
-        # Create prompt if not injected
-        if self.prompt is None:
-            # Build lightweight tools description dict for prompt builder
-            tools_meta = [{"name": t.name, "description": getattr(t, "description", "")} for t in self.tools]
-            self.prompt = build_prompt_template(f"{SYSTEM_PROMPT}\n\n{REACT_TEMPLATE}", tools_meta)
+        ai_service = get_ai_service()
+        llm_kwargs = {}
+        if self.model:
+            llm_kwargs["model"] = self.model
+        if self.temperature is not None:
+            llm_kwargs["temperature"] = self.temperature
+        self.llm = ai_service.create_chat_llm(**llm_kwargs)
 
-        # Custom parsing error handler to give LLM specific feedback
-        def handle_parsing_error(error: Exception) -> str:
-            error_msg = str(error)
-            if "Missing 'Action:' after 'Thought:'" in error_msg:
-                return (
-                    "ERROR: You wrote 'Thought:' but did not follow it with 'Action:' or 'Final Answer:'. "
-                    "You MUST write either:\n"
-                    "Action: [tool_name]\nAction Input: [json]\n"
-                    "OR\n"
-                    "Final Answer: [your answer]\n"
-                    "Please continue with the correct format."
-                )
-            return (
-                f"Parsing error: {error_msg}. Please follow the exact format specified."
-            )
+    async def _initialize_tools(self) -> None:
+        """Build the default toolset if not injected."""
+        if self.tools:
+            return
 
-        # Create AgentFacade to encapsulate future replacement with modern API
-        self.agent_facade = AgentFacade(llm=self.llm, tools=self.tools, prompt=self.prompt, max_iterations=self.max_iterations, verbose=self.verbose)
-        # AgentFacade.initialize may be an async coroutine or a test MagicMock.
-        init_fn = getattr(self.agent_facade, "initialize")
-        # Call initialize in a defensive way: some implementations accept a
-        # `callbacks` keyword, others accept no args. When callbacks is None
-        # call without args to avoid unexpected keyword errors.
+        if not self.mcp_client:
+            raise ValueError("MCP client required to build tools")
+
+        mcp_tools = await create_mcp_tools(self.mcp_client)
+        kb_tools = create_kb_tools()
+        aaa_tools = create_aaa_tools()
+        self.tools = [*mcp_tools, *kb_tools, *aaa_tools]
+        logger.info(f"Initialized {len(self.tools)} tools: {[t.name for t in self.tools]}")
+
+    def _initialize_prompt(self) -> None:
+        """Build the ReAct prompt template if not injected."""
+        if self.prompt is not None:
+            return
+
+        tools_meta = [
+            {"name": t.name, "description": getattr(t, "description", "")} for t in self.tools
+        ]
+        template_text = f"{SYSTEM_PROMPT}\n\n{REACT_TEMPLATE}"
+        self.prompt = build_prompt_template(template_text, tools_meta)
+
+    async def _initialize_facade(self, callbacks: Iterable[Any] | None) -> None:
+        """Create and initialize the AgentFacade."""
+        self.agent_facade = AgentFacade(
+            llm=self.llm,
+            tools=self.tools,
+            prompt=self.prompt,
+            max_iterations=self.max_iterations,
+            verbose=self.verbose,
+        )
+
+        init_fn = self.agent_facade.initialize
+        maybe = None
+
         try:
             if callbacks is None:
                 maybe = init_fn()
@@ -130,39 +135,20 @@ class MCPReActAgent:
                 try:
                     maybe = init_fn(callbacks=callbacks)
                 except TypeError:
-                    # Try positional fallback
                     maybe = init_fn(callbacks)
         except TypeError:
-            # If the target is a MagicMock or similar that doesn't accept
-            # the provided signature, call it without args and continue.
             maybe = init_fn()
 
         if inspect.isawaitable(maybe):
             await maybe
 
-        logger.info("MCPReActAgent initialization complete")
-
-    async def execute(
-        self, user_query: str, project_context: Optional[str] = None
-    ) -> dict:
+    async def execute(self, user_query: str, project_context: str | None = None) -> dict:
+        """Run the agent and return normalized result dictionary."""
         if not self.agent_facade:
             raise RuntimeError("Agent not initialized. Call initialize() first.")
 
         logger.info(f"Executing agent on query: {user_query}")
-        agent_input = {"input": user_query}
-        if project_context:
-            contextualized_query = f"""CURRENT PROJECT CONTEXT:
-{project_context}
-
----
-
-User Question: {user_query}
-
-IMPORTANT: The "CURRENT PROJECT CONTEXT" above is for your INTERNAL reference only. The user CANNOT see it. 
-In your Final Answer, you MUST explicitly include or summarize any requirements, architectural decisions, or facts from the context that are relevant to the user's question. 
-NEVER refer to the context as "detailed above" or "provided in the context" without repeating the details themselves.
-"""
-            agent_input["input"] = contextualized_query
+        agent_input = self._build_agent_input(user_query, project_context)
 
         try:
             result = await self.agent_facade.ainvoke(agent_input)
@@ -171,53 +157,65 @@ NEVER refer to the context as "detailed above" or "provided in the context" with
                 "intermediate_steps": result.get("intermediate_steps", []),
                 "success": True,
             }
-        except Exception as e:
-            err_text = str(e)
-            hint = None
-            if "max iterations" in err_text.lower():
-                hint = "The agent reached its reasoning limit. Try asking a more specific question or I can increase limits further if needed."
-            elif "exceeded time" in err_text.lower() or "timeout" in err_text.lower():
-                hint = "The agent timed out while reasoning. Consider narrowing the query or I can raise the time limit."
-            return {
-                "output": f"I encountered an error while processing your query: {err_text}"
-                + (f"\n\nTip: {hint}" if hint else ""),
-                "intermediate_steps": [],
-                "success": False,
-                "error": err_text,
-            }
+        except Exception as e:  # noqa: BLE001
+            return self._handle_execution_error(e)
 
-    async def stream_execute(
-        self, user_query: str, project_context: Optional[str] = None
-    ):
+    async def stream_execute(self, user_query: str, project_context: str | None = None):
+        """Execute agent in streaming mode."""
         if not self.agent_facade:
             raise RuntimeError("Agent not initialized. Call initialize() first.")
 
-        agent_input = {"input": user_query}
-        if project_context:
-            contextualized_query = f"""CURRENT PROJECT CONTEXT:
+        agent_input = self._build_agent_input(user_query, project_context)
+
+        # Stream from the AgentFacade and normalize output chunks
+        async for chunk in self.agent_facade.stream(agent_input):
+            yield self._normalize_stream_chunk(chunk)
+
+    def _build_agent_input(self, user_query: str, project_context: str | None) -> dict[str, str]:
+        """Prepare inputs for agent, optionally embedding background context."""
+        if not project_context:
+            return {"input": user_query}
+
+        contextualized_query = f"""CURRENT PROJECT CONTEXT:
 {project_context}
 
 ---
 
 User Question: {user_query}
 
-IMPORTANT: The "CURRENT PROJECT CONTEXT" above is for your INTERNAL reference only. The user CANNOT see it. 
-In your Final Answer, you MUST explicitly include or summarize any requirements, architectural decisions, or facts from the context that are relevant to the user's question. 
+IMPORTANT: The "CURRENT PROJECT CONTEXT" above is for your INTERNAL reference only. The user CANNOT see it.
+In your Final Answer, you MUST explicitly include or summarize any requirements, architectural decisions, or facts from the context that are relevant to the user's question.
 NEVER refer to the context as "detailed above" or "provided in the context" without repeating the details themselves.
 """
-            agent_input["input"] = contextualized_query
+        return {"input": contextualized_query}
 
-        # Stream from the AgentFacade and normalize output chunks
-        async for chunk in self.agent_facade.stream(agent_input):
-            # chunk may be a dict-like result or a plain string or other shape
-            if isinstance(chunk, dict):
-                yield {
-                    "output": chunk.get("output"),
-                    "intermediate_steps": chunk.get("intermediate_steps", []),
-                    "success": True,
-                }
-            elif isinstance(chunk, str):
-                yield {"output": chunk, "intermediate_steps": [], "success": True}
-            else:
-                # Fallback: stringify unknown chunk
-                yield {"output": str(chunk), "intermediate_steps": [], "success": True}
+    def _handle_execution_error(self, e: Exception) -> dict[str, Any]:
+        """Format error for API response with contextual tips."""
+        err_text = str(e)
+        hint = None
+        if "max iterations" in err_text.lower():
+            hint = "The agent reached its reasoning limit. Try asking a more specific question."
+        elif "exceeded time" in err_text.lower() or "timeout" in err_text.lower():
+            hint = "The agent timed out while reasoning. Consider narrowing the query."
+
+        return {
+            "output": f"I encountered an error while processing your query: {err_text}"
+            + (f"\n\nTip: {hint}" if hint else ""),
+            "intermediate_steps": [],
+            "success": False,
+            "error": err_text,
+        }
+
+    def _normalize_stream_chunk(self, chunk: Any) -> dict[str, Any]:
+        """Normalize various LangChain stream chunk formats."""
+        if isinstance(chunk, dict):
+            return {
+                "output": chunk.get("output"),
+                "intermediate_steps": chunk.get("intermediate_steps", []),
+                "success": True,
+            }
+        if isinstance(chunk, str):
+            return {"output": chunk, "intermediate_steps": [], "success": True}
+
+        return {"output": str(chunk), "intermediate_steps": [], "success": True}
+

@@ -5,7 +5,7 @@ Phase 1: Verify basic graph structure can be created and compiled.
 """
 
 import asyncio
-import pytest
+
 from backend.app.agents_system.langgraph.graph_factory import build_project_chat_graph
 from backend.app.agents_system.langgraph.state import GraphState
 
@@ -44,3 +44,4 @@ def test_graph_state_model():
 
     assert state["project_id"] == "test-1"
     assert state["user_message"] == "test message"
+

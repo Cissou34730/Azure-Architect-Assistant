@@ -5,9 +5,9 @@ Queue repository for chunk-level work items.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, cast
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import delete, func, select
 
 from app.ingestion.domain.errors import DuplicateChunkError
 from app.ingestion.ingestion_database import get_session
@@ -21,19 +21,19 @@ from app.ingestion.models import (
 class QueueRepository:
     """SQLAlchemy-based repository for queue persistence."""
 
-    def enqueue_chunks(self, job_id: str, chunks: List[Dict[str, Any]]) -> None:
+    def enqueue_chunks(self, job_id: str, chunks: list[dict[str, Any]]) -> None:
         """Enqueue chunks for processing."""
         with get_session() as session:
             for chunk in chunks:
                 item = IngestionQueueItem(
                     job_id=job_id,
-                    doc_hash=chunk["doc_hash"],
-                    content=chunk["content"],
-                    item_metadata=chunk.get("metadata", {}),
+                    doc_hash=chunk['doc_hash'],
+                    content=chunk['content'],
+                    item_metadata=chunk.get('metadata', {}),
                 )
                 session.add(item)
 
-    def dequeue_batch(self, batch_size: int = 50) -> List[IngestionQueueItem]:
+    def dequeue_batch(self, batch_size: int = 50) -> list[IngestionQueueItem]:
         """Fetch a batch of pending items and mark them processing."""
         with get_session() as session:
             stmt = (
@@ -47,7 +47,7 @@ class QueueRepository:
             pending = result.scalars().all()
             for item in pending:
                 item.mark_processing()
-            return pending
+            return cast(list[IngestionQueueItem], pending)
 
     def mark_done(self, item_id: int) -> None:
         with get_session() as session:
@@ -61,7 +61,7 @@ class QueueRepository:
             if item:
                 item.mark_error(message)
 
-    def get_queue_stats(self, job_id: str) -> Dict[str, int]:
+    def get_queue_stats(self, job_id: str) -> dict[str, int]:
         """Return counts per status for a job."""
         with get_session() as session:
             result = session.execute(
@@ -70,10 +70,10 @@ class QueueRepository:
                 .group_by(IngestionQueueItem.status)
             )
             stats = {row[0].lower(): row[1] for row in result.all()}
-            stats.setdefault("pending", 0)
-            stats.setdefault("processing", 0)
-            stats.setdefault("done", 0)
-            stats.setdefault("error", 0)
+            stats.setdefault('pending', 0)
+            stats.setdefault('processing', 0)
+            stats.setdefault('done', 0)
+            stats.setdefault('error', 0)
             return stats
 
     def pause_current_phase(self, kb_id: str) -> None:
@@ -89,11 +89,7 @@ class QueueRepository:
             job = result.scalar_one_or_none()
             if not job:
                 return
-            job.status = (
-                QueueStatus.PAUSED.value
-                if hasattr(QueueStatus, "PAUSED")
-                else job.status
-            )
+            job.status = QueueStatus.PAUSED.value if hasattr(QueueStatus, 'PAUSED') else job.status
             job.updated_at = datetime.now(timezone.utc)
 
     def resume_current_phase(self, kb_id: str) -> None:
@@ -125,28 +121,20 @@ class QueueRepository:
             job = result.scalar_one_or_none()
             if not job:
                 return
-            job.status = (
-                QueueStatus.DONE.value if hasattr(QueueStatus, "DONE") else job.status
-            )
+            job.status = QueueStatus.DONE.value if hasattr(QueueStatus, 'DONE') else job.status
             job.updated_at = datetime.now(timezone.utc)
-            delete_stmt = delete(IngestionQueueItem).where(
-                IngestionQueueItem.job_id == job.id
-            )
+            delete_stmt = delete(IngestionQueueItem).where(IngestionQueueItem.job_id == job.id)
             session.execute(delete_stmt)
 
     def recover_inflight_jobs(self) -> None:
         """Recover jobs stuck in RUNNING state by marking them paused."""
         with get_session() as session:
-            stmt = select(IngestionJob).where(
-                IngestionJob.status == QueueStatus.PROCESSING.value
-            )
+            stmt = select(IngestionJob).where(IngestionJob.status == QueueStatus.PROCESSING.value)
             result = session.execute(stmt)
             jobs = result.scalars().all()
             for job in jobs:
                 job.status = (
-                    QueueStatus.PAUSED.value
-                    if hasattr(QueueStatus, "PAUSED")
-                    else job.status
+                    QueueStatus.PAUSED.value if hasattr(QueueStatus, 'PAUSED') else job.status
                 )
                 job.updated_at = datetime.now(timezone.utc)
 
@@ -155,7 +143,7 @@ class QueueRepository:
         job_id: str,
         doc_hash: str,
         content: str,
-        item_metadata: Dict[str, Any],
+        item_metadata: dict[str, Any],
         status: str = QueueStatus.PENDING.value,
     ) -> int:
         """Add a queue item; raises DuplicateChunkError on constraint violation."""
@@ -173,9 +161,9 @@ class QueueRepository:
                 session.flush()
             except Exception as exc:
                 raise DuplicateChunkError(
-                    f"Duplicate chunk for job_id={job_id}, doc_hash={doc_hash}"
+                    f'Duplicate chunk for job_id={job_id}, doc_hash={doc_hash}'
                 ) from exc
-            return item.id
+            return cast(int, item.id)
 
 
 def create_queue_repository() -> QueueRepository:

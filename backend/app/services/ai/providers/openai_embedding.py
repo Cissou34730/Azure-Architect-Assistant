@@ -3,11 +3,11 @@ OpenAI Embedding Provider Implementation
 """
 
 import logging
-from typing import List
+
 from openai import AsyncOpenAI
 
-from ..interfaces import EmbeddingProvider
 from ..config import AIConfig
+from ..interfaces import EmbeddingProvider
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         self.model = config.openai_embedding_model
         logger.info(f"OpenAI Embedding Provider initialized with model: {self.model}")
 
-    async def embed_text(self, text: str) -> List[float]:
+    async def embed_text(self, text: str) -> list[float]:
         """Generate embedding for a single text."""
         try:
             response = await self.client.embeddings.create(model=self.model, input=text)
@@ -48,8 +48,8 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             raise
 
     async def embed_batch(
-        self, texts: List[str], batch_size: int = 100
-    ) -> List[List[float]]:
+        self, texts: list[str], batch_size: int = 100
+    ) -> list[list[float]]:
         """Generate embeddings for multiple texts with batching."""
         all_embeddings = []
 
@@ -85,3 +85,4 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
     def get_model_name(self) -> str:
         """Get current model name."""
         return self.model
+

@@ -6,7 +6,7 @@ Falls back to the legacy orchestrator if native execution fails.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from ...runner import get_agent_runner
 from ..state import GraphState
@@ -15,19 +15,19 @@ from .agent_native import run_stage_aware_agent
 logger = logging.getLogger(__name__)
 
 
-async def run_agent_node(state: GraphState) -> Dict[str, Any]:
+async def run_agent_node(state: GraphState) -> dict[str, Any]:
     """
     Execute agent with project context and stage directives.
-    
+
     Args:
         state: Current graph state
-        
+
     Returns:
         State update with agent output and intermediate steps
     """
     user_message = state["user_message"]
     context_summary = state.get("context_summary")
-    
+
     try:
         # Get the agent runner for shared OpenAI + MCP clients
         runner = await get_agent_runner()
@@ -40,14 +40,14 @@ async def run_agent_node(state: GraphState) -> Dict[str, Any]:
 
         # The native agent already returns the expected fields
         return result
-        
+
     except RuntimeError as e:
         logger.error(f"Agent not initialized: {e}")
         return {
             "agent_output": "",
             "intermediate_steps": [],
             "success": False,
-            "error": f"Agent system not initialized: {str(e)}",
+            "error": f"Agent system not initialized: {e!s}",
         }
     except Exception as e:
         logger.error(f"Native agent execution failed, falling back to legacy: {e}", exc_info=True)
@@ -69,5 +69,6 @@ async def run_agent_node(state: GraphState) -> Dict[str, Any]:
                 "agent_output": "",
                 "intermediate_steps": [],
                 "success": False,
-                "error": f"Agent execution failed: {str(fallback_error)}",
+                "error": f"Agent execution failed: {fallback_error!s}",
             }
+

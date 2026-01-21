@@ -2,8 +2,9 @@
 Request/Response Models for Project Management API
 """
 
-from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class CreateProjectRequest(BaseModel):
@@ -15,7 +16,7 @@ class CreateProjectRequest(BaseModel):
 class UpdateRequirementsRequest(BaseModel):
     """Request to update project requirements"""
 
-    textRequirements: str
+    text_requirements: str = Field(alias="textRequirements")
 
 
 class ChatMessageRequest(BaseModel):
@@ -27,36 +28,37 @@ class ChatMessageRequest(BaseModel):
 class ProjectResponse(BaseModel):
     """Single project response"""
 
-    project: Dict[str, Any]
+    project: dict[str, Any]
 
 
 class ProjectsListResponse(BaseModel):
     """List of projects response"""
 
-    projects: List[Dict[str, Any]]
+    projects: list[dict[str, Any]]
 
 
 class DocumentsResponse(BaseModel):
     """List of documents response"""
 
-    documents: List[Dict[str, Any]]
+    documents: list[dict[str, Any]]
 
 
 class StateResponse(BaseModel):
     """Project state response"""
 
-    projectState: Dict[str, Any]
+    project_state: dict[str, Any] = Field(alias="projectState")
 
 
 class MessagesResponse(BaseModel):
     """Conversation messages response"""
 
-    messages: List[Dict[str, Any]]
+    messages: list[dict[str, Any]]
 
 
 class ChatResponse(BaseModel):
     """Chat response with updated state"""
 
     message: str
-    projectState: Dict[str, Any]
-    wafSources: List[Dict[str, Any]] = []
+    project_state: dict[str, Any] = Field(alias="projectState")
+    waf_sources: list[dict[str, Any]] = Field(default_factory=list, alias="wafSources")
+

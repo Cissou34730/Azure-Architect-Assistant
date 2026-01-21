@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import Column, String, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
 
 from .base import Base
@@ -47,3 +47,4 @@ class Lock(Base):
 
     def __repr__(self) -> str:
         return f"<Lock(id={self.id}, held_by={self.lock_held_by}, expires={self.lock_expires_at})>"
+

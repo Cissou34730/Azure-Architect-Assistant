@@ -14,15 +14,16 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any
 
 from langchain.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic.alias_generators import to_camel
 
 from .aaa_adr_tool import AAAManageAdrTool
-from .aaa_validation_tool import AAARunValidationTool
-from .aaa_iac_tool import AAAGenerateIacTool
 from .aaa_export_tool import AAAExportTool
+from .aaa_iac_tool import AAAGenerateIacTool
+from .aaa_validation_tool import AAARunValidationTool
 
 
 def _now_iso() -> str:
@@ -32,20 +33,22 @@ def _now_iso() -> str:
 class AAAGenerateCandidateInput(BaseModel):
     """Input schema for generating a candidate architecture state update."""
 
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
     title: str = Field(min_length=1, description="Short candidate name")
     summary: str = Field(min_length=1, description="Concise candidate summary")
 
-    assumptions: List[str] = Field(
+    assumptions: list[str] = Field(
         default_factory=list,
         description="Assumptions (each becomes an Assumption artifact with status=open)",
     )
 
-    diagramIds: List[str] = Field(
+    diagram_ids: list[str] = Field(
         default_factory=list,
         description="Related diagram IDs (e.g., c4_context) if already generated",
     )
 
-    sourceCitations: List[Dict[str, Any]] = Field(
+    source_citations: list[dict[str, Any]] = Field(
         default_factory=list,
         description=(
             "SourceCitation[] objects. The agent should build these from logged "
@@ -57,7 +60,7 @@ class AAAGenerateCandidateInput(BaseModel):
 class AAAGenerateCandidateToolInput(BaseModel):
     """Raw tool payload for candidate generation."""
 
-    payload: Union[str, Dict[str, Any]] = Field(
+    payload: str | dict[str, Any] = Field(
         description="A JSON object (or JSON string) matching AAAGenerateCandidateInput."
     )
 
@@ -73,88 +76,92 @@ class AAAGenerateCandidateTool(BaseTool):
         "sourceCitations."
     )
 
-    args_schema: Type[BaseModel] = AAAGenerateCandidateToolInput
+    args_schema: type[BaseModel] = AAAGenerateCandidateToolInput
 
     def _run(
         self,
-        payload: Union[str, Dict[str, Any], None] = None,
+        payload: str | dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> str:
+        try:
+            raw_data = self._parse_payload(payload, **kwargs)
+            args = self._validate_args(raw_data)
+
+            candidate_id = str(uuid.uuid4())
+            assumption_items, assumption_ids = self._build_assumptions(args.assumptions)
+
+            candidate = {
+                "id": candidate_id,
+                "title": args.title.strip(),
+                "summary": args.summary.strip(),
+                "assumptionIds": assumption_ids,
+                "diagramIds": args.diagram_ids,
+                "sourceCitations": args.source_citations,
+            }
+
+            updates = {
+                "assumptions": assumption_items,
+                "candidateArchitectures": [candidate],
+            }
+
+            payload_str = json.dumps(updates, ensure_ascii=False, indent=2)
+
+            return (
+                f"Created candidate architecture '{candidate['title']}' (id={candidate_id}) at {_now_iso()}.\n"
+                "\n"
+                "AAA_STATE_UPDATE\n"
+                "```json\n"
+                f"{payload_str}\n"
+                "```"
+            )
+        except Exception as exc:  # noqa: BLE001
+            return f"ERROR: {exc!s}"
+
+    def _parse_payload(self, payload: str | dict[str, Any] | None, **kwargs: Any) -> dict[str, Any]:
         if payload is None:
-            if "payload" in kwargs:
-                payload = kwargs["payload"]
-            else:
-                raise ValueError("Missing payload for aaa_generate_candidate_architecture")
+            payload = kwargs.get("payload") or kwargs.get("tool_input")
+            if payload is None:
+                raise ValueError("Missing payload for candidate generation")
 
         if isinstance(payload, str):
             try:
-                data = json.loads(payload.strip())
+                return json.loads(payload.strip())
             except json.JSONDecodeError as exc:
                 raise ValueError("Invalid JSON payload for candidate generation.") from exc
-        else:
-            data = payload
+        return payload if isinstance(payload, dict) else {}
 
+    def _validate_args(self, data: dict[str, Any]) -> AAAGenerateCandidateInput:
+        if not data:
+            raise ValueError("Payload data is empty or invalid.")
         try:
-            args = AAAGenerateCandidateInput.model_validate(data)
-        except Exception as exc:
-            return f"ERROR: Validation failed for AAAGenerateCandidateInput: {str(exc)}"
+            return AAAGenerateCandidateInput.model_validate(data)
+        except ValidationError as exc:
+            raise ValueError(f"Validation failed: {exc!s}") from exc
 
-        title = args.title
-        summary = args.summary
-        assumptions = args.assumptions
-        diagramIds = args.diagramIds
-        sourceCitations = args.sourceCitations
-
-        candidate_id = str(uuid.uuid4())
-        assumption_items: List[Dict[str, Any]] = []
-        assumption_ids: List[str] = []
-
-        for assumption_text in assumptions or []:
-            clean = (assumption_text or "").strip()
+    def _build_assumptions(self, text_list: list[str]) -> tuple[list[dict[str, Any]], list[str]]:
+        items = []
+        ids = []
+        for text in text_list:
+            clean = text.strip()
             if not clean:
                 continue
-            assumption_id = str(uuid.uuid4())
-            assumption_ids.append(assumption_id)
-            assumption_items.append(
+            a_id = str(uuid.uuid4())
+            ids.append(a_id)
+            items.append(
                 {
-                    "id": assumption_id,
+                    "id": a_id,
                     "text": clean,
                     "status": "open",
                     "relatedRequirementIds": [],
                 }
             )
-
-        candidate = {
-            "id": candidate_id,
-            "title": title.strip(),
-            "summary": summary.strip(),
-            "assumptionIds": assumption_ids,
-            "diagramIds": diagramIds or [],
-            "sourceCitations": sourceCitations or [],
-        }
-
-        updates: Dict[str, Any] = {
-            "assumptions": assumption_items,
-            "candidateArchitectures": [candidate],
-        }
-
-        payload = json.dumps(updates, ensure_ascii=False, indent=2)
-
-        return (
-            f"Created candidate architecture '{candidate['title']}' (id={candidate_id}) at {_now_iso()}.\n"
-            "\n"
-            "AAA_STATE_UPDATE\n"
-            "```json\n"
-            f"{payload}\n"
-            "```"
-        )
+        return items, ids
 
     async def _arun(self, **kwargs: Any) -> str:
-        # Keep async signature; actual work is fast and synchronous.
         return self._run(**kwargs)
 
 
-def create_aaa_tools() -> List[BaseTool]:
+def create_aaa_tools() -> list[BaseTool]:
     """Factory returning AAA-specific tools for the agent."""
 
     return [
@@ -164,3 +171,4 @@ def create_aaa_tools() -> List[BaseTool]:
         AAAGenerateIacTool(),
         AAAExportTool(),
     ]
+

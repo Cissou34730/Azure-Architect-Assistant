@@ -3,35 +3,36 @@ FastAPI Router for Project Management Endpoints
 Clean routing layer - business logic delegated to operations.py
 """
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+import json
+import logging
+from collections.abc import AsyncGenerator
+from datetime import datetime, timezone
+from typing import Any
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Any, Dict, List, Optional
-import json
-import logging
-from datetime import datetime, timezone
 
-from app.projects_database import get_db
 from app.models import ProjectState
-
+from app.models.diagram import Diagram, DiagramSet, DiagramType
+from app.projects_database import get_db
 from app.services.diagram.database import get_diagram_session
 from app.services.diagram.diagram_generator import DiagramGenerator
 from app.services.diagram.llm_client import DiagramLLMClient
-from app.models.diagram import Diagram, DiagramSet, DiagramType
 
 from .project_models import (
-    CreateProjectRequest,
-    UpdateRequirementsRequest,
     ChatMessageRequest,
+    ChatResponse,
+    CreateProjectRequest,
+    DocumentsResponse,
+    MessagesResponse,
     ProjectResponse,
     ProjectsListResponse,
-    DocumentsResponse,
     StateResponse,
-    MessagesResponse,
-    ChatResponse,
+    UpdateRequirementsRequest,
 )
-from .services import ProjectService, DocumentService, ChatService
+from .services import ChatService, DocumentService, ProjectService
 
 logger = logging.getLogger(__name__)
 
@@ -49,22 +50,22 @@ chat_service = ChatService()
 @router.post("/projects", response_model=ProjectResponse)
 async def create_project(
     request: CreateProjectRequest, db: AsyncSession = Depends(get_db)
-):
+) -> dict[str, Any]:
     """Create a new project"""
     try:
         project = await project_service.create_project(request, db)
         return {"project": project}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to create project: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to create project: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to create project: {e!s}"
+        ) from e
 
 
 @router.get("/projects", response_model=ProjectsListResponse)
-async def list_projects(db: AsyncSession = Depends(get_db)):
+async def list_projects(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """List all projects"""
     try:
         projects = await project_service.list_projects(db)
@@ -72,12 +73,12 @@ async def list_projects(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         logger.error(f"Failed to list projects: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to list projects: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to list projects: {e!s}"
+        ) from e
 
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
-async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
+async def get_project(project_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Get project details"""
     try:
         project = await project_service.get_project(project_id, db)
@@ -88,7 +89,7 @@ async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
         raise
     except Exception as e:
         logger.error(f"Failed to get project: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get project: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get project: {e!s}") from e
 
 
 @router.put("/projects/{project_id}/requirements", response_model=ProjectResponse)
@@ -96,7 +97,7 @@ async def update_requirements(
     project_id: str,
     request: UpdateRequirementsRequest,
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """Update project requirements"""
     try:
         project = await project_service.update_requirements(project_id, request, db)
@@ -104,12 +105,12 @@ async def update_requirements(
     except ValueError as e:
         raise HTTPException(
             status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
-        )
+        ) from e
     except Exception as e:
         logger.error(f"Failed to update requirements: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to update requirements: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to update requirements: {e!s}"
+        ) from e
 
 
 # ============================================================================
@@ -120,9 +121,9 @@ async def update_requirements(
 @router.post("/projects/{project_id}/documents", response_model=DocumentsResponse)
 async def upload_documents(
     project_id: str,
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db),
-):
+) -> dict[str, Any]:
     """Upload documents for a project"""
     try:
         documents = await document_service.upload_documents(project_id, files, db)
@@ -130,16 +131,16 @@ async def upload_documents(
     except ValueError as e:
         raise HTTPException(
             status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
-        )
+        ) from e
     except Exception as e:
         logger.error(f"Failed to upload documents: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to upload documents: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to upload documents: {e!s}"
+        ) from e
 
 
 @router.post("/projects/{project_id}/analyze-docs", response_model=StateResponse)
-async def analyze_documents(project_id: str, db: AsyncSession = Depends(get_db)):
+async def analyze_documents(project_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Analyze documents and generate initial ProjectState"""
     try:
         state = await document_service.analyze_documents(project_id, db)
@@ -151,70 +152,72 @@ async def analyze_documents(project_id: str, db: AsyncSession = Depends(get_db))
                 state = await _append_diagram_reference_to_project_state(
                     project_id, state, diagram_ref, db
                 )
-        except Exception as exc:
+        except Exception:
             # Best-effort: do not block requirement extraction if diagram generation
             # fails due to missing credentials/timeouts.
-            logger.warning(
-                "C4 context diagram generation skipped for project %s (%s)",
+            logger.exception(
+                "C4 context diagram generation skipped for project %s",
                 project_id,
-                exc,
             )
 
         return {"projectState": state}
     except ValueError as e:
         raise HTTPException(
             status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
-        )
+        ) from e
     except Exception as e:
         logger.error(f"Failed to analyze documents: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to analyze documents: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to analyze documents: {e!s}"
+        ) from e
 
 
-def _build_diagram_input_description(state: Dict[str, Any]) -> str:
-    context = state.get("context") if isinstance(state.get("context"), dict) else {}
+def _build_diagram_input_description(state: dict[str, Any]) -> str:
+    context_raw = state.get("context")
+    context = context_raw if isinstance(context_raw, dict) else {}
     summary = (context.get("summary") or "").strip()
 
-    requirements = state.get("requirements") if isinstance(state.get("requirements"), list) else []
+    requirements_raw = state.get("requirements")
+    requirements = requirements_raw if isinstance(requirements_raw, list) else []
 
-    def _lines_for(category: str) -> List[str]:
-        lines: List[str] = []
-        for r in requirements:
-            if not isinstance(r, dict):
-                continue
-            if (r.get("category") or "").strip().lower() != category:
-                continue
-            text = (r.get("text") or "").strip()
-            if text:
-                lines.append(f"- {text}")
-        return lines
-
-    parts: List[str] = []
+    parts: list[str] = []
     if summary:
         parts.append(f"Project summary: {summary}")
 
-    business = _lines_for("business")
-    functional = _lines_for("functional")
-    nfr = _lines_for("nfr")
-
-    if business:
-        parts.append("Business requirements:\n" + "\n".join(business))
-    if functional:
-        parts.append("Functional requirements:\n" + "\n".join(functional))
-    if nfr:
-        parts.append("Non-functional requirements:\n" + "\n".join(nfr))
+    for category in ["business", "functional", "nfr"]:
+        lines = _get_requirement_lines_by_category(requirements, category)
+        if lines:
+            title = f"{category.capitalize()} requirements:"
+            parts.append(f"{title}\n" + "\n".join(lines))
 
     # Fall back to a safe minimal description to satisfy diagram generator input constraints.
     if not parts:
-        parts.append("Generate a C4 Context diagram for the system described by the project documents.")
+        parts.append(
+            "Generate a C4 Context diagram for the system described by the project documents."
+        )
 
     return "\n\n".join(parts)
 
 
+def _get_requirement_lines_by_category(
+    requirements: list[Any], category: str
+) -> list[str]:
+    """Helper to extract requirement lines for a specific category."""
+    lines: list[str] = []
+    for r in requirements:
+        if (
+            isinstance(r, dict)
+            and (r.get("category") or "").strip().lower() == category
+        ):
+            text = (r.get("text") or "").strip()
+            if text:
+                lines.append(f"- {text}")
+    return lines
+
+
 async def _ensure_initial_c4_context_diagram(
-    project_id: str, state: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
+    project_id: str, state: dict[str, Any]
+) -> dict[str, Any] | None:
     """Generate a C4 Context diagram and return a reference payload.
 
     Uses the diagram DB + DiagramGenerator (same components as /api/v1/diagram-sets).
@@ -269,10 +272,10 @@ async def _ensure_initial_c4_context_diagram(
 
 async def _append_diagram_reference_to_project_state(
     project_id: str,
-    state: Dict[str, Any],
-    diagram_ref: Dict[str, Any],
+    state: dict[str, Any],
+    diagram_ref: dict[str, Any],
     db: AsyncSession,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Persist a diagram reference into ProjectState.state and return updated state."""
 
     result = await db.execute(
@@ -317,7 +320,7 @@ async def _append_diagram_reference_to_project_state(
 @router.post("/projects/{project_id}/chat", response_model=ChatResponse)
 async def chat_message(
     project_id: str, request: ChatMessageRequest, db: AsyncSession = Depends(get_db)
-):
+) -> dict[str, Any]:
     """Send a chat message and get response with updated state"""
     try:
         result = await chat_service.process_chat_message(
@@ -327,16 +330,16 @@ async def chat_message(
     except ValueError as e:
         raise HTTPException(
             status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
-        )
+        ) from e
     except Exception as e:
         logger.error(f"Failed to process chat message: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to process chat message: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to process chat message: {e!s}"
+        ) from e
 
 
 @router.get("/projects/{project_id}/state", response_model=StateResponse)
-async def get_project_state(project_id: str, db: AsyncSession = Depends(get_db)):
+async def get_project_state(project_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Get current project state"""
     try:
         state = await chat_service.get_project_state(project_id, db)
@@ -344,25 +347,25 @@ async def get_project_state(project_id: str, db: AsyncSession = Depends(get_db))
     except ValueError as e:
         raise HTTPException(
             status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
-        )
+        ) from e
     except Exception as e:
         logger.error(f"Failed to get project state: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to get project state: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to get project state: {e!s}"
+        ) from e
 
 
 @router.get("/projects/{project_id}/messages", response_model=MessagesResponse)
-async def get_messages(project_id: str, db: AsyncSession = Depends(get_db)):
+async def get_messages(project_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Get conversation history"""
     try:
         messages = await chat_service.get_conversation_messages(project_id, db)
         return {"messages": messages}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Failed to get messages: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get messages: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get messages: {e!s}") from e
 
 
 # ============================================================================
@@ -371,13 +374,15 @@ async def get_messages(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/projects/{project_id}/architecture/proposal")
-async def generate_proposal(project_id: str, db: AsyncSession = Depends(get_db)):
+async def generate_proposal(
+    project_id: str, db: AsyncSession = Depends(get_db)
+) -> StreamingResponse:
     """Generate architecture proposal with Server-Sent Events for progress"""
 
-    async def event_generator():
+    async def event_generator() -> AsyncGenerator[str, None]:
         """Generate SSE events"""
 
-        def send_progress(stage: str, detail: Optional[str] = None):
+        def send_progress(stage: str, detail: str | None = None) -> str:
             data = {
                 "stage": stage,
                 "detail": detail,
@@ -389,9 +394,9 @@ async def generate_proposal(project_id: str, db: AsyncSession = Depends(get_db))
 
         try:
             # Track progress events
-            progress_events = []
+            progress_events: list[tuple[str, str | None]] = []
 
-            def on_progress(stage: str, detail: Optional[str] = None):
+            def on_progress(stage: str, detail: str | None = None) -> None:
                 progress_events.append((stage, detail))
 
             # Generate proposal
@@ -425,7 +430,7 @@ async def generate_proposal(project_id: str, db: AsyncSession = Depends(get_db))
             logger.error(f"Proposal generation failed: {e}", exc_info=True)
             error_data = {
                 "stage": "error",
-                "error": f"Internal server error: {str(e)}",
+                "error": f"Internal server error: {e!s}",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             yield f"data: {json.dumps(error_data)}\n\n"
@@ -435,3 +440,4 @@ async def generate_proposal(project_id: str, db: AsyncSession = Depends(get_db))
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
+

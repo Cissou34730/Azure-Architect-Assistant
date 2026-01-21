@@ -92,3 +92,4 @@ if __name__ == "__main__":
     print("\n2. Check if databases are in .gitignore (they should be)")
     print("\n3. Look for OneDrive sync conflicts (common issue)")
     print("\n4. Check if migration scripts were run recently")
+

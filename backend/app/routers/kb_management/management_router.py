@@ -3,31 +3,32 @@ KB Management Router
 FastAPI endpoints for KB CRUD operations, listing, and health monitoring.
 """
 
-from typing import Dict
-from fastapi import APIRouter, HTTPException, Depends
-import logging
 import asyncio
+import logging
 
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.ingestion.application.status_query_service import StatusQueryService
+from app.ingestion.infrastructure import create_job_repository, create_queue_repository
+from app.kb import KBManager
+from app.kb.service import clear_index_cache
 from app.service_registry import (
     get_kb_manager,
     get_multi_query_service,
     invalidate_kb_manager,
 )
-from app.kb import KBManager
 from app.services.kb import MultiKBQueryService
-from app.kb.service import clear_index_cache
+
 from .management_models import (
-    KBInfo,
-    KBListResponse,
-    KBHealthInfo,
-    KBHealthResponse,
     CreateKBRequest,
     CreateKBResponse,
+    KBHealthInfo,
+    KBHealthResponse,
+    KBInfo,
+    KBListResponse,
     KBStatusResponse,
 )
 from .management_operations import KBManagementService, get_management_service
-from app.ingestion.infrastructure import create_job_repository, create_queue_repository
-from app.ingestion.application.status_query_service import StatusQueryService
 
 logger = logging.getLogger(__name__)
 
@@ -74,17 +75,19 @@ async def create_kb(
 
         return CreateKBResponse(**result)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Failed to create KB: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to create KB: {str(e)}")
+        logger.error(f"Failed to create KB: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create KB: {e!s}"
+        ) from e
 
 
 @router.delete("/{kb_id}")
 async def delete_kb(
     kb_id: str,
     kb_manager: KBManager = Depends(get_kb_manager_dep),
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Delete a knowledge base and all its data.
 
@@ -111,8 +114,8 @@ async def delete_kb(
             repo.update_job_status(
                 job_id=repo.get_latest_job_id(kb_id) or "", status="canceled"
             )
-        except Exception:
-            pass
+        except Exception:  # noqa: BLE001
+            logger.debug("No active job to cancel for KB: %s", kb_id)
 
         # Clear index from memory cache
         if storage_dir:
@@ -136,11 +139,13 @@ async def delete_kb(
     except HTTPException:
         raise
     except ValueError as e:
-        logger.error(f"Failed to delete KB: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Failed to delete KB: {e!s}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Failed to delete KB: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to delete KB: {str(e)}")
+        logger.error(f"Failed to delete KB: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete KB: {e!s}"
+        ) from e
 
 
 @router.get("/list", response_model=KBListResponse)
@@ -169,10 +174,10 @@ async def list_knowledge_bases(
         return KBListResponse(knowledge_bases=kb_list)
 
     except Exception as e:
-        logger.error(f"Failed to list knowledge bases: {str(e)}", exc_info=True)
+        logger.error(f"Failed to list knowledge bases: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to list knowledge bases: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to list knowledge bases: {e!s}"
+        ) from e
 
 
 @router.get("/health", response_model=KBHealthResponse)
@@ -194,8 +199,10 @@ async def check_kb_health(
         )
 
     except Exception as e:
-        logger.error(f"Health check failed: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+        logger.error(f"Health check failed: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Health check failed: {e!s}"
+        ) from e
 
 
 # ============================================================================
@@ -232,14 +239,15 @@ async def get_kb_status(
                     "done": qs.get("done", 0),
                     "error": qs.get("error", 0),
                 }
-        except Exception:
+        except Exception:  # noqa: BLE001
             metrics = None
 
         return KBStatusResponse(kb_id=kb_id, status=status.status, metrics=metrics)
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get KB status: {str(e)}", exc_info=True)
+        logger.error(f"Failed to get KB status: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to get KB status: {str(e)}"
-        )
+            status_code=500, detail=f"Failed to get KB status: {e!s}"
+        ) from e
+

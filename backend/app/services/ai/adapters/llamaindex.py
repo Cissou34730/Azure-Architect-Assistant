@@ -8,18 +8,20 @@ AI service configuration and monitoring.
 
 import asyncio
 import logging
-from typing import Any, List, Optional
+from typing import Any, ClassVar
 
 from llama_index.core.base.llms.types import (
-    CompletionResponse,
-    CompletionResponseGen,
     ChatMessage as LlamaIndexChatMessage,
+)
+from llama_index.core.base.llms.types import (
     ChatResponse,
     ChatResponseGen,
+    CompletionResponse,
+    CompletionResponseGen,
     MessageRole,
 )
-from llama_index.core.llms import CustomLLM
 from llama_index.core.embeddings import BaseEmbedding
+from llama_index.core.llms import CustomLLM
 
 from ..ai_service import AIService
 from ..interfaces import ChatMessage
@@ -40,14 +42,14 @@ class AIServiceLLM(CustomLLM):
     temperature: float
     max_tokens: int
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config: ClassVar[dict[str, Any]] = {"arbitrary_types_allowed": True}
 
     def __init__(
         self,
         ai_service: AIService,
-        model_name: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        model_name: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         **kwargs: Any,
     ):
         """
@@ -120,7 +122,7 @@ class AIServiceLLM(CustomLLM):
         raise NotImplementedError("Streaming not supported in adapter")
 
     def chat(
-        self, messages: List[LlamaIndexChatMessage], **kwargs: Any
+        self, messages: list[LlamaIndexChatMessage], **kwargs: Any
     ) -> ChatResponse:
         """
         Chat completion (required by LlamaIndex).
@@ -173,7 +175,7 @@ class AIServiceLLM(CustomLLM):
             )
 
     def stream_chat(
-        self, messages: List[LlamaIndexChatMessage], **kwargs: Any
+        self, messages: list[LlamaIndexChatMessage], **kwargs: Any
     ) -> ChatResponseGen:
         """Streaming not implemented for adapter."""
         raise NotImplementedError("Streaming not supported in adapter")
@@ -190,10 +192,10 @@ class AIServiceEmbedding(BaseEmbedding):
     ai_service: AIService
     model_name: str
 
-    model_config = {"arbitrary_types_allowed": True}
+    model_config: ClassVar[dict[str, Any]] = {"arbitrary_types_allowed": True}
 
     def __init__(
-        self, ai_service: AIService, model_name: Optional[str] = None, **kwargs: Any
+        self, ai_service: AIService, model_name: str | None = None, **kwargs: Any
     ):
         """
         Initialize LlamaIndex adapter for AIService embeddings.
@@ -214,7 +216,7 @@ class AIServiceEmbedding(BaseEmbedding):
         """Class name for serialization."""
         return "AIServiceEmbedding"
 
-    def _get_query_embedding(self, query: str) -> List[float]:
+    def _get_query_embedding(self, query: str) -> list[float]:
         """
         Get embedding for query text (required by LlamaIndex).
 
@@ -228,7 +230,7 @@ class AIServiceEmbedding(BaseEmbedding):
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # Already in event loop, apply nest_asyncio and use run_until_complete
-                import nest_asyncio
+                import nest_asyncio  # noqa: PLC0415
 
                 nest_asyncio.apply()
                 return loop.run_until_complete(self.ai_service.embed_text(query))
@@ -243,7 +245,7 @@ class AIServiceEmbedding(BaseEmbedding):
             finally:
                 loop.close()
 
-    def _get_text_embedding(self, text: str) -> List[float]:
+    def _get_text_embedding(self, text: str) -> list[float]:
         """
         Get embedding for document text (required by LlamaIndex).
 
@@ -257,7 +259,7 @@ class AIServiceEmbedding(BaseEmbedding):
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # Already in event loop, apply nest_asyncio and use run_until_complete
-                import nest_asyncio
+                import nest_asyncio  # noqa: PLC0415
 
                 nest_asyncio.apply()
                 return loop.run_until_complete(self.ai_service.embed_text(text))
@@ -272,15 +274,15 @@ class AIServiceEmbedding(BaseEmbedding):
             finally:
                 loop.close()
 
-    async def _aget_query_embedding(self, query: str) -> List[float]:
+    async def _aget_query_embedding(self, query: str) -> list[float]:
         """Async get query embedding."""
         return await self.ai_service.embed_text(query)
 
-    async def _aget_text_embedding(self, text: str) -> List[float]:
+    async def _aget_text_embedding(self, text: str) -> list[float]:
         """Async get text embedding."""
         return await self.ai_service.embed_text(text)
 
-    def _get_text_embeddings(self, texts: List[str]) -> List[List[float]]:
+    def _get_text_embeddings(self, texts: list[str]) -> list[list[float]]:
         """
         Get embeddings for multiple texts (batch).
 
@@ -294,7 +296,7 @@ class AIServiceEmbedding(BaseEmbedding):
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # Already in event loop, apply nest_asyncio and use run_until_complete
-                import nest_asyncio
+                import nest_asyncio  # noqa: PLC0415
 
                 nest_asyncio.apply()
                 return loop.run_until_complete(self.ai_service.embed_batch(texts))
@@ -308,3 +310,4 @@ class AIServiceEmbedding(BaseEmbedding):
                 return loop.run_until_complete(self.ai_service.embed_batch(texts))
             finally:
                 loop.close()
+

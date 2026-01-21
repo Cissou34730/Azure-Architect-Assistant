@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
-from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 
 # Load environment variables once at module import
 load_dotenv()
@@ -42,7 +42,7 @@ class IngestionSettings(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     @classmethod
-    def from_json(cls, config_path: Optional[Path] = None) -> "IngestionSettings":
+    def from_json(cls, config_path: Path | None = None) -> IngestionSettings:
         """Load settings from JSON configuration file."""
         if config_path is None:
             config_path = Path(__file__).parent / "ingestion.config.json"
@@ -51,7 +51,7 @@ class IngestionSettings(BaseModel):
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
         # Pydantic v2: load JSON and validate explicitly
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             data = json.load(f)
         return cls.model_validate(data)
 
@@ -68,7 +68,7 @@ class KBDefaults(BaseModel):
     index_type: str = Field(description="Type of index (vector, summary, etc.)")
 
     @classmethod
-    def from_json(cls, config_path: Optional[Path] = None) -> "KBDefaults":
+    def from_json(cls, config_path: Path | None = None) -> KBDefaults:
         """Load KB defaults from JSON configuration file."""
         if config_path is None:
             config_path = Path(__file__).parent / "kb_defaults.json"
@@ -76,11 +76,11 @@ class KBDefaults(BaseModel):
         if not config_path.exists():
             raise FileNotFoundError(f"KB defaults file not found: {config_path}")
 
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             data = json.load(f)
         return cls.model_validate(data)
 
-    def merge_with_kb_config(self, kb_config: Dict[str, Any]) -> Dict[str, Any]:
+    def merge_with_kb_config(self, kb_config: dict[str, Any]) -> dict[str, Any]:
         """Merge defaults with KB-specific config and environment variables.
         Priority: kb_config > defaults > environment variables
         """
@@ -98,45 +98,42 @@ class KBDefaults(BaseModel):
         return merged
 
 
-# Global settings instances
-_settings: Optional[IngestionSettings] = None
-_kb_defaults: Optional[KBDefaults] = None
-_openai_settings: Optional[OpenAISettings] = None
-_kb_storage_root: Optional[Path] = None
-_kb_storage_root_raw: Optional[str] = None
+class SettingsContainer:
+    """Container for global settings singletons."""
+    settings: IngestionSettings | None = None
+    kb_defaults: KBDefaults | None = None
+    openai_settings: OpenAISettings | None = None
+    kb_storage_root: Path | None = None
+    kb_storage_root_raw: str | None = None
 
 
 def get_settings() -> IngestionSettings:
     """Get global settings instance (lazy-loaded from JSON config)."""
-    global _settings
-    if _settings is None:
-        _settings = IngestionSettings.from_json()
-    return _settings
+    if SettingsContainer.settings is None:
+        SettingsContainer.settings = IngestionSettings.from_json()
+    return SettingsContainer.settings
 
 
 def get_kb_defaults() -> KBDefaults:
     """Get KB defaults instance (lazy-loaded from JSON config)."""
-    global _kb_defaults
-    if _kb_defaults is None:
-        _kb_defaults = KBDefaults.from_json()
-    return _kb_defaults
+    if SettingsContainer.kb_defaults is None:
+        SettingsContainer.kb_defaults = KBDefaults.from_json()
+    return SettingsContainer.kb_defaults
 
 
 def get_openai_settings() -> OpenAISettings:
     """Get OpenAI settings instance (lazy-loaded from environment)."""
-    global _openai_settings
-    if _openai_settings is None:
-        _openai_settings = OpenAISettings()
-    return _openai_settings
+    if SettingsContainer.openai_settings is None:
+        SettingsContainer.openai_settings = OpenAISettings()
+    return SettingsContainer.openai_settings
 
 
 def set_settings(settings: IngestionSettings) -> None:
     """Override global settings (useful for testing)."""
-    global _settings
-    _settings = settings
+    SettingsContainer.settings = settings
 
 
-def get_kb_storage_root(raw: bool = False) -> Union[Path, str]:
+def get_kb_storage_root(raw: bool = False) -> Path | str:
     """Get the configured knowledge base storage root.
 
     Args:
@@ -145,21 +142,22 @@ def get_kb_storage_root(raw: bool = False) -> Union[Path, str]:
     Returns:
         Absolute Path to the storage root by default, or the raw string value when requested.
     """
-    global _kb_storage_root, _kb_storage_root_raw
-
-    if _kb_storage_root is None or _kb_storage_root_raw is None:
+    if SettingsContainer.kb_storage_root is None or SettingsContainer.kb_storage_root_raw is None:
         backend_root = Path(__file__).resolve().parent.parent
         kb_root_env = os.getenv("KNOWLEDGE_BASES_ROOT", "data/knowledge_bases")
         kb_root_path = Path(kb_root_env)
         if not kb_root_path.is_absolute():
             kb_root_path = backend_root / kb_root_path
 
-        _kb_storage_root = kb_root_path
-        _kb_storage_root_raw = kb_root_env
+        SettingsContainer.kb_storage_root = kb_root_path
+        SettingsContainer.kb_storage_root_raw = kb_root_env
 
     if raw:
-        assert _kb_storage_root_raw is not None
-        return _kb_storage_root_raw
+        if SettingsContainer.kb_storage_root_raw is None:
+             raise RuntimeError("KB Storage Root Raw not initialized")
+        return SettingsContainer.kb_storage_root_raw
 
-    assert _kb_storage_root is not None
-    return _kb_storage_root
+    if SettingsContainer.kb_storage_root is None:
+        raise RuntimeError("KB Storage Root not initialized")
+    return SettingsContainer.kb_storage_root
+

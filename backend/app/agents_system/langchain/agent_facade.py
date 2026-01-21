@@ -1,6 +1,15 @@
+import asyncio
 import logging
-from typing import Any, Dict, Iterable, List, Optional
-import inspect
+from collections.abc import Iterable
+from typing import Any
+
+from langchain.agents import (
+    AgentExecutor,
+    AgentType,
+    create_react_agent,
+    initialize_agent,
+)
+from langchain.tools import BaseTool, Tool
 
 from .facade_utils import make_single_input_wrapper, normalize_agent_result
 
@@ -15,9 +24,9 @@ class AgentFacade:
 
     def __init__(
         self,
-        llm: Optional[Any] = None,
-        tools: Optional[List[Any]] = None,
-        prompt: Optional[Any] = None,
+        llm: Any | None = None,
+        tools: list[Any] | None = None,
+        prompt: Any | None = None,
         max_iterations: int = 8,
         verbose: bool = True,
     ) -> None:
@@ -27,33 +36,28 @@ class AgentFacade:
         self.max_iterations = max_iterations
         self.verbose = verbose
 
-        self._agent: Optional[Any] = None
-        self._executor: Optional[Any] = None
+        self._executor: AgentExecutor | Any | None = None
 
-    async def initialize(self, callbacks: Optional[Iterable[Any]] = None) -> None:
-        """
-        Initializes the agent. Prefers modern LangChain 0.1+ ReAct agent logic.
-        """
+    async def initialize(self, callbacks: Iterable[Any] | None = None) -> None:
+        """Initializes the agent. Prefers modern LangChain 0.1+ ReAct agent logic."""
         if self.llm is None:
             raise ValueError("LLM must be provided to AgentFacade")
 
         built_tools = self._build_tools()
 
         try:
-            from langchain.agents import AgentExecutor, create_react_agent
-            
             if self.prompt is None:
                 # If no prompt provided, we can't use create_react_agent directly
-                # Fallback to older initialize_agent if possible or raise error
-                logger.warning("No prompt provided to AgentFacade, falling back to legacy initialize_agent")
-                from langchain.agents import initialize_agent, AgentType
+                logger.warning(
+                    "No prompt provided to AgentFacade, falling back to legacy initialize_agent"
+                )
                 self._executor = initialize_agent(
                     tools=built_tools,
                     llm=self.llm,
                     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
                     verbose=self.verbose,
                     max_iterations=self.max_iterations,
-                    handle_parsing_errors=True
+                    handle_parsing_errors=True,
                 )
             else:
                 agent = create_react_agent(llm=self.llm, tools=built_tools, prompt=self.prompt)
@@ -63,75 +67,81 @@ class AgentFacade:
                     verbose=self.verbose,
                     max_iterations=self.max_iterations,
                     handle_parsing_errors=True,
-                    callbacks=list(callbacks) if callbacks else None
+                    callbacks=list(callbacks) if callbacks else None,
                 )
-            
+
             logger.info("AgentFacade initialized successfully")
         except Exception as e:
             logger.exception(f"Failed to initialize AgentFacade: {e}")
             raise
 
-    def _build_tools(self) -> List[Any]:
-        """
-        Ensures all tools are in a format LangChain can understand.
-        """
-        try:
-            from langchain.tools import Tool, BaseTool
-        except ImportError:
-            Tool = None
-            BaseTool = None
-
-        built: List[Any] = []
+    def _build_tools(self) -> list[BaseTool]:
+        """Ensures all tools are in a format LangChain can understand."""
+        built: list[BaseTool] = []
         for t in self.tools:
-            # If already a real LangChain BaseTool instance, keep it
-            if BaseTool and isinstance(t, BaseTool):
+            if isinstance(t, BaseTool):
                 built.append(t)
                 continue
 
-            # If it's a dict with name and func
-            if isinstance(t, dict) and "name" in t and ("func" in t or "async_func" in t):
-                name = t["name"]
-                func = t.get("func")
-                async_func = t.get("async_func") or t.get("arun")
-                sync_wrapped, async_wrapped = make_single_input_wrapper(name, func or async_func, async_func)
-                if Tool:
-                    built.append(Tool(
-                        name=name, 
-                        func=sync_wrapped, 
-                        coroutine=async_wrapped,
-                        description=t.get("description", "")
-                    ))
-                else:
-                    built.append({"name": name, "func": async_wrapped, "description": t.get("description", "")})
+            # Dict-based tool definition
+            if isinstance(t, dict):
+                tool_dict = self._process_tool_dict(t)
+                if tool_dict:
+                    built.append(tool_dict)
                 continue
 
-            # Generic fallback for object with name and run/func/__call__
-            name = getattr(t, "name", None) or getattr(t, "__name__", None)
-            func = getattr(t, "run", None) or getattr(t, "func", None) or getattr(t, "__call__", None)
-            async_func = getattr(t, "arun", None) or getattr(t, "ainvoke", None)
-            desc = getattr(t, "description", "")
-            
-            if name and (func or async_func):
-                sync_wrapped, async_wrapped = make_single_input_wrapper(name, func or async_func, async_func)
-                if Tool:
-                    built.append(Tool(
-                        name=name, 
-                        func=sync_wrapped, 
-                        coroutine=async_wrapped,
-                        description=desc
-                    ))
-                else:
-                    built.append({"name": name, "func": async_wrapped, "description": desc})
-        
+            # Generic object with name/run
+            tool_obj = self._process_tool_object(t)
+            if tool_obj:
+                built.append(tool_obj)
+
         return built
 
-    async def ainvoke(self, agent_input: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Asynchronously invokes the agent and returns a normalized result.
-        """
-        # Supports both _executor (LangChain AgentExecutor) and _agent (legacy/mock)
-        target = self._executor or self._agent
-        if target is None:
+    def _process_tool_dict(self, t: dict[str, Any]) -> Tool | None:
+        """Convert a dictionary definition into a LangChain Tool."""
+        name = t.get("name")
+        func = t.get("func")
+        async_func = t.get("async_func") or t.get("arun")
+
+        if not name or not (func or async_func):
+            return None
+
+        sync_wrapped, async_wrapped = make_single_input_wrapper(
+            name, func or async_func, async_func
+        )
+        return Tool(
+            name=name,
+            func=sync_wrapped,
+            coroutine=async_wrapped,
+            description=t.get("description", ""),
+        )
+
+    def _process_tool_object(self, t: Any) -> Tool | None:
+        """Convert a generic object with run/arun methods into a LangChain Tool."""
+        name = getattr(t, "name", None) or getattr(t, "__name__", None)
+        func = self._get_tool_func(t)
+        async_func = getattr(t, "arun", None) or getattr(t, "ainvoke", None)
+        desc = getattr(t, "description", "")
+
+        if not name or not (func or async_func):
+            return None
+
+        sync_wrapped, async_wrapped = make_single_input_wrapper(
+            name, func or async_func, async_func
+        )
+        return Tool(name=name, func=sync_wrapped, coroutine=async_wrapped, description=desc)
+
+    def _get_tool_func(self, t: Any) -> Any:
+        """Heuristic to find the synchronous execution function for a tool."""
+        if hasattr(t, "run"):
+            return t.run
+        if callable(t):
+            return t
+        return None
+
+    async def ainvoke(self, agent_input: dict[str, Any]) -> dict[str, Any]:
+        """Asynchronously invokes the agent and returns a normalized result."""
+        if self._executor is None:
             raise RuntimeError("AgentFacade not initialized. Call initialize() first.")
 
         # Ensure 'input' key is present as many agents expect it
@@ -139,34 +149,27 @@ class AgentFacade:
             agent_input["input"] = agent_input["query"]
 
         try:
-            # AgentExecutor in LangChain 0.1+ has ainvoke
-            if hasattr(target, "ainvoke"):
-                raw_result = await target.ainvoke(agent_input)
-            elif hasattr(target, "arun"):
-                # Older versions or specific wrappers
+            if hasattr(self._executor, "ainvoke"):
+                raw_result = await self._executor.ainvoke(agent_input)
+            elif hasattr(self._executor, "arun"):
                 input_str = agent_input.get("input") or str(agent_input)
-                raw_result = await target.arun(input_str)
+                raw_result = await self._executor.arun(input_str)
             else:
-                # Fallback to sync run in a thread if no async method found
-                import asyncio
-                raw_result = await asyncio.to_thread(target.run, agent_input)
-            
+                raw_result = await asyncio.to_thread(self._executor.run, agent_input)
+
             return normalize_agent_result(raw_result)
         except Exception as e:
             logger.exception(f"Error during agent invocation: {e}")
             raise
 
-    async def stream(self, agent_input: Dict[str, Any]):
-        """
-        Streams chunks from the agent if supported, otherwise yields a single result.
-        """
-        target = self._executor or self._agent
-        if target is None:
+    async def stream(self, agent_input: dict[str, Any]):
+        """Streams chunks from the agent if supported, otherwise yields a single result."""
+        if self._executor is None:
             raise RuntimeError("AgentFacade not initialized. Call initialize() first.")
 
-        if hasattr(target, "astream"):
-            async for chunk in target.astream(agent_input):
+        if hasattr(self._executor, "astream"):
+            async for chunk in self._executor.astream(agent_input):
                 yield chunk
         else:
-            # Fallback for non-streaming executors
             yield await self.ainvoke(agent_input)
+

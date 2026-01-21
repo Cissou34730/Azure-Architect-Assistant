@@ -6,19 +6,21 @@ Keeps behavior stable while moving composition concerns out of the agent.
 """
 
 import logging
-from typing import Optional, Callable, Dict, Any
+from collections.abc import Callable
+from typing import Any
 
-from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
 
-from ..agents.mcp_react_agent import MCPReActAgent
-from ..tools.mcp_tool import create_mcp_tools
-from ..tools.kb_tool import create_kb_tools
-from ..tools.aaa_candidate_tool import create_aaa_tools
-from ..config.react_prompts import SYSTEM_PROMPT, REACT_TEMPLATE
-from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
-from ..conversation.summary_chain import SummaryChain
 from config.settings import OpenAISettings
+
+from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from ..agents.mcp_react_agent import MCPReActAgent
+from ..config.react_prompts import REACT_TEMPLATE, SYSTEM_PROMPT
+from ..conversation.summary_chain import SummaryChain
+from ..tools.aaa_candidate_tool import create_aaa_tools
+from ..tools.kb_tool import create_kb_tools
+from ..tools.mcp_tool import create_mcp_tools
 
 logger = logging.getLogger(__name__)
 
@@ -32,16 +34,16 @@ class AgentOrchestrator:
     - Provide a single entrypoint: initialize/execute/shutdown
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
-        openai_settings: Optional[OpenAISettings] = None,
+        openai_settings: OpenAISettings | None = None,
         max_iterations: int = 10,
         max_execution_time: int = 60,
         verbose: bool = True,
-        summary_chain: Optional[SummaryChain] = None,
-        on_start: Optional[Callable[[str, Optional[str], list], None]] = None,
-        on_end: Optional[Callable[[Dict[str, Any]], None]] = None,
-        on_error: Optional[Callable[[Exception], None]] = None,
+        summary_chain: SummaryChain | None = None,
+        on_start: Callable[[str, str | None, list[Any]], None] | None = None,
+        on_end: Callable[[dict[str, Any]], None] | None = None,
+        on_error: Callable[[Exception], None] | None = None,
     ) -> None:
         self.openai_settings = openai_settings or OpenAISettings()
         self.max_iterations = max_iterations
@@ -52,8 +54,8 @@ class AgentOrchestrator:
         self._on_end = on_end
         self._on_error = on_error
 
-        self._mcp_client: Optional[MicrosoftLearnMCPClient] = None
-        self._agent: Optional[MCPReActAgent] = None
+        self._mcp_client: MicrosoftLearnMCPClient | None = None
+        self._agent: MCPReActAgent | None = None
 
     async def initialize(self, mcp_client: MicrosoftLearnMCPClient) -> None:
         """Initialize orchestrator and underlying agent with injected deps."""
@@ -105,35 +107,46 @@ class AgentOrchestrator:
 
         logger.info("AgentOrchestrator: initialized")
 
+    def _handle_on_start(self, user_query: str, project_context: str | None) -> None:
+        """Execute the on_start callback if defined."""
+        if not self._on_start:
+            return
+
+        tools: list[Any] = []
+        if hasattr(self._agent, "tools") and self._agent.tools:
+            tools = self._agent.tools
+        self._on_start(user_query, project_context, tools)
+
+    def _handle_summary(self, user_query: str, result: dict[str, Any]) -> None:
+        """Execute the summary chain if enabled."""
+        if not (self._summary_chain and self._summary_chain.enabled):
+            return
+
+        summary = self._summary_chain.summarize(
+            [
+                {"role": "user", "content": user_query},
+                {"role": "assistant", "content": str(result.get("output", ""))},
+            ]
+        )
+        if summary:
+            result["summary"] = summary.summary
+
     async def execute(
-        self, user_query: str, project_context: Optional[str] = None
-    ) -> dict:
+        self, user_query: str, project_context: str | None = None
+    ) -> dict[str, Any]:
         """Execute a query via the agent with optional context injection."""
         if not self._agent:
             raise RuntimeError("AgentOrchestrator not initialized")
 
         logger.info("AgentOrchestrator: executing query...")
         try:
-            if self._on_start:
-                tools = []
-                if hasattr(self._agent, "tools") and self._agent.tools:
-                    tools = self._agent.tools
-                self._on_start(user_query, project_context, tools)
+            self._handle_on_start(user_query, project_context)
 
             result = await self._agent.execute(
                 user_query, project_context=project_context
             )
 
-            # Optional summarization
-            if self._summary_chain and self._summary_chain.enabled:
-                summary = self._summary_chain.summarize(
-                    [
-                        {"role": "user", "content": user_query},
-                        {"role": "assistant", "content": str(result.get("output", ""))},
-                    ]
-                )
-                if summary:
-                    result["summary"] = summary.summary
+            self._handle_summary(user_query, result)
 
             if self._on_end:
                 self._on_end(result)
@@ -151,10 +164,11 @@ class AgentOrchestrator:
         self._agent = None
         self._mcp_client = None
 
-    def health(self) -> dict:
+    def health(self) -> dict[str, Any]:
         return {
             "status": "healthy" if self._agent else "not_initialized",
             "openai_configured": bool(self.openai_settings.api_key),
             "max_iterations": self.max_iterations,
             "max_execution_time": self.max_execution_time,
         }
+

@@ -4,7 +4,7 @@ Abstract base classes for LLM and Embedding providers.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, AsyncIterator, Optional
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 
@@ -22,10 +22,10 @@ class LLMResponse:
 
     content: str
     model: str
-    usage: Optional[Dict[str, int]] = (
+    usage: dict[str, int] | None = (
         None  # {'prompt_tokens', 'completion_tokens', 'total_tokens'}
     )
-    finish_reason: Optional[str] = None
+    finish_reason: str | None = None
 
 
 class LLMProvider(ABC):
@@ -34,7 +34,7 @@ class LLMProvider(ABC):
     @abstractmethod
     async def chat(
         self,
-        messages: List[ChatMessage],
+        messages: list[ChatMessage],
         temperature: float = 0.7,
         max_tokens: int = 1000,
         stream: bool = False,
@@ -83,16 +83,16 @@ class LLMProvider(ABC):
 class EmbeddingResponse:
     """Standardized embedding response."""
 
-    embeddings: List[List[float]]
+    embeddings: list[list[float]]
     model: str
-    usage: Optional[Dict[str, int]] = None  # {'prompt_tokens', 'total_tokens'}
+    usage: dict[str, int] | None = None  # {'prompt_tokens', 'total_tokens'}
 
 
 class EmbeddingProvider(ABC):
     """Abstract base class for embedding providers."""
 
     @abstractmethod
-    async def embed_text(self, text: str) -> List[float]:
+    async def embed_text(self, text: str) -> list[float]:
         """
         Generate embedding for a single text.
 
@@ -106,8 +106,8 @@ class EmbeddingProvider(ABC):
 
     @abstractmethod
     async def embed_batch(
-        self, texts: List[str], batch_size: int = 100
-    ) -> List[List[float]]:
+        self, texts: list[str], batch_size: int = 100
+    ) -> list[list[float]]:
         """
         Generate embeddings for multiple texts with batching.
 
@@ -129,3 +129,4 @@ class EmbeddingProvider(ABC):
     def get_model_name(self) -> str:
         """Get the current embedding model name."""
         pass
+

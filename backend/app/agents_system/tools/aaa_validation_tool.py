@@ -17,10 +17,11 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Type, Union
+from typing import Any, Literal
 
 from langchain.tools import BaseTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 
 def _now_iso() -> str:
@@ -32,38 +33,40 @@ WafCoverageStatus = Literal["covered", "partial", "notCovered"]
 
 
 class ValidationFindingInput(BaseModel):
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
     title: str = Field(min_length=1, description="Short finding title")
     severity: FindingSeverity = Field(description="Finding severity")
     description: str = Field(min_length=1, description="What is wrong / risk")
     remediation: str = Field(min_length=1, description="Recommended remediation")
 
-    wafPillar: Optional[str] = Field(
+    waf_pillar: str | None = Field(
         default=None,
         description="WAF pillar this finding maps to (best-effort)",
     )
-    wafTopic: Optional[str] = Field(
+    waf_topic: str | None = Field(
         default=None,
         description="WAF topic / checklist item name this finding maps to (best-effort)",
     )
 
-    relatedRequirementIds: List[str] = Field(
+    related_requirement_ids: list[str] = Field(
         default_factory=list,
         description="Requirement IDs impacted by this finding (best-effort)",
     )
-    relatedDiagramIds: List[str] = Field(
+    related_diagram_ids: list[str] = Field(
         default_factory=list,
         description="Diagram IDs impacted by this finding (best-effort)",
     )
-    relatedAdrIds: List[str] = Field(
+    related_adr_ids: list[str] = Field(
         default_factory=list,
         description="ADR IDs impacted by this finding (best-effort)",
     )
-    relatedMindMapNodeIds: List[str] = Field(
+    related_mind_map_node_ids: list[str] = Field(
         default_factory=list,
         description="Mind map node IDs impacted by this finding (best-effort)",
     )
 
-    sourceCitations: List[Dict[str, Any]] = Field(
+    source_citations: list[dict[str, Any]] = Field(
         default_factory=list,
         description="SourceCitation[] objects (must include at least one)",
     )
@@ -72,7 +75,9 @@ class ValidationFindingInput(BaseModel):
 class WafChecklistEvaluationInput(BaseModel):
     """Append-only evaluation entry for a WAF checklist item."""
 
-    itemId: str = Field(
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    item_id: str = Field(
         min_length=1,
         description="Stable WAF checklist item id (if unknown, create a new stable id)",
     )
@@ -85,23 +90,25 @@ class WafChecklistEvaluationInput(BaseModel):
         description="Short evidence summary justifying the status",
     )
 
-    relatedFindingIds: List[str] = Field(
+    related_finding_ids: list[str] = Field(
         default_factory=list,
         description="Finding IDs that provide evidence for this evaluation",
     )
-    sourceCitations: List[Dict[str, Any]] = Field(
+    source_citations: list[dict[str, Any]] = Field(
         default_factory=list,
         description="SourceCitation[] objects used for this evaluation (recommended)",
     )
 
 
 class AAARunValidationInput(BaseModel):
-    findings: List[ValidationFindingInput] = Field(
+    model_config = ConfigDict(populate_by_name=True, alias_generator=to_camel)
+
+    findings: list[ValidationFindingInput] = Field(
         default_factory=list,
         description="Findings discovered during validation",
     )
 
-    wafEvaluations: List[WafChecklistEvaluationInput] = Field(
+    waf_evaluations: list[WafChecklistEvaluationInput] = Field(
         default_factory=list,
         description="Append-only WAF checklist evaluations with evidence links",
     )
@@ -110,7 +117,7 @@ class AAARunValidationInput(BaseModel):
 class AAARunValidationToolInput(BaseModel):
     """Raw tool payload for validation."""
 
-    payload: Union[str, Dict[str, Any]] = Field(
+    payload: str | dict[str, Any] = Field(
         description="A JSON object (or JSON string) matching AAARunValidationInput."
     )
 
@@ -123,151 +130,108 @@ class AAARunValidationTool(BaseTool):
         "Use after consulting reference docs/MCP and include sourceCitations."
     )
 
-    args_schema: Type[BaseModel] = AAARunValidationToolInput
+    args_schema: type[BaseModel] = AAARunValidationToolInput
 
     def _run(
         self,
-        payload: Union[str, Dict[str, Any], None] = None,
-        *args: Any,
+        payload: str | dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> str:
-        # Accept positional dict payload for compat
-        if payload is None and args:
-            first = args[0]
-            if isinstance(first, dict):
-                payload = first
+        """Execute validation record tool."""
+        try:
+            raw_data = self._parse_payload(payload, **kwargs)
+            args = AAARunValidationInput.model_validate(raw_data)
 
+            finding_items = self._process_findings(args.findings)
+            waf_items = self._process_waf_evaluations(args.waf_evaluations)
+
+            updates: dict[str, Any] = {}
+            if finding_items:
+                updates["findings"] = finding_items
+            if waf_items:
+                updates["wafChecklist"] = {"items": waf_items}
+
+            payload_json = json.dumps(updates, ensure_ascii=False, indent=2)
+
+            return (
+                f"Recorded validation results at {_now_iso()} (findings={len(finding_items)}, wafEvaluations={len(args.waf_evaluations)}).\n"
+                "\n"
+                "AAA_STATE_UPDATE\n"
+                "```json\n"
+                f"{payload_json}\n"
+                "```"
+            )
+        except Exception as exc:  # noqa: BLE001
+            return f"ERROR: {exc!s}"
+
+    def _parse_payload(self, payload: str | dict[str, Any] | None, **kwargs: Any) -> Any:
+        """Extract and parse payload from input."""
         if payload is None:
-            # Accept direct keyword args for backwards compatibility with tests
-            if "payload" in kwargs:
-                payload = kwargs["payload"]
-            elif kwargs:
-                payload = kwargs
-            else:
+            payload = kwargs.get("payload") or kwargs.get("tool_input") or kwargs
+            if not payload:
                 raise ValueError("Missing payload for aaa_record_validation_results")
 
         if isinstance(payload, str):
             try:
-                data = json.loads(payload.strip())
+                return json.loads(payload.strip())
             except json.JSONDecodeError as exc:
                 raise ValueError("Invalid JSON payload for validation results.") from exc
-        else:
-            data = payload
+        return payload
 
-        try:
-            args = AAARunValidationInput.model_validate(data)
-        except Exception as exc:
-            return f"ERROR: Validation failed for AAARunValidationInput: {str(exc)}"
-
-        findings = args.findings
-        wafEvaluations = args.wafEvaluations
-
-        finding_items: List[Dict[str, Any]] = []
-
-        for f_obj in findings or []:
-            f = f_obj.model_dump() if hasattr(f_obj, "model_dump") else f_obj
-            citations = f.get("sourceCitations") or []
-            if not citations:
-                raise ValueError(
-                    "Each finding must include at least one source citation (SC-011)."
-                )
-
-            finding_id = str(uuid.uuid4())
-            finding_items.append(
+    def _process_findings(self, findings: list[ValidationFindingInput]) -> list[dict[str, Any]]:
+        """Normalize findings into state update items."""
+        items: list[dict[str, Any]] = []
+        for f in findings:
+            if not f.source_citations:
+                raise ValueError(f"Finding '{f.title}' must include at least one source citation.")
+            items.append(
                 {
-                    "id": finding_id,
-                    "title": str(f.get("title") or "").strip(),
-                    "severity": str(f.get("severity") or "").strip(),
-                    "description": str(f.get("description") or "").strip(),
-                    "remediation": str(f.get("remediation") or "").strip(),
-                    "wafPillar": (str(f.get("wafPillar") or "").strip() or None),
-                    "wafTopic": (str(f.get("wafTopic") or "").strip() or None),
-                    "relatedRequirementIds": [
-                        str(v).strip()
-                        for v in (f.get("relatedRequirementIds") or [])
-                        if str(v).strip()
-                    ],
-                    "relatedDiagramIds": [
-                        str(v).strip()
-                        for v in (f.get("relatedDiagramIds") or [])
-                        if str(v).strip()
-                    ],
-                    "relatedAdrIds": [
-                        str(v).strip()
-                        for v in (f.get("relatedAdrIds") or [])
-                        if str(v).strip()
-                    ],
-                    "relatedMindMapNodeIds": [
-                        str(v).strip()
-                        for v in (f.get("relatedMindMapNodeIds") or [])
-                        if str(v).strip()
-                    ],
-                    "sourceCitations": citations,
+                    "id": str(uuid.uuid4()),
+                    "title": f.title.strip(),
+                    "severity": f.severity,
+                    "description": f.description.strip(),
+                    "remediation": f.remediation.strip(),
+                    "wafPillar": f.waf_pillar,
+                    "wafTopic": f.waf_topic,
+                    "relatedRequirementIds": f.related_requirement_ids,
+                    "relatedDiagramIds": f.related_diagram_ids,
+                    "relatedAdrIds": f.related_adr_ids,
+                    "relatedMindMapNodeIds": f.related_mind_map_node_ids,
+                    "sourceCitations": f.source_citations,
                     "createdAt": _now_iso(),
                 }
             )
+        return items
 
-        waf_items_by_id: Dict[str, Dict[str, Any]] = {}
-        for evaluation_obj in wafEvaluations or []:
-            evaluation = evaluation_obj.model_dump() if hasattr(evaluation_obj, "model_dump") else evaluation_obj
-            item_id = str(evaluation.get("itemId") or "").strip()
-            if not item_id:
-                raise ValueError("WAF evaluation requires itemId")
-
-            pillar = str(evaluation.get("pillar") or "").strip()
-            topic = str(evaluation.get("topic") or "").strip()
-            status = str(evaluation.get("status") or "").strip()
-            evidence = str(evaluation.get("evidence") or "").strip()
-            if not (pillar and topic and status and evidence):
-                raise ValueError(
-                    "WAF evaluation requires pillar, topic, status, and evidence."
-                )
-
-            eval_entry: Dict[str, Any] = {
+    def _process_waf_evaluations(
+        self, evaluations: list[WafChecklistEvaluationInput]
+    ) -> list[dict[str, Any]]:
+        """Normalize WAF evaluations into grouped checklist items."""
+        waf_items_by_id: dict[str, dict[str, Any]] = {}
+        for ev in evaluations:
+            eval_entry = {
                 "id": str(uuid.uuid4()),
-                "status": status,
-                "evidence": evidence,
-                "relatedFindingIds": [
-                    str(v).strip()
-                    for v in (evaluation.get("relatedFindingIds") or [])
-                    if str(v).strip()
-                ],
-                "sourceCitations": evaluation.get("sourceCitations") or [],
+                "status": ev.status,
+                "evidence": ev.evidence.strip(),
+                "relatedFindingIds": ev.related_finding_ids,
+                "sourceCitations": ev.source_citations,
                 "createdAt": _now_iso(),
             }
-
-            item = waf_items_by_id.get(item_id)
-            if item is None:
-                item = {
-                    "id": item_id,
-                    "pillar": pillar,
-                    "topic": topic,
+            if ev.item_id not in waf_items_by_id:
+                waf_items_by_id[ev.item_id] = {
+                    "id": ev.item_id,
+                    "pillar": ev.pillar.strip(),
+                    "topic": ev.topic.strip(),
                     "evaluations": [eval_entry],
                 }
-                waf_items_by_id[item_id] = item
             else:
-                item.setdefault("evaluations", []).append(eval_entry)
-
-        updates: Dict[str, Any] = {}
-        if finding_items:
-            updates["findings"] = finding_items
-        if waf_items_by_id:
-            updates["wafChecklist"] = {"items": list(waf_items_by_id.values())}
-
-        payload_json = json.dumps(updates, ensure_ascii=False, indent=2)
-
-        return (
-            f"Recorded validation results at {_now_iso()} (findings={len(finding_items)}, wafEvaluations={len(wafEvaluations or [])}).\n"
-            "\n"
-            "AAA_STATE_UPDATE\n"
-            "```json\n"
-            f"{payload_json}\n"
-            "```"
-        )
+                waf_items_by_id[ev.item_id].setdefault("evaluations", []).append(eval_entry)
+        return list(waf_items_by_id.values())
 
     async def _arun(self, **kwargs: Any) -> str:
         return self._run(**kwargs)
 
 
-def create_validation_tools() -> List[BaseTool]:
+def create_validation_tools() -> list[BaseTool]:
     return [AAARunValidationTool()]
+

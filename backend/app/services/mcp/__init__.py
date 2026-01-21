@@ -21,19 +21,17 @@ from .operations import (
 )
 
 __all__ = [
-    # Exceptions
-    "MCPError",
-    "MCPConnectionError",
-    "MCPTimeoutError",
-    "MCPProtocolError",
     "MCPCapabilityError",
-    "MCPUnexpectedResponseError",
     "MCPConfigurationError",
-    # Client
+    "MCPConnectionError",
+    "MCPError",
+    "MCPProtocolError",
+    "MCPTimeoutError",
+    "MCPUnexpectedResponseError",
     "MicrosoftLearnMCPClient",
-    # Operations
-    "search_microsoft_docs",
     "fetch_documentation",
-    "search_code_samples",
     "get_azure_guidance",
+    "search_code_samples",
+    "search_microsoft_docs",
 ]
+

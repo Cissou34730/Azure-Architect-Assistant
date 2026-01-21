@@ -2,12 +2,11 @@
 Tests for Phase 5: Stage routing and retry logic.
 """
 
-import pytest
 from backend.app.agents_system.langgraph.nodes.stage_routing import (
     ProjectStage,
-    classify_next_stage,
-    check_for_retry,
     build_retry_prompt,
+    check_for_retry,
+    classify_next_stage,
     propose_next_step,
 )
 from backend.app.agents_system.langgraph.state import GraphState
@@ -20,9 +19,9 @@ def test_classify_stage_clarify():
         "current_project_state": {},
         "agent_output": "",
     }
-    
+
     result = classify_next_stage(state)
-    
+
     assert result["next_stage"] == ProjectStage.CLARIFY.value
 
 
@@ -33,9 +32,9 @@ def test_classify_stage_adr():
         "current_project_state": {},
         "agent_output": "",
     }
-    
+
     result = classify_next_stage(state)
-    
+
     assert result["next_stage"] == ProjectStage.MANAGE_ADR.value
 
 
@@ -46,9 +45,9 @@ def test_classify_stage_validation():
         "current_project_state": {},
         "agent_output": "",
     }
-    
+
     result = classify_next_stage(state)
-    
+
     assert result["next_stage"] == ProjectStage.VALIDATE.value
 
 
@@ -59,9 +58,9 @@ def test_classify_stage_pricing():
         "current_project_state": {},
         "agent_output": "",
     }
-    
+
     result = classify_next_stage(state)
-    
+
     assert result["next_stage"] == ProjectStage.PRICING.value
 
 
@@ -72,9 +71,9 @@ def test_classify_stage_iac():
         "current_project_state": {},
         "agent_output": "",
     }
-    
+
     result = classify_next_stage(state)
-    
+
     assert result["next_stage"] == ProjectStage.IAC.value
 
 
@@ -84,9 +83,9 @@ def test_check_for_retry_no_error():
         "agent_output": "Here's the solution...",
         "retry_count": 0,
     }
-    
+
     result = check_for_retry(state)
-    
+
     assert result == "continue"
 
 
@@ -96,9 +95,9 @@ def test_check_for_retry_with_error():
         "agent_output": "ERROR: Missing required field 'region'",
         "retry_count": 0,
     }
-    
+
     result = check_for_retry(state)
-    
+
     assert result == "retry"
 
 
@@ -108,9 +107,9 @@ def test_check_for_retry_max_retries():
         "agent_output": "ERROR: Still missing field",
         "retry_count": 1,
     }
-    
+
     result = check_for_retry(state)
-    
+
     assert result == "continue"  # Don't retry again
 
 
@@ -120,9 +119,9 @@ def test_build_retry_prompt():
         "agent_output": "ERROR: Missing required parameter 'location'\nPlease provide location.",
         "retry_count": 0,
     }
-    
+
     result = build_retry_prompt(state)
-    
+
     assert "ERROR:" in result["agent_output"]
     assert "missing information" in result["agent_output"].lower()
     assert result["retry_count"] == 1
@@ -137,9 +136,9 @@ def test_propose_next_step_with_artifacts():
         "final_answer": "Solution proposed.",
         "current_project_state": {},
     }
-    
+
     result = propose_next_step(state)
-    
+
     # Should not add questions when artifacts present
     assert result == {}
 
@@ -151,9 +150,9 @@ def test_propose_next_step_no_artifacts():
         "final_answer": "General discussion.",
         "current_project_state": {},
     }
-    
+
     result = propose_next_step(state)
-    
+
     # Should add next step questions
     assert "final_answer" in result
     assert "Next steps" in result["final_answer"] or result.get("final_answer") == "General discussion."
@@ -169,9 +168,10 @@ def test_propose_next_step_specific_gaps():
             # Missing: adrs, findings/wafChecklist, costEstimates, iacArtifacts
         },
     }
-    
+
     result = propose_next_step(state)
-    
+
     # Should suggest missing items
     if "final_answer" in result:
         assert "decision" in result["final_answer"].lower() or "validate" in result["final_answer"].lower()
+

@@ -1,0 +1,53 @@
+target-version = "py310"
+line-length = 100
+src = ["backend"]
+
+exclude = [
+  ".git",
+  ".venv",
+  "venv",
+  "__pycache__",
+  "build",
+  "dist",
+  "archive",
+]
+
+[lint]
+select = [
+  "E", "F", "W",
+  "I",
+  "UP",
+  "B",
+  "C4",
+  "SIM",
+  "N",
+  "S",
+  "BLE",
+  "PL",
+  "RUF",
+  "C901",
+]
+ignore = [
+  "E501",
+  "B008", # FastAPI Depends/File/Form calls in defaults are idiomatic
+]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.pylint]
+max-args = 5
+max-branches = 10
+max-returns = 6
+max-statements = 50
+max-locals = 15
+
+[lint.per-file-ignores]
+"backend/tests/**" = ["S101", "PLR2004"]
+"**/__init__.py" = ["F401"]
+
+[format]
+quote-style = "single"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true

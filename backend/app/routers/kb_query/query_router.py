@@ -3,18 +3,20 @@ KB Query Router
 FastAPI endpoints for knowledge base queries.
 """
 
-from fastapi import APIRouter, HTTPException, Depends
 import logging
 
-from app.service_registry import get_multi_query_service, get_kb_manager
-from app.services.kb import QueryProfile, MultiKBQueryService
+from fastapi import APIRouter, Depends, HTTPException
+
 from app.kb.service import KnowledgeBaseService
+from app.service_registry import get_kb_manager, get_multi_query_service
+from app.services.kb import MultiKBQueryService, QueryProfile
+
 from .query_models import (
-    QueryRequest,
-    ProfileQueryRequest,
     KBQueryRequest,
-    SourceInfo,
+    ProfileQueryRequest,
+    QueryRequest,
     QueryResponse,
+    SourceInfo,
 )
 from .query_operations import KBQueryService, get_query_service
 
@@ -56,7 +58,7 @@ async def query_legacy(
     """
     try:
         result = operations.query_with_profile(
-            multi_query_service, request.question, QueryProfile.CHAT, request.topK
+            multi_query_service, request.question, QueryProfile.CHAT, request.top_k
         )
 
         sources = [
@@ -74,13 +76,13 @@ async def query_legacy(
         return QueryResponse(
             answer=result["answer"],
             sources=sources,
-            hasResults=result.get("has_results", True),
-            suggestedFollowUps=result.get("suggested_follow_ups"),
+            has_results=result.get("has_results", True),
+            suggested_follow_ups=result.get("suggested_follow_ups"),
         )
 
     except Exception as e:
-        logger.error(f"Legacy query failed: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+        logger.error(f"Legacy query failed: {e!s}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Query failed: {e!s}") from e
 
 
 @router.post("/chat", response_model=QueryResponse)
@@ -104,12 +106,15 @@ async def query_chat(
             return QueryResponse(
                 answer="No indexed knowledge bases available for chat yet.",
                 sources=[],
-                hasResults=False,
-                suggestedFollowUps=None,
+                has_results=False,
+                suggested_follow_ups=None,
             )
 
         result = operations.query_with_profile(
-            multi_query_service, request.question, QueryProfile.CHAT, request.topKPerKB
+            multi_query_service,
+            request.question,
+            QueryProfile.CHAT,
+            request.top_k_per_kb,
         )
 
         sources = [
@@ -127,13 +132,15 @@ async def query_chat(
         return QueryResponse(
             answer=result["answer"],
             sources=sources,
-            hasResults=result.get("has_results", True),
-            suggestedFollowUps=result.get("suggested_follow_ups"),
+            has_results=result.get("has_results", True),
+            suggested_follow_ups=result.get("suggested_follow_ups"),
         )
 
     except Exception as e:
-        logger.error(f"Chat query failed: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Chat query failed: {str(e)}")
+        logger.error(f"Chat query failed: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Chat query failed: {e!s}"
+        ) from e
 
 
 @router.post("/proposal", response_model=QueryResponse)
@@ -156,15 +163,15 @@ async def query_proposal(
             return QueryResponse(
                 answer="No indexed knowledge bases available for proposal yet.",
                 sources=[],
-                hasResults=False,
-                suggestedFollowUps=None,
+                has_results=False,
+                suggested_follow_ups=None,
             )
 
         result = operations.query_with_profile(
             multi_query_service,
             request.question,
             QueryProfile.PROPOSAL,
-            request.topKPerKB,
+            request.top_k_per_kb,
         )
 
         sources = [
@@ -182,13 +189,15 @@ async def query_proposal(
         return QueryResponse(
             answer=result["answer"],
             sources=sources,
-            hasResults=result.get("has_results", True),
-            suggestedFollowUps=result.get("suggested_follow_ups"),
+            has_results=result.get("has_results", True),
+            suggested_follow_ups=result.get("suggested_follow_ups"),
         )
 
     except Exception as e:
-        logger.error(f"Proposal query failed: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Proposal query failed: {str(e)}")
+        logger.error(f"Proposal query failed: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Proposal query failed: {e!s}"
+        ) from e
 
 
 @router.post("/kb-query", response_model=QueryResponse)
@@ -203,25 +212,23 @@ async def query_kb_manual(
     """
     try:
         # Filter input kb_ids to those with ready indexes
-        from typing import List
+        kb_manager = get_kb_manager()
+        kb_ids: list[str] = []
+        for kb_id in request.kb_ids:
+            kb_config = kb_manager.get_kb(kb_id)
+            if kb_config and KnowledgeBaseService(kb_config).is_index_ready():
+                kb_ids.append(kb_id)
 
-        kb_ids: List[str] = [
-            kb_id
-            for kb_id in request.kb_ids
-            if (lambda cfg: cfg and KnowledgeBaseService(cfg).is_index_ready())(
-                get_kb_manager().get_kb(kb_id)
-            )
-        ]
         if not kb_ids:
             return QueryResponse(
                 answer="Selected KBs have no built index yet.",
                 sources=[],
-                hasResults=False,
-                suggestedFollowUps=None,
+                has_results=False,
+                suggested_follow_ups=None,
             )
 
         result = operations.query_specific_kbs(
-            multi_query_service, request.question, kb_ids, request.topKPerKB
+            multi_query_service, request.question, kb_ids, request.top_k_per_kb
         )
 
         sources = [
@@ -239,10 +246,11 @@ async def query_kb_manual(
         return QueryResponse(
             answer=result["answer"],
             sources=sources,
-            hasResults=result.get("has_results", True),
-            suggestedFollowUps=result.get("suggested_follow_ups"),
+            has_results=result.get("has_results", True),
+            suggested_follow_ups=result.get("suggested_follow_ups"),
         )
 
     except Exception as e:
-        logger.error(f"KB Query failed: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"KB Query failed: {str(e)}")
+        logger.error(f"KB Query failed: {e!s}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"KB Query failed: {e!s}") from e
+

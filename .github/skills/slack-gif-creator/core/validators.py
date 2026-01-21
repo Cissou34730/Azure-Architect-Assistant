@@ -134,3 +134,4 @@ def is_slack_ready(
     """
     passes, _ = validate_gif(gif_path, is_emoji, verbose)
     return passes
+

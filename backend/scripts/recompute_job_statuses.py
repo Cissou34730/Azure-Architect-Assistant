@@ -2,7 +2,7 @@
 Backfill script to recompute and persist canonical ingestion job statuses.
 
 Usage (Windows PowerShell):
-  $env:PYTHONPATH = "."; & .venv\Scripts\python.exe backend\scripts\recompute_job_statuses.py --dry-run
+  $env:PYTHONPATH = "."; & .venv\\Scripts\\python.exe backend\\scripts\recompute_job_statuses.py --dry-run
 
 Notes:
 - Reads all ingestion jobs and phase rows, then applies the same deterministic
@@ -15,14 +15,12 @@ from __future__ import annotations
 
 import argparse
 import logging
-from typing import List, Tuple
 
+from backend.app.ingestion.infrastructure import repository as ingestion_repo
+from backend.app.ingestion.models import IngestionJob
+from backend.config.settings import get_engine
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
-from backend.config.settings import get_engine
-from backend.app.ingestion.models import IngestionJob
-from backend.app.ingestion.infrastructure import repository as ingestion_repo
 
 
 def setup_logging(verbose: bool) -> None:
@@ -35,18 +33,18 @@ def setup_logging(verbose: bool) -> None:
 
 def recompute_all_jobs(
     dry_run: bool = False, verbose: bool = False
-) -> Tuple[int, List[str]]:
+) -> tuple[int, list[str]]:
     """Recompute job.status for all jobs using repository canonical rules.
 
     Returns a tuple of (updated_count, messages).
     """
     setup_logging(verbose)
     engine = get_engine()
-    messages: List[str] = []
+    messages: list[str] = []
     updated_count = 0
 
     with Session(engine) as session:
-        jobs: List[IngestionJob] = session.execute(select(IngestionJob)).scalars().all()
+        jobs: list[IngestionJob] = session.execute(select(IngestionJob)).scalars().all()
         logging.info("Found %d ingestion jobs to evaluate", len(jobs))
 
         for job in jobs:
@@ -104,3 +102,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

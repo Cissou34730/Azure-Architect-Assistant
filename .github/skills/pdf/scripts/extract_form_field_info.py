@@ -150,3 +150,4 @@ if __name__ == "__main__":
         print("Usage: extract_form_field_info.py [input pdf] [output json]")
         sys.exit(1)
     write_field_info(sys.argv[1], sys.argv[2])
+

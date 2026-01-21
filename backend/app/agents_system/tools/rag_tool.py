@@ -10,3 +10,4 @@ Provides agents with access to RAG query and indexing capabilities.
 # - Delegation to services.rag.query and services.rag.index
 # - Result formatting for agent interpretation
 # - Error handling and fallback strategies
+

@@ -3,9 +3,10 @@ Integration tests for orchestrator flows.
 Tests: start/pause/resume/cancel with cleanup, checkpoint resume, idempotency
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Legacy orchestrator tests; skip until rebuilt for new orchestrator
 pytest.skip(
@@ -235,3 +236,4 @@ class TestOrchestratorIdempotency:
         counters = final_call[1]["counters"]
         assert counters["chunks_skipped"] == 1
         assert counters["chunks_processed"] == 0
+

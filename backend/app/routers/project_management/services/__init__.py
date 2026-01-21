@@ -1,5 +1,6 @@
-from .project_service import ProjectService
-from .document_service import DocumentService
 from .chat_service import ChatService
+from .document_service import DocumentService
+from .project_service import ProjectService
 
-__all__ = ["ProjectService", "DocumentService", "ChatService"]
+__all__ = ["ChatService", "DocumentService", "ProjectService"]
+

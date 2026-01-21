@@ -3,10 +3,12 @@ Pydantic Models for KB Management API
 Request and response models for KB endpoints.
 """
 
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
 from enum import Enum
-from app.core.config import get_openai_settings, get_kb_defaults
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+from app.core.app_settings import get_kb_defaults, get_openai_settings
 
 
 class SourceType(str, Enum):
@@ -23,9 +25,9 @@ class CreateKBRequest(BaseModel):
 
     kb_id: str = Field(..., description="Unique KB identifier")
     name: str = Field(..., description="Human-readable KB name")
-    description: Optional[str] = Field(None, description="KB description")
+    description: str | None = Field(None, description="KB description")
     source_type: SourceType = Field(..., description="Type of document source")
-    source_config: Dict[str, Any] = Field(
+    source_config: dict[str, Any] = Field(
         ..., description="Source-specific configuration"
     )
     embedding_model: str = Field(
@@ -40,7 +42,7 @@ class CreateKBRequest(BaseModel):
         default_factory=lambda: get_kb_defaults().chunk_overlap,
         description="Chunk overlap for indexing",
     )
-    profiles: Optional[List[str]] = Field(
+    profiles: list[str] | None = Field(
         default=["chat", "kb-query"], description="Query profiles"
     )
     priority: int = Field(default=1, description="KB priority for multi-query")
@@ -59,7 +61,7 @@ class KBInfo(BaseModel):
 
     id: str
     name: str
-    profiles: List[str]
+    profiles: list[str]
     priority: int
     status: str
 
@@ -67,7 +69,7 @@ class KBInfo(BaseModel):
 class KBListResponse(BaseModel):
     """Response for KB list endpoint"""
 
-    knowledge_bases: List[KBInfo]
+    knowledge_bases: list[KBInfo]
 
 
 class KBHealthInfo(BaseModel):
@@ -77,14 +79,14 @@ class KBHealthInfo(BaseModel):
     kb_name: str
     status: str
     index_ready: bool
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class KBHealthResponse(BaseModel):
     """Response for KB health check endpoint"""
 
     overall_status: str
-    knowledge_bases: List[KBHealthInfo]
+    knowledge_bases: list[KBHealthInfo]
 
 
 class KBStatusResponse(BaseModel):
@@ -92,4 +94,5 @@ class KBStatusResponse(BaseModel):
 
     kb_id: str
     status: str  # ready | pending | not_ready
-    metrics: Optional[Dict[str, int]] = None  # minimal persisted counters
+    metrics: dict[str, int] | None = None  # minimal persisted counters
+

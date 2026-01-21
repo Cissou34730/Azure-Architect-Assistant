@@ -8,17 +8,17 @@ import enum
 class JobPhase(str, enum.Enum):
     """Execution phases within a running job."""
 
-    LOADING = "loading"
-    CHUNKING = "chunking"
-    EMBEDDING = "embedding"
-    INDEXING = "indexing"
+    LOADING = 'loading'
+    CHUNKING = 'chunking'
+    EMBEDDING = 'embedding'
+    INDEXING = 'indexing'
 
 
 class PhaseStatus(str, enum.Enum):
     """Status for individual ingestion phases."""
 
-    NOT_STARTED = "not_started"
-    RUNNING = "running"
-    PAUSED = "paused"
-    COMPLETED = "completed"
-    FAILED = "failed"
+    NOT_STARTED = 'not_started'
+    RUNNING = 'running'
+    PAUSED = 'paused'
+    COMPLETED = 'completed'
+    FAILED = 'failed'

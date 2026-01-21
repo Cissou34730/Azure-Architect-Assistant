@@ -2,6 +2,7 @@
 Database models for the application.
 """
 
-from .project import Project, ProjectDocument, ProjectState, ConversationMessage
+from .project import ConversationMessage, Project, ProjectDocument, ProjectState
 
-__all__ = ["Project", "ProjectDocument", "ProjectState", "ConversationMessage"]
+__all__ = ["ConversationMessage", "Project", "ProjectDocument", "ProjectState"]
+

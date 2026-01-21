@@ -59,3 +59,4 @@ if __name__ == "__main__":
     else:
         manifest = sys.argv[1] if len(sys.argv) > 1 else "validation_manifest.json"
         auto_approve_all(manifest)
+

@@ -10,13 +10,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
-
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 
-
-REQUIRED_TOP_LEVEL_TOPIC_KEYS: Tuple[str, ...] = (
+REQUIRED_TOP_LEVEL_TOPIC_KEYS: tuple[str, ...] = (
     "1_foundations",
     "2_requirements_and_quality_attributes",
     "3_domain_and_design",
@@ -39,14 +37,31 @@ class MindMapValidationError(ValueError):
 
 @dataclass(frozen=True)
 class MindMapLoadResult:
-    mindmap: Dict[str, Any]
-    top_level_topics: Dict[str, Any]
-    missing_top_level_keys: List[str]
+    mindmap: dict[str, Any]
+    top_level_topics: dict[str, Any]
+    missing_top_level_keys: list[str]
 
 
-_cached_mindmap: Optional[Dict[str, Any]] = None
-_cached_top_level_topics: Optional[Dict[str, Any]] = None
-_cached_path: Optional[Path] = None
+class MindMapCache:
+    """Singleton cache for loaded mind map data."""
+
+    _mindmap: dict[str, Any] | None = None
+    _topics: dict[str, Any] | None = None
+    _path: Path | None = None
+
+    @classmethod
+    def set(cls, mindmap: dict[str, Any], topics: dict[str, Any], path: Path) -> None:
+        cls._mindmap = mindmap
+        cls._topics = topics
+        cls._path = path
+
+    @classmethod
+    def get(cls) -> tuple[dict[str, Any] | None, dict[str, Any] | None, Path | None]:
+        return cls._mindmap, cls._topics, cls._path
+
+    @classmethod
+    def is_initialized(cls) -> bool:
+        return cls._mindmap is not None
 
 
 def load_mindmap(mindmap_path: Path) -> MindMapLoadResult:
@@ -54,7 +69,7 @@ def load_mindmap(mindmap_path: Path) -> MindMapLoadResult:
     if not mindmap_path.exists():
         raise MindMapValidationError(f"Mind map file not found: {mindmap_path}")
 
-    with open(mindmap_path, "r", encoding="utf-8") as f:
+    with open(mindmap_path, encoding="utf-8") as f:
         data = json.load(f)
 
     if not isinstance(data, dict):
@@ -74,12 +89,7 @@ def load_mindmap(mindmap_path: Path) -> MindMapLoadResult:
 
 
 def initialize_mindmap(mindmap_path: Path) -> None:
-    """Load and cache the mind map.
-
-    This is intended to be called once during application startup.
-    """
-    global _cached_mindmap, _cached_top_level_topics, _cached_path
-
+    """Load and cache the mind map."""
     result = load_mindmap(mindmap_path)
 
     if result.missing_top_level_keys:
@@ -88,38 +98,92 @@ def initialize_mindmap(mindmap_path: Path) -> None:
             + ", ".join(result.missing_top_level_keys)
         )
 
-    _cached_mindmap = result.mindmap
-    _cached_top_level_topics = result.top_level_topics
-    _cached_path = mindmap_path
+    MindMapCache.set(result.mindmap, result.top_level_topics, mindmap_path)
 
 
 def is_mindmap_initialized() -> bool:
-    return _cached_mindmap is not None and _cached_top_level_topics is not None
+    return MindMapCache.is_initialized()
 
 
-def get_mindmap() -> Dict[str, Any]:
+def get_mindmap() -> dict[str, Any]:
     """Return the cached mind map JSON."""
-    if _cached_mindmap is None:
+    mindmap, _, _ = MindMapCache.get()
+    if mindmap is None:
         raise RuntimeError("Mind map not initialized")
-    return _cached_mindmap
+    return mindmap
 
 
-def get_top_level_topics() -> Dict[str, Any]:
+def get_top_level_topics() -> dict[str, Any]:
     """Return the cached top-level topics dict."""
-    if _cached_top_level_topics is None:
+    _, topics, _ = MindMapCache.get()
+    if topics is None:
         raise RuntimeError("Mind map not initialized")
-    return _cached_top_level_topics
+    return topics
 
 
-def get_mindmap_path() -> Optional[Path]:
-    return _cached_path
+def get_mindmap_path() -> Path | None:
+    _, _, path = MindMapCache.get()
+    return path
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def compute_top_level_coverage(state: Dict[str, Any]) -> Dict[str, Any]:
+def _gather_artifact_signals(state: dict[str, Any]) -> dict[str, list[bool]]:
+    """Gather boolean presence signals for various artifact categories."""
+
+    def _is_populated(key: str) -> bool:
+        val = state.get(key)
+        return bool(val) if isinstance(val, (list, dict)) else False
+
+    waf = state.get("wafChecklist", {})
+    has_waf_items = (
+        isinstance(waf, dict)
+        and isinstance(waf.get("items"), list)
+        and bool(waf.get("items"))
+    )
+
+    h_req = _is_populated("requirements")
+    h_cand = _is_populated("candidateArchitectures")
+    h_diag = _is_populated("diagrams")
+    h_adr = _is_populated("adrs")
+    h_find = _is_populated("findings")
+    h_iac = _is_populated("iacArtifacts")
+    h_trace = _is_populated("traceabilityLinks")
+    h_waf = _is_populated("wafChecklist")
+
+    return {
+        "1_foundations": [h_diag, h_trace],
+        "2_requirements_and_quality_attributes": [h_req, h_waf],
+        "3_domain_and_design": [h_req],
+        "4_architecture_styles": [h_cand, h_diag],
+        "5_data_and_storage": [h_cand, h_adr],
+        "6_integration_and_distributed_systems": [h_cand, h_adr],
+        "7_cloud_and_infrastructure": [h_iac, h_diag],
+        "8_security_and_compliance": [has_waf_items, h_find],
+        "9_delivery_and_lifecycle": [h_iac],
+        "10_observability_and_reliability": [has_waf_items, h_find],
+        "11_organization_and_process": [h_adr],
+        "12_practice_ideas": [h_adr, h_trace],
+        "13_learning_and_practice": [h_trace],
+    }
+
+
+def _derive_topic_status(checks: list[bool]) -> str:
+    """Derive status string from a list of boolean check results."""
+    if not checks:
+        return "not-addressed"
+
+    true_count = sum(1 for c in checks if c)
+    if true_count == 0:
+        return "not-addressed"
+    if true_count == len(checks):
+        return "addressed"
+    return "partial"
+
+
+def compute_top_level_coverage(state: dict[str, Any]) -> dict[str, Any]:
     """Compute coarse coverage for the 13 top-level topics.
 
     Coverage is heuristic and based on presence of artifact groups. This is meant
@@ -130,60 +194,13 @@ def compute_top_level_coverage(state: Dict[str, Any]) -> Dict[str, Any]:
     try:
         top_level = get_top_level_topics()
         topic_keys = list(top_level.keys())
-    except Exception:
+    except (RuntimeError, ValueError):
         topic_keys = list(REQUIRED_TOP_LEVEL_TOPIC_KEYS)
 
-    def _has_list(key: str) -> bool:
-        v = state.get(key)
-        return bool(v) if isinstance(v, list) else False
-
-    def _has_dict(key: str) -> bool:
-        v = state.get(key)
-        return bool(v) if isinstance(v, dict) else False
-
-    has_requirements = _has_list("requirements")
-    has_candidates = _has_list("candidateArchitectures")
-    has_diagrams = _has_list("diagrams")
-    has_adrs = _has_list("adrs")
-    has_findings = _has_list("findings")
-    has_iac = _has_list("iacArtifacts")
-    has_cost = _has_list("costEstimates")
-    has_trace = _has_list("traceabilityLinks")
-
-    waf = state.get("wafChecklist")
-    has_waf = isinstance(waf, dict) and bool(waf)
-    has_waf_items = isinstance(waf, dict) and isinstance(waf.get("items"), list) and bool(waf.get("items"))
-
-    # Minimal mapping from artifacts to the 13 top-level topics.
-    signals: Dict[str, List[bool]] = {
-        "1_foundations": [has_diagrams, has_trace],
-        "2_requirements_and_quality_attributes": [has_requirements, has_waf],
-        "3_domain_and_design": [has_requirements],
-        "4_architecture_styles": [has_candidates, has_diagrams],
-        "5_data_and_storage": [has_candidates, has_adrs],
-        "6_integration_and_distributed_systems": [has_candidates, has_adrs],
-        "7_cloud_and_infrastructure": [has_iac, has_diagrams],
-        "8_security_and_compliance": [has_waf_items, has_findings],
-        "9_delivery_and_lifecycle": [has_iac],
-        "10_observability_and_reliability": [has_waf_items, has_findings],
-        "11_organization_and_process": [has_adrs],
-        "12_practice_ideas": [has_adrs, has_trace],
-        "13_learning_and_practice": [has_trace],
-    }
+    signals = _gather_artifact_signals(state)
 
     for key in topic_keys:
-        checks = signals.get(key, [])
-        if not checks:
-            status = "not-addressed"
-        else:
-            true_count = sum(1 for c in checks if c)
-            if true_count == 0:
-                status = "not-addressed"
-            elif true_count == len(checks):
-                status = "addressed"
-            else:
-                status = "partial"
-        topics[key] = {"status": status}
+        topics[key] = {"status": _derive_topic_status(signals.get(key, []))}
 
     return {
         "version": "1",
@@ -192,8 +209,9 @@ def compute_top_level_coverage(state: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def update_mindmap_coverage(state: Dict[str, Any]) -> Dict[str, Any]:
+def update_mindmap_coverage(state: dict[str, Any]) -> dict[str, Any]:
     """Return a shallow-copied state dict with updated mind map coverage."""
     updated = dict(state)
     updated["mindMapCoverage"] = compute_top_level_coverage(updated)
     return updated
+

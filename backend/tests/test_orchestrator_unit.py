@@ -3,12 +3,12 @@ Unit tests for orchestrator components.
 Tests: content_hash, idempotency, RetryPolicy, WorkflowDefinition
 """
 
-from backend.app.ingestion.domain.chunking.adapter import compute_content_hash
 from backend.app.ingestion.application.orchestrator import (
-    WorkflowDefinition,
     RetryPolicy,
     StepName,
+    WorkflowDefinition,
 )
+from backend.app.ingestion.domain.chunking.adapter import compute_content_hash
 
 
 class TestContentHash:
@@ -115,3 +115,4 @@ class TestRetryPolicy:
         assert policy.get_backoff_delay(0) == 1.0  # 2^0 * 1.0
         assert policy.get_backoff_delay(1) == 2.0  # 2^1 * 1.0
         assert policy.get_backoff_delay(2) == 4.0  # 2^2 * 1.0
+

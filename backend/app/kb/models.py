@@ -1,14 +1,19 @@
 """KB domain models: configuration and profiles."""
 
 import os
-from typing import List
-from app.core.config import get_openai_settings, get_kb_defaults
+from typing import Any, cast
+
+from app.core.app_settings import (
+    get_kb_defaults,
+    get_kb_storage_root,
+    get_openai_settings,
+)
 
 
 class KBConfig:
     """Knowledge base configuration."""
 
-    def __init__(self, config_dict: dict):
+    def __init__(self, config_dict: dict[str, Any]) -> None:
         openai_settings = get_openai_settings()
         kb_defaults = get_kb_defaults()
 
@@ -27,23 +32,22 @@ class KBConfig:
             "chunk_overlap", kb_defaults.chunk_overlap
         )
         self.source_url: str = config_dict.get("source_url", "")
-        self.paths: dict = config_dict.get("paths", {})
+        self.paths: dict[str, Any] = config_dict.get("paths", {})
         # Indexed flag: true when index was built
         self.indexed: bool = bool(config_dict.get("indexed", False))
 
-        self.profiles: List[str] = config_dict.get("profiles", ["chat", "proposal"])
+        self.profiles: list[str] = config_dict.get("profiles", ["chat", "proposal"])
         self.priority: int = config_dict.get("priority", 5)
 
     @property
     def index_path(self) -> str:
         if "index" in self.paths:
             index_path = self.paths["index"]
-            if os.path.isabs(index_path):
-                return index_path
-            from app.core.config import get_kb_storage_root
+            if os.path.isabs(cast(str, index_path)):
+                return cast(str, index_path)
 
             kb_root = get_kb_storage_root()
-            return str(kb_root / index_path)
+            return str(kb_root / cast(str, index_path))
         return ""
 
     @property
@@ -52,3 +56,4 @@ class KBConfig:
 
     def supports_profile(self, profile: str) -> bool:
         return profile in self.profiles
+

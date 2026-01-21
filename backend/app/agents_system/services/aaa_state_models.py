@@ -9,11 +9,26 @@ models in this module must allow unknown fields.
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 import uuid
+from enum import Enum
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
+from pydantic.alias_generators import to_camel
+
+# Shared configuration for AAA models
+_AAA_STRICT_CONFIG = ConfigDict(
+    populate_by_name=True, alias_generator=to_camel, extra="forbid"
+)
+_AAA_LAX_CONFIG = ConfigDict(
+    populate_by_name=True, alias_generator=to_camel, extra="allow"
+)
 
 
 class SourceCitationKind(str, Enum):
@@ -22,24 +37,24 @@ class SourceCitationKind(str, Enum):
 
 
 class SourceCitation(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = _AAA_STRICT_CONFIG
 
     id: str
     kind: SourceCitationKind
-    referenceDocumentId: Optional[str] = None
-    mcpQueryId: Optional[str] = None
-    url: Optional[str] = None
-    note: Optional[str] = None
+    reference_document_id: str | None = None
+    mcp_query_id: str | None = None
+    url: str | None = None
+    note: str | None = None
 
 
 class ReferenceDocument(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = _AAA_STRICT_CONFIG
 
     id: str
     category: str
     title: str
-    url: Optional[str] = None
-    accessedAt: str
+    url: str | None = None
+    accessed_at: str
 
 
 class MCPQueryPhase(str, Enum):
@@ -50,31 +65,31 @@ class MCPQueryPhase(str, Enum):
 
 
 class MCPQuery(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = _AAA_STRICT_CONFIG
 
     id: str
-    queryText: str
+    query_text: str
     phase: MCPQueryPhase
-    resultUrls: List[str] = Field(default_factory=list)
-    selectedSnippets: Optional[List[str]] = None
-    executedAt: str
+    result_urls: list[str] = Field(default_factory=list)
+    selected_snippets: list[str] | None = None
+    executed_at: str
 
 
 class IngestionFailure(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = _AAA_STRICT_CONFIG
 
-    documentId: Optional[str] = None
-    fileName: str
+    document_id: str | None = None
+    file_name: str
     reason: str
 
 
 class IngestionStats(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = _AAA_STRICT_CONFIG
 
-    attemptedDocuments: int = 0
-    parsedDocuments: int = 0
-    failedDocuments: int = 0
-    failures: List[IngestionFailure] = Field(default_factory=list)
+    attempted_documents: int = 0
+    parsed_documents: int = 0
+    failed_documents: int = 0
+    failures: list[IngestionFailure] = Field(default_factory=list)
 
 
 class IterationEventKind(str, Enum):
@@ -83,39 +98,39 @@ class IterationEventKind(str, Enum):
 
 
 class IterationEvent(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = _AAA_STRICT_CONFIG
 
     id: str
     kind: IterationEventKind
     text: str
-    citations: List[SourceCitation] = Field(default_factory=list)
-    architectResponseMessageId: Optional[str] = None
-    createdAt: str
-    relatedArtifactIds: List[str] = Field(default_factory=list)
+    citations: list[SourceCitation] = Field(default_factory=list)
+    architect_response_message_id: str | None = None
+    created_at: str
+    related_artifact_ids: list[str] = Field(default_factory=list)
 
 
 class TraceabilityLink(BaseModel):
     """A directional trace link between artifacts (for explainability/audit)."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     id: str
-    fromType: str
-    fromId: str
-    toType: str
-    toId: str
+    from_type: str
+    from_id: str
+    to_type: str
+    to_id: str
 
 
 class TraceabilityIssue(BaseModel):
     """Non-blocking traceability verification issue (US6)."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     id: str
     kind: str
     message: str
-    linkId: Optional[str] = None
-    createdAt: Optional[str] = None
+    link_id: str | None = None
+    created_at: str | None = None
 
 
 ADRStatus = Literal["draft", "accepted", "rejected", "superseded"]
@@ -124,7 +139,7 @@ ADRStatus = Literal["draft", "accepted", "rejected", "superseded"]
 class AdrArtifact(BaseModel):
     """Decision record artifact (US3)."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     id: str
     title: str
@@ -133,21 +148,21 @@ class AdrArtifact(BaseModel):
     decision: str
     consequences: str
 
-    relatedRequirementIds: List[str] = Field(default_factory=list)
-    relatedMindMapNodeIds: List[str] = Field(default_factory=list)
+    related_requirement_ids: list[str] = Field(default_factory=list)
+    related_mind_map_node_ids: list[str] = Field(default_factory=list)
 
-    relatedDiagramIds: List[str] = Field(default_factory=list)
-    relatedWafEvidenceIds: List[str] = Field(default_factory=list)
-    missingEvidenceReason: Optional[str] = None
+    related_diagram_ids: list[str] = Field(default_factory=list)
+    related_waf_evidence_ids: list[str] = Field(default_factory=list)
+    missing_evidence_reason: str | None = None
 
-    sourceCitations: List[Dict[str, Any]] = Field(default_factory=list)
+    source_citations: list[dict[str, Any]] = Field(default_factory=list)
 
-    supersedesAdrId: Optional[str] = None
-    createdAt: Optional[str] = None
+    supersedes_adr_id: str | None = None
+    created_at: str | None = None
 
-    @field_validator("relatedRequirementIds")
+    @field_validator("related_requirement_ids")
     @classmethod
-    def _validate_requirement_links(cls, value: List[str]) -> List[str]:
+    def _validate_requirement_links(cls, value: list[str]) -> list[str]:
         cleaned = [v.strip() for v in value if v and v.strip()]
         if not cleaned:
             raise ValueError(
@@ -155,29 +170,32 @@ class AdrArtifact(BaseModel):
             )
         return cleaned
 
-    @field_validator("sourceCitations")
+    @field_validator("source_citations")
     @classmethod
-    def _validate_source_citations(cls, value: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _validate_source_citations(cls, value: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not value:
             raise ValueError("ADR must include at least one source citation (SC-011).")
         return value
 
     @model_validator(mode="after")
-    def _validate_evidence_or_reason(self) -> "AdrArtifact":
-        has_diagram = bool([v for v in self.relatedDiagramIds if (v or "").strip()])
-        has_waf = bool([v for v in self.relatedWafEvidenceIds if (v or "").strip()])
-        if not has_diagram and not has_waf:
-            reason = (self.missingEvidenceReason or "").strip()
+    def _validate_evidence_or_reason(self) -> AdrArtifact:
+        if not self._has_valid_evidence():
+            reason = (self.missing_evidence_reason or "").strip()
             if not reason:
                 raise ValueError(
-                    "ADR must include relatedDiagramIds or relatedWafEvidenceIds, or provide missingEvidenceReason (SC-005)."
+                    "ADR missing evidence (diagram/WAF) and missingEvidenceReason (SC-005)."
                 )
-            self.missingEvidenceReason = reason
-        else:
-            if self.missingEvidenceReason is not None:
-                stripped = self.missingEvidenceReason.strip()
-                self.missingEvidenceReason = stripped or None
+            self.missing_evidence_reason = reason
+        elif self.missing_evidence_reason is not None:
+            self.missing_evidence_reason = self.missing_evidence_reason.strip() or None
+
         return self
+
+    def _has_valid_evidence(self) -> bool:
+        """Check if any diagram or WAF evidence IDs are provided and non-empty."""
+        valid_diags = any(v.strip() for v in self.related_diagram_ids if v)
+        valid_waf = any(v.strip() for v in self.related_waf_evidence_ids if v)
+        return valid_diags or valid_waf
 
 
 FindingSeverity = Literal["low", "medium", "high", "critical"]
@@ -186,7 +204,7 @@ FindingSeverity = Literal["low", "medium", "high", "critical"]
 class FindingArtifact(BaseModel):
     """Validation finding artifact (US4)."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     id: str
     title: str
@@ -194,20 +212,20 @@ class FindingArtifact(BaseModel):
     description: str
     remediation: str
 
-    wafPillar: Optional[str] = None
-    wafTopic: Optional[str] = None
+    waf_pillar: str | None = None
+    waf_topic: str | None = None
 
-    relatedRequirementIds: List[str] = Field(default_factory=list)
-    relatedDiagramIds: List[str] = Field(default_factory=list)
-    relatedAdrIds: List[str] = Field(default_factory=list)
-    relatedMindMapNodeIds: List[str] = Field(default_factory=list)
+    related_requirement_ids: list[str] = Field(default_factory=list)
+    related_diagram_ids: list[str] = Field(default_factory=list)
+    related_adr_ids: list[str] = Field(default_factory=list)
+    related_mind_map_node_ids: list[str] = Field(default_factory=list)
 
-    sourceCitations: List[Dict[str, Any]] = Field(default_factory=list)
-    createdAt: Optional[str] = None
+    source_citations: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: str | None = None
 
-    @field_validator("sourceCitations")
+    @field_validator("source_citations")
     @classmethod
-    def _validate_source_citations(cls, value: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _validate_source_citations(cls, value: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not value:
             raise ValueError("Finding must include at least one source citation (SC-011).")
         return value
@@ -219,42 +237,42 @@ WafCoverageStatus = Literal["covered", "partial", "notCovered"]
 class WafEvaluation(BaseModel):
     """Append-only evaluation entry for a WAF checklist item."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     id: str
     status: WafCoverageStatus
     evidence: str
-    relatedFindingIds: List[str] = Field(default_factory=list)
-    sourceCitations: List[Dict[str, Any]] = Field(default_factory=list)
-    createdAt: Optional[str] = None
+    related_finding_ids: list[str] = Field(default_factory=list)
+    source_citations: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: str | None = None
 
 
 class WafChecklistItem(BaseModel):
     """WAF checklist item (stable identity) with append-only evaluations."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     id: str
     pillar: str
     topic: str
-    evaluations: List[WafEvaluation] = Field(default_factory=list)
+    evaluations: list[WafEvaluation] = Field(default_factory=list)
 
 
 class WafChecklist(BaseModel):
     """Container for WAF checklist metadata and items."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
-    version: Optional[str] = None
-    pillars: List[str] = Field(default_factory=list)
-    items: List[WafChecklistItem] = Field(default_factory=list)
+    version: str | None = None
+    pillars: list[str] = Field(default_factory=list)
+    items: list[WafChecklistItem] = Field(default_factory=list)
 
 
 IacFormat = Literal["bicep", "terraform", "arm", "yaml", "json", "other"]
 
 
 class IacFile(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     path: str
     format: IacFormat
@@ -265,52 +283,52 @@ ValidationStatus = Literal["pass", "fail", "skipped"]
 
 
 class IacValidationResult(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     tool: str
     status: ValidationStatus
-    output: Optional[str] = None
+    output: str | None = None
 
 
 class IacArtifact(BaseModel):
     """IaC artifact bundle (US5)."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     id: str
-    createdAt: Optional[str] = None
-    files: List[IacFile] = Field(default_factory=list)
-    validationResults: List[IacValidationResult] = Field(default_factory=list)
+    created_at: str | None = None
+    files: list[IacFile] = Field(default_factory=list)
+    validation_results: list[IacValidationResult] = Field(default_factory=list)
 
 
 class CostLineItem(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     id: str
     name: str
-    monthlyQuantity: float
-    unitPrice: float
-    monthlyCost: float
-    serviceName: Optional[str] = None
-    productName: Optional[str] = None
-    meterName: Optional[str] = None
-    skuName: Optional[str] = None
-    unitOfMeasure: Optional[str] = None
+    monthly_quantity: float
+    unit_price: float
+    monthly_cost: float
+    service_name: str | None = None
+    product_name: str | None = None
+    meter_name: str | None = None
+    sku_name: str | None = None
+    unit_of_measure: str | None = None
 
 
 class CostEstimate(BaseModel):
     """Cost estimate artifact (US5)."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     id: str
-    createdAt: Optional[str] = None
-    currencyCode: str = "USD"
-    totalMonthlyCost: float
-    lineItems: List[CostLineItem] = Field(default_factory=list)
-    pricingGaps: List[Dict[str, Any]] = Field(default_factory=list)
-    baselineReferenceTotalMonthlyCost: Optional[float] = None
-    variancePct: Optional[float] = None
+    created_at: str | None = None
+    currency_code: str = "USD"
+    total_monthly_cost: float
+    line_items: list[CostLineItem] = Field(default_factory=list)
+    pricing_gaps: list[dict[str, Any]] = Field(default_factory=list)
+    baseline_reference_total_monthly_cost: float | None = None
+    variance_pct: float | None = None
 
 
 class AAAProjectState(BaseModel):
@@ -320,34 +338,34 @@ class AAAProjectState(BaseModel):
     This model allows unknown keys to avoid breaking existing state.
     """
 
-    model_config = ConfigDict(extra="allow")
+    model_config = _AAA_LAX_CONFIG
 
     # AAA artifacts (defaults applied by `ensure_aaa_defaults`)
-    requirements: List[Dict[str, Any]] = Field(default_factory=list)
-    assumptions: List[Dict[str, Any]] = Field(default_factory=list)
-    clarificationQuestions: List[Dict[str, Any]] = Field(default_factory=list)
-    candidateArchitectures: List[Dict[str, Any]] = Field(default_factory=list)
-    adrs: List[AdrArtifact] = Field(default_factory=list)
-    wafChecklist: WafChecklist = Field(default_factory=WafChecklist)
-    findings: List[FindingArtifact] = Field(default_factory=list)
-    diagrams: List[Dict[str, Any]] = Field(default_factory=list)
-    iacArtifacts: List[IacArtifact] = Field(default_factory=list)
-    costEstimates: List[CostEstimate] = Field(default_factory=list)
-    traceabilityLinks: List[TraceabilityLink] = Field(default_factory=list)
+    requirements: list[dict[str, Any]] = Field(default_factory=list)
+    assumptions: list[dict[str, Any]] = Field(default_factory=list)
+    clarification_questions: list[dict[str, Any]] = Field(default_factory=list)
+    candidate_architectures: list[dict[str, Any]] = Field(default_factory=list)
+    adrs: list[AdrArtifact] = Field(default_factory=list)
+    waf_checklist: WafChecklist = Field(default_factory=WafChecklist)
+    findings: list[FindingArtifact] = Field(default_factory=list)
+    diagrams: list[dict[str, Any]] = Field(default_factory=list)
+    iac_artifacts: list[IacArtifact] = Field(default_factory=list)
+    cost_estimates: list[CostEstimate] = Field(default_factory=list)
+    traceability_links: list[TraceabilityLink] = Field(default_factory=list)
 
     # US6
-    mindMapCoverage: Dict[str, Any] = Field(default_factory=dict)
-    traceabilityIssues: List[TraceabilityIssue] = Field(default_factory=list)
+    mind_map_coverage: dict[str, Any] = Field(default_factory=dict)
+    traceability_issues: list[TraceabilityIssue] = Field(default_factory=list)
 
-    mindMap: Dict[str, Any] = Field(default_factory=dict)
-    referenceDocuments: List[ReferenceDocument] = Field(default_factory=list)
-    mcpQueries: List[MCPQuery] = Field(default_factory=list)
+    mind_map: dict[str, Any] = Field(default_factory=dict)
+    reference_documents: list[ReferenceDocument] = Field(default_factory=list)
+    mcp_queries: list[MCPQuery] = Field(default_factory=list)
 
-    ingestionStats: Optional[IngestionStats] = None
-    iterationEvents: List[IterationEvent] = Field(default_factory=list)
+    ingestion_stats: IngestionStats | None = None
+    iteration_events: list[IterationEvent] = Field(default_factory=list)
 
 
-def ensure_aaa_defaults(state: Dict[str, Any]) -> Dict[str, Any]:
+def ensure_aaa_defaults(state: dict[str, Any]) -> dict[str, Any]:
     """Return a shallow-copied state dict with AAA default keys present."""
     updated = dict(state)
 
@@ -411,82 +429,130 @@ def stable_traceability_link_id(*, from_type: str, from_id: str, to_type: str, t
     return str(uuid.uuid5(_TRACEABILITY_NAMESPACE, key))
 
 
-def generate_traceability_links(state: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Best-effort link generation from known artifacts.
+def _add_link(
+    links: list[dict[str, Any]], from_type: str, from_id: str, to_type: str, to_id: str
+) -> None:
+    link_id = stable_traceability_link_id(
+        from_type=from_type, from_id=from_id, to_type=to_type, to_id=to_id
+    )
+    links.append(
+        {
+            "id": link_id,
+            "fromType": from_type,
+            "fromId": from_id,
+            "toType": to_type,
+            "toId": to_id,
+        }
+    )
 
-    This is intentionally conservative and focuses on artifacts that already
-    carry explicit relationship fields.
-    """
 
-    links: List[Dict[str, Any]] = []
-
-    def _add(from_type: str, from_id: str, to_type: str, to_id: str) -> None:
-        link_id = stable_traceability_link_id(
-            from_type=from_type, from_id=from_id, to_type=to_type, to_id=to_id
-        )
-        links.append(
-            {
-                "id": link_id,
-                "fromType": from_type,
-                "fromId": from_id,
-                "toType": to_type,
-                "toId": to_id,
-            }
-        )
-
+def _generate_adr_links(links: list[dict[str, Any]], state: dict[str, Any]) -> None:
     for adr in state.get("adrs") or []:
         if not isinstance(adr, dict):
             continue
         adr_id = str(adr.get("id") or "").strip()
         if not adr_id:
             continue
-        for req_id in adr.get("relatedRequirementIds") or []:
-            rid = str(req_id or "").strip()
-            if rid:
-                _add("adr", adr_id, "requirement", rid)
-        for node_id in adr.get("relatedMindMapNodeIds") or []:
-            nid = str(node_id or "").strip()
-            if nid:
-                _add("adr", adr_id, "mindMapNode", nid)
-        for diagram_id in adr.get("relatedDiagramIds") or []:
-            did = str(diagram_id or "").strip()
-            if did:
-                _add("adr", adr_id, "diagram", did)
-        for waf_id in adr.get("relatedWafEvidenceIds") or []:
-            wid = str(waf_id or "").strip()
-            if wid:
-                _add("adr", adr_id, "wafEvidence", wid)
 
+        _link_adr_to_requirements(links, adr_id, adr)
+        _link_adr_to_nodes(links, adr_id, adr)
+        _link_adr_to_diagrams(links, adr_id, adr)
+        _link_adr_to_waf(links, adr_id, adr)
+
+
+def _link_adr_to_requirements(links: list[dict[str, Any]], aid: str, adr: dict[str, Any]) -> None:
+    for req_id in adr.get("relatedRequirementIds") or []:
+        rid = str(req_id or "").strip()
+        if rid:
+            _add_link(links, "adr", aid, "requirement", rid)
+
+
+def _link_adr_to_nodes(links: list[dict[str, Any]], aid: str, adr: dict[str, Any]) -> None:
+    for node_id in adr.get("relatedMindMapNodeIds") or []:
+        nid = str(node_id or "").strip()
+        if nid:
+            _add_link(links, "adr", aid, "mindMapNode", nid)
+
+
+def _link_adr_to_diagrams(links: list[dict[str, Any]], aid: str, adr: dict[str, Any]) -> None:
+    for diagram_id in adr.get("relatedDiagramIds") or []:
+        did = str(diagram_id or "").strip()
+        if did:
+            _add_link(links, "adr", aid, "diagram", did)
+
+
+def _link_adr_to_waf(links: list[dict[str, Any]], aid: str, adr: dict[str, Any]) -> None:
+    for waf_id in adr.get("relatedWafEvidenceIds") or []:
+        wid = str(waf_id or "").strip()
+        if wid:
+            _add_link(links, "adr", aid, "wafEvidence", wid)
+
+
+def _generate_finding_links(links: list[dict[str, Any]], state: dict[str, Any]) -> None:
     for finding in state.get("findings") or []:
         if not isinstance(finding, dict):
             continue
         fid = str(finding.get("id") or "").strip()
         if not fid:
             continue
-        for req_id in finding.get("relatedRequirementIds") or []:
-            rid = str(req_id or "").strip()
-            if rid:
-                _add("finding", fid, "requirement", rid)
-        for node_id in finding.get("relatedMindMapNodeIds") or []:
-            nid = str(node_id or "").strip()
-            if nid:
-                _add("finding", fid, "mindMapNode", nid)
-        for diagram_id in finding.get("relatedDiagramIds") or []:
-            did = str(diagram_id or "").strip()
-            if did:
-                _add("finding", fid, "diagram", did)
-        for adr_id in finding.get("relatedAdrIds") or []:
-            aid = str(adr_id or "").strip()
-            if aid:
-                _add("finding", fid, "adr", aid)
 
+        _link_finding_to_requirements(links, fid, finding)
+        _link_finding_to_nodes(links, fid, finding)
+        _link_finding_to_diagrams(links, fid, finding)
+        _link_finding_to_adrs(links, fid, finding)
+
+
+def _link_finding_to_requirements(
+    links: list[dict[str, Any]], fid: str, f: dict[str, Any]
+) -> None:
+    for req_id in f.get("relatedRequirementIds") or []:
+        rid = str(req_id or "").strip()
+        if rid:
+            _add_link(links, "finding", fid, "requirement", rid)
+
+
+def _link_finding_to_nodes(links: list[dict[str, Any]], fid: str, f: dict[str, Any]) -> None:
+    for node_id in f.get("relatedMindMapNodeIds") or []:
+        nid = str(node_id or "").strip()
+        if nid:
+            _add_link(links, "finding", fid, "mindMapNode", nid)
+
+
+def _link_finding_to_diagrams(links: list[dict[str, Any]], fid: str, f: dict[str, Any]) -> None:
+    for diagram_id in f.get("relatedDiagramIds") or []:
+        did = str(diagram_id or "").strip()
+        if did:
+            _add_link(links, "finding", fid, "diagram", did)
+
+
+def _link_finding_to_adrs(links: list[dict[str, Any]], fid: str, f: dict[str, Any]) -> None:
+    for adr_id in f.get("relatedAdrIds") or []:
+        aid = str(adr_id or "").strip()
+        if aid:
+            _add_link(links, "finding", fid, "adr", aid)
+
+
+def generate_traceability_links(state: dict[str, Any]) -> list[dict[str, Any]]:
+    """Best-effort link generation from known artifacts."""
+    links: list[dict[str, Any]] = []
+    _generate_adr_links(links, state)
+    _generate_finding_links(links, state)
     return links
 
 
-def verify_traceability_links(state: Dict[str, Any]) -> List[Dict[str, Any]]:
+def _check_link_fields(link: dict[str, Any]) -> str | None:
+    """Return error message if required traceability fields are missing."""
+    required_fields = ["fromType", "fromId", "toType", "toId"]
+    missing = [f for f in required_fields if not str(link.get(f) or "").strip()]
+    if missing:
+        return f"Traceability link missing fields: {', '.join(missing)}"
+    return None
+
+
+def verify_traceability_links(state: dict[str, Any]) -> list[dict[str, Any]]:
     """Return a list of non-blocking issues about traceability links."""
-    issues: List[Dict[str, Any]] = []
-    seen: Set[str] = set()
+    issues: list[dict[str, Any]] = []
+    seen: set[str] = set()
 
     links = state.get("traceabilityLinks")
     if not isinstance(links, list):
@@ -498,12 +564,11 @@ def verify_traceability_links(state: Dict[str, Any]) -> List[Dict[str, Any]]:
         link_id = str(link.get("id") or "").strip()
         if not link_id:
             continue
+
         if link_id in seen:
             issues.append(
                 {
-                    "id": stable_traceability_link_id(
-                        from_type="issue", from_id=link_id, to_type="duplicate", to_id="id"
-                    ),
+                    "id": stable_traceability_link_id("issue", link_id, "duplicate", "id"),
                     "kind": "duplicate_link_id",
                     "message": "Duplicate traceability link id detected",
                     "linkId": link_id,
@@ -511,16 +576,13 @@ def verify_traceability_links(state: Dict[str, Any]) -> List[Dict[str, Any]]:
             )
         seen.add(link_id)
 
-        required_fields = ["fromType", "fromId", "toType", "toId"]
-        missing = [f for f in required_fields if not str(link.get(f) or "").strip()]
-        if missing:
+        error_msg = _check_link_fields(link)
+        if error_msg:
             issues.append(
                 {
-                    "id": stable_traceability_link_id(
-                        from_type="issue", from_id=link_id, to_type="missing", to_id="fields"
-                    ),
+                    "id": stable_traceability_link_id("issue", link_id, "missing", "fields"),
                     "kind": "invalid_link",
-                    "message": f"Traceability link missing fields: {', '.join(missing)}",
+                    "message": error_msg,
                     "linkId": link_id,
                 }
             )
@@ -528,42 +590,55 @@ def verify_traceability_links(state: Dict[str, Any]) -> List[Dict[str, Any]]:
     return issues
 
 
-def apply_us6_enrichment(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Apply US6 enrichment (traceability generation/verification).
+def _enrich_links(updated: dict[str, Any], existing_ids: set[str]) -> None:
+    """Helper to append new traceability links to state."""
+    links_list = updated.get("traceabilityLinks")
+    if not isinstance(links_list, list):
+        return
 
-    - Appends deterministic traceability links derived from artifacts.
-    - Appends non-blocking traceability issues.
-    """
+    for link in generate_traceability_links(updated):
+        if link["id"] not in existing_ids:
+            links_list.append(link)
+            existing_ids.add(link["id"])
+
+
+def _enrich_issues(updated: dict[str, Any], existing_ids: set[str]) -> None:
+    """Helper to append new traceability issues to state."""
+    issues_list = updated.get("traceabilityIssues")
+    if not isinstance(issues_list, list):
+        return
+
+    for issue in verify_traceability_links(updated):
+        if issue["id"] not in existing_ids:
+            issues_list.append(issue)
+            existing_ids.add(issue["id"])
+
+
+def apply_us6_enrichment(state: dict[str, Any]) -> dict[str, Any]:
+    """Apply US6 enrichment (traceability generation/verification)."""
     updated = dict(state)
     updated.setdefault("traceabilityLinks", [])
     updated.setdefault("traceabilityIssues", [])
 
-    existing_links = updated.get("traceabilityLinks")
+    existing_links = updated["traceabilityLinks"]
     if not isinstance(existing_links, list):
         existing_links = []
         updated["traceabilityLinks"] = existing_links
 
-    existing_ids: Set[str] = set()
-    for l in existing_links:
-        if isinstance(l, dict) and str(l.get("id") or "").strip():
-            existing_ids.add(str(l["id"]))
+    existing_ids = {
+        str(i.get("id")) for i in existing_links if isinstance(i, dict) and i.get("id")
+    }
+    _enrich_links(updated, existing_ids)
 
-    for link in generate_traceability_links(updated):
-        if link["id"] not in existing_ids:
-            existing_links.append(link)
-            existing_ids.add(link["id"])
+    existing_issues = updated["traceabilityIssues"]
+    if not isinstance(existing_issues, list):
+        existing_issues = []
+        updated["traceabilityIssues"] = existing_issues
 
-    issues_list = updated.get("traceabilityIssues")
-    if not isinstance(issues_list, list):
-        issues_list = []
-        updated["traceabilityIssues"] = issues_list
-
-    existing_issue_ids: Set[str] = set(
-        str(i.get("id")) for i in issues_list if isinstance(i, dict) and i.get("id")
-    )
-    for issue in verify_traceability_links(updated):
-        if issue["id"] not in existing_issue_ids:
-            issues_list.append(issue)
-            existing_issue_ids.add(issue["id"])
+    existing_issue_ids = {
+        str(i.get("id")) for i in existing_issues if isinstance(i, dict) and i.get("id")
+    }
+    _enrich_issues(updated, existing_issue_ids)
 
     return updated
+

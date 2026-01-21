@@ -47,3 +47,4 @@ class MCPConfigurationError(MCPError):
     """Invalid MCP client configuration."""
 
     pass
+

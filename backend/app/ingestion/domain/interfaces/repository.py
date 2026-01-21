@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Protocol
 
 from app.ingestion.domain.models import IngestionState
 
@@ -14,13 +14,13 @@ class RepositoryProtocol(Protocol):
         self,
         kb_id: str,
         source_type: str,
-        source_config: Dict[str, Any],
+        source_config: dict[str, Any],
         priority: int = 0,
     ) -> str:
         """Create a new ingestion job and return its ID."""
         ...
 
-    def get_latest_job(self, kb_id: str) -> Optional[IngestionState]:
+    def get_latest_job(self, kb_id: str) -> IngestionState | None:
         """Get the most recent job for a knowledge base."""
         ...
 
@@ -28,15 +28,15 @@ class RepositoryProtocol(Protocol):
         """Update job status and timestamp."""
         ...
 
-    def enqueue_chunks(self, job_id: str, chunks: List[Dict[str, Any]]) -> int:
+    def enqueue_chunks(self, job_id: str, chunks: list[dict[str, Any]]) -> int:
         """Enqueue chunks for processing; return count inserted."""
         ...
 
-    def dequeue_batch(self, job_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def dequeue_batch(self, job_id: str, limit: int = 10) -> list[dict[str, Any]]:
         """Dequeue and lock a batch of chunks for processing."""
         ...
 
-    def commit_batch_success(self, job_id: str, item_ids: List[int]) -> None:
+    def commit_batch_success(self, job_id: str, item_ids: list[int]) -> None:
         """Mark batch as successfully processed."""
         ...
 
@@ -44,7 +44,7 @@ class RepositoryProtocol(Protocol):
         """Mark single item as failed with error message."""
         ...
 
-    def get_queue_stats(self, job_id: str) -> Dict[str, int]:
+    def get_queue_stats(self, job_id: str) -> dict[str, int]:
         """Get queue statistics (pending, processing, done, error counts)."""
         ...
 

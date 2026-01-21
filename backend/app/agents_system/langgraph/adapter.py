@@ -6,21 +6,21 @@ Provides a simple interface matching the router's expectations.
 
 import logging
 import uuid
-from typing import Dict, Any
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...core.app_settings import get_settings
+from ..runner import get_agent_runner
 from .graph_factory import build_project_chat_graph
 from .graph_factory_advanced import build_advanced_project_chat_graph
-from .state import GraphState
-from ...core.config import get_settings
 from .nodes.agent_native import run_stage_aware_agent
-from ..runner import get_agent_runner
+from .state import GraphState
 
 logger = logging.getLogger(__name__)
 
 
-async def execute_chat(user_message: str) -> Dict[str, Any]:
+async def execute_chat(user_message: str) -> dict[str, Any]:
     """Execute a non-project chat using the LangGraph-native tool loop.
 
     This is used to support the plain `/api/agent/chat` endpoint when
@@ -59,7 +59,7 @@ async def execute_chat(user_message: str) -> Dict[str, Any]:
             "output": "",
             "success": False,
             "intermediate_steps": [],
-            "error": f"LangGraph chat execution failed: {str(e)}",
+            "error": f"LangGraph chat execution failed: {e!s}",
         }
 
 
@@ -67,18 +67,18 @@ async def execute_project_chat(
     project_id: str,
     user_message: str,
     db: AsyncSession,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Execute project-aware chat using LangGraph workflow.
-    
+
     This adapter matches the interface expected by the router so it can be
     used as a drop-in replacement for the existing execution path.
-    
+
     Args:
         project_id: Project ID
         user_message: User's message
         db: Database session
-        
+
     Returns:
         Dictionary with:
         - answer: Final answer (str)
@@ -89,14 +89,14 @@ async def execute_project_chat(
     """
     try:
         settings = get_settings()
-        
+
         # Generate message ID for iteration logging
         response_message_id = str(uuid.uuid4())
-        
+
         # Choose graph factory based on feature flags
         enable_stage_routing = getattr(settings, 'aaa_enable_stage_routing', False)
         enable_multi_agent = getattr(settings, 'aaa_enable_multi_agent', False)
-        
+
         if enable_stage_routing or enable_multi_agent:
             logger.info(
                 f"Building advanced graph (stage_routing={enable_stage_routing}, "
@@ -111,7 +111,7 @@ async def execute_project_chat(
         else:
             logger.info("Building standard graph (Phase 2/3)")
             graph = build_project_chat_graph(db, response_message_id)
-        
+
         # Initialize state
         initial_state: GraphState = {
             "project_id": project_id,
@@ -119,23 +119,24 @@ async def execute_project_chat(
             "success": False,
             "retry_count": 0,
         }
-        
+
         logger.info(f"Executing LangGraph workflow for project {project_id}")
-        
+
         # Execute graph
         result_state = await graph.ainvoke(initial_state)
-        
+
         # Extract response fields
         final_answer = result_state.get("final_answer", "")
         success = result_state.get("success", False)
         updated_state = result_state.get("updated_project_state")
         error = result_state.get("error")
-        
+
         # Format intermediate steps (for compatibility with router)
         reasoning_steps = []
         intermediate_steps = result_state.get("intermediate_steps", [])
+        expected_tuple_len = 2
         for step in intermediate_steps:
-            if isinstance(step, tuple) and len(step) == 2:
+            if isinstance(step, tuple) and len(step) == expected_tuple_len:
                 action, observation = step
                 reasoning_steps.append({
                     "action": action.tool if hasattr(action, "tool") else str(action),
@@ -144,11 +145,11 @@ async def execute_project_chat(
                     ),
                     "observation": str(observation)[:500],
                 })
-        
+
         logger.info(
             f"LangGraph execution complete: success={success}, steps={len(reasoning_steps)}"
         )
-        
+
         return {
             "answer": final_answer if final_answer else result_state.get("agent_output", ""),
             "success": success,
@@ -156,7 +157,7 @@ async def execute_project_chat(
             "reasoning_steps": reasoning_steps,
             "error": error,
         }
-        
+
     except Exception as e:
         logger.error(f"LangGraph execution failed: {e}", exc_info=True)
         return {
@@ -164,5 +165,6 @@ async def execute_project_chat(
             "success": False,
             "project_state": None,
             "reasoning_steps": [],
-            "error": f"Graph execution failed: {str(e)}",
+            "error": f"Graph execution failed: {e!s}",
         }
+

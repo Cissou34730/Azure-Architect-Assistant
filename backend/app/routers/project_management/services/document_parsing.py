@@ -9,16 +9,22 @@ partial success (FR-001, SC-004).
 
 from __future__ import annotations
 
+import logging
 from io import BytesIO
-from typing import Optional, Tuple
+
+import openpyxl
+import xlrd
+from pypdf import PdfReader
+
+logger = logging.getLogger(__name__)
 
 
 def extract_text_from_upload(
     *,
     file_name: str,
-    mime_type: Optional[str],
+    mime_type: str | None,
     content: bytes,
-) -> Tuple[Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None]:
     """Extract human-readable text from an uploaded file.
 
     Returns:
@@ -42,10 +48,8 @@ def extract_text_from_upload(
         return content.decode("utf-8", errors="replace"), None
 
 
-def _extract_pdf_text(content: bytes) -> Tuple[Optional[str], Optional[str]]:
+def _extract_pdf_text(content: bytes) -> tuple[str | None, str | None]:
     try:
-        from pypdf import PdfReader
-
         reader = PdfReader(BytesIO(content))
         page_texts = []
         for page in reader.pages:
@@ -58,21 +62,20 @@ def _extract_pdf_text(content: bytes) -> Tuple[Optional[str], Optional[str]]:
             return None, "PDF contains no extractable text"
         return combined, None
     except Exception as exc:
+        logger.exception("PDF extraction failed")
         return None, f"PDF extraction failed: {exc}"
 
 
 def _extract_excel_text(
     lower_name: str, content: bytes
-) -> Tuple[Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None]:
     if lower_name.endswith(".xlsx"):
         return _extract_xlsx_text(content)
     return _extract_xls_text(content)
 
 
-def _extract_xlsx_text(content: bytes) -> Tuple[Optional[str], Optional[str]]:
+def _extract_xlsx_text(content: bytes) -> tuple[str | None, str | None]:
     try:
-        import openpyxl
-
         workbook = openpyxl.load_workbook(
             filename=BytesIO(content),
             read_only=True,
@@ -92,16 +95,13 @@ def _extract_xlsx_text(content: bytes) -> Tuple[Optional[str], Optional[str]]:
         if not text:
             return None, "XLSX contains no extractable text"
         return text, None
-    except ModuleNotFoundError:
-        return None, "XLSX parsing requires openpyxl (missing dependency)"
     except Exception as exc:
+        logger.exception("XLSX extraction failed")
         return None, f"XLSX extraction failed: {exc}"
 
 
-def _extract_xls_text(content: bytes) -> Tuple[Optional[str], Optional[str]]:
+def _extract_xls_text(content: bytes) -> tuple[str | None, str | None]:
     try:
-        import xlrd
-
         book = xlrd.open_workbook(file_contents=content)
         lines = []
         for sheet in book.sheets():
@@ -115,7 +115,7 @@ def _extract_xls_text(content: bytes) -> Tuple[Optional[str], Optional[str]]:
         if not text:
             return None, "XLS contains no extractable text"
         return text, None
-    except ModuleNotFoundError:
-        return None, "XLS parsing requires xlrd (missing dependency)"
     except Exception as exc:
+        logger.exception("XLS extraction failed")
         return None, f"XLS extraction failed: {exc}"
+

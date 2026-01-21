@@ -5,10 +5,10 @@ produce context-grounded answers with citations, without adding new endpoints.
 """
 
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Any
 
-from app.service_registry import get_multi_query_service
 from app.kb.multi_query import QueryProfile
+from app.service_registry import get_multi_query_service
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +24,10 @@ class RAGAgent:
         self,
         user_query: str,
         profile: str = "chat",
-        kb_ids: Optional[List[str]] = None,
+        kb_ids: list[str] | None = None,
         top_k: int = 5,
-        metadata_filters: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        metadata_filters: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Execute a retrieval-augmented response.
 
@@ -63,7 +63,7 @@ class RAGAgent:
         return result
 
 
-def build_cited_reply(agent_result: Dict[str, Any]) -> Dict[str, Any]:
+def build_cited_reply(agent_result: dict[str, Any]) -> dict[str, Any]:
     """
     Build a response payload including citations ready for the chat pipeline.
 
@@ -91,3 +91,4 @@ def build_cited_reply(agent_result: Dict[str, Any]) -> Dict[str, Any]:
         "sources": sources,
         "has_results": has_results,
     }
+

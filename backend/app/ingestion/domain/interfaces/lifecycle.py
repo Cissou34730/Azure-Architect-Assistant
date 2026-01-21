@@ -2,9 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Protocol, Tuple
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, Protocol
 
 from app.ingestion.domain.models import JobRuntime
+
+
+@dataclass
+class ProducerConfig:
+    """Configuration for producer thread."""
+
+    target: Callable[..., Any]
+    args: tuple[Any, ...] = ()
+    kwargs: dict[str, Any] | None = None
 
 
 class LifecycleManagerProtocol(Protocol):
@@ -15,9 +26,7 @@ class LifecycleManagerProtocol(Protocol):
         job_id: str,
         kb_id: str,
         state: Any,
-        producer_target: Callable[..., Any],
-        producer_args: Tuple[Any, ...],
-        producer_kwargs: dict,
+        producer_config: ProducerConfig,
     ) -> JobRuntime:
         """Create a new job runtime with threads."""
         ...

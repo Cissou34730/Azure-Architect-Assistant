@@ -4,12 +4,13 @@ Single entry point for all AI operations (LLM and Embeddings).
 """
 
 import logging
-from typing import List, Optional, AsyncIterator, Any
+from collections.abc import AsyncIterator
 from functools import lru_cache
+from typing import Any
 
 from .config import AIConfig
-from .interfaces import LLMProvider, EmbeddingProvider, ChatMessage, LLMResponse
-from .providers import OpenAILLMProvider, OpenAIEmbeddingProvider
+from .interfaces import ChatMessage, EmbeddingProvider, LLMProvider, LLMResponse
+from .providers import OpenAIEmbeddingProvider, OpenAILLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class AIService:
     Abstracts provider details and provides a consistent interface.
     """
 
-    def __init__(self, config: Optional[AIConfig] = None):
+    def __init__(self, config: AIConfig | None = None):
         """
         Initialize AI service with configuration.
 
@@ -69,9 +70,9 @@ class AIService:
 
     async def chat(
         self,
-        messages: List[ChatMessage] | List[dict],
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        messages: list[ChatMessage] | list[dict],
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         stream: bool = False,
         **kwargs,
     ) -> LLMResponse | AsyncIterator[str]:
@@ -112,8 +113,8 @@ class AIService:
     async def complete(
         self,
         prompt: str,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> str:
         """
@@ -153,11 +154,10 @@ class AIService:
         """
         # Lazy import to avoid hard dependency at module import time
         try:
-            from langchain_openai import ChatOpenAI
-        except Exception:
-            # If LangChain's ChatOpenAI isn't available, fallback to provider
-            # constructs or raise a clear error.
-            raise RuntimeError("ChatOpenAI (langchain_openai) is required to create a chat LLM")
+            from langchain_openai import ChatOpenAI  # noqa: PLC0415
+        except Exception as err:
+            # If LangChain's ChatOpenAI isn't available, raise a clear error.
+            raise RuntimeError("ChatOpenAI (langchain_openai) is required to create a chat LLM") from err
 
         params = {
             "model": getattr(self.config, "openai_llm_model", None),
@@ -169,7 +169,7 @@ class AIService:
 
     # ============ Embedding Methods ============
 
-    async def embed_text(self, text: str) -> List[float]:
+    async def embed_text(self, text: str) -> list[float]:
         """
         Generate embedding for single text.
 
@@ -182,8 +182,8 @@ class AIService:
         return await self._embedding_provider.embed_text(text)
 
     async def embed_batch(
-        self, texts: List[str], batch_size: Optional[int] = None
-    ) -> List[List[float]]:
+        self, texts: list[str], batch_size: int | None = None
+    ) -> list[list[float]]:
         """
         Generate embeddings for multiple texts.
 
@@ -206,12 +206,21 @@ class AIService:
         return self._embedding_provider.get_model_name()
 
 
-# Singleton instance
-_ai_service: Optional[AIService] = None
+class AIServiceManager:
+    """Manages the AIService singleton instance."""
+
+    _instance: "AIService | None" = None
+
+    @classmethod
+    def get_instance(cls, config: AIConfig | None = None) -> "AIService":
+        """Get or create AIService singleton."""
+        if cls._instance is None:
+            cls._instance = AIService(config)
+        return cls._instance
 
 
 @lru_cache(maxsize=1)
-def get_ai_service(config: Optional[AIConfig] = None) -> AIService:
+def get_ai_service(config: AIConfig | None = None) -> AIService:
     """
     Get or create AIService singleton.
 
@@ -221,7 +230,5 @@ def get_ai_service(config: Optional[AIConfig] = None) -> AIService:
     Returns:
         AIService instance
     """
-    global _ai_service
-    if _ai_service is None:
-        _ai_service = AIService(config)
-    return _ai_service
+    return AIServiceManager.get_instance(config)
+

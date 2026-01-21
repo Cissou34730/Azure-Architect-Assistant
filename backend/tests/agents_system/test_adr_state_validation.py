@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from app.agents_system.services.aaa_state_models import AAAProjectState
 
@@ -25,13 +26,13 @@ def _base_adr() -> dict:
 
 def test_adr_requires_requirement_link() -> None:
     state = {"adrs": [{**_base_adr(), "relatedRequirementIds": []}]}
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         AAAProjectState.model_validate(state)
 
 
 def test_adr_requires_evidence_or_reason() -> None:
     state = {"adrs": [_base_adr()]}
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         AAAProjectState.model_validate(state)
 
 
@@ -51,5 +52,6 @@ def test_adr_accepts_diagram_link_without_reason() -> None:
 
 def test_adr_requires_source_citation() -> None:
     state = {"adrs": [{**_base_adr(), "sourceCitations": []}], "traceabilityLinks": []}
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         AAAProjectState.model_validate(state)
+

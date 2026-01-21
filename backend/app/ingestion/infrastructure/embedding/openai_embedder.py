@@ -5,14 +5,24 @@ Generates embeddings using OpenAI embedding models.
 
 import asyncio
 import logging
-from typing import List, Dict, Any, Optional, Callable
+from collections.abc import Callable
+from typing import Any
 
-from llama_index.core import Document
+from llama_index.core import Document as LlamaDocument
 
-from .embedder_base import BaseEmbedder
+from app.ingestion.domain.phase_tracker import IngestionPhase
 from app.services.ai import get_ai_service
 
+from .embedder_base import BaseEmbedder
+
 logger = logging.getLogger(__name__)
+
+# Constants
+MAX_DOC_ID_LENGTH = 200
+PROGRESS_CB_INTERVAL = 10
+EMBEDDING_P_START = 25
+EMBEDDING_P_SPAN = 50
+EMBEDDING_P_END = 75
 
 
 class OpenAIEmbedder(BaseEmbedder):
@@ -21,7 +31,7 @@ class OpenAIEmbedder(BaseEmbedder):
     Uses unified AIService for consistent configuration and monitoring.
     """
 
-    def __init__(self, model_name: str = "text-embedding-3-small"):
+    def __init__(self, model_name: str = 'text-embedding-3-small'):
         """
         Initialize OpenAI embedder.
 
@@ -30,97 +40,82 @@ class OpenAIEmbedder(BaseEmbedder):
         """
         super().__init__(model_name)
         self.ai_service = get_ai_service()
-        self.logger.info(f"OpenAIEmbedder initialized with model: {model_name}")
+        self.logger.info(f'OpenAIEmbedder initialized with model: {model_name}')
+
+    def _to_llama_document(self, index: int, doc: dict[str, Any]) -> LlamaDocument | None:
+        """Convert raw document dictionary to LlamaIndex Document with metadata."""
+        content = doc.get("content", "")
+        metadata = doc.get("metadata", {})
+
+        if not content:
+            self.logger.warning(f"Skipping document {index}: empty content")
+            return None
+
+        # Create document ID
+        doc_id = (
+            metadata.get("url")
+            or metadata.get("file_path")
+            or f'doc_{metadata.get("doc_id", index)}'
+        )
+        if len(doc_id) > MAX_DOC_ID_LENGTH:
+            doc_id = doc_id[:MAX_DOC_ID_LENGTH]
+
+        return LlamaDocument(text=content, metadata=metadata, id_=doc_id)
+
+    def _execute_batch_embedding(self, texts: list[str]) -> list[list[float]]:
+        """Run async batch embedding within synchronous context."""
+        try:
+            return asyncio.run(self.ai_service.embed_batch(texts))
+        except RuntimeError:
+            # Fallback if already in an event loop
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(self.ai_service.embed_batch(texts))
 
     def embed_documents(
         self,
-        documents: List[Dict[str, Any]],
-        progress_callback: Optional[Callable] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Generate embeddings for documents using OpenAI.
-
-        Args:
-            documents: List of documents with 'content' and 'metadata' keys
-            progress_callback: Optional callback(phase, progress, message, metrics)
-
-        Returns:
-            List of LlamaIndex Documents with embeddings
-        """
+        documents: list[dict[str, Any]],
+        progress_callback: Callable[..., Any] | None = None,
+    ) -> list[Any]:
+        """Generate embeddings for documents yields LlamaIndex objects."""
         if not self.validate_documents(documents):
             raise ValueError("Document validation failed")
 
         self.logger.info(f"Generating embeddings for {len(documents)} documents")
 
-        # Convert to LlamaIndex documents
-        llama_docs = []
+        llama_docs: list[LlamaDocument] = []
         for i, doc in enumerate(documents):
-            content = doc.get("content", "")
-            metadata = doc.get("metadata", {})
-
-            if not content:
-                self.logger.warning(f"Skipping document {i}: empty content")
-                continue
-
-            # Create document ID
-            doc_id = (
-                metadata.get("url")
-                or metadata.get("file_path")
-                or f"doc_{metadata.get('doc_id', i)}"
-            )
-            if len(doc_id) > 200:
-                doc_id = doc_id[:200]
-
-            llama_doc = Document(text=content, metadata=metadata, id_=doc_id)
-            llama_docs.append(llama_doc)
+            ld = self._to_llama_document(i, doc)
+            if ld:
+                llama_docs.append(ld)
 
         if progress_callback:
-            from app.ingestion.domain.phase_tracker import IngestionPhase
-
             progress_callback(
                 IngestionPhase.EMBEDDING,
-                25,
+                EMBEDDING_P_START,
                 f"Generating embeddings for {len(llama_docs)} documents...",
                 {"documents": len(llama_docs)},
             )
 
-        # Generate embeddings using AIService
-        # Extract all texts for batch processing
-        texts = [doc.text for doc in llama_docs]
+        embeddings = self._execute_batch_embedding([d.text for d in llama_docs])
 
-        # Use asyncio to run async batch embedding
-        try:
-            embeddings = asyncio.run(self.ai_service.embed_batch(texts))
-        except RuntimeError:
-            # If already in event loop, create task
-            loop = asyncio.get_event_loop()
-            embeddings = loop.run_until_complete(self.ai_service.embed_batch(texts))
-
-        # Assign embeddings to documents
-        for i, (doc, embedding) in enumerate(zip(llama_docs, embeddings)):
-            doc.embedding = embedding
-
-            # Progress callback every 10 documents
-            if progress_callback and i % 10 == 0:
-                progress = 25 + int((i / len(llama_docs)) * 50)  # 25-75%
-                from app.ingestion.domain.phase_tracker import IngestionPhase
-
+        # Assign results back to Llama docs
+        for i, (l_doc, b_embedding) in enumerate(zip(llama_docs, embeddings, strict=True)):
+            l_doc.embedding = b_embedding
+            if progress_callback and i % PROGRESS_CB_INTERVAL == 0:
+                p = EMBEDDING_P_START + int((i / len(llama_docs)) * EMBEDDING_P_SPAN)
                 progress_callback(
                     IngestionPhase.EMBEDDING,
-                    progress,
+                    p,
                     f"Embedded {i}/{len(llama_docs)} documents",
                     {"embedded": i, "total": len(llama_docs)},
                 )
 
         if progress_callback:
-            from app.ingestion.domain.phase_tracker import IngestionPhase
-
             progress_callback(
                 IngestionPhase.EMBEDDING,
-                75,
+                EMBEDDING_P_END,
                 f"Embedding complete: {len(llama_docs)} documents",
                 {"documents": len(llama_docs)},
             )
 
-        self.logger.info(f"Generated embeddings for {len(llama_docs)} documents")
         return llama_docs

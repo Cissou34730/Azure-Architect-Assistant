@@ -7,53 +7,72 @@ Each service caches loaded indices to avoid repeated disk I/O.
 """
 
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
 from app.kb import KBManager
 from app.services.kb import MultiKBQueryService
 
 logger = logging.getLogger(__name__)
 
-# Global service instances (initialized at startup)
-# Singletons maintain in-memory index cache for performance
-_kb_manager: Optional[KBManager] = None
-_multi_query_service: Optional[MultiKBQueryService] = None
+
+class ServiceRegistry:
+    """
+    Central registry for application services.
+    Uses class-level variables to implement the singleton pattern.
+    """
+
+    _kb_manager: KBManager | None = None
+    _multi_query_service: MultiKBQueryService | None = None
+    _mcp_client: Any | None = None
+
+    @classmethod
+    def get_kb_manager(cls) -> KBManager:
+        """Get or create KBManager instance."""
+        if cls._kb_manager is None:
+            cls._kb_manager = KBManager()
+            logger.info(f"KBManager ready ({len(cls._kb_manager.list_kbs())} KBs)")
+        return cls._kb_manager
+
+    @classmethod
+    def get_multi_query_service(cls) -> MultiKBQueryService:
+        """Get or create MultiSourceQueryService instance."""
+        if cls._multi_query_service is None:
+            manager = cls.get_kb_manager()
+            cls._multi_query_service = MultiKBQueryService(manager)
+            logger.info("MultiSourceQueryService ready")
+        return cls._multi_query_service
+
+    @classmethod
+    def invalidate_kb_manager(cls) -> None:
+        """Invalidate cached KB manager to reload configuration."""
+        cls._kb_manager = None
+        cls._multi_query_service = None
+
+    @classmethod
+    def set_mcp_client(cls, client: "MicrosoftLearnMCPClient") -> None:
+        """Store the MCP client instance."""
+        cls._mcp_client = client
+
+    @classmethod
+    def get_mcp_client(cls) -> "MicrosoftLearnMCPClient | None":
+        """Get the stored MCP client instance."""
+        return cls._mcp_client
 
 
 def get_kb_manager() -> KBManager:
-    """
-    Get or create KBManager instance (singleton pattern).
-    Manages knowledge base configurations.
-    """
-    global _kb_manager
-    if _kb_manager is None:
-        _kb_manager = KBManager()
-        logger.info(f"KBManager ready ({len(_kb_manager.list_kbs())} KBs)")
-    return _kb_manager
+    """Compatibility wrapper for get_kb_manager."""
+    return ServiceRegistry.get_kb_manager()
 
 
 def get_multi_query_service() -> MultiKBQueryService:
-    """
-    Get or create MultiSourceQueryService instance (singleton pattern).
-    Handles multi-source KB queries with profile support.
-    """
-    global _multi_query_service
-    if _multi_query_service is None:
-        manager = get_kb_manager()
-        _multi_query_service = MultiKBQueryService(manager)
-        logger.info("MultiSourceQueryService ready")
-    return _multi_query_service
+    """Compatibility wrapper for get_multi_query_service."""
+    return ServiceRegistry.get_multi_query_service()
 
 
 def invalidate_kb_manager():
-    """
-    Invalidate cached KB manager to reload configuration.
-    Called after KB create/update/delete operations.
+    """Compatibility wrapper for invalidate_kb_manager."""
+    ServiceRegistry.invalidate_kb_manager()
 
-    NOTE: Forces reload of config.json on next access.
-    """
-    global _kb_manager, _multi_query_service
-    # Cache invalidation (log suppressed)
-    _kb_manager = None
-    # Also invalidate multi_query_service since it depends on KB manager
-    _multi_query_service = None
