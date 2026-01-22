@@ -18,7 +18,7 @@ export function useMermaidRenderer({
     mermaid.initialize({
       startOnLoad: false,
       theme: "default",
-      securityLevel: "loose",
+      securityLevel: "antiscript",
       fontFamily: "ui-sans-serif, system-ui, sans-serif",
     });
   }, []);

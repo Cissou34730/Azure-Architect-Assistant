@@ -1,4 +1,6 @@
-﻿// eslint-disable-next-line @typescript-eslint/no-restricted-types
+// Guard for plain objects (records) — rejects arrays, Dates, Maps, Sets, class instances, etc.
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  if (typeof value !== "object" || value === null) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
 }

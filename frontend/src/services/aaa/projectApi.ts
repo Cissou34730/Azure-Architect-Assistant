@@ -1,6 +1,6 @@
 import { fetchWithErrorHandling } from "../serviceError";
 
-const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
+import { API_BASE } from "../config";
 
 type ProjectState = Record<string, unknown>;
 

@@ -2,7 +2,7 @@ import type { AgentResponse, Message } from "../../types/agent";
 import type { ProjectState } from "../../types/agent";
 import { fetchWithErrorHandling } from "../serviceError";
 
-const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
+import { API_BASE } from "../config";
 
 export interface AgentConversationHistoryResponse {
   messages: Array<

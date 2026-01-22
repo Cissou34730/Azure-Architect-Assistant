@@ -4,7 +4,7 @@
  */
 
 // Point to Python backend directly (no TypeScript proxy layer)
-const API_BASE = `${import.meta.env.BACKEND_URL}/api`;
+import { API_BASE } from "./config";
 
 export interface Project {
   id: string;
