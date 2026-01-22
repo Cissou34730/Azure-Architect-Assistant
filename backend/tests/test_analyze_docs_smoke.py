@@ -50,8 +50,20 @@ async def test_analyze_docs_persists_ingestion_stats_and_requirements(monkeypatc
         project = Project(id="p-1", name="Test Project")
         session.add(project)
         session.add_all([
-            ProjectDocument(id="d-1", project_id=project.id, file_name="a.txt", raw_text="hello"),
-            ProjectDocument(id="d-2", project_id=project.id, file_name="empty.txt", raw_text=""),
+                ProjectDocument(
+                    id="d-1",
+                    project_id=project.id,
+                    file_name="a.txt",
+                    mime_type="text/plain",
+                    raw_text="hello",
+                ),
+                ProjectDocument(
+                    id="d-2",
+                    project_id=project.id,
+                    file_name="empty.txt",
+                    mime_type="text/plain",
+                    raw_text="",
+                ),
         ])
         await session.commit()
 
@@ -65,11 +77,11 @@ async def test_analyze_docs_persists_ingestion_stats_and_requirements(monkeypatc
         result = await session.execute(select(ProjectState).where(ProjectState.project_id == project.id))
         persisted = result.scalar_one_or_none()
         assert persisted is not None
-        assert "ingestionStats" in json.loads(persisted.state)
+        assert "projectDocumentStats" in json.loads(persisted.state)
 
 
 def _verify_ingestion_stats(state: dict) -> None:
-    stats = state.get("ingestionStats", {})
+    stats = state.get("projectDocumentStats", {})
     assert stats.get("attemptedDocuments") == 2
     assert stats.get("parsedDocuments") == 1
     assert stats.get("failedDocuments") == 1

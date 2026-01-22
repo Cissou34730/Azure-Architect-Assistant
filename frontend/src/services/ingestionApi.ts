@@ -18,6 +18,7 @@ import {
 } from "../types/ingestion";
 import { ServiceError, fetchWithErrorHandling } from "./serviceError";
 import { API_BASE } from "./config";
+import { keysToSnake } from "../utils/apiMapping";
 
 // Re-export ServiceError as IngestionAPIError for backward compatibility
 export { ServiceError as IngestionAPIError };
@@ -36,7 +37,8 @@ export async function createKB(
         // eslint-disable-next-line @typescript-eslint/naming-convention
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(request),
+      // Backend expects snake_case (kb_id, source_type, source_config, ...)
+      body: JSON.stringify(keysToSnake(request)),
     },
     "create KB"
   );

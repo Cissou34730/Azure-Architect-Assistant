@@ -21,12 +21,25 @@ interface ValidationData {
   name: string;
   sourceType: SourceType;
   urls: string[];
-  sitemapUrl: string;
   videoUrls: string[];
   pdfLocalPaths: string[];
   pdfUrls: string[];
   pdfFolderPath: string;
   markdownFolderPath: string;
+}
+
+function isHttpUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -48,11 +61,12 @@ export function canProceed(data: ValidationData): boolean {
 }
 
 function validateConfig(data: ValidationData): boolean {
-  if (data.sourceType === "website") {
-    return (
-      data.sitemapUrl.trim() !== "" ||
-      data.urls.some((url) => url.trim() !== "")
-    );
+  if (
+    data.sourceType === "website" ||
+    data.sourceType === "web_documentation" ||
+    data.sourceType === "web_generic"
+  ) {
+    return data.urls.some((url) => isHttpUrl(url));
   }
   if (data.sourceType === "youtube") {
     return data.videoUrls.some((url) => url.trim() !== "");

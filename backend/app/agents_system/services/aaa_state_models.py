@@ -14,6 +14,7 @@ from enum import Enum
 from typing import Any, Literal
 
 from pydantic import (
+    AliasChoices,
     BaseModel,
     ConfigDict,
     Field,
@@ -361,7 +362,12 @@ class AAAProjectState(BaseModel):
     reference_documents: list[ReferenceDocument] = Field(default_factory=list)
     mcp_queries: list[MCPQuery] = Field(default_factory=list)
 
-    ingestion_stats: IngestionStats | None = None
+    # Project document processing stats (NOT RAG ingestion). We keep backward compatibility
+    # with the legacy `ingestionStats` key when reading older ProjectState rows.
+    project_document_stats: IngestionStats | None = Field(
+        default=None,
+        validation_alias=AliasChoices("projectDocumentStats", "ingestionStats"),
+    )
     iteration_events: list[IterationEvent] = Field(default_factory=list)
 
 
@@ -416,7 +422,7 @@ def ensure_aaa_defaults(state: dict[str, Any]) -> dict[str, Any]:
     updated.setdefault("mcpQueries", [])
     updated.setdefault("iterationEvents", [])
 
-    # ingestionStats is optional, but keep key stable if present
+    # projectDocumentStats is optional (legacy key: ingestionStats)
     return updated
 
 

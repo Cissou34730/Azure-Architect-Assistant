@@ -112,7 +112,6 @@ export interface WebsiteSourceConfig {
   readonly url?: string;
   readonly startUrl?: string;
   readonly recursive?: boolean;
-  readonly sitemapUrl?: string;
   readonly urlPrefix?: string;
   readonly maxPages?: number;
   readonly localPaths?: readonly string[];

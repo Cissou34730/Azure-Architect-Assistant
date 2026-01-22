@@ -13,8 +13,6 @@ interface ConfigurationStepProps {
   // Website
   readonly urls: string[];
   readonly setUrls: (urls: string[]) => void;
-  readonly sitemapUrl: string;
-  readonly setSitemapUrl: (url: string) => void;
   readonly urlPrefix: string;
   readonly setUrlPrefix: (prefix: string) => void;
   // YouTube
@@ -36,8 +34,6 @@ export function ConfigurationStep({
   sourceType,
   urls,
   setUrls,
-  sitemapUrl,
-  setSitemapUrl,
   videoUrls,
   setVideoUrls,
   pdfLocalPaths,
@@ -60,8 +56,6 @@ export function ConfigurationStep({
           <WebsiteConfig
             urls={urls}
             setUrls={setUrls}
-            sitemapUrl={sitemapUrl}
-            setSitemapUrl={setSitemapUrl}
             urlPrefix={urlPrefix}
             setUrlPrefix={setUrlPrefix}
           />

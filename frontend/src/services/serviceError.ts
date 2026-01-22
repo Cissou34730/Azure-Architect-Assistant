@@ -43,6 +43,30 @@ function getErrorDetailFromData(
   if (typeof rawData.detail === "string" && rawData.detail !== "") {
     return rawData.detail;
   }
+
+  // FastAPI validation errors often return `detail` as an array
+  // e.g. [{ loc: ["body", "kb_id"], msg: "field required", type: "missing" }]
+  if (Array.isArray(rawData.detail)) {
+    const lines: string[] = [];
+    for (const entry of rawData.detail) {
+      if (!isRecord(entry)) {
+        continue;
+      }
+
+      const msg = typeof entry.msg === "string" ? entry.msg : "Invalid value";
+      const loc = Array.isArray(entry.loc)
+        ? entry.loc.filter((p) => typeof p === "string").join(".")
+        : "";
+
+      lines.push(loc !== "" ? `${loc}: ${msg}` : msg);
+    }
+
+    const detailText = lines.join("\n").trim();
+    if (detailText !== "") {
+      return detailText;
+    }
+  }
+
   return null;
 }
 

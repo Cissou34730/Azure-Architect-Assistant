@@ -10,6 +10,11 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
     return null;
   }
 
+  const sources = Array.isArray(response.sources) ? response.sources : [];
+  const followUps = Array.isArray(response.suggestedFollowUps)
+    ? response.suggestedFollowUps
+    : [];
+
   if (!response.hasResults) {
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
@@ -32,13 +37,13 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
       </div>
 
       {/* Sources */}
-      {response.sources.length > 0 && (
+      {sources.length > 0 && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Sources ({response.sources.length})
+            Sources ({sources.length})
           </h2>
           <div className="space-y-3">
-            {response.sources.map((source) => (
+            {sources.map((source) => (
               <div
                 key={`${source.url}-${source.section}`}
                 className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
@@ -75,14 +80,13 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
       )}
 
       {/* Suggested Follow-ups */}
-      {response.suggestedFollowUps !== undefined &&
-        response.suggestedFollowUps.length > 0 && (
+      {followUps.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
             <h2 className="text-lg font-semibold text-blue-900 mb-3">
               Suggested Follow-up Questions
             </h2>
             <div className="space-y-2">
-              {response.suggestedFollowUps.map((followUp) => (
+              {followUps.map((followUp) => (
                 <button
                   key={followUp}
                   onClick={() => { onFollowUp(followUp); }}

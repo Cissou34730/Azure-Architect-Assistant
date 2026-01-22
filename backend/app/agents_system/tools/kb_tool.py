@@ -12,6 +12,7 @@ from langchain.tools import BaseTool, Tool
 from pydantic import PrivateAttr
 
 from ..agents.rag_agent import RAGAgent, build_cited_reply
+from app.core.app_settings import get_kb_storage_root
 
 
 class KBSearchTool(BaseTool):
@@ -63,7 +64,7 @@ def _discover_specific_kb_tools() -> list[BaseTool]:
     """Helper to discover and build per-KB search tools."""
     specific_tools: list[BaseTool] = []
     with contextlib.suppress(Exception):
-        cfg_path = Path(__file__).parents[2] / "data" / "knowledge_bases" / "config.json"
+        cfg_path = Path(get_kb_storage_root()) / "config.json"
         if cfg_path.exists():
             with open(cfg_path, encoding="utf-8") as fh:
                 cfg = json.load(fh)

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Project, ProjectDocument, ProjectState
-from app.services.llm_service import get_llm_service
+from app.services import llm_service
 
 from .document_parsing import extract_text_from_upload
 
@@ -73,7 +73,7 @@ class DocumentService:
         # Persist ingestion stats into ProjectState (SC-004) without blocking upload.
         try:
             stats_payload = {
-                "ingestionStats": {
+                "projectDocumentStats": {
                     "attemptedDocuments": attempted_documents,
                     "parsedDocuments": parsed_documents,
                     "failedDocuments": max(attempted_documents - parsed_documents, 0),
@@ -103,7 +103,7 @@ class DocumentService:
             await db.commit()
         except Exception:
             logger.exception(
-                "Failed to persist ingestionStats for project %s",
+                "Failed to persist projectDocumentStats for project %s",
                 project_id,
             )
 
@@ -168,13 +168,13 @@ class DocumentService:
 
         logger.info(f"Analyzing {len(texts)} content blocks for project: {project_id}")
 
-        llm_service = get_llm_service()
-        state_data = await llm_service.analyze_documents(texts)
+        service = llm_service.get_llm_service()
+        state_data = await service.analyze_documents(texts)
 
         _normalize_aaa_requirements_and_questions(state_data)
 
         # Append telemetry/stats (SC-004)
-        state_data["ingestionStats"] = self._compute_ingestion_stats(documents)
+        state_data["projectDocumentStats"] = self._compute_ingestion_stats(documents)
 
         state_json = json.dumps(state_data)
         result = await db.execute(
@@ -187,7 +187,6 @@ class DocumentService:
             existing_state.updated_at = datetime.now(timezone.utc).isoformat()
         else:
             new_state = ProjectState(
-                id=str(uuid.uuid4()),
                 project_id=project_id,
                 state=state_json,
                 updated_at=datetime.now(timezone.utc).isoformat(),
@@ -195,8 +194,6 @@ class DocumentService:
             db.add(new_state)
 
         await db.commit()
-        return state_data
-
         logger.info(f"Document analysis completed for project: {project_id}")
         return cast(dict[str, Any], state_data)
 

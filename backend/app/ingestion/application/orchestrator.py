@@ -28,6 +28,22 @@ from app.ingestion.infrastructure.phase_repository import PhaseRepository, creat
 logger = logging.getLogger(__name__)
 
 
+_END_OF_LOADER = object()
+
+
+def _next_or_end(iterator: Any) -> Any:
+    """Return next(iterator) or a sentinel instead of raising StopIteration.
+
+    StopIteration cannot be propagated through asyncio Futures (e.g. via
+    asyncio.to_thread), so we convert it into a sentinel value.
+    """
+
+    try:
+        return next(iterator)
+    except StopIteration:
+        return _END_OF_LOADER
+
+
 @dataclass
 class PipelineBatchContext:
     """Context object for a pipeline batch to reduce function argument counts."""
@@ -190,9 +206,11 @@ class IngestionOrchestrator:
         batch_id = start_batch_id
 
         while True:
-            try:
-                batch = await asyncio.to_thread(next, components.loader)
-            except StopIteration:
+            batch = await asyncio.to_thread(_next_or_end, components.loader)
+            if batch is _END_OF_LOADER:
+                logger.info(
+                    f'Loader exhausted: kb_id={kb_id}, job_id={job_id}, last_batch_id={batch_id - 1}'
+                )
                 break
 
             ctx = PipelineBatchContext(
@@ -209,7 +227,9 @@ class IngestionOrchestrator:
 
             # Check for shutdown request (CTRL-C)
             if self.is_shutdown_requested():
-                logger.warning(f'Shutdown requested - pausing job {job_id} at batch {batch_id}')
+                logger.warning(
+                    f'Shutdown requested - pausing job {job_id} at batch {batch_id}'
+                )
                 self.repo.set_job_status(job_id, status='paused')
                 self.repo.update_job(job_id, checkpoint=checkpoint, counters=counters)
                 return
@@ -346,6 +366,27 @@ class IngestionOrchestrator:
         self, job_id: str, phases_started: dict[str, bool], counters: dict[str, int]
     ) -> None:
         """Finishing job and marking all phases complete."""
+        docs_seen = int(counters.get('docs_seen', 0) or 0)
+        chunks_seen = int(counters.get('chunks_seen', 0) or 0)
+        chunks_processed = int(counters.get('chunks_processed', 0) or 0)
+
+        # If the loader produced no documents, treat as a failed ingestion.
+        # Marking as "completed" is misleading in the UI and prevents users from
+        # understanding why nothing was indexed.
+        if docs_seen == 0 and chunks_seen == 0 and chunks_processed == 0:
+            message = 'No documents were loaded from the configured source.'
+            with contextlib.suppress(Exception):
+                self.phase_repo.fail_phase(job_id, 'loading', message)
+
+            self.repo.set_job_status(
+                job_id,
+                status='failed',
+                finished_at=datetime.now(timezone.utc),
+                last_error=message,
+            )
+            logger.warning(f'Ingestion produced no documents: job_id={job_id}')
+            return
+
         with contextlib.suppress(Exception):
             self.phase_repo.complete_phase(job_id, 'loading')
             if phases_started['chunking']:

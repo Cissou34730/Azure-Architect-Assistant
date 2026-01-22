@@ -51,7 +51,7 @@ Examples of actions to drive through agent chat:
 - [ ] `POST /api/projects` creates a project
 - [ ] `POST /api/projects/{projectId}/documents` uploads at least 1 document
 - [ ] `POST /api/projects/{projectId}/analyze-docs` produces `ProjectState` with:
-	- [ ] `ingestionStats` (attempted/parsed/failed + failures)
+	- [ ] `projectDocumentStats` (attempted/parsed/failed + failures)
 	- [ ] `requirements` populated (business/functional/nfr)
 	- [ ] `clarificationQuestions` populated when ambiguity exists
 	- [ ] initial diagram link stored (C4 L1)

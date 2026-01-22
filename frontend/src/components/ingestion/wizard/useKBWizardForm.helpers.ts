@@ -14,7 +14,6 @@ export interface SubmitParams {
   description: string;
   sourceType: SourceType;
   urls: string[];
-  sitemapUrl: string;
   urlPrefix: string;
   videoUrls: string[];
   pdfLocalPaths: string[];
@@ -25,7 +24,6 @@ export interface SubmitParams {
 
 export interface SourceInputValues {
   urls: string[];
-  sitemapUrl: string;
   urlPrefix: string;
   videoUrls: string[];
   pdfLocalPaths: string[];
@@ -36,9 +34,8 @@ export interface SourceInputValues {
 
 export function useWebsiteInputs() {
   const [urls, setUrls] = useState<string[]>([""]);
-  const [sitemapUrl, setSitemapUrl] = useState("");
   const [urlPrefix, setUrlPrefix] = useState("");
-  return { urls, setUrls, sitemapUrl, setSitemapUrl, urlPrefix, setUrlPrefix };
+  return { urls, setUrls, urlPrefix, setUrlPrefix };
 }
 
 export function useYouTubeInputs() {
@@ -115,7 +112,6 @@ export function useSourceInputValues({
   return useMemo<SourceInputValues>(() => {
     return {
       urls: websiteInputs.urls,
-      sitemapUrl: websiteInputs.sitemapUrl,
       urlPrefix: websiteInputs.urlPrefix,
       videoUrls: youtubeInputs.videoUrls,
       pdfLocalPaths: pdfInputs.pdfLocalPaths,
@@ -125,7 +121,6 @@ export function useSourceInputValues({
     };
   }, [
     websiteInputs.urls,
-    websiteInputs.sitemapUrl,
     websiteInputs.urlPrefix,
     youtubeInputs.videoUrls,
     pdfInputs.pdfLocalPaths,

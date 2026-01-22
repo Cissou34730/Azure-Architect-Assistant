@@ -28,7 +28,6 @@ async function performSubmission(
   const sourceConfig = buildSourceConfig({
     sourceType: params.sourceType,
     urls: params.urls,
-    sitemapUrl: params.sitemapUrl,
     urlPrefix: params.urlPrefix,
     maxPages: 1000,
     videoUrls: params.videoUrls,
@@ -94,7 +93,6 @@ function buildSubmitParams({
     description,
     sourceType,
     urls: sourceInputs.urls,
-    sitemapUrl: sourceInputs.sitemapUrl,
     urlPrefix: sourceInputs.urlPrefix,
     videoUrls: sourceInputs.videoUrls,
     pdfLocalPaths: sourceInputs.pdfLocalPaths,

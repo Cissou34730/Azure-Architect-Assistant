@@ -10,7 +10,6 @@ export interface ConfigInputs {
   sourceType: SourceType;
   // Website
   urls: string[];
-  sitemapUrl: string;
   urlPrefix: string;
   maxPages: number;
   // YouTube
@@ -24,13 +23,7 @@ export interface ConfigInputs {
 }
 
 function buildWebsiteConfig(inputs: ConfigInputs): WebsiteSourceConfig {
-  const { sitemapUrl, urlPrefix, urls, maxPages } = inputs;
-  if (sitemapUrl !== "") {
-    return {
-      sitemapUrl,
-      urlPrefix: urlPrefix !== "" ? urlPrefix : undefined,
-    };
-  }
+  const { urlPrefix, urls, maxPages } = inputs;
   return {
     startUrl: urls[0]?.trim() ?? "",
     urlPrefix: urlPrefix !== "" ? urlPrefix : undefined,

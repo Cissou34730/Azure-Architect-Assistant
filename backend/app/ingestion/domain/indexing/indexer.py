@@ -17,6 +17,7 @@ from llama_index.core import (
 )
 
 from app.ingestion.domain.embedding.embedder import EmbeddingResult
+from app.core.app_settings import get_kb_storage_root
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +38,9 @@ class Indexer:
         """
         self.kb_id = kb_id
 
-        # Use absolute path to avoid backend/backend/data issue
+        # Single source of truth: respect KNOWLEDGE_BASES_ROOT (resolved relative to backend root).
         if storage_base_dir is None:
-            backend_root = Path(__file__).parent.parent.parent.parent  # Navigate to backend/
-            storage_base_dir = str(backend_root / 'data' / 'knowledge_bases')
+            storage_base_dir = str(get_kb_storage_root())
 
         self.storage_dir = os.path.join(storage_base_dir, kb_id, 'index')
         self._index: VectorStoreIndex | None = None

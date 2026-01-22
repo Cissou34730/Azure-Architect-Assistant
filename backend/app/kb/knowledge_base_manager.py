@@ -144,10 +144,11 @@ class KBManager:
         (kb_dir / "documents").mkdir(exist_ok=True)
 
         # Update paths in config
-        kb_root_for_config = Path(self.kb_root_config_value)
         kb_config["paths"] = {
-            "index": (kb_root_for_config / kb_id / "index").as_posix(),
-            "documents": (kb_root_for_config / kb_id / "documents").as_posix(),
+            # Store paths relative to KNOWLEDGE_BASES_ROOT for portability.
+            # These are resolved to absolute paths via get_kb_storage_root().
+            "index": f"{kb_id}/index",
+            "documents": f"{kb_id}/documents",
         }
 
         # Add to config.json

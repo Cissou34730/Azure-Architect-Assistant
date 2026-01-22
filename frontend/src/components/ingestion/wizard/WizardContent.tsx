@@ -37,8 +37,6 @@ export function WizardContent({ form }: WizardContentProps) {
         sourceType={form.sourceType}
         urls={form.urls}
         setUrls={form.setUrls}
-        sitemapUrl={form.sitemapUrl}
-        setSitemapUrl={form.setSitemapUrl}
         urlPrefix={form.urlPrefix}
         setUrlPrefix={form.setUrlPrefix}
         videoUrls={form.videoUrls}
@@ -61,7 +59,6 @@ export function WizardContent({ form }: WizardContentProps) {
       description={form.description}
       sourceType={form.sourceType}
       urls={form.urls}
-      sitemapUrl={form.sitemapUrl}
       videoUrls={form.videoUrls}
       pdfLocalPaths={form.pdfLocalPaths}
       pdfUrls={form.pdfUrls}

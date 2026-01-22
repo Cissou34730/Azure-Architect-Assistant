@@ -20,7 +20,6 @@ interface ReviewStepProps {
   readonly sourceType: SourceType;
   // Website
   readonly urls?: string[];
-  readonly sitemapUrl?: string;
   // YouTube
   readonly videoUrls?: string[];
   // PDF
@@ -47,20 +46,7 @@ function List({ items }: { readonly items: string[] | undefined }) {
   );
 }
 
-interface WebsiteReviewProps {
-  readonly sitemapUrl?: string;
-  readonly urls?: string[];
-}
-
-function WebsiteReview({ sitemapUrl, urls }: WebsiteReviewProps) {
-  if (sitemapUrl !== undefined && sitemapUrl !== "") {
-    return (
-      <div>
-        <div className="text-sm font-medium text-gray-700">Sitemap URL</div>
-        <div className="text-sm text-gray-900 font-mono truncate">{sitemapUrl}</div>
-      </div>
-    );
-  }
+function WebsiteReview({ urls }: { readonly urls?: string[] }) {
   return (
     <div>
       <div className="text-sm font-medium text-gray-700">URLs</div>
@@ -133,7 +119,7 @@ function SourceConfig({ config }: { readonly config: ReviewStepProps }) {
     case "website":
     case "web_documentation":
     case "web_generic":
-      return <WebsiteReview sitemapUrl={config.sitemapUrl} urls={config.urls} />;
+      return <WebsiteReview urls={config.urls} />;
     case "youtube":
       return <YouTubeReview videoUrls={config.videoUrls} />;
     case "pdf":

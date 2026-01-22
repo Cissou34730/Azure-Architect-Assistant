@@ -174,7 +174,7 @@ At minimum, `ProjectState.state` should include:
 
 Ingestion metrics (SC-004):
 
-- `ingestionStats: { attemptedDocuments: number, parsedDocuments: number, failedDocuments: number, failures: Array<{ documentId?: string, fileName: string, reason: string }> }`
+- `projectDocumentStats: { attemptedDocuments: number, parsedDocuments: number, failedDocuments: number, failures: Array<{ documentId?: string, fileName: string, reason: string }> }`
 
 Iteration events (SC-010):
 

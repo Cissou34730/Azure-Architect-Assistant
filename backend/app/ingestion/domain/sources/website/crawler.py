@@ -53,9 +53,50 @@ class WebsiteCrawler:
         self.timeout = DEFAULT_TIMEOUT
         self.max_retries = MAX_RETRIES
         self.base_domain = ''
+        self.allowed_domains: set[str] = set()
         self.semantic_path = ''
         self._invalid_url_count = 0
         self._rejected_count = 0
+
+    @staticmethod
+    def _canonical_netloc(netloc: str) -> str:
+        netloc = (netloc or '').strip().lower()
+        return netloc[4:] if netloc.startswith('www.') else netloc
+
+    def _is_allowed_netloc(self, netloc: str) -> bool:
+        netloc = (netloc or '').strip().lower()
+        if not netloc:
+            return False
+
+        if netloc in self.allowed_domains:
+            return True
+
+        canonical = self._canonical_netloc(netloc)
+        return any(self._canonical_netloc(d) == canonical for d in self.allowed_domains)
+
+    def _maybe_update_domains_from_redirect(self, original_url: str, final_url: str, doc_id: int) -> None:
+        """Update domain scoping when a start URL redirects.
+
+        Some sources redirect from short links (aka.ms) or from non-www to www.
+        We follow redirects during fetch; this keeps our domain validation aligned.
+        """
+
+        original_netloc = urlparse(original_url).netloc.strip().lower()
+        final_netloc = urlparse(final_url).netloc.strip().lower()
+        if not final_netloc or final_netloc == original_netloc:
+            return
+
+        # If the very first fetched page redirects to another domain, treat the final
+        # domain as canonical for this crawl.
+        if doc_id == 1:
+            self.base_domain = final_netloc
+            self.allowed_domains = {final_netloc, original_netloc} if original_netloc else {final_netloc}
+            logger.info(f"Crawler canonical domain updated via redirect: {original_netloc} → {final_netloc}")
+            return
+
+        # For later redirects, only allow trivial www/non-www normalization.
+        if self._canonical_netloc(final_netloc) == self._canonical_netloc(self.base_domain):
+            self.allowed_domains.add(final_netloc)
 
     def _queue_new_links(
         self, links: list[str], visited: set[str], to_visit: list[str]
@@ -73,11 +114,17 @@ class WebsiteCrawler:
         batch_size: int = DEFAULT_BATCH_SIZE,
     ) -> Generator[list[Document], None, None]:
         """Crawl a website yields batches of documents."""
-        if not url_prefix:
-            url_prefix = start_url.rstrip("/")
+        parsed_start = urlparse(start_url)
+        self.base_domain = parsed_start.netloc.lower()
+        self.allowed_domains = {self.base_domain} if self.base_domain else set()
 
-        self.semantic_path = self._extract_semantic_path(url_prefix)
-        self.base_domain = urlparse(url_prefix).netloc
+        # Only apply semantic path filtering when the caller explicitly provides a prefix.
+        # Defaulting the prefix to the start URL can prevent crawling when the landing page
+        # links to content hosted under a different subtree (common on learn.microsoft.com).
+        if url_prefix:
+            self.semantic_path = self._extract_semantic_path(url_prefix.rstrip("/"))
+        else:
+            self.semantic_path = ''
 
         visited: set[str] = set()
         to_visit: list[str] = [self._normalize_url(start_url)]
@@ -125,6 +172,10 @@ class WebsiteCrawler:
             return None, None, []
 
         actual_url = final_url or url
+
+        if final_url:
+            self._maybe_update_domains_from_redirect(url, final_url, last_id)
+
         doc = self._extract_document(content, actual_url, last_id)
         links = self._extract_links(content, actual_url)
         return doc, final_url, links
@@ -199,15 +250,18 @@ class WebsiteCrawler:
         """Check if URL matches the semantic path and is not a media file."""
         parsed = urlparse(url)
 
-        if parsed.netloc != self.base_domain:
+        if not self._is_allowed_netloc(parsed.netloc):
             return False
 
-        url_semantic_path = self._extract_semantic_path(url)
-        if not url_semantic_path.startswith(self.semantic_path):
-            self._rejected_count += 1
-            if self._rejected_count <= MAX_REJECTED_COUNT:
-                logger.debug(f'Rejected path mismatch: {url}')
-            return False
+        if self.semantic_path:
+            url_semantic_path = self._extract_semantic_path(url)
+            if not url_semantic_path.startswith(self.semantic_path):
+                self._rejected_count += 1
+                if self._rejected_count <= MAX_REJECTED_COUNT:
+                    logger.debug(f'Rejected path mismatch: {url}')
+                return False
+
+        # If no semantic_path is set, fall back to same-domain crawling.
 
         return not url.lower().endswith(EXCLUDED_EXTENSIONS)
 
@@ -248,7 +302,10 @@ class WebsiteCrawler:
     def _extract_links(self, html: str, current_url: str) -> list[str]:
         """Extract all valid links from HTML content."""
         try:
-            soup = BeautifulSoup(html, 'lxml')
+            try:
+                soup = BeautifulSoup(html, 'lxml')
+            except Exception:
+                soup = BeautifulSoup(html, 'html.parser')
             links = []
             for anchor in soup.find_all('a', href=True):
                 href = anchor['href']

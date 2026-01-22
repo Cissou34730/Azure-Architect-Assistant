@@ -46,6 +46,14 @@ class KBConfig:
             if os.path.isabs(cast(str, index_path)):
                 return cast(str, index_path)
 
+            # Backward compatibility: older configs may include the KB root prefix
+            # (e.g. "data/knowledge_bases/<kb_id>/index"). Our resolution logic already
+            # prefixes get_kb_storage_root(), so strip this prefix if present.
+            normalized = cast(str, index_path).replace("\\", "/")
+            legacy_prefix = "data/knowledge_bases/"
+            if normalized.startswith(legacy_prefix):
+                index_path = normalized[len(legacy_prefix) :]
+
             kb_root = get_kb_storage_root()
             return str(kb_root / cast(str, index_path))
         return ""
