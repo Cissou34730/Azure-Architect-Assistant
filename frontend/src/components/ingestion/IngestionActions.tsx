@@ -5,6 +5,7 @@ import {
   resumeIngestion,
   cancelIngestion,
 } from "../../services/ingestionApi";
+import { useErrorHandler } from "../../hooks/useErrorHandler";
 
 interface IngestionActionsProps {
   readonly job: IngestionJob;
@@ -14,50 +15,57 @@ interface IngestionActionsProps {
 export function IngestionActions({ job, onRefresh }: IngestionActionsProps) {
   const isPaused = job.status === "paused";
   const isRunning = job.status === "running" || job.status === "pending";
+  const { handleError, toast } = useErrorHandler();
 
-  const handleAction = async <T,>(
-    action: (id: string) => Promise<T>
-  ): Promise<void> => {
+  const handlePause = async () => {
     try {
-      await action(job.jobId);
+      await pauseIngestion(job.kbId);
+      toast.success("Job paused successfully");
       onRefresh?.();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Action failed";
-      console.error("Ingestion action failed:", message);
+    } catch (error) {
+      handleError(error, { message: "Failed to pause ingestion" });
+    }
+  };
+
+  const handleResume = async () => {
+    try {
+      await resumeIngestion(job.kbId);
+      toast.success("Job resumed successfully");
+      onRefresh?.();
+    } catch (error) {
+      handleError(error, { message: "Failed to resume ingestion" });
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!confirm("Cancel ingestion? This action cannot be undone.")) {
+      return;
+    }
+    try {
+      await cancelIngestion(job.kbId);
+      toast.success("Job cancelled successfully");
+      onRefresh?.();
+    } catch (error) {
+      handleError(error, { message: "Failed to cancel ingestion" });
     }
   };
 
   return (
     <div className="flex justify-end gap-3 pt-6 border-t">
-      <Button
-        variant="danger"
-        size="sm"
-        onClick={() => {
-          if (confirm("Cancel ingestion?")) {
-            void handleAction(cancelIngestion);
-          }
-        }}
-      >
-        Cancel
-      </Button>
-      {isPaused ? (
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => void handleAction(resumeIngestion)}
-        >
+      {isRunning && (
+        <Button variant="warning" size="sm" onClick={handlePause}>
+          Pause
+        </Button>
+      )}
+      {isPaused && (
+        <Button variant="success" size="sm" onClick={handleResume}>
           Resume
         </Button>
-      ) : (
-        isRunning && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => void handleAction(pauseIngestion)}
-          >
-            Pause
-          </Button>
-        )
+      )}
+      {(isRunning || isPaused) && (
+        <Button variant="danger" size="sm" onClick={handleCancel}>
+          Cancel
+        </Button>
       )}
     </div>
   );

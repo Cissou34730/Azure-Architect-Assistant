@@ -28,7 +28,7 @@ export function WebsiteConfig({
           htmlFor="url-prefix"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          URL Prefix Filter (Optional)
+          URL Prefix Filter
         </label>
         <input
           id="url-prefix"
@@ -41,7 +41,7 @@ export function WebsiteConfig({
           placeholder="https://example.com/docs/section/"
         />
         <p className="mt-1 text-xs text-gray-500">
-          Only ingest URLs starting with this prefix. Prevents crawling the entire site.
+          Auto-filled from first URL. Only pages starting with this prefix will be crawled. Edit to restrict scope further.
         </p>
       </div>
     </>

@@ -23,7 +23,7 @@ export type { WizardStep } from "./useKBWizardForm.helpers";
 
 async function performSubmission(
   params: SubmitParams,
-  onSuccess: (kbId: string) => void
+  onSuccess: (kbId: string) => void,
 ) {
   const sourceConfig = buildSourceConfig({
     sourceType: params.sourceType,

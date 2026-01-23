@@ -365,7 +365,7 @@ async def resume_ingestion(
 @router.post("/kb/{kb_id}/cancel")
 async def cancel_ingestion(kb_id: str) -> dict[str, Any]:
     """
-    Cancel ingestion job for a KB and trigger cleanup.
+    Cancel ingestion job for a KB and trigger immediate cleanup.
 
     Args:
         kb_id: Knowledge base identifier
@@ -374,7 +374,7 @@ async def cancel_ingestion(kb_id: str) -> dict[str, Any]:
         Success message
 
     Note:
-        Cleanup (delete vectors, reset state) happens in orchestrator on next gate check.
+        Cleanup (delete vectors, documents, reset state) happens immediately.
     """
     try:
         # Get latest job for this KB
@@ -384,8 +384,32 @@ async def cancel_ingestion(kb_id: str) -> dict[str, Any]:
                 status_code=404, detail=f"No job found for KB '{kb_id}'"
             )
 
+        # Set status to canceled
         repo.set_job_status(job_id, status="canceled")
         logger.info(f"Canceled job {job_id} for KB {kb_id}")
+
+        # Trigger immediate cleanup (don't wait for orchestrator gate check)
+        try:
+            from app.ingestion.domain.indexing.indexer import Indexer
+            from datetime import datetime, timezone
+            
+            indexer = Indexer(kb_id=kb_id)
+            indexer.delete_by_job(job_id, kb_id)
+            logger.info(f"Cleanup completed for job {job_id}")
+            
+            # Reset job state
+            repo.set_job_status(
+                job_id,
+                status='not_started',
+                finished_at=datetime.now(timezone.utc),
+                last_error='Canceled by user',
+            )
+            repo.update_job(job_id, checkpoint=None, counters=None)
+            logger.info(f"Reset job {job_id} to not_started")
+        except Exception as cleanup_error:
+            logger.error(f"Cleanup failed for job {job_id}: {cleanup_error}", exc_info=True)
+            # Don't raise - job is still marked as canceled
+
         return {"status": "canceled", "job_id": job_id, "kb_id": kb_id}
     except Exception as e:
         logger.exception(f"Failed to cancel job for KB {kb_id}: {e}")

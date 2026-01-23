@@ -262,6 +262,9 @@ class IngestionOrchestrator:
             if not continue_pipeline:
                 return
 
+            # Persist index to disk after batch (batched writes for performance)
+            await asyncio.to_thread(components.indexer.persist)
+
             # Persist checkpoint and counters after batch
             checkpoint['last_batch_id'] = batch_id
             self.repo.update_job(job_id, checkpoint=checkpoint, counters=counters)
@@ -271,7 +274,7 @@ class IngestionOrchestrator:
             batch_id += 1
 
         # Pipeline finished successfully
-        await self._mark_job_complete(job_id, phases_started, counters)
+        await self._mark_job_complete(job_id, phases_started, counters, components.indexer)
 
     async def _run_load_phase(self, ctx: PipelineBatchContext, batch: list[Any]) -> None:
         """Execute loading phase for a batch."""
@@ -363,9 +366,17 @@ class IngestionOrchestrator:
         return True
 
     async def _mark_job_complete(
-        self, job_id: str, phases_started: dict[str, bool], counters: dict[str, int]
+        self, job_id: str, phases_started: dict[str, bool], counters: dict[str, int], indexer: Indexer | None = None
     ) -> None:
         """Finishing job and marking all phases complete."""
+        # Final persist to ensure all data is saved
+        if indexer:
+            try:
+                await asyncio.to_thread(indexer.persist)
+                logger.info(f'Final persist completed for job {job_id}')
+            except Exception as e:
+                logger.error(f'Failed to persist index on job completion: {e}')
+
         docs_seen = int(counters.get('docs_seen', 0) or 0)
         chunks_seen = int(counters.get('chunks_seen', 0) or 0)
         chunks_processed = int(counters.get('chunks_processed', 0) or 0)

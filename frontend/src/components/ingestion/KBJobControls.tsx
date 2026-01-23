@@ -64,7 +64,7 @@ export function KBJobControls({
   return (
     <div className="flex gap-2">
       {isRunning && (
-        <Button variant="ghost" size="sm" onClick={handlePause}>
+        <Button variant="warning" size="sm" onClick={handlePause}>
           Pause
         </Button>
       )}

@@ -44,7 +44,7 @@ function buildPDFConfig(inputs: ConfigInputs): PDFSourceConfig {
 }
 
 export function buildSourceConfig(
-  inputs: ConfigInputs
+  inputs: ConfigInputs,
 ):
   | WebsiteSourceConfig
   | YoutubeSourceConfig

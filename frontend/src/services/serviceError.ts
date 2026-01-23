@@ -7,7 +7,7 @@ export class ServiceError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
-    public readonly detail?: string
+    public readonly detail?: string,
   ) {
     super(message);
     this.name = "ServiceError";
@@ -19,10 +19,9 @@ import { isRecord } from "../utils/typeGuards";
 
 // ... (ServiceError class)
 
- 
 function getErrorMessageFromData(
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
-  rawData: Record<string, unknown>
+  rawData: Record<string, unknown>,
 ): string | null {
   if (typeof rawData.error === "string" && rawData.error !== "") {
     return rawData.error;
@@ -35,10 +34,9 @@ function getErrorMessageFromData(
   return null;
 }
 
- 
 function getErrorDetailFromData(
   // eslint-disable-next-line @typescript-eslint/no-restricted-types
-  rawData: Record<string, unknown>
+  rawData: Record<string, unknown>,
 ): string | null {
   if (typeof rawData.detail === "string" && rawData.detail !== "") {
     return rawData.detail;
@@ -75,7 +73,7 @@ function getErrorDetailFromData(
  */
 export async function handleResponseError(
   response: Response,
-  operation: string
+  operation: string,
 ): Promise<never> {
   let errorMessage = `Failed to ${operation}`;
   let detail: string | undefined;
@@ -108,7 +106,7 @@ export async function handleResponseError(
 export async function fetchWithErrorHandling<T>(
   url: string,
   options: RequestInit = {},
-  operation = "fetch"
+  operation = "fetch",
 ): Promise<T> {
   try {
     const response = await fetch(url, options);
@@ -133,7 +131,7 @@ export async function fetchWithErrorHandling<T>(
     throw new ServiceError(
       `Network error during ${operation}: ${errorMsg}`,
       undefined,
-      errorMsg
+      errorMsg,
     );
   }
 }

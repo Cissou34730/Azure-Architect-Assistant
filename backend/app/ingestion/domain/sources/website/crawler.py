@@ -102,9 +102,20 @@ class WebsiteCrawler:
         self, links: list[str], visited: set[str], to_visit: list[str]
     ) -> None:
         """Add new, non-visited, non-queued links to the visit queue."""
+        added = 0
+        skipped_visited = 0
+        skipped_queued = 0
         for link in links:
-            if link not in visited and link not in to_visit:
+            if link in visited:
+                skipped_visited += 1
+            elif link in to_visit:
+                skipped_queued += 1
+            else:
                 to_visit.append(link)
+                added += 1
+        
+        if links:
+            logger.info(f"Links found: {len(links)}, added: {added}, skipped (visited: {skipped_visited}, queued: {skipped_queued})")
 
     def crawl(
         self,
@@ -118,13 +129,19 @@ class WebsiteCrawler:
         self.base_domain = parsed_start.netloc.lower()
         self.allowed_domains = {self.base_domain} if self.base_domain else set()
 
-        # Only apply semantic path filtering when the caller explicitly provides a prefix.
-        # Defaulting the prefix to the start URL can prevent crawling when the landing page
-        # links to content hosted under a different subtree (common on learn.microsoft.com).
+        # CRITICAL: Always set semantic path filter to prevent unrestricted domain-wide crawling.
+        # If url_prefix is not provided, derive it from start_url path to ensure crawler
+        # stays within the intended section (e.g., /azure/architecture/framework).
         if url_prefix:
             self.semantic_path = self._extract_semantic_path(url_prefix.rstrip("/"))
+            logger.info(f"Crawler path filter (explicit): {self.semantic_path}")
         else:
-            self.semantic_path = ''
+            # Derive semantic path from start_url to prevent crawling entire domain
+            self.semantic_path = self._extract_semantic_path(start_url.rstrip("/"))
+            logger.warning(
+                f"No url_prefix provided. Auto-derived path filter from start_url: {self.semantic_path}. "
+                "This prevents unrestricted domain-wide crawling."
+            )
 
         visited: set[str] = set()
         to_visit: list[str] = [self._normalize_url(start_url)]
@@ -132,7 +149,7 @@ class WebsiteCrawler:
         last_id = 0
         failed_count = 0
 
-        logger.info(f"Crawler start: {start_url} (limit={max_pages})")
+        logger.info(f"Crawler start: {start_url} (limit={max_pages}, path_filter={self.semantic_path})")
 
         while to_visit and len(visited) < max_pages:
             url = self._get_next_valid_url(to_visit, visited)
@@ -251,19 +268,26 @@ class WebsiteCrawler:
         parsed = urlparse(url)
 
         if not self._is_allowed_netloc(parsed.netloc):
+            logger.debug(f'Rejected URL (netloc): {url}')
             return False
 
+        # Enforce semantic path filtering (now always set)
         if self.semantic_path:
             url_semantic_path = self._extract_semantic_path(url)
             if not url_semantic_path.startswith(self.semantic_path):
                 self._rejected_count += 1
                 if self._rejected_count <= MAX_REJECTED_COUNT:
-                    logger.debug(f'Rejected path mismatch: {url}')
+                    logger.info(
+                        f'Rejected URL (path mismatch): {url} '
+                        f'(expected prefix: {self.semantic_path}, got: {url_semantic_path})'
+                    )
                 return False
 
-        # If no semantic_path is set, fall back to same-domain crawling.
-
-        return not url.lower().endswith(EXCLUDED_EXTENSIONS)
+        if url.lower().endswith(EXCLUDED_EXTENSIONS):
+            logger.debug(f'Rejected URL (excluded extension): {url}')
+            return False
+            
+        return True
 
     def _fetch_html_with_redirect(self, url: str) -> tuple[str | None, str | None]:
         """Fetch HTML content with retries and redirect following."""

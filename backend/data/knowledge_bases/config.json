@@ -3,11 +3,12 @@
     {
       "id": "waf",
       "name": "Azure Well-Architected Framework (WAF)",
-      "description": "Principles of reliability, security, cost optimization, operational excellence, and performance efficiency",
+      "description": "rinciples of reliability, security, cost optimization, operational excellence, and performance efficiency",
       "status": "active",
       "source_type": "website",
       "source_config": {
-        "start_url": "https://learn.microsoft.com/azure/architecture/framework",
+        "start_url": "https://learn.microsoft.com/en-us/azure/well-architected/",
+        "url_prefix": "https://learn.microsoft.com/en-us/azure/well-architected/",
         "max_pages": 1000
       },
       "embedding_model": "text-embedding-3-small",

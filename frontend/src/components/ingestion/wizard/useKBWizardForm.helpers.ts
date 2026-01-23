@@ -35,7 +35,34 @@ export interface SourceInputValues {
 export function useWebsiteInputs() {
   const [urls, setUrls] = useState<string[]>([""]);
   const [urlPrefix, setUrlPrefix] = useState("");
-  return { urls, setUrls, urlPrefix, setUrlPrefix };
+  const userModifiedPrefixRef = useRef(false);
+
+  // Auto-derive urlPrefix from first URL when it's set
+  const handleUrlsChange = useCallback((newUrls: string[]) => {
+    setUrls(newUrls);
+
+    // Only auto-set prefix if user hasn't manually modified it
+    if (!userModifiedPrefixRef.current && newUrls.length > 0) {
+      const firstUrl = newUrls[0]?.trim();
+      if (firstUrl && firstUrl.startsWith("http")) {
+        // Auto-derive prefix from first URL (same as start_url)
+        setUrlPrefix(firstUrl);
+      }
+    }
+  }, []);
+
+  const handleUrlPrefixChange = useCallback((newPrefix: string) => {
+    // Mark that user has manually modified the prefix
+    userModifiedPrefixRef.current = true;
+    setUrlPrefix(newPrefix);
+  }, []);
+
+  return {
+    urls,
+    setUrls: handleUrlsChange,
+    urlPrefix,
+    setUrlPrefix: handleUrlPrefixChange,
+  };
 }
 
 export function useYouTubeInputs() {
@@ -153,12 +180,12 @@ export function useValidationPayload({
       sourceType,
       ...sourceInputValues,
     }),
-    [step, kbId, name, sourceType, sourceInputValues]
+    [step, kbId, name, sourceType, sourceInputValues],
   );
 }
 
 export function useWizardValidation(
-  payload: ReturnType<typeof useValidationPayload>
+  payload: ReturnType<typeof useValidationPayload>,
 ) {
   return useCallback(() => validateStep(payload), [payload]);
 }

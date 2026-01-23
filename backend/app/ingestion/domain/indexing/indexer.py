@@ -43,10 +43,38 @@ class Indexer:
             storage_base_dir = str(get_kb_storage_root())
 
         self.storage_dir = os.path.join(storage_base_dir, kb_id, 'index')
+        self.checkpoint_file = os.path.join(storage_base_dir, kb_id, 'checkpoint.json')
         self._index: VectorStoreIndex | None = None
         self._indexed_hashes: set[str] = set()  # In-memory cache of indexed content_hashes
+        self._pending_persist = False  # Track if index has unpersisted changes
 
-        logger.info(f'Indexer initialized: kb_id={kb_id}, storage={self.storage_dir}')
+        # Load checkpoint for crash recovery
+        self._load_checkpoint()
+
+        logger.info(f'Indexer initialized: kb_id={kb_id}, storage={self.storage_dir}, checkpoint_hashes={len(self._indexed_hashes)}')
+
+    def _load_checkpoint(self) -> None:
+        """Load checkpoint file to recover processed content hashes after crash."""
+        if os.path.exists(self.checkpoint_file):
+            try:
+                import json
+                with open(self.checkpoint_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self._indexed_hashes = set(data.get('indexed_hashes', []))
+                    logger.info(f'Loaded checkpoint with {len(self._indexed_hashes)} processed hashes')
+            except Exception as e:
+                logger.warning(f'Failed to load checkpoint file: {e}')
+                self._indexed_hashes = set()
+
+    def _save_checkpoint(self) -> None:
+        """Save checkpoint file immediately after indexing (lightweight operation)."""
+        try:
+            import json
+            os.makedirs(os.path.dirname(self.checkpoint_file), exist_ok=True)
+            with open(self.checkpoint_file, 'w', encoding='utf-8') as f:
+                json.dump({'indexed_hashes': list(self._indexed_hashes)}, f)
+        except Exception as e:
+            logger.error(f'Failed to save checkpoint: {e}')
 
     def _load_index(self) -> VectorStoreIndex | None:
         """Load existing index from storage if available."""
@@ -135,18 +163,31 @@ class Indexer:
             os.makedirs(self.storage_dir, exist_ok=True)
             index = VectorStoreIndex([doc])
             self._index = index
-            logger.info(f'Created new index for KB {kb_id}')
+            # Persist immediately on first chunk to create valid index files
+            # This prevents repeated index recreation on subsequent chunks
+            index.storage_context.persist(persist_dir=self.storage_dir)
+            logger.info(f'Created new index for KB {kb_id} and persisted initial state')
         else:
             # Insert into existing index
             index.insert(doc)
 
-        # Update cache
+        # Update cache and checkpoint (lightweight write for crash recovery)
         self._indexed_hashes.add(embedding_result.content_hash)
-
-        # Persist immediately (atomic write)
-        index.storage_context.persist(persist_dir=self.storage_dir)
+        self._pending_persist = True
+        self._save_checkpoint()
 
         logger.debug(f'Indexed chunk {embedding_result.content_hash[:8]}')
+
+    def persist(self) -> None:
+        """Persist index to disk (call after batch processing to avoid per-chunk overhead)."""
+        if self._index and self._pending_persist:
+            try:
+                self._index.storage_context.persist(persist_dir=self.storage_dir)
+                self._pending_persist = False
+                logger.info(f'Persisted index with {len(self._indexed_hashes)} total chunks')
+            except Exception as e:
+                logger.error(f'Failed to persist index: {e}')
+                raise
 
     def delete_by_job(self, job_id: str, kb_id: str) -> None:
         """
@@ -157,13 +198,17 @@ class Indexer:
             kb_id: Knowledge base identifier (must match instance kb_id)
 
         Note:
-            This is a destructive operation that removes the entire index directory.
-            For fine-grained deletion, we would need per-document job_id tracking,
-            which is deferred for simplicity.
+            This is a destructive operation that removes the entire index directory
+            and all stored documents. KB config is preserved (stored separately).
         """
         if kb_id != self.kb_id:
             raise ValueError(f'KB ID mismatch: expected {self.kb_id}, got {kb_id}')
 
+        logger.info(f'DELETE_BY_JOB called for KB {kb_id}, job {job_id}')
+        logger.info(f'  storage_dir: {self.storage_dir}')
+        logger.info(f'  checkpoint_file: {self.checkpoint_file}')
+
+        # Delete index directory
         if os.path.exists(self.storage_dir):
             try:
                 shutil.rmtree(self.storage_dir)
@@ -174,6 +219,29 @@ class Indexer:
         else:
             logger.warning(f'Index directory does not exist, nothing to delete: {self.storage_dir}')
 
+        # Delete documents directory
+        kb_base = os.path.dirname(self.storage_dir)  # Go up from {kb_id}/index to {kb_id}
+        documents_dir = os.path.join(kb_base, 'documents')
+        if os.path.exists(documents_dir):
+            try:
+                shutil.rmtree(documents_dir)
+                logger.info(f'Deleted documents directory for KB {kb_id}: {documents_dir}')
+            except Exception as e:
+                logger.error(f'Failed to delete documents directory {documents_dir}: {e}')
+                raise
+        else:
+            logger.warning(f'Documents directory does not exist, nothing to delete: {documents_dir}')
+
+        # Delete checkpoint file
+        if os.path.exists(self.checkpoint_file):
+            try:
+                os.remove(self.checkpoint_file)
+                logger.info(f'Deleted checkpoint file: {self.checkpoint_file}')
+            except Exception as e:
+                logger.warning(f'Failed to delete checkpoint file: {e}')
+
         # Clear in-memory state
         self._index = None
         self._indexed_hashes.clear()
+        self._pending_persist = False
+        logger.info(f'Cleared in-memory state for KB {kb_id}')
