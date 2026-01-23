@@ -1,0 +1,12 @@
+{"role": "user", "turnId": "us2-adr", "content": "Propose 2-3 architecture candidates and pick one. Create an ADR for the choice with context, decision, and consequences."}
+{"role": "assistant", "turnId": "us2-adr", "success": true, "error": null, "answerHash": "3ad389d1bb55a69c"}
+{"role": "user", "turnId": "us3-iterate", "content": "Generate the key architecture diagrams (at least C4 L2 container) and list key design tradeoffs."}
+{"role": "assistant", "turnId": "us3-iterate", "success": true, "error": null, "answerHash": "6145a703a7576db0"}
+{"role": "user", "turnId": "us4-validate", "content": "Run a validation pass using Azure Well-Architected Framework (WAF) guidance. You MUST consult the WAF knowledge base (kb_search/kb_search_agent) as needed, then you MUST persist at least 1 WAF checklist evaluation via the aaa_record_validation_results tool.\n\nTool payload requirements:\n- Call aaa_record_validation_results with payload.wafEvaluations containing at least 1 item.\n- findings may be empty (do not include findings unless you can add proper sourceCitations).\n\nExample payload shape:\n{\n  \"wafEvaluations\": [\n    {\n      \"itemId\": \"waf-security-1\",\n      \"pillar\": \"Security\",\n      \"topic\": \"Identity and access management\",\n      \"status\": \"partial\",\n      \"evidence\": \"...\"\n    }\n  ]\n}\n\nAfter persisting, summarize risks, missing decisions, and mitigations."}
+{"role": "assistant", "turnId": "us4-validate", "success": true, "error": null, "answerHash": "1bb6a61d82d0985f"}
+{"role": "user", "turnId": "us5-iac-cost", "content": "Generate IaC and provide a cost estimate with explicit assumptions."}
+{"role": "assistant", "turnId": "us5-iac-cost", "success": true, "error": null, "answerHash": "b2eb76e8f62eb52a"}
+{"role": "user", "turnId": "us6-traceability", "content": "Export traceability coverage and summarize mind map coverage gaps."}
+{"role": "assistant", "turnId": "us6-traceability", "success": true, "error": null, "answerHash": "21bd161bf7cc7f6d"}
+{"role": "user", "turnId": "us7-human-edit", "content": "I made a human edit to the ADR decision text. Reconcile without overwriting; surface conflicts if any."}
+{"role": "assistant", "turnId": "us7-human-edit", "success": true, "error": null, "answerHash": "40801a273f62e9a8"}

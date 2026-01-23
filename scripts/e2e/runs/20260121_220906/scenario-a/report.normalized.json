@@ -1,0 +1,111 @@
+{
+  "us1": {
+    "missingRequiredKeys": [
+      "ambiguities",
+      "adrs",
+      "architecture",
+      "findings",
+      "traceabilityLinks",
+      "mindMapCoverage"
+    ]
+  },
+  "final": {
+    "missingRequiredKeys": [
+      "ambiguities",
+      "architecture",
+      "traceabilityLinks",
+      "mindMapCoverage"
+    ],
+    "stateSummary": {
+      "keys": [
+        "adrs",
+        "applicationStructure",
+        "assumptions",
+        "candidate_architectures",
+        "clarification_questions",
+        "context",
+        "cost_estimates",
+        "dataCompliance",
+        "diagrams",
+        "findings",
+        "iac_artifacts",
+        "ingestion_stats",
+        "iteration_events",
+        "lastUpdated",
+        "mcp_queries",
+        "mind_map",
+        "mind_map_coverage",
+        "nfrs",
+        "openQuestions",
+        "projectId",
+        "reference_documents",
+        "requirements",
+        "technicalConstraints",
+        "traceability_issues",
+        "traceability_links",
+        "waf_checklist"
+      ],
+      "counts": {
+        "requirements": 4,
+        "adrs": 0,
+        "diagrams": 1,
+        "findings": 0
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "us2-adr",
+      "request": "Propose 2-3 architecture candidates and pick one. Create an ADR for the choice with context, decision, and consequences.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0
+    },
+    {
+      "id": "us3-iterate",
+      "request": "Generate the key architecture diagrams (at least C4 L2 container) and list key design tradeoffs.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0
+    },
+    {
+      "id": "us4-validate",
+      "request": "Run a validation pass. Identify risks, missing decisions, and propose mitigations.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0
+    },
+    {
+      "id": "us5-iac-cost",
+      "request": "Generate IaC and provide a cost estimate with explicit assumptions.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0
+    },
+    {
+      "id": "us6-traceability",
+      "request": "Export traceability coverage and summarize mind map coverage gaps.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0
+    },
+    {
+      "id": "us7-human-edit",
+      "request": "I made a human edit to the ADR decision text. Reconcile without overwriting; surface conflicts if any.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0
+    }
+  ],
+  "mode": "in-process",
+  "scenario": {
+    "id": "scenario-a",
+    "name": "Scenario A - Learning Platform"
+  }
+}

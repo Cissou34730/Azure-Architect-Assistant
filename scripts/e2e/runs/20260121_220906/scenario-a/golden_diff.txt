@@ -1,0 +1,118 @@
+EXPECTED
+{
+  "note": "Run `uv run python scripts/e2e/run_aaa_e2e.py --in-process --scenario scenario-a --update-goldens` to initialize.",
+  "placeholder": true
+}
+
+ACTUAL
+{
+  "final": {
+    "missingRequiredKeys": [
+      "ambiguities",
+      "architecture",
+      "traceabilityLinks",
+      "mindMapCoverage"
+    ],
+    "stateSummary": {
+      "counts": {
+        "adrs": 0,
+        "diagrams": 1,
+        "findings": 0,
+        "requirements": 4
+      },
+      "keys": [
+        "adrs",
+        "applicationStructure",
+        "assumptions",
+        "candidate_architectures",
+        "clarification_questions",
+        "context",
+        "cost_estimates",
+        "dataCompliance",
+        "diagrams",
+        "findings",
+        "iac_artifacts",
+        "ingestion_stats",
+        "iteration_events",
+        "lastUpdated",
+        "mcp_queries",
+        "mind_map",
+        "mind_map_coverage",
+        "nfrs",
+        "openQuestions",
+        "projectId",
+        "reference_documents",
+        "requirements",
+        "technicalConstraints",
+        "traceability_issues",
+        "traceability_links",
+        "waf_checklist"
+      ]
+    }
+  },
+  "mode": "in-process",
+  "scenario": {
+    "id": "scenario-a",
+    "name": "Scenario A - Learning Platform"
+  },
+  "steps": [
+    {
+      "error": null,
+      "id": "us2-adr",
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "Propose 2-3 architecture candidates and pick one. Create an ADR for the choice with context, decision, and consequences.",
+      "success": true
+    },
+    {
+      "error": null,
+      "id": "us3-iterate",
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "Generate the key architecture diagrams (at least C4 L2 container) and list key design tradeoffs.",
+      "success": true
+    },
+    {
+      "error": null,
+      "id": "us4-validate",
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "Run a validation pass. Identify risks, missing decisions, and propose mitigations.",
+      "success": true
+    },
+    {
+      "error": null,
+      "id": "us5-iac-cost",
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "Generate IaC and provide a cost estimate with explicit assumptions.",
+      "success": true
+    },
+    {
+      "error": null,
+      "id": "us6-traceability",
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "Export traceability coverage and summarize mind map coverage gaps.",
+      "success": true
+    },
+    {
+      "error": null,
+      "id": "us7-human-edit",
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "I made a human edit to the ADR decision text. Reconcile without overwriting; surface conflicts if any.",
+      "success": true
+    }
+  ],
+  "us1": {
+    "missingRequiredKeys": [
+      "ambiguities",
+      "adrs",
+      "architecture",
+      "findings",
+      "traceabilityLinks",
+      "mindMapCoverage"
+    ]
+  }
+}

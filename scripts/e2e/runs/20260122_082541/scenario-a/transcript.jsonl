@@ -1,0 +1,12 @@
+{"role": "user", "turnId": "us2-adr", "content": "Propose 2-3 architecture candidates and pick one. Create an ADR for the choice with context, decision, and consequences."}
+{"role": "assistant", "turnId": "us2-adr", "success": true, "error": null, "answerHash": "2ac6f0feb8b87e14"}
+{"role": "user", "turnId": "us3-iterate", "content": "Generate the key architecture diagrams (at least C4 L2 container) and list key design tradeoffs."}
+{"role": "assistant", "turnId": "us3-iterate", "success": true, "error": null, "answerHash": "4881583ed68eef38"}
+{"role": "user", "turnId": "us4-validate", "content": "Run a validation pass. Identify risks, missing decisions, and propose mitigations."}
+{"role": "assistant", "turnId": "us4-validate", "success": true, "error": null, "answerHash": "770483a0931aedef"}
+{"role": "user", "turnId": "us5-iac-cost", "content": "Generate IaC and provide a cost estimate with explicit assumptions."}
+{"role": "assistant", "turnId": "us5-iac-cost", "success": true, "error": null, "answerHash": "2b5713dd73e3cb14"}
+{"role": "user", "turnId": "us6-traceability", "content": "Export traceability coverage and summarize mind map coverage gaps."}
+{"role": "assistant", "turnId": "us6-traceability", "success": true, "error": null, "answerHash": "fccb37bd6ab4ddc5"}
+{"role": "user", "turnId": "us7-human-edit", "content": "I made a human edit to the ADR decision text. Reconcile without overwriting; surface conflicts if any."}
+{"role": "assistant", "turnId": "us7-human-edit", "success": true, "error": null, "answerHash": "ed5362a13da2b057"}

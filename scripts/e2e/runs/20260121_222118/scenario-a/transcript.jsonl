@@ -1,0 +1,4 @@
+{"role": "user", "turnId": "us2-adr", "content": "Propose 2-3 architecture candidates and pick one. Create an ADR for the choice with context, decision, and consequences."}
+{"role": "assistant", "turnId": "us2-adr", "success": true, "error": null, "answerHash": "357cddec87c99f8b"}
+{"role": "user", "turnId": "us3-iterate", "content": "Generate the key architecture diagrams (at least C4 L2 container) and list key design tradeoffs."}
+{"role": "assistant", "turnId": "us3-iterate", "success": true, "error": null, "answerHash": "09cbf0f1ebb9d7c6"}

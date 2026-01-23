@@ -1,0 +1,132 @@
+EXPECTED
+{
+  "note": "Run `uv run python scripts/e2e/run_aaa_e2e.py --in-process --scenario scenario-a --update-goldens` to initialize.",
+  "placeholder": true
+}
+
+ACTUAL
+{
+  "final": {
+    "missingRequiredKeys": [
+      "ambiguities",
+      "architecture"
+    ],
+    "stateSummary": {
+      "counts": {
+        "adrs": 0,
+        "diagrams": 1,
+        "findings": 0,
+        "requirements": 4,
+        "traceabilityIssues": 0,
+        "traceabilityLinks": 0
+      },
+      "keys": [
+        "adrs",
+        "applicationStructure",
+        "assumptions",
+        "candidateArchitectures",
+        "clarificationQuestions",
+        "context",
+        "costEstimates",
+        "dataCompliance",
+        "diagrams",
+        "findings",
+        "iacArtifacts",
+        "ingestionStats",
+        "iterationEvents",
+        "lastUpdated",
+        "mcpQueries",
+        "mindMap",
+        "mindMapCoverage",
+        "nfrs",
+        "openQuestions",
+        "projectId",
+        "referenceDocuments",
+        "requirements",
+        "technicalConstraints",
+        "traceabilityIssues",
+        "traceabilityLinks",
+        "wafChecklist"
+      ],
+      "mindMapCoverage": {
+        "statusCounts": {
+          "addressed": 2,
+          "not-addressed": 6,
+          "partial": 5
+        },
+        "topicCount": 13
+      }
+    }
+  },
+  "mode": "in-process",
+  "scenario": {
+    "id": "scenario-a",
+    "name": "Scenario A - Learning Platform"
+  },
+  "steps": [
+    {
+      "error": null,
+      "id": "us2-adr",
+      "kbCallCount": 1,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "Propose 2-3 architecture candidates and pick one. Create an ADR for the choice with context, decision, and consequences.",
+      "success": true
+    },
+    {
+      "error": null,
+      "id": "us3-iterate",
+      "kbCallCount": 2,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "Generate the key architecture diagrams (at least C4 L2 container) and list key design tradeoffs.",
+      "success": true
+    },
+    {
+      "error": null,
+      "id": "us4-validate",
+      "kbCallCount": 2,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "Run a validation pass using Azure Well-Architected Framework (WAF) guidance. You MUST consult the WAF knowledge base (kb_search/kb_search_agent) as needed, then you MUST persist at least 1 WAF checklist evaluation via the aaa_record_validation_results tool.\n\nTool payload requirements:\n- Call aaa_record_validation_results with payload.wafEvaluations containing at least 1 item.\n- findings may be empty (do not include findings unless you can add proper sourceCitations).\n\nExample payload shape:\n{\n  \"wafEvaluations\": [\n    {\n      \"itemId\": \"waf-security-1\",\n      \"pillar\": \"Security\",\n      \"topic\": \"Identity and access management\",\n      \"status\": \"partial\",\n      \"evidence\": \"...\"\n    }\n  ]\n}\n\nAfter persisting, summarize risks, missing decisions, and mitigations.",
+      "success": true
+    },
+    {
+      "error": null,
+      "id": "us5-iac-cost",
+      "kbCallCount": 0,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "Generate IaC and provide a cost estimate with explicit assumptions.",
+      "success": true
+    },
+    {
+      "error": null,
+      "id": "us6-traceability",
+      "kbCallCount": 1,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "Export traceability coverage and summarize mind map coverage gaps.",
+      "success": true
+    },
+    {
+      "error": null,
+      "id": "us7-human-edit",
+      "kbCallCount": 0,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "request": "I made a human edit to the ADR decision text. Reconcile without overwriting; surface conflicts if any.",
+      "success": true
+    }
+  ],
+  "us1": {
+    "missingRequiredKeys": [
+      "ambiguities",
+      "adrs",
+      "architecture",
+      "findings",
+      "traceabilityLinks",
+      "mindMapCoverage"
+    ]
+  }
+}
