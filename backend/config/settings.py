@@ -98,11 +98,33 @@ class KBDefaults(BaseModel):
         return merged
 
 
+class QuerySettings(BaseModel):
+    """Configuration for KB query and retrieval."""
+
+    similarity_threshold: float = Field(
+        default=0.38,
+        description="Minimum similarity score for retrieved results (0.0-1.0). Lower values increase recall.",
+    )
+    min_results: int = Field(
+        default=3,
+        description="Minimum number of results to return if any are available, even if below threshold.",
+    )
+    initial_retrieve_multiplier: int = Field(
+        default=2,
+        description="Multiply top_k by this factor for initial retrieval before filtering.",
+    )
+    min_initial_retrieve: int = Field(
+        default=10,
+        description="Minimum number of results to retrieve initially, regardless of top_k.",
+    )
+
+
 class SettingsContainer:
     """Container for global settings singletons."""
     settings: IngestionSettings | None = None
     kb_defaults: KBDefaults | None = None
     openai_settings: OpenAISettings | None = None
+    query_settings: QuerySettings | None = None
     kb_storage_root: Path | None = None
     kb_storage_root_raw: str | None = None
 
@@ -126,6 +148,13 @@ def get_openai_settings() -> OpenAISettings:
     if SettingsContainer.openai_settings is None:
         SettingsContainer.openai_settings = OpenAISettings()
     return SettingsContainer.openai_settings
+
+
+def get_query_settings() -> QuerySettings:
+    """Get query settings instance (with defaults)."""
+    if SettingsContainer.query_settings is None:
+        SettingsContainer.query_settings = QuerySettings()
+    return SettingsContainer.query_settings
 
 
 def set_settings(settings: IngestionSettings) -> None:

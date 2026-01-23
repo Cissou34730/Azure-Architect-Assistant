@@ -11,6 +11,7 @@ from llama_index.core import Settings
 from app.kb import KBManager
 from app.kb.models import KBConfig
 from app.kb.service import KnowledgeBaseService
+from config.settings import get_query_settings
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,22 @@ class QueryProfile(str, Enum):
 class KBQueryService:
     """Per-KB query execution using the index managed by KnowledgeBaseService."""
 
-    def __init__(self, kb_config: KBConfig, similarity_threshold: float = 0.5):
+    def __init__(
+        self,
+        kb_config: KBConfig,
+        similarity_threshold: float | None = None,
+        min_results: int | None = None,
+    ):
         self.kb_config = kb_config
         self.kb_id = kb_config.id
         self.kb_name = kb_config.name
-        self.similarity_threshold = similarity_threshold
+        
+        # Load query settings from config
+        query_settings = get_query_settings()
+        self.similarity_threshold = similarity_threshold if similarity_threshold is not None else query_settings.similarity_threshold
+        self.min_results = min_results if min_results is not None else query_settings.min_results
+        self.initial_retrieve_multiplier = query_settings.initial_retrieve_multiplier
+        self.min_initial_retrieve = query_settings.min_initial_retrieve
 
     def query(
         self, question: str, top_k: int = 5, metadata_filters: dict | None = None
@@ -35,7 +47,12 @@ class KBQueryService:
         logger.info("[%s] Processing query: %s...", self.kb_id, question[:100])
 
         index = KnowledgeBaseService(self.kb_config).get_index()
-        retriever = index.as_retriever(similarity_top_k=top_k)
+        # Retrieve more candidates initially to ensure we have enough after filtering
+        initial_retrieve_count = max(
+            top_k * self.initial_retrieve_multiplier,
+            self.min_initial_retrieve
+        )
+        retriever = index.as_retriever(similarity_top_k=initial_retrieve_count)
 
         if metadata_filters:
             from llama_index.core.vector_stores import (  # noqa: PLC0415
@@ -48,15 +65,31 @@ class KBQueryService:
                     MetadataFilter(key=k, value=v) for k, v in metadata_filters.items()
                 ]
             )
-            retriever = index.as_retriever(similarity_top_k=top_k, filters=filters)
+            retriever = index.as_retriever(similarity_top_k=initial_retrieve_count, filters=filters)
 
         retrieved_nodes = retriever.retrieve(question)
         logger.info("[%s] Retrieved %d nodes", self.kb_id, len(retrieved_nodes))
 
-        filtered = [n for n in retrieved_nodes if n.score >= self.similarity_threshold][
-            :top_k
-        ]
-        logger.info("[%s] After filtering: %d nodes", self.kb_id, len(filtered))
+        # Log top scores for debugging
+        if retrieved_nodes:
+            top_scores = ", ".join([f"{n.score:.3f}" for n in retrieved_nodes[:5]])
+            logger.info("[%s] Top 5 scores: [%s] (threshold: %.3f)", self.kb_id, top_scores, self.similarity_threshold)
+
+        # Filter by threshold
+        filtered = [n for n in retrieved_nodes if n.score >= self.similarity_threshold]
+        
+        # Apply minimum results policy: if we got some results but filtered all out,
+        # return top min_results anyway (sorted by score)
+        if not filtered and retrieved_nodes:
+            logger.warning(
+                "[%s] All %d nodes filtered out by threshold %.3f. Applying min_results policy (%d).",
+                self.kb_id, len(retrieved_nodes), self.similarity_threshold, self.min_results
+            )
+            filtered = retrieved_nodes[:self.min_results]
+        
+        # Limit to requested top_k
+        filtered = filtered[:top_k]
+        logger.info("[%s] After filtering: %d nodes (returned)", self.kb_id, len(filtered))
 
         if not filtered:
             return {
