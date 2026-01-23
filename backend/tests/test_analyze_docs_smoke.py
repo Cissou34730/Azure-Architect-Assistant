@@ -50,8 +50,20 @@ async def test_analyze_docs_persists_ingestion_stats_and_requirements(monkeypatc
         project = Project(id="p-1", name="Test Project")
         session.add(project)
         session.add_all([
-            ProjectDocument(id="d-1", project_id=project.id, file_name="a.txt", raw_text="hello"),
-            ProjectDocument(id="d-2", project_id=project.id, file_name="empty.txt", raw_text=""),
+            ProjectDocument(
+                id="d-1",
+                project_id=project.id,
+                file_name="a.txt",
+                mime_type="text/plain",
+                raw_text="hello",
+            ),
+            ProjectDocument(
+                id="d-2",
+                project_id=project.id,
+                file_name="empty.txt",
+                mime_type="text/plain",
+                raw_text="",
+            ),
         ])
         await session.commit()
 

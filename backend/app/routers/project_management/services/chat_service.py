@@ -7,6 +7,7 @@ from typing import Any, cast
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents_system.services.project_context import read_project_state
 from app.models import ConversationMessage, Project, ProjectState
 from app.service_registry import get_multi_query_service
 from app.services.kb import QueryProfile
@@ -141,23 +142,12 @@ class ChatService:
     async def get_project_state(
         self, project_id: str, db: AsyncSession
     ) -> dict[str, Any]:
-        result = await db.execute(select(Project).where(Project.id == project_id))
-        project = result.scalar_one_or_none()
-        if not project:
-            raise ValueError("Project not found")
-
-        result = await db.execute(
-            select(ProjectState).where(ProjectState.project_id == project_id)
-        )
-        state_record = result.scalar_one_or_none()
-        if not state_record:
+        # Delegate to the AAA-aware state reader to ensure stable defaults and
+        # casing (camelCase aliases) across the app.
+        state = await read_project_state(project_id, db)
+        if not state:
             raise ValueError("Project state not found. Please analyze documents first.")
-
-        state_data = json.loads(state_record.state)
-        state_data["projectId"] = project_id
-        state_data["lastUpdated"] = state_record.updated_at
-
-        return cast(dict[str, Any], state_data)
+        return cast(dict[str, Any], state)
 
     async def get_conversation_messages(
         self, project_id: str, db: AsyncSession

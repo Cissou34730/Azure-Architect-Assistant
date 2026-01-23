@@ -98,7 +98,7 @@ def test_project_state_validates_findings_and_waf_evaluations() -> None:
 
     validated = AAAProjectState.model_validate(payload)
     assert validated.findings[0].severity == "high"
-    assert validated.wafChecklist.items[0].evaluations[0].status == "notCovered"
+    assert validated.waf_checklist.items[0].evaluations[0].status == "notCovered"
 
 
 def test_finding_requires_citation() -> None:

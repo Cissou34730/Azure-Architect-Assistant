@@ -197,7 +197,7 @@ def _add_iteration_event(
         text=architect_choice_required
         or "Agent processed request and refined architecture artifacts.",
         mcp_query_ids=mcp_query_ids,
-        architect_ref_message_id=response_message_id,
+        architect_response_message_id=response_message_id,
     )
 
     if not event_update:

@@ -82,6 +82,27 @@ async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
         f"Never refuse; if data is missing, ask focused clarifications and propose 2-3 options with trade-offs."
     )
 
+    if stage_value == ProjectStage.VALIDATE.value:
+        stage_directives += (
+            "\n\nValidation persistence requirements (mandatory):\n"
+            "- Consult the WAF knowledge base using kb_search or kb_search_agent (at least one query).\n"
+            "- Then call aaa_record_validation_results with a NON-EMPTY payload.wafEvaluations array.\n"
+            "- Use status values: covered | partial | notCovered.\n"
+            "- findings may be empty; if you include findings, each finding must include at least one sourceCitations entry.\n\n"
+            "Example payload (minimum):\n"
+            "{\n"
+            "  \"wafEvaluations\": [\n"
+            "    {\n"
+            "      \"itemId\": \"waf-security-identity-1\",\n"
+            "      \"pillar\": \"Security\",\n"
+            "      \"topic\": \"Identity and access management\",\n"
+            "      \"status\": \"partial\",\n"
+            "      \"evidence\": \"Current design mentions Entra ID SSO but lacks conditional access and MFA enforcement details.\"\n"
+            "    }\n"
+            "  ]\n"
+            "}"
+        )
+
     logger.info(
         "Built research plan (stage=%s, items=%d)", stage_value, len(plan)
     )

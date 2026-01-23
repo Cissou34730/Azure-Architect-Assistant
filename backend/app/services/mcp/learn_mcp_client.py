@@ -14,6 +14,8 @@ import asyncio
 import contextlib
 import json
 import logging
+import random
+import time
 from typing import Any
 
 from mcp import ClientSession
@@ -387,37 +389,95 @@ class MicrosoftLearnMCPClient:
 
         call_timeout = timeout or self.timeout
 
-        try:
-            logger.debug(f"Calling tool '{tool_name}' with args: {arguments}")
+        # Retry policy: 3 attempts total then fail.
+        max_attempts = max(int(self.max_retries or 3), 1)
+        attempt_details: list[dict[str, Any]] = []
+        start_total = time.perf_counter()
+        last_exc: BaseException | None = None
 
-            # Serialize calls to avoid overlapping session usage.
-            async with self._call_lock:
-                result = await asyncio.wait_for(
-                    self._session.call_tool(tool_name, arguments=arguments),
-                    timeout=call_timeout,
+        for attempt_number in range(1, max_attempts + 1):
+            start_attempt = time.perf_counter()
+            try:
+                logger.debug(
+                    "Calling tool '%s' (attempt %s/%s) with args: %s",
+                    tool_name,
+                    attempt_number,
+                    max_attempts,
+                    arguments,
                 )
 
-            # Normalize response
-            normalized = self._normalize_response(result, tool_name)
+                # Serialize calls to avoid overlapping session usage.
+                async with self._call_lock:
+                    result = await asyncio.wait_for(
+                        self._session.call_tool(tool_name, arguments=arguments),
+                        timeout=call_timeout,
+                    )
 
-            logger.debug(f"Tool '{tool_name}' completed successfully")
-            return normalized
+                normalized = self._normalize_response(result, tool_name)
+                elapsed_ms = (time.perf_counter() - start_attempt) * 1000.0
+                attempt_details.append(
+                    {"attempt": attempt_number, "latencyMs": round(elapsed_ms, 2), "error": None}
+                )
 
-        except asyncio.TimeoutError as e:
+                total_ms = (time.perf_counter() - start_total) * 1000.0
+                normalized["meta"] = {
+                    "endpoint": self.endpoint,
+                    "tool": tool_name,
+                    "attempts": attempt_number,
+                    "timeoutSeconds": call_timeout,
+                    "totalLatencyMs": round(total_ms, 2),
+                    "attemptDetails": attempt_details,
+                }
+
+                logger.debug("Tool '%s' completed successfully", tool_name)
+                return normalized
+
+            except asyncio.TimeoutError as exc:
+                elapsed_ms = (time.perf_counter() - start_attempt) * 1000.0
+                attempt_details.append(
+                    {"attempt": attempt_number, "latencyMs": round(elapsed_ms, 2), "error": "timeout"}
+                )
+                last_exc = exc
+
+            except Exception as exc:  # noqa: BLE001
+                elapsed_ms = (time.perf_counter() - start_attempt) * 1000.0
+                attempt_details.append(
+                    {"attempt": attempt_number, "latencyMs": round(elapsed_ms, 2), "error": str(exc)}
+                )
+                last_exc = exc
+
+            if attempt_number < max_attempts:
+                # Exponential backoff + jitter
+                base = min(0.5 * (2 ** (attempt_number - 1)), 8.0)
+                jitter = random.uniform(0.0, 0.25)
+                await asyncio.sleep(min(base + jitter, 8.0))
+
+        total_ms = (time.perf_counter() - start_total) * 1000.0
+        if isinstance(last_exc, asyncio.TimeoutError):
             raise MCPTimeoutError(
-                f"Tool call '{tool_name}' timed out after {call_timeout}s",
+                f"Tool call '{tool_name}' timed out after {call_timeout}s (attempts={max_attempts})",
                 details={
                     "tool": tool_name,
                     "timeout": call_timeout,
                     "arguments": arguments,
+                    "attempts": max_attempts,
+                    "totalLatencyMs": round(total_ms, 2),
+                    "attemptDetails": attempt_details,
                 },
-            ) from e
-        except Exception as e:
-            logger.error(f"Tool call '{tool_name}' failed: {e}")
-            raise MCPUnexpectedResponseError(
-                f"Tool call failed: {e!s}",
-                details={"tool": tool_name, "arguments": arguments, "error": str(e)},
-            ) from e
+            ) from last_exc
+
+        logger.error("Tool call '%s' failed after %s attempts: %s", tool_name, max_attempts, last_exc)
+        raise MCPUnexpectedResponseError(
+            f"Tool call failed after {max_attempts} attempts: {last_exc!s}",
+            details={
+                "tool": tool_name,
+                "arguments": arguments,
+                "error": str(last_exc),
+                "attempts": max_attempts,
+                "totalLatencyMs": round(total_ms, 2),
+                "attemptDetails": attempt_details,
+            },
+        ) from last_exc
 
     def _validate_tool_call(self, tool_name: str, arguments: dict[str, Any]) -> None:
         """

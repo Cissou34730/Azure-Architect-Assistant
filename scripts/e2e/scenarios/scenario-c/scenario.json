@@ -1,0 +1,40 @@
+{
+  "id": "scenario-c",
+  "name": "Scenario C - Retail Orders",
+  "projectName": "E2E Scenario C - Retail Orders",
+  "documents": [
+    { "path": "inputs/brief.md", "contentType": "text/markdown" },
+    { "path": "inputs/slos.md", "contentType": "text/markdown" }
+  ],
+  "chatTurns": [
+    {
+      "id": "us2-adr",
+      "message": "Propose architecture candidates and create ADRs for data store + integration style."
+    },
+    {
+      "id": "us3-diagrams",
+      "message": "Generate diagrams and outline key components (order, inventory, payments, fulfillment)."
+    },
+    {
+      "id": "us4-validate",
+      "message": "Validate with a focus on consistency, idempotency, and operational concerns."
+    },
+    {
+      "id": "us5-iac-cost",
+      "message": "Generate IaC and cost estimate with assumptions."
+    },
+    {
+      "id": "us6-traceability",
+      "message": "Export traceability and mind map coverage."
+    }
+  ],
+  "assertions": {
+    "requireStateKeys": [
+      "requirements",
+      "ambiguities",
+      "adrs",
+      "architecture",
+      "diagrams"
+    ]
+  }
+}

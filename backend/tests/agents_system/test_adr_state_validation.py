@@ -40,14 +40,14 @@ def test_adr_accepts_missing_evidence_reason() -> None:
     adr = {**_base_adr(), "missingEvidenceReason": "Diagrams not generated yet."}
     state = {"adrs": [adr]}
     validated = AAAProjectState.model_validate(state)
-    assert validated.adrs[0].missingEvidenceReason == "Diagrams not generated yet."
+    assert validated.adrs[0].missing_evidence_reason == "Diagrams not generated yet."
 
 
 def test_adr_accepts_diagram_link_without_reason() -> None:
     adr = {**_base_adr(), "relatedDiagramIds": ["c4_context"]}
     state = {"adrs": [adr]}
     validated = AAAProjectState.model_validate(state)
-    assert validated.adrs[0].relatedDiagramIds == ["c4_context"]
+    assert validated.adrs[0].related_diagram_ids == ["c4_context"]
 
 
 def test_adr_requires_source_citation() -> None:

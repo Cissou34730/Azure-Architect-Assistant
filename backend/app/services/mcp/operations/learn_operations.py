@@ -80,6 +80,8 @@ async def search_microsoft_docs(
         f"Searching Microsoft docs for '{query}'",
     )
 
+    meta = response.get("meta") if isinstance(response, dict) else None
+
     # Normalize content to a list of result dicts
     content = response.get("content")
     if isinstance(content, list):
@@ -100,6 +102,7 @@ async def search_microsoft_docs(
         "results": results,
         "query": query,
         "total_results": len(results),
+        "meta": meta or {},
     }
 
 
@@ -135,6 +138,8 @@ async def fetch_documentation(
         f"Fetching documentation from '{url}'",
     )
 
+    meta = response.get("meta") if isinstance(response, dict) else None
+
     # Content is a markdown string
     content = response.get("content", "")
 
@@ -142,6 +147,7 @@ async def fetch_documentation(
         "url": url,
         "content": content,
         "length": len(content),
+        "meta": meta or {},
     }
 
 
@@ -190,6 +196,8 @@ async def search_code_samples(
         f"Searching code samples for '{query}' (language: {language})",
     )
 
+    meta = response.get("meta") if isinstance(response, dict) else None
+
     # Normalize content to a list of sample dicts
     content = response.get("content")
     if isinstance(content, list):
@@ -213,6 +221,7 @@ async def search_code_samples(
         "query": query,
         "language_filter": language,
         "total_samples": len(samples),
+        "meta": meta or {},
     }
 
 

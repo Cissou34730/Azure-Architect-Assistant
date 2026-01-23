@@ -18,14 +18,24 @@ from ...services.mcp.operations.learn_operations import (
 )
 
 
-def _append_mcp_log(*, tool: str, query: str | None = None, url: str | None = None, urls: list[str] | None = None) -> str:
+def _append_mcp_log(
+    *,
+    tool: str,
+    query: str | None = None,
+    url: str | None = None,
+    urls: list[str] | None = None,
+    meta: dict[str, Any] | None = None,
+) -> str:
     payload = {
         "tool": tool,
         "query": query,
         "url": url,
         "urls": urls or [],
+        "meta": meta or {},
     }
-    return "\n\nAAA_MCP_LOG\n```json\n" + json.dumps(payload, ensure_ascii=False) + "\n```"
+    # Put the evidence block first so it isn't lost when downstream callers
+    # truncate observations (e.g., LangGraph adapter slices to 500 chars).
+    return "AAA_MCP_LOG\n```json\n" + json.dumps(payload, ensure_ascii=False) + "\n```\n"
 
 
 class DocsSearchInput(BaseModel):
@@ -93,6 +103,7 @@ class MicrosoftDocsSearchTool(BaseTool):
                 max_results_val = getattr(query, "max_results", 5)
 
             result = await search_microsoft_docs(self.mcp_client, q, max_results_val)
+            meta = result.get("meta") if isinstance(result, dict) else None
 
             # Format results for agent consumption
             formatted_results = []
@@ -108,16 +119,18 @@ class MicrosoftDocsSearchTool(BaseTool):
                 )
 
             return (
-                f"Found {result['total_results']} results for '{q}':\n\n"
+                _append_mcp_log(tool=self.name, query=q, urls=urls, meta=meta)
+                + "\n"
+                + f"Found {result['total_results']} results for '{q}':\n\n"
                 + "\n".join(formatted_results)
-                + _append_mcp_log(tool=self.name, query=q, urls=urls)
             )
         except (MCPError, RuntimeError, ValueError) as e:
-            return f"Error searching Microsoft docs: {e!s}" + _append_mcp_log(
+            return _append_mcp_log(
                 tool=self.name,
                 query=str(query),
                 urls=[],
-            )
+                meta={"error": str(e)},
+            ) + f"\nError searching Microsoft docs: {e!s}"
 
 
 class MicrosoftDocsFetchTool(BaseTool):
@@ -151,19 +164,22 @@ class MicrosoftDocsFetchTool(BaseTool):
                 u = getattr(url, "url", str(url))
 
             result = await fetch_documentation(self.mcp_client, u)
+            meta = result.get("meta") if isinstance(result, dict) else None
 
             return (
-                f"**Documentation from:** {result['url']}\n"
+                _append_mcp_log(tool=self.name, url=u, urls=[u], meta=meta)
+                + "\n"
+                + f"**Documentation from:** {result['url']}\n"
                 f"**Length:** {result['length']} characters\n\n"
                 f"{result['content']}"
-                + _append_mcp_log(tool=self.name, url=u, urls=[u])
             )
         except (MCPError, RuntimeError, ValueError) as e:
-            return f"Error fetching documentation from {url}: {e!s}" + _append_mcp_log(
+            return _append_mcp_log(
                 tool=self.name,
                 url=str(url),
                 urls=[str(url)],
-            )
+                meta={"error": str(e)},
+            ) + f"\nError fetching documentation from {url}: {e!s}"
 
 
 class MicrosoftCodeSamplesTool(BaseTool):
@@ -209,6 +225,7 @@ class MicrosoftCodeSamplesTool(BaseTool):
             result = await search_code_samples(
                 self.mcp_client, q, language_val, max_results_val
             )
+            meta = result.get("meta") if isinstance(result, dict) else None
 
             # Format code samples for agent consumption
             formatted_samples = []
@@ -228,16 +245,18 @@ class MicrosoftCodeSamplesTool(BaseTool):
 
             lang_filter = f" (filtered by {language_val})" if language_val else ""
             return (
-                f"Found {result['total_samples']} code samples for '{q}'{lang_filter}:\n\n"
+                _append_mcp_log(tool=self.name, query=q, urls=urls, meta=meta)
+                + "\n"
+                + f"Found {result['total_samples']} code samples for '{q}'{lang_filter}:\n\n"
                 + "\n".join(formatted_samples)
-                + _append_mcp_log(tool=self.name, query=q, urls=urls)
             )
         except (MCPError, RuntimeError, ValueError) as e:
-            return f"Error searching code samples: {e!s}" + _append_mcp_log(
+            return _append_mcp_log(
                 tool=self.name,
                 query=str(query),
                 urls=[],
-            )
+                meta={"error": str(e)},
+            ) + f"\nError searching code samples: {e!s}"
 
 
 async def create_mcp_tools(mcp_client: MicrosoftLearnMCPClient) -> list[BaseTool]:

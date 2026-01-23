@@ -568,7 +568,12 @@ def verify_traceability_links(state: dict[str, Any]) -> list[dict[str, Any]]:
         if link_id in seen:
             issues.append(
                 {
-                    "id": stable_traceability_link_id("issue", link_id, "duplicate", "id"),
+                    "id": stable_traceability_link_id(
+                        from_type="issue",
+                        from_id=link_id,
+                        to_type="duplicate",
+                        to_id="id",
+                    ),
                     "kind": "duplicate_link_id",
                     "message": "Duplicate traceability link id detected",
                     "linkId": link_id,
@@ -580,7 +585,12 @@ def verify_traceability_links(state: dict[str, Any]) -> list[dict[str, Any]]:
         if error_msg:
             issues.append(
                 {
-                    "id": stable_traceability_link_id("issue", link_id, "missing", "fields"),
+                    "id": stable_traceability_link_id(
+                        from_type="issue",
+                        from_id=link_id,
+                        to_type="missing",
+                        to_id="fields",
+                    ),
                     "kind": "invalid_link",
                     "message": error_msg,
                     "linkId": link_id,

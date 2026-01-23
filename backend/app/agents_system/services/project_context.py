@@ -46,7 +46,7 @@ async def read_project_state(
     raw_state = ensure_aaa_defaults(raw_state)
     try:
         state_data = AAAProjectState.model_validate(raw_state).model_dump(
-            mode="json", exclude_none=True
+            mode="json", exclude_none=True, by_alias=True
         )
     except ValidationError as exc:
         logger.warning(
@@ -114,7 +114,7 @@ async def update_project_state(
     # Validate/normalize through typed model to prevent corrupting persisted state
     try:
         validated = AAAProjectState.model_validate(updated_state)
-        updated_state = validated.model_dump(mode="json", exclude_none=True)
+        updated_state = validated.model_dump(mode="json", exclude_none=True, by_alias=True)
     except ValidationError as exc:
         raise ValueError(f"Invalid project state update payload: {exc}") from exc
 
