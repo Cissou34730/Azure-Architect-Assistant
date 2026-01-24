@@ -79,8 +79,8 @@ TEST_SCENARIOS = [
     },
     {
         "name": "Cost Estimator - Low Priority",
-        "description": "Cost estimation request without triggering Architecture Planner",
-        "user_message": "Calculate the cost estimate for this architecture",
+        "description": "Cost estimation request without triggering higher-priority agents",
+        "user_message": "How much will this cost per month?",
         "project_state": {
             "name": "Cost Project",
             "candidateArchitectures": [
