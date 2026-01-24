@@ -67,10 +67,10 @@ TEST_SCENARIOS = [
     },
     {
         "name": "SaaS Advisor - Medium Priority",
-        "description": "Explicit SaaS request",
-        "user_message": "Design a multi-tenant SaaS architecture with B2B customers",
+        "description": "Explicit SaaS request without triggering Architecture Planner",
+        "user_message": "Propose a multi-tenant SaaS solution with B2B customers and tenant isolation",
         "project_state": {
-            "name": "SaaS Test",
+            "name": "SaaS Project",
             "requirements": {
                 "workloadType": "SaaS Application",
             },
@@ -79,10 +79,10 @@ TEST_SCENARIOS = [
     },
     {
         "name": "Cost Estimator - Low Priority",
-        "description": "Cost estimation request with architecture",
-        "user_message": "Estimate the monthly cost for this architecture",
+        "description": "Cost estimation request without triggering Architecture Planner",
+        "user_message": "Calculate the cost estimate for this architecture",
         "project_state": {
-            "name": "Cost Test",
+            "name": "Cost Project",
             "candidateArchitectures": [
                 {
                     "name": "Web App",
