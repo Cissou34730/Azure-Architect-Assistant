@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -15,6 +16,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 _SCENARIOS_ROOT = Path(__file__).resolve().parent / "scenarios"
