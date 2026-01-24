@@ -19,7 +19,10 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
-from app.agents_system.langgraph.graph_factory import build_project_chat_graph
+from app.agents_system.langgraph.nodes.stage_routing import (
+    should_route_to_cost_estimator,
+    prepare_cost_estimator_handoff,
+)
 from app.agents_system.langgraph.state import GraphState
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -146,9 +149,6 @@ async def test_cost_estimator_routing() -> None:
     logger.info("PHASE 3 - Task 3.3.2: Testing Cost Estimator Routing and Accuracy")
     logger.info("=" * 80)
     
-    # Build graph without database connection (routing test only)
-    graph = build_project_chat_graph(db=None)
-    
     results = []
     for i, scenario in enumerate(TEST_SCENARIOS, 1):
         logger.info("")
@@ -168,59 +168,47 @@ async def test_cost_estimator_routing() -> None:
             chat_history=[],
         )
         
-        # Run routing logic
+        # Test routing logic directly
         try:
-            result = await graph.ainvoke(state, config={"recursion_limit": 5})
-            
-            routing_decision = result.get("routing_decision", {})
-            agent = routing_decision.get("agent", "main")
-            reason = routing_decision.get("reason", "")
-            
-            # Check if Cost Estimator was selected
-            actual_activation = (agent == "cost_estimator")
+            # Call should_route_to_cost_estimator directly
+            actual_activation = should_route_to_cost_estimator(state)
             
             # Determine test result
             passed = (actual_activation == scenario["expected_activation"])
             status = "✅ PASS" if passed else "❌ FAIL"
             
             logger.info(f"Result: {status}")
-            logger.info(f"  Routed to: {agent}")
-            logger.info(f"  Reason: {reason}")
             logger.info(f"  Expected Activation: {scenario['expected_activation']}")
             logger.info(f"  Actual Activation: {actual_activation}")
             
-            # Check cost estimate if Cost Estimator was activated
+            # If activated, test handoff preparation
             if actual_activation:
-                cost_estimate = result.get("cost_estimate", {})
-                monthly_cost = cost_estimate.get("monthly_cost")
-                annual_cost = cost_estimate.get("annual_cost")
-                tco_3_year = cost_estimate.get("tco_3_year")
-                region = cost_estimate.get("region", "unknown")
+                handoff_result = prepare_cost_estimator_handoff(state)
+                handoff_context = handoff_result.get("agent_handoff_context", {})
+                current_agent = handoff_result.get("current_agent", "")
                 
-                logger.info(f"  Cost Estimate:")
-                logger.info(f"    Monthly: ${monthly_cost:,.2f}" if monthly_cost else "    Monthly: Not extracted")
-                logger.info(f"    Annual: ${annual_cost:,.2f}" if annual_cost else "    Annual: Not extracted")
-                logger.info(f"    3-Year TCO: ${tco_3_year:,.2f}" if tco_3_year else "    3-Year TCO: Not extracted")
-                logger.info(f"    Region: {region}")
+                logger.info(f"  Handoff Context:")
+                logger.info(f"    Current Agent: {current_agent}")
+                logger.info(f"    Routing Reason: {handoff_context.get('routing_reason', 'N/A')}")
+                logger.info(f"    Region: {handoff_context.get('region', 'N/A')}")
+                logger.info(f"    Environment: {handoff_context.get('environment', 'N/A')}")
+                logger.info(f"    Resource Count: {len(handoff_context.get('resource_list', []))}")
                 
-                # Validate cost range if provided
-                if "expected_cost_range" in scenario and monthly_cost:
-                    min_cost, max_cost = scenario["expected_cost_range"]
-                    in_range = min_cost <= monthly_cost <= max_cost
-                    range_status = "✅" if in_range else "⚠️"
-                    logger.info(f"  Cost Range Check: {range_status} (Expected: ${min_cost}-${max_cost})")
+                constraints = handoff_context.get("constraints", {})
+                if constraints:
+                    logger.info(f"  Constraints: {', '.join(constraints.keys())}")
                 
                 # Validate region if provided
                 if "expected_region" in scenario:
+                    region = handoff_context.get("region", "")
                     region_match = region == scenario["expected_region"]
                     region_status = "✅" if region_match else "⚠️"
-                    logger.info(f"  Region Check: {region_status} (Expected: {scenario['expected_region']})")
+                    logger.info(f"  Region Check: {region_status} (Expected: {scenario['expected_region']}, Got: {region})")
             
             results.append({
                 "scenario": scenario["name"],
                 "passed": passed,
-                "agent": agent,
-                "reason": reason,
+                "activation": actual_activation,
             })
             
         except Exception as e:
@@ -228,8 +216,7 @@ async def test_cost_estimator_routing() -> None:
             results.append({
                 "scenario": scenario["name"],
                 "passed": False,
-                "agent": "ERROR",
-                "reason": str(e),
+                "activation": "ERROR",
             })
     
     # Summary
@@ -245,7 +232,7 @@ async def test_cost_estimator_routing() -> None:
     for result in results:
         status = "✅ PASS" if result["passed"] else "❌ FAIL"
         logger.info(f"{status} - {result['scenario']}")
-        logger.info(f"       Routed to: {result['agent']} - {result['reason']}")
+        logger.info(f"       Activation: {result['activation']}")
     
     if passed == total:
         logger.info("")

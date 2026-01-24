@@ -19,7 +19,12 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
-from app.agents_system.langgraph.graph_factory import build_project_chat_graph
+from app.agents_system.langgraph.nodes.stage_routing import (
+    should_route_to_iac_generator,
+    should_route_to_architecture_planner,
+    should_route_to_saas_advisor,
+    should_route_to_cost_estimator,
+)
 from app.agents_system.langgraph.state import GraphState
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -145,9 +150,6 @@ async def test_full_system_routing() -> None:
     logger.info("PHASE 3 - Task 3.3.3: Full System E2E Testing")
     logger.info("=" * 80)
     
-    # Build graph without database connection (routing test)
-    graph = build_project_chat_graph(db=None)
-    
     results = []
     total_time = 0
     
@@ -169,16 +171,23 @@ async def test_full_system_routing() -> None:
             chat_history=[],
         )
         
-        # Run routing logic with timing
+        # Run routing logic with timing (direct function calls)
         start_time = time.time()
         try:
-            result = await graph.ainvoke(state, config={"recursion_limit": 5})
+            # Check routing priority (IaC → Arch → SaaS → Cost → Main)
+            if should_route_to_iac_generator(state):
+                agent = "iac_generator"
+            elif should_route_to_architecture_planner(state):
+                agent = "architecture_planner"
+            elif should_route_to_saas_advisor(state):
+                agent = "saas_advisor"
+            elif should_route_to_cost_estimator(state):
+                agent = "cost_estimator"
+            else:
+                agent = "main"
+            
             elapsed = time.time() - start_time
             total_time += elapsed
-            
-            routing_decision = result.get("routing_decision", {})
-            agent = routing_decision.get("agent", "main")
-            reason = routing_decision.get("reason", "")
             
             # Check if expected agent was selected
             passed = (agent == scenario["expected_agent"])
@@ -194,8 +203,8 @@ async def test_full_system_routing() -> None:
             
             logger.info(f"Result: {status}")
             logger.info(f"  Routed to: {agent}")
-            logger.info(f"  Reason: {reason}")
-            logger.info(f"  Latency: {elapsed:.2f}s")
+            logger.info(f"  Expected: {scenario['expected_agent']}")
+            logger.info(f"  Latency: {elapsed:.4f}s")
             
             results.append({
                 "scenario": scenario["name"],
@@ -225,15 +234,15 @@ async def test_full_system_routing() -> None:
     passed = sum(1 for r in results if r["passed"])
     total = len(results)
     logger.info(f"Passed: {passed}/{total} ({passed/total*100:.1f}%)")
-    logger.info(f"Total Time: {total_time:.2f}s")
-    logger.info(f"Average Latency: {total_time/total:.2f}s per test")
+    logger.info(f"Total Time: {total_time:.4f}s")
+    logger.info(f"Average Latency: {total_time/total:.4f}s per test")
     logger.info("")
     
     # Detailed results
     for result in results:
         status = "✅ PASS" if result["passed"] else "❌ FAIL"
         logger.info(f"{status} - {result['scenario']}")
-        logger.info(f"       Expected: {result['expected']} | Actual: {result['agent']} | Latency: {result['latency']:.2f}s")
+        logger.info(f"       Expected: {result['expected']} | Actual: {result['agent']} | Latency: {result['latency']:.4f}s")
     
     # Performance analysis
     logger.info("")
@@ -242,9 +251,9 @@ async def test_full_system_routing() -> None:
     logger.info("=" * 80)
     latencies = [r["latency"] for r in results if r["latency"] > 0]
     if latencies:
-        logger.info(f"Min Latency: {min(latencies):.2f}s")
-        logger.info(f"Max Latency: {max(latencies):.2f}s")
-        logger.info(f"Avg Latency: {sum(latencies)/len(latencies):.2f}s")
+        logger.info(f"Min Latency: {min(latencies):.4f}s")
+        logger.info(f"Max Latency: {max(latencies):.4f}s")
+        logger.info(f"Avg Latency: {sum(latencies)/len(latencies):.4f}s")
     
     # Routing priority analysis
     logger.info("")

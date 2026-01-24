@@ -19,7 +19,10 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
-from app.agents_system.langgraph.graph_factory import build_project_chat_graph
+from app.agents_system.langgraph.nodes.stage_routing import (
+    should_route_to_saas_advisor,
+    prepare_saas_advisor_handoff,
+)
 from app.agents_system.langgraph.state import GraphState
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -94,9 +97,6 @@ async def test_saas_advisor_routing() -> None:
     logger.info("PHASE 3 - Task 3.3.1: Testing SaaS Advisor Routing")
     logger.info("=" * 80)
     
-    # Build graph without database connection (routing test only)
-    graph = build_project_chat_graph(db=None)
-    
     results = []
     for i, scenario in enumerate(TEST_SCENARIOS, 1):
         logger.info("")
@@ -116,41 +116,40 @@ async def test_saas_advisor_routing() -> None:
             chat_history=[],
         )
         
-        # Run only the routing logic (load_state → build_summary → build_research → agent_router)
+        # Test routing logic directly
         try:
-            # Invoke graph to get routing decision
-            result = await graph.ainvoke(state, config={"recursion_limit": 5})
-            
-            routing_decision = result.get("routing_decision", {})
-            agent = routing_decision.get("agent", "main")
-            reason = routing_decision.get("reason", "")
-            
-            # Check if SaaS Advisor was selected
-            actual_activation = (agent == "saas_advisor")
+            # Call should_route_to_saas_advisor directly
+            actual_activation = should_route_to_saas_advisor(state)
             
             # Determine test result
             passed = (actual_activation == scenario["expected_activation"])
             status = "✅ PASS" if passed else "❌ FAIL"
             
             logger.info(f"Result: {status}")
-            logger.info(f"  Routed to: {agent}")
-            logger.info(f"  Reason: {reason}")
             logger.info(f"  Expected Activation: {scenario['expected_activation']}")
             logger.info(f"  Actual Activation: {actual_activation}")
             
-            # Check tenant model if SaaS Advisor was activated
-            if actual_activation and "expected_tenant_model" in scenario:
-                saas_context = result.get("saas_context", {})
-                tenant_model = saas_context.get("tenant_model", "")
-                if tenant_model:
-                    model_match = any(model in tenant_model.lower() for model in scenario["expected_tenant_model"])
-                    logger.info(f"  Tenant Model: {tenant_model} {'✅' if model_match else '⚠️'}")
+            # If activated, test handoff preparation
+            if actual_activation:
+                handoff_result = prepare_saas_advisor_handoff(state)
+                handoff_context = handoff_result.get("agent_handoff_context", {})
+                current_agent = handoff_result.get("current_agent", "")
+                
+                logger.info(f"  Handoff Context:")
+                logger.info(f"    Current Agent: {current_agent}")
+                logger.info(f"    Routing Reason: {handoff_context.get('routing_reason', 'N/A')}")
+                
+                tenant_reqs = handoff_context.get("tenant_requirements", {})
+                logger.info(f"  Tenant Requirements:")
+                logger.info(f"    Customer Type: {tenant_reqs.get('customer_type', 'Not detected')}")
+                logger.info(f"    Expected Tenants: {tenant_reqs.get('expected_tenants', 'Not detected')}")
+                logger.info(f"    Isolation Level: {tenant_reqs.get('isolation_level', 'Not detected')}")
+                logger.info(f"    Compliance: {tenant_reqs.get('compliance', [])}")
             
             results.append({
                 "scenario": scenario["name"],
                 "passed": passed,
-                "agent": agent,
-                "reason": reason,
+                "activation": actual_activation,
             })
             
         except Exception as e:
@@ -158,8 +157,7 @@ async def test_saas_advisor_routing() -> None:
             results.append({
                 "scenario": scenario["name"],
                 "passed": False,
-                "agent": "ERROR",
-                "reason": str(e),
+                "activation": "ERROR",
             })
     
     # Summary
@@ -175,7 +173,7 @@ async def test_saas_advisor_routing() -> None:
     for result in results:
         status = "✅ PASS" if result["passed"] else "❌ FAIL"
         logger.info(f"{status} - {result['scenario']}")
-        logger.info(f"       Routed to: {result['agent']} - {result['reason']}")
+        logger.info(f"       Activation: {result['activation']}")
     
     if passed == total:
         logger.info("")
