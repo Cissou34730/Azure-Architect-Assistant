@@ -47,7 +47,7 @@ class Project(Base):
         return {
             "id": str(self.id),
             "name": str(self.name),
-            "textRequirements": self.text_requirements,
+            "textRequirements": self.text_requirements or "",
             "createdAt": str(self.created_at),
         }
 
