@@ -10,7 +10,7 @@ from typing import Any
 
 from app.agents_system.agents.mcp_react_agent import MCPReActAgent
 from app.agents_system.config.prompt_loader import PromptLoader
-from app.agents_system.tools.create_tools import create_aaa_tools
+from app.agents_system.tools.aaa_candidate_tool import create_aaa_tools
 
 from ..state import GraphState
 
