@@ -122,6 +122,25 @@ class SemanticValidator:
         """
         diagram_type_name: str = diagram_type.value.replace("_", " ").title()
 
+        # Add type-specific guidance
+        type_guidance = ""
+        if diagram_type == DiagramType.C4_CONTEXT:
+            type_guidance = """
+IMPORTANT FOR C4 CONTEXT DIAGRAMS:
+- Focus ONLY on systems, external actors, and their relationships
+- NFRs (performance, security, compliance) should NOT be visual elements
+- Do NOT expect database schemas, deployment details, or implementation specifics
+- Missing NFR representations (like "PCI DSS", "99.9% SLA", "global coverage") is ACCEPTABLE
+- Only mark as invalid if key SYSTEMS or ACTORS are missing
+"""
+        elif diagram_type == DiagramType.C4_CONTAINER:
+            type_guidance = """
+IMPORTANT FOR C4 CONTAINER DIAGRAMS:
+- Focus on containers (applications, data stores, microservices)
+- External systems should be shown as System_Ext
+- Do NOT expect component-level details (wrong abstraction level)
+"""
+
         prompt: str = f"""Compare the input description with the generated diagram to verify accuracy.
 
 INPUT DESCRIPTION:
@@ -130,12 +149,12 @@ INPUT DESCRIPTION:
 DIAGRAM TYPE: {diagram_type_name}
 DIAGRAM CODE:
 {diagram_source}
-
+{type_guidance}
 Verify the following:
-1. Are all mentioned components/systems present in the diagram?
+1. Are all mentioned SYSTEMS/ACTORS present in the diagram?
 2. Are relationships correctly represented?
 3. Is the abstraction level appropriate for {diagram_type_name}?
-4. Are any elements missing or incorrectly depicted?
+4. Are any significant elements missing or incorrectly depicted?
 
 Return JSON with:
 {{
@@ -145,7 +164,7 @@ Return JSON with:
   "suggestions": "Specific recommendations for fixing issues"
 }}
 
-Be strict: mark as invalid if significant elements are missing or relationships are wrong.
+Be reasonable: mark as invalid only if KEY systems/actors are missing or relationships are fundamentally wrong.
 """
         return prompt
 
