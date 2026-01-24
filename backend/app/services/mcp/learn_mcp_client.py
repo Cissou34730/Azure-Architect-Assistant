@@ -233,6 +233,12 @@ class MicrosoftLearnMCPClient:
                 await asyncio.wait_for(
                     session.__aexit__(None, None, None), timeout=5.0
                 )
+        except RuntimeError as e:
+            # anyio cancel scope errors are expected during shutdown and harmless
+            if "cancel scope" in str(e):
+                logger.debug(f"Ignoring anyio cancel scope error during session exit: {e}")
+            else:
+                logger.warning(f"Error exiting session: {e}")
         except Exception as e:
             logger.warning(f"Error exiting session: {e}")
         
@@ -242,6 +248,12 @@ class MicrosoftLearnMCPClient:
                 await asyncio.wait_for(
                     connection_context.__aexit__(None, None, None), timeout=5.0
                 )
+        except RuntimeError as e:
+            # anyio cancel scope errors are expected during shutdown and harmless
+            if "cancel scope" in str(e):
+                logger.debug(f"Ignoring anyio cancel scope error during connection exit: {e}")
+            else:
+                logger.warning(f"Error exiting connection context: {e}")
         except Exception as e:
             logger.warning(f"Error exiting connection context: {e}")
         
