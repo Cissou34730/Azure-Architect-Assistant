@@ -32,7 +32,7 @@ class ProjectService:
         await db.commit()
         await db.refresh(project)
 
-        logger.info(f"Project created: {project.id} - {project.name}")
+        logger.info(f"✓ Project persisted to DB: id={project.id}, name={project.name}")
         return cast(dict[str, Any], project.to_dict())
 
     async def list_projects(self, db: AsyncSession) -> list[dict[str, Any]]:

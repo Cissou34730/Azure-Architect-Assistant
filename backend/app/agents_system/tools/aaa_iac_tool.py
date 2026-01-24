@@ -39,6 +39,17 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _append_pricing_log(*, entries: list[dict[str, Any]]) -> str:
+    payload = {
+        "tool": "azure_retail_prices",
+        "executedAt": _now_iso(),
+        "entries": entries,
+    }
+    # Put the evidence block first so it isn't lost when downstream callers
+    # truncate observations (e.g., LangGraph adapter slices to 500 chars).
+    return "AAA_PRICING_LOG\n```json\n" + json.dumps(payload, ensure_ascii=False) + "\n```\n"
+
+
 IacFormat = Literal["bicep", "terraform", "arm", "yaml", "json", "other"]
 ValidationStatus = Literal["pass", "fail", "skipped"]
 
@@ -140,11 +151,14 @@ class AAAGenerateIacTool(BaseTool):
             args = AAAGenerateIacAndCostInput.model_validate(raw_data)
 
             pricing_items = args.pricing_catalog
+            pricing_log_entries: list[dict[str, Any]] = []
             if args.pricing_lines and pricing_items is None:
-                pricing_items = await self._fetch_live_prices(args.pricing_lines)
+                pricing_items, pricing_log_entries = await self._fetch_live_prices(
+                    args.pricing_lines
+                )
 
             updates = self._build_updates(args, catalog_items=pricing_items)
-            return self._format_response(updates, args)
+            return self._format_response(updates, args, pricing_log_entries=pricing_log_entries)
         except Exception as exc:  # noqa: BLE001
             return f"ERROR: {exc!s}"
 
@@ -193,10 +207,16 @@ class AAAGenerateIacTool(BaseTool):
 
         return updates
 
-    def _format_response(self, updates: dict[str, Any], args: AAAGenerateIacAndCostInput) -> str:
+    def _format_response(
+        self,
+        updates: dict[str, Any],
+        args: AAAGenerateIacAndCostInput,
+        *,
+        pricing_log_entries: list[dict[str, Any]] | None = None,
+    ) -> str:
         """Format the final tool output with state update block."""
         payload_json = json.dumps(updates, ensure_ascii=False, indent=2)
-        return (
+        output = (
             f"Recorded IaC/cost artifacts at {_now_iso()} (iacFiles={len(args.iac_files)}, pricingLines={len(args.pricing_lines)}).\n"
             "\n"
             "AAA_STATE_UPDATE\n"
@@ -205,21 +225,43 @@ class AAAGenerateIacTool(BaseTool):
             "```"
         )
 
+        if pricing_log_entries:
+            output += _append_pricing_log(entries=pricing_log_entries)
+
+        return output
+
     async def _fetch_live_prices(
         self, pricing_lines: list[PricingLineItemInput]
-    ) -> list[dict[str, Any]]:
-        """Fetch matching prices for all lines from Azure Retail Prices API."""
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Fetch matching prices for all lines from Azure Retail Prices API.
+
+        Returns (items, log_entries).
+        """
         client = AzureRetailPricesClient()
         items: list[dict[str, Any]] = []
+        log_entries: list[dict[str, Any]] = []
+
         for line in pricing_lines:
             service = line.service_name.replace("'", "''")
             region = line.arm_region_name.replace("'", "''")
             if not service or not region:
                 continue
+
             filter_expr = f"serviceName eq '{service}' and armRegionName eq '{region}'"
-            line_items = await client.query_all(filter_expr=filter_expr)
+            line_items, meta = await client.query_all_with_meta(filter_expr=filter_expr)
             items.extend(line_items)
-        return items
+            log_entries.append(
+                {
+                    "name": line.name,
+                    "serviceName": line.service_name,
+                    "armRegionName": line.arm_region_name,
+                    "filterExpr": filter_expr,
+                    "meta": meta,
+                    "matchedItems": len(line_items),
+                }
+            )
+
+        return items, log_entries
 
 
 def _compute_cost_estimate(

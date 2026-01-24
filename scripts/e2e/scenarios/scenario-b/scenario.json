@@ -1,0 +1,41 @@
+{
+  "id": "scenario-b",
+  "name": "Scenario B - Fleet Telemetry",
+  "projectName": "E2E Scenario B - Fleet Telemetry",
+  "documents": [
+    { "path": "inputs/brief.md", "contentType": "text/markdown" },
+    { "path": "inputs/constraints.md", "contentType": "text/markdown" }
+  ],
+  "chatTurns": [
+    {
+      "id": "us2-adr",
+      "message": "Propose architecture candidates for device ingestion + analytics. Create an ADR and pick one approach."
+    },
+    {
+      "id": "us3-diagrams",
+      "message": "Generate key diagrams and data flow (ingest -> store -> process -> serve)."
+    },
+    {
+      "id": "us4-validate",
+      "message": "Validate reliability and security. Identify failure modes and mitigations."
+    },
+    {
+      "id": "us5-iac-cost",
+      "message": "Generate IaC and a cost estimate (assumptions explicit)."
+    },
+    {
+      "id": "us6-traceability",
+      "message": "Export traceability and mind map coverage summary."
+    }
+  ],
+  "assertions": {
+    "requireStateKeys": [
+      "requirements",
+      "ambiguities",
+      "adrs",
+      "architecture",
+      "diagrams",
+      "mindMapCoverage"
+    ]
+  }
+}

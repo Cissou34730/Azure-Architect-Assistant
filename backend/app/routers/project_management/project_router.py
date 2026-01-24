@@ -11,6 +11,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,6 +41,12 @@ router = APIRouter(prefix="/api", tags=["projects"])
 project_service = ProjectService()
 document_service = DocumentService()
 chat_service = ChatService()
+
+
+class AdrAppendRequest(BaseModel):
+    adr_field: str = "decision"
+    append_text: str
+
 
 
 # ============================================================================
@@ -121,13 +128,19 @@ async def update_requirements(
 @router.post("/projects/{project_id}/documents", response_model=DocumentsResponse)
 async def upload_documents(
     project_id: str,
-    files: list[UploadFile] = File(...),
+    # Frontend sends "documents"; keep backward-compatible support for "files".
+    documents: list[UploadFile] | None = File(default=None),
+    files: list[UploadFile] | None = File(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Upload documents for a project"""
     try:
-        documents = await document_service.upload_documents(project_id, files, db)
-        return {"documents": documents}
+        selected_files = documents or files
+        if not selected_files:
+            raise HTTPException(status_code=400, detail="No files uploaded")
+
+        saved = await document_service.upload_documents(project_id, selected_files, db)
+        return {"documents": saved}
     except ValueError as e:
         raise HTTPException(
             status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
@@ -366,6 +379,66 @@ async def get_messages(project_id: str, db: AsyncSession = Depends(get_db)) -> d
     except Exception as e:
         logger.error(f"Failed to get messages: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get messages: {e!s}") from e
+
+
+@router.patch("/projects/{project_id}/adrs/{adr_id}/append", response_model=StateResponse)
+async def append_to_adr(
+    project_id: str,
+    adr_id: str,
+    request: AdrAppendRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Human-authored edit: append text to an ADR field.
+
+    This is used by E2E validation to simulate an authoritative human edit
+    (US7) so the agent merge rules can surface conflicts instead of overwriting.
+    """
+    try:
+        field = (request.adr_field or "").strip()
+        if field not in {"context", "decision", "consequences", "title"}:
+            raise HTTPException(status_code=400, detail=f"Unsupported adrField: {field}")
+
+        result = await db.execute(
+            select(ProjectState).where(ProjectState.project_id == project_id)
+        )
+        state_record = result.scalar_one_or_none()
+        if not state_record:
+            raise HTTPException(status_code=404, detail="Project state not found")
+
+        state = json.loads(state_record.state)
+        adrs = state.get("adrs")
+        if not isinstance(adrs, list):
+            raise HTTPException(status_code=400, detail="No ADRs present in state")
+
+        target = None
+        for adr in adrs:
+            if isinstance(adr, dict) and str(adr.get("id")) == adr_id:
+                target = adr
+                break
+        if target is None:
+            raise HTTPException(status_code=404, detail="ADR not found")
+
+        append_text = (request.append_text or "").strip()
+        if not append_text:
+            raise HTTPException(status_code=400, detail="appendText is required")
+
+        existing_val = str(target.get(field) or "").rstrip()
+        new_val = (existing_val + "\n" if existing_val else "") + append_text
+        target[field] = new_val
+
+        state_record.state = json.dumps(state)
+        state_record.updated_at = datetime.now(timezone.utc).isoformat()
+        await db.commit()
+
+        return {"projectState": state}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to append to ADR: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to append to ADR: {e!s}"
+        ) from e
 
 
 # ============================================================================

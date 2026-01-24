@@ -112,7 +112,7 @@ def _process_single_tool_step(
         selected_snippets=None,
         executed_at=_now_iso(),
     )
-    return q.model_dump()
+    return q.model_dump(by_alias=True)
 
 
 def _extract_query_text(action: Any, tool_name: str) -> str:

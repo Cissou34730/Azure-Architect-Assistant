@@ -18,7 +18,7 @@ async def test_arun_normalization(monkeypatch):
     facade = AgentFacade(llm=object(), tools=[])
 
     # inject a dummy agent that implements arun
-    facade._agent = DummyAgentArun()
+    facade._executor = DummyAgentArun()
 
     res = await facade.ainvoke({"input": "hello"})
     assert res["output"] == "echo:hello"
@@ -28,7 +28,7 @@ async def test_arun_normalization(monkeypatch):
 @pytest.mark.asyncio
 async def test_ainvoke_normalization(monkeypatch):
     facade = AgentFacade(llm=object(), tools=[])
-    facade._agent = DummyAgentAinvoke()
+    facade._executor = DummyAgentAinvoke()
 
     res = await facade.ainvoke({"input": "world"})
     assert res["output"] == "ai:world"

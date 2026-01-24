@@ -32,6 +32,12 @@ class DiagramDatabase:
         # Build DSN from filesystem path and ensure directory exists
         db_file: Path = settings.diagrams_database
         db_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Log resolved path for debugging (esp. important for E2E tests)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Diagrams database: {db_file.absolute()}")
+        
         dsn = f"sqlite+aiosqlite:///{db_file.as_posix()}"
 
         # Create async engine

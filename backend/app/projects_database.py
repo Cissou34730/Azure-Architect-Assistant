@@ -36,6 +36,9 @@ if not DB_PATH.is_absolute():
 # Ensure data directory exists
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+# Log resolved path for debugging (esp. important for E2E tests)
+logger.info(f"Projects database: {DB_PATH.absolute()}")
+
 # Database URL for async SQLite
 DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
 

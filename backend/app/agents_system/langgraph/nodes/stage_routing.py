@@ -50,8 +50,8 @@ def classify_next_stage(state: GraphState) -> dict[str, Any]:
 def _detect_intent_from_keywords(user_message: str, agent_output: str) -> ProjectStage | None:
     """Detect intended stage from keywords in user message or agent output."""
     mapping = [
-        (["adr", "decision", "record", "architecture decision"], ProjectStage.MANAGE_ADR),
         (["validate", "validation", "waf", "security", "compliance", "benchmark"], ProjectStage.VALIDATE),
+        (["adr", "decision", "architecture decision"], ProjectStage.MANAGE_ADR),
         (["cost", "price", "pricing", "budget", "estimate"], ProjectStage.PRICING),
         (["terraform", "bicep", "iac", "infrastructure", "code"], ProjectStage.IAC),
         (["export", "document", "report", "summary"], ProjectStage.EXPORT),

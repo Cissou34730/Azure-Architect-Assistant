@@ -2,27 +2,47 @@
   "knowledge_bases": [
     {
       "id": "waf",
-      "name": "Azure Well-Architected Framework (WAF)",
-      "description": "rinciples of reliability, security, cost optimization, operational excellence, and performance efficiency",
+      "name": "Azure Well-Architected Framework",
+      "description": "Microsoft Azure Well-Architected Framework documentation covering reliability, security, cost optimization, operational excellence, and performance efficiency",
+      "version": "1.0.0",
       "status": "active",
+      "profiles": ["chat", "proposal", "kb-query"],
+      "priority": 1,
+      "storage_type": "file",
+      "embedding_model": "text-embedding-3-small",
+      "generation_model": "gpt-4o-mini",
+      "chunk_size": 800,
+      "chunk_overlap": 120,
+      "source_url": "https://learn.microsoft.com/en-us/azure/well-architected/",
+      "documents": 275,
+      "chunks": 1556,
+      "last_updated": "2025-11-24T11:28:00Z",
+      "paths": {
+        "documents": "waf/documents",
+        "index": "waf/index",
+        "manifest": "waf/manifest.json",
+        "urls": "waf/urls.txt"
+      }
+    },
+    {
+      "id": "caf",
+      "name": "Azure Cloud Adoption Framework (CAF)",
+      "description": "Guidance for governance, landing zones, networking, identity, and policy management.",
+      "status": "inactive",
       "source_type": "website",
       "source_config": {
-        "start_url": "https://learn.microsoft.com/en-us/azure/well-architected/",
-        "url_prefix": "https://learn.microsoft.com/en-us/azure/well-architected/",
+        "start_url": "https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/",
         "max_pages": 1000
       },
       "embedding_model": "text-embedding-3-small",
       "chunk_size": 1024,
       "chunk_overlap": 200,
-      "profiles": [
-        "chat",
-        "kb-query"
-      ],
+      "profiles": ["chat", "kb-query"],
       "priority": 2,
       "indexed": false,
       "paths": {
-        "index": "waf/index",
-        "documents": "waf/documents"
+        "index": "caf/index",
+        "documents": "caf/documents"
       }
     }
   ]

@@ -1,0 +1,52 @@
+{
+  "id": "scenario-a",
+  "name": "Scenario A - Learning Platform",
+  "projectName": "E2E Scenario A - Learning Platform",
+  "documents": [
+    { "path": "inputs/brief.md", "contentType": "text/markdown" },
+    { "path": "inputs/non_functional.md", "contentType": "text/markdown" }
+  ],
+  "chatTurns": [
+    {
+      "id": "us2-adr",
+      "message": "Propose 2-3 architecture candidates and pick one. Create an ADR for the choice with context, decision, and consequences."
+    },
+    {
+      "id": "us3-iterate",
+      "message": "Generate the key architecture diagrams (at least C4 L2 container) and list key design tradeoffs."
+    },
+    {
+      "id": "us4-validate",
+      "message": "Run a validation pass using Azure Well-Architected Framework (WAF) guidance. You MUST consult the WAF knowledge base (kb_search/kb_search_agent) as needed, then you MUST persist at least 1 WAF checklist evaluation via the aaa_record_validation_results tool.\n\nTool payload requirements:\n- Call aaa_record_validation_results with payload.wafEvaluations containing at least 1 item.\n- findings may be empty (do not include findings unless you can add proper sourceCitations).\n\nExample payload shape:\n{\n  \"wafEvaluations\": [\n    {\n      \"itemId\": \"waf-security-1\",\n      \"pillar\": \"Security\",\n      \"topic\": \"Identity and access management\",\n      \"status\": \"partial\",\n      \"evidence\": \"...\"\n    }\n  ]\n}\n\nAfter persisting, summarize risks, missing decisions, and mitigations."
+    },
+    {
+      "id": "us5-iac-cost",
+      "message": "Generate IaC and provide a cost estimate with explicit assumptions."
+    },
+    {
+      "id": "us6-traceability",
+      "message": "Export traceability coverage and summarize mind map coverage gaps."
+    },
+    {
+      "id": "us7-human-edit",
+      "message": "I made a human edit to the ADR decision text. Reconcile without overwriting; surface conflicts if any."
+    }
+  ],
+  "assertions": {
+    "requireStateKeys": [
+      "requirements",
+      "clarificationQuestions",
+      "adrs",
+      "candidateArchitectures",
+      "diagrams",
+      "findings",
+      "wafChecklist",
+      "iacArtifacts",
+      "costEstimates",
+      "traceabilityLinks",
+      "mindMapCoverage"
+    ],
+    "requireWafChecklist": { "minItems": 1 },
+    "requireKbCallsInTurn": { "turnId": "us4-validate", "minCalls": 1 }
+  }
+}

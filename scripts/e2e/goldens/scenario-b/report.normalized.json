@@ -1,0 +1,4 @@
+{
+  "placeholder": true,
+  "note": "Run `uv run python scripts/e2e/run_aaa_e2e.py --in-process --scenario scenario-b --update-goldens` to initialize."
+}

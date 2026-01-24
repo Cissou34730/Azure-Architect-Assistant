@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Project, ProjectDocument, ProjectState
 from app.services import llm_service
+from app.agents_system.services.aaa_state_models import ensure_aaa_defaults
 
 from .document_parsing import extract_text_from_upload
 
@@ -73,7 +74,7 @@ class DocumentService:
         # Persist ingestion stats into ProjectState (SC-004) without blocking upload.
         try:
             stats_payload = {
-                "projectDocumentStats": {
+                "ingestionStats": {
                     "attemptedDocuments": attempted_documents,
                     "parsedDocuments": parsed_documents,
                     "failedDocuments": max(attempted_documents - parsed_documents, 0),
@@ -89,13 +90,14 @@ class DocumentService:
             if state_record:
                 current_state = json.loads(state_record.state)
                 current_state.update(stats_payload)
+                current_state = ensure_aaa_defaults(current_state)
                 state_record.state = json.dumps(current_state)
                 state_record.updated_at = datetime.now(timezone.utc).isoformat()
             else:
                 db.add(
                     ProjectState(
                         project_id=project_id,
-                        state=json.dumps(stats_payload),
+                        state=json.dumps(ensure_aaa_defaults(stats_payload)),
                         updated_at=datetime.now(timezone.utc).isoformat(),
                     )
                 )
@@ -103,7 +105,7 @@ class DocumentService:
             await db.commit()
         except Exception:
             logger.exception(
-                "Failed to persist projectDocumentStats for project %s",
+                "Failed to persist ingestionStats for project %s",
                 project_id,
             )
 
@@ -174,7 +176,10 @@ class DocumentService:
         _normalize_aaa_requirements_and_questions(state_data)
 
         # Append telemetry/stats (SC-004)
-        state_data["projectDocumentStats"] = self._compute_ingestion_stats(documents)
+        state_data["ingestionStats"] = self._compute_ingestion_stats(documents)
+
+        # Ensure AAA default keys exist even if the LLM omitted them.
+        state_data = ensure_aaa_defaults(state_data)
 
         state_json = json.dumps(state_data)
         result = await db.execute(
@@ -192,10 +197,13 @@ class DocumentService:
                 updated_at=datetime.now(timezone.utc).isoformat(),
             )
             db.add(new_state)
+            logger.info(f"✓ ProjectState created for project {project_id}")
 
         await db.commit()
-        logger.info(f"Document analysis completed for project: {project_id}")
-        return cast(dict[str, Any], state_data)
+        logger.info(f"✓ ProjectState persisted to DB: project_id={project_id}")
+        return state_data
+
+        # Unreachable: return above.
 
     async def generate_proposal(
         self,

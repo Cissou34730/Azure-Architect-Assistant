@@ -1,0 +1,32 @@
+{
+  "id": "scenario-behavior",
+  "name": "Behavior Test - Proactive Advisory",
+  "projectName": "E2E Behavior Test - Payment API",
+  "documents": [{ "path": "inputs/brief.md", "contentType": "text/markdown" }],
+  "chatTurns": [
+    {
+      "id": "turn1-suboptimal-choice",
+      "message": "I want to use Azure SQL Database with DTU-based pricing for this payment API that needs to handle 10,000 transactions per second globally."
+    },
+    {
+      "id": "turn2-missing-dr",
+      "message": "The architecture looks good. Let's move forward with Azure SQL in a single region."
+    },
+    {
+      "id": "turn3-vague-security",
+      "message": "For security, we'll just use HTTPS and call it a day."
+    },
+    {
+      "id": "turn4-no-monitoring",
+      "message": "We don't need monitoring for the first version. We can add it later if there are problems."
+    },
+    {
+      "id": "turn5-next-steps",
+      "message": "Okay, I've made my decisions. That's all for now."
+    }
+  ],
+  "assertions": {
+    "requireStateKeys": [],
+    "behaviorTest": true
+  }
+}

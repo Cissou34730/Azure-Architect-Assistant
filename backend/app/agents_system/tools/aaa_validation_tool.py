@@ -142,6 +142,11 @@ class AAARunValidationTool(BaseTool):
             raw_data = self._parse_payload(payload, **kwargs)
             args = AAARunValidationInput.model_validate(raw_data)
 
+            if not args.findings and not args.waf_evaluations:
+                raise ValueError(
+                    "Empty validation payload: provide at least one finding or one wafEvaluation entry."
+                )
+
             finding_items = self._process_findings(args.findings)
             waf_items = self._process_waf_evaluations(args.waf_evaluations)
 
