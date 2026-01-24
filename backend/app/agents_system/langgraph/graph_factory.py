@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .nodes.agent import run_agent_node
 from .nodes.architecture_planner import architecture_planner_node
 from .nodes.context import build_context_summary_node, load_project_state_node
+from .nodes.cost_estimator import cost_estimator_node
 from .nodes.iac_generator import iac_generator_node
 from .nodes.persist import apply_state_updates_node, persist_messages_node
 from .nodes.postprocess import postprocess_node
@@ -17,9 +18,11 @@ from .nodes.research import build_research_plan_node
 from .nodes.saas_advisor import saas_advisor_node
 from .nodes.stage_routing import (
     prepare_architecture_planner_handoff,
+    prepare_cost_estimator_handoff,
     prepare_iac_generator_handoff,
     prepare_saas_advisor_handoff,
     should_route_to_architecture_planner,
+    should_route_to_cost_estimator,
     should_route_to_iac_generator,
     should_route_to_saas_advisor,
 )
@@ -38,9 +41,11 @@ def build_project_chat_graph(db: AsyncSession | None = None, response_message_id
     workflow.add_node("prepare_arch_handoff", prepare_architecture_planner_handoff)
     workflow.add_node("prepare_iac_handoff", prepare_iac_generator_handoff)
     workflow.add_node("prepare_saas_handoff", prepare_saas_advisor_handoff)
+    workflow.add_node("prepare_cost_handoff", prepare_cost_estimator_handoff)
     workflow.add_node("architecture_planner", architecture_planner_node)
     workflow.add_node("iac_generator", iac_generator_node)
     workflow.add_node("saas_advisor", saas_advisor_node)
+    workflow.add_node("cost_estimator", cost_estimator_node)
     workflow.add_node("run_agent", _wrap_run_agent(db))
     workflow.add_node("persist_messages", _wrap_persist_messages(db))
     workflow.add_node("postprocess", _wrap_postprocess(response_message_id))
@@ -60,6 +65,7 @@ def build_project_chat_graph(db: AsyncSession | None = None, response_message_id
             "architecture_planner": "prepare_arch_handoff",
             "iac_generator": "prepare_iac_handoff",
             "saas_advisor": "prepare_saas_handoff",
+            "cost_estimator": "prepare_cost_handoff",
             "main_agent": "run_agent",
         }
     )
@@ -75,6 +81,10 @@ def build_project_chat_graph(db: AsyncSession | None = None, response_message_id
     # SaaS Advisor flow (Phase 3)
     workflow.add_edge("prepare_saas_handoff", "saas_advisor")
     workflow.add_edge("saas_advisor", "persist_messages")
+    
+    # Cost Estimator flow (Phase 3)
+    workflow.add_edge("prepare_cost_handoff", "cost_estimator")
+    workflow.add_edge("cost_estimator", "persist_messages")
     
     # Main agent flow
     workflow.add_edge("run_agent", "persist_messages")
@@ -116,6 +126,15 @@ def _agent_router_node(state: GraphState) -> dict:
             }
         }
     
+    # Phase 3: Check for Cost Estimator request (LOWEST priority)
+    if should_route_to_cost_estimator(state):
+        return {
+            "routing_decision": {
+                "agent": "cost_estimator",
+                "reason": "Cost estimation requested for architecture",
+            }
+        }
+    
     # Default to main agent
     return {
         "routing_decision": {
@@ -136,6 +155,8 @@ def _route_to_agent(state: GraphState) -> str:
         return "iac_generator"
     elif agent == "saas_advisor":
         return "saas_advisor"
+    elif agent == "cost_estimator":
+        return "cost_estimator"
     
     return "main_agent"
 
