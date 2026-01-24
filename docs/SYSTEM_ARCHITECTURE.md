@@ -66,12 +66,74 @@ Primary code:
 1. MCP client searches Microsoft Learn and code samples.
 2. Agent applies ReAct steps and synthesizes an answer.
 3. Optional project-aware chat updates project state.
+4. Multi-agent routing selects specialized sub-agents based on request type.
 
 Primary code:
 - `backend/app/agents_system/`
 - `backend/config/prompts/agent_prompts.yaml`
 - `backend/config/mcp/mcp_config.json`
 - `frontend/src/components/agent/`
+
+#### Multi-Agent System (Phase 2 & 3)
+
+The agent system uses a multi-agent architecture with intelligent routing to specialized sub-agents:
+
+**Agent Routing Priority** (highest to lowest):
+1. **IaC Generator** - Terraform/Bicep code generation
+2. **Architecture Planner** - Complex architecture design with NFR analysis
+3. **SaaS Advisor** - Multi-tenant SaaS architecture guidance (Phase 3)
+4. **Cost Estimator** - Azure cost estimation and optimization (Phase 3)
+5. **Main Agent** - General conversational guidance and orchestration
+
+**Routing Flow**:
+```
+User Request → Agent Router → [Check IaC keywords + architecture exists?]
+                           → [Check architecture keywords + complexity?]
+                           → [Check SaaS keywords (strict)?]
+                           → [Check cost keywords + architecture exists?]
+                           → [Default: Main Agent]
+```
+
+**Specialized Agents**:
+
+- **Architecture Planner Sub-Agent** (Phase 2)
+  - Triggers: "architecture", "design", "proposal" + complexity indicators (multi-region, HA, DR, compliance, microservices)
+  - Capabilities: complete architecture design, C4 diagrams (System Context, Container), functional flow diagrams, comprehensive NFR analysis
+  - Prompt: `backend/config/prompts/architecture_planner_prompt.yaml` (160 lines)
+  - Node: `backend/app/agents_system/langgraph/nodes/architecture_planner.py`
+
+- **IaC Generator Sub-Agent** (Phase 2)
+  - Triggers: "terraform", "bicep", "iac" + finalized architecture (candidateArchitectures exists)
+  - Capabilities: production-ready Bicep/Terraform code, resource schema validation, parameterization, dependency management
+  - Prompt: `backend/config/prompts/iac_generator_prompt.yaml` (175 lines)
+  - Node: `backend/app/agents_system/langgraph/nodes/iac_generator.py`
+
+- **SaaS Advisor Sub-Agent** (Phase 3)
+  - Triggers: "saas", "multi-tenant", "B2B/B2C", "tenant isolation", suitability questions ("should this be SaaS?")
+  - Capabilities: tenant models (Silo/Pool/Bridge), isolation strategies (data/compute/network/storage), B2B vs B2C patterns, noisy neighbor mitigation, deployment stamps, per-tenant cost analysis
+  - Prompt: `backend/config/prompts/saas_advisor_prompt.yaml` (393 lines)
+  - Node: `backend/app/agents_system/langgraph/nodes/saas_advisor.py`
+  - Routing: LOW priority (after IaC and Architecture), strict keyword matching only
+
+- **Cost Estimator Sub-Agent** (Phase 3)
+  - Triggers: "cost", "price", "pricing", "how much", "TCO", "budget estimate" + finalized architecture
+  - Capabilities: Azure Retail Prices API integration, cost formulas (monthly/annual/3-year TCO), regional pricing (+15% West Europe, +30% Brazil South), optimization strategies (RIs 40-60%, right-sizing, AHB 30-55%, spot 70-90%)
+  - Prompt: `backend/config/prompts/cost_estimator_prompt.yaml` (349 lines)
+  - Node: `backend/app/agents_system/langgraph/nodes/cost_estimator.py`
+  - Pricing Client: `backend/app/services/pricing/retail_prices_client.py` (async, retry logic, pagination)
+  - Routing: LOWEST priority (after IaC, Architecture, SaaS), requires finalized architecture
+
+**Routing Implementation**:
+- `backend/app/agents_system/langgraph/nodes/stage_routing.py`: routing functions (should_route_to_*, prepare_*_handoff)
+- `backend/app/agents_system/langgraph/graph_factory.py`: LangGraph workflow with conditional edges
+- `backend/app/agents_system/langgraph/state.py`: GraphState with agent_handoff_context, routing_decision, saas_context, cost_estimate
+
+**Testing**:
+- `scripts/test_phase3_saas_advisor.py`: 4 scenarios, 100% passing
+- `scripts/test_phase3_cost_estimator.py`: 4 scenarios, 100% passing
+- `scripts/test_phase3_full_system.py`: 8 scenarios, 100% passing (routing priority, false positives)
+
+See [AGENT_ACTIVATION_GUIDE.md](./AGENT_ACTIVATION_GUIDE.md) for user-facing activation guide.
 
 ### Diagram generation
 1. Create a diagram set from a text description.

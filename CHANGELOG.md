@@ -5,6 +5,124 @@ All notable changes to the Azure Architect Assistant project will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-01-24
+
+### Added - Optional Specialized Agents (Phase 3)
+
+- **SaaS Advisor Sub-Agent** - Specialized agent for multi-tenant SaaS architecture guidance
+  - Tenant Architecture Models: Silo (dedicated per tenant), Pool (shared with logical isolation), Bridge (hybrid approach)
+  - Tenant Isolation Strategies: data layer (schemas, databases, encryption), compute layer (containers, processes), network layer (VNets, NSGs), storage layer (accounts, containers)
+  - B2B vs B2C Patterns: SSO integration, tenant onboarding, billing models, customization levels
+  - Noisy Neighbor Mitigation: rate limiting, resource quotas, circuit breakers, burst protection
+  - Deployment Stamps: geographic stamps, tier-based stamps, capacity planning
+  - Cost Analysis: per-tenant economics, pricing models (per-user, per-feature, tiered)
+  - Strict activation: only on explicit SaaS keywords (saas, multi-tenant, B2B/B2C, tenant isolation)
+  - Suitability analysis: "should this be SaaS?" questions with trade-off guidance
+  - Prompt: 393 lines with comprehensive SaaS architecture patterns
+  - Node implementation: saas_advisor.py (230 lines) with tenant model extraction
+
+- **Cost Estimator Sub-Agent** - Specialized agent for Azure cost estimation and optimization
+  - Azure Retail Prices API Integration: https://prices.azure.com/api/retail/prices with OData filters
+  - Cost Calculation Formulas: hourly → monthly (730h) → annual (×12) → 3-year TCO (×3)
+  - Regional Pricing Differences: +15% West Europe, +30% Brazil South, documented per region
+  - Cost Optimization Strategies:
+    - Reserved Instances: 40-60% savings for predictable workloads (1-year, 3-year)
+    - Right-Sizing: match SKU to actual usage patterns
+    - Azure Hybrid Benefit (AHB): 30-55% savings for SQL/Windows with existing licenses
+    - Spot Instances: 70-90% savings for fault-tolerant workloads
+    - Auto-Scaling: 75% savings for dev/test environments
+    - Storage Tiering: Hot → Cool → Archive based on access patterns
+  - Service-Specific Pricing: App Service tiers, SQL Database DTU/vCore, Storage redundancy, Functions consumption/premium, Cosmos DB models
+  - Detailed Output Template: cost summary table, breakdown by service, optimization opportunities with quantified savings
+  - Strict activation: only on explicit cost keywords (cost, price, pricing, how much, TCO, budget estimate)
+  - Requires finalized architecture (candidateArchitectures exists)
+  - Prompt: 349 lines with API integration guide and optimization strategies
+  - Node implementation: cost_estimator.py (279 lines) with regex-based cost extraction
+  - Pricing Client: Existing retail_prices_client.py (205 lines) with async, retry logic, pagination - verified adequate
+
+- **Enhanced Multi-Agent Routing System** - Extended routing with 4 specialized agents
+  - Routing Priority: IaC Generator (highest) → Architecture Planner → SaaS Advisor → Cost Estimator → Main Agent (lowest)
+  - SaaS Advisor Routing:
+    - should_route_to_saas_advisor(): strict keyword matching (saas, multi-tenant, B2B/B2C, tenant isolation, deployment stamps, noisy neighbor)
+    - prepare_saas_advisor_handoff(): extracts tenant requirements (customer type, expected tenants, isolation level, compliance)
+    - _extract_tenant_requirements(): regex parsing for tenant count, isolation level detection, compliance keywords
+    - LOW priority (after IaC and Architecture)
+  - Cost Estimator Routing:
+    - should_route_to_cost_estimator(): cost keywords + architecture validation
+    - prepare_cost_estimator_handoff(): architecture, resource list, region detection, environment detection
+    - _detect_region(): parse Azure region from message/requirements (default: eastus)
+    - _detect_environment(): production/dev/test (default: production)
+    - LOWEST priority (after IaC, Architecture, SaaS)
+  - Updated stage_routing.py: +211 lines for SaaS and Cost routing functions
+  - Updated graph_factory.py: cost_estimator node, prepare_cost_handoff node, extended conditional routing
+
+- **Comprehensive Testing Suite** - Validation for all agent routing scenarios
+  - test_phase3_saas_advisor.py: 4 test scenarios
+    - Explicit SaaS request (should activate)
+    - Regular web app (should NOT activate)
+    - Enterprise single-tenant (should NOT activate)
+    - SaaS suitability question (should activate with analysis)
+    - Result: 4/4 passing (100%)
+  - test_phase3_cost_estimator.py: 4 test scenarios
+    - 5-service architecture (cost range validation)
+    - Optimization recommendations (RIs, right-sizing, AHB, spot)
+    - Error handling (no architecture finalized)
+    - Regional pricing differences (West Europe +15%)
+    - Result: 4/4 passing (100%)
+  - test_phase3_full_system.py: 8 test scenarios
+    - All routing paths (IaC → Arch → SaaS → Cost → Main)
+    - Priority verification for each agent
+    - False positive checks (web app NOT SaaS, budget constraint NOT cost)
+    - Performance testing (average latency: 0.0003s per routing decision)
+    - Result: 8/8 passing (100%)
+  - Total: 16 test scenarios, 100% passing rate
+
+### Changed - Routing Logic Improvements
+
+- **SaaS Advisor False Positive Fix**
+  - Removed context_summary check to avoid false positives
+  - Now only routes based on explicit keywords in user_message
+  - Prevents "Design a web application for internal employee management" from triggering SaaS Advisor
+  - Requires explicit SaaS intent from user
+
+### Fixed - Import Path Corrections
+
+- **Node Import Fixes**
+  - Fixed import path in architecture_planner.py: aaa_candidate_tool instead of create_tools
+  - Fixed import path in iac_generator.py: aaa_candidate_tool instead of create_tools
+  - Fixed import path in saas_advisor.py: aaa_candidate_tool instead of create_tools
+  - Fixed import path in cost_estimator.py: aaa_candidate_tool instead of create_tools
+  - Resolved ModuleNotFoundError during test execution
+
+### Documentation
+
+- **Phase 3 Planning**
+  - docs/PHASE3_OPTIONAL_AGENTS.md (458 lines): comprehensive implementation plan
+  - SaaS Advisor specifications: tenant models, isolation strategies, B2B/B2C patterns
+  - Cost Estimator specifications: API integration, TCO calculations, optimization strategies
+  - Success criteria: strict activation, no false positives, 100% test coverage
+
+- **Agent Activation Guide**
+  - docs/AGENT_ACTIVATION_GUIDE.md: user-facing guide explaining when each agent activates
+  - Routing priority explanation with examples
+  - Keyword reference for each agent
+  - Best practices for triggering specific agents
+
+### Commits (Phase 3)
+
+- fb276cd: Phase 3 setup and planning document
+- 12af440: SaaS Advisor prompt creation
+- cc2ce88: SaaS Advisor node implementation
+- c04ce3e: SaaS Advisor routing logic
+- 9cfe4e7: SaaS Advisor graph integration
+- 606bdc4: Azure Pricing API research and Cost Estimator prompt
+- e0b8d07: Cost Estimator node implementation
+- ba062a1: Cost Estimator routing integration
+- 80bad75: Comprehensive test scripts creation
+- 5fd08a0, 7f7ee9f: Import path fixes
+- 2897810: Test script refactoring (direct function calls)
+- 5f5fe79, f3a392c, fffe0e9: False positive fixes and test updates
+
 ## [1.2.0] - 2026-01-24
 
 ### Added - Multi-Agent Architecture (Phase 2)
