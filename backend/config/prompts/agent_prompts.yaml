@@ -2,7 +2,7 @@
 # Edit this file to update prompts without code changes
 # Changes take effect on next agent initialization or reload
 
-version: "1.1-refactored"
+version: "1.1"
 last_updated: "2026-01-24"
 
 system_prompt: |
