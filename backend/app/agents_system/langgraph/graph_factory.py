@@ -14,11 +14,14 @@ from .nodes.iac_generator import iac_generator_node
 from .nodes.persist import apply_state_updates_node, persist_messages_node
 from .nodes.postprocess import postprocess_node
 from .nodes.research import build_research_plan_node
+from .nodes.saas_advisor import saas_advisor_node
 from .nodes.stage_routing import (
     prepare_architecture_planner_handoff,
     prepare_iac_generator_handoff,
+    prepare_saas_advisor_handoff,
     should_route_to_architecture_planner,
     should_route_to_iac_generator,
+    should_route_to_saas_advisor,
 )
 from .state import GraphState
 
@@ -34,8 +37,10 @@ def build_project_chat_graph(db: AsyncSession | None = None, response_message_id
     workflow.add_node("agent_router", _agent_router_node)
     workflow.add_node("prepare_arch_handoff", prepare_architecture_planner_handoff)
     workflow.add_node("prepare_iac_handoff", prepare_iac_generator_handoff)
+    workflow.add_node("prepare_saas_handoff", prepare_saas_advisor_handoff)
     workflow.add_node("architecture_planner", architecture_planner_node)
     workflow.add_node("iac_generator", iac_generator_node)
+    workflow.add_node("saas_advisor", saas_advisor_node)
     workflow.add_node("run_agent", _wrap_run_agent(db))
     workflow.add_node("persist_messages", _wrap_persist_messages(db))
     workflow.add_node("postprocess", _wrap_postprocess(response_message_id))
@@ -54,6 +59,7 @@ def build_project_chat_graph(db: AsyncSession | None = None, response_message_id
         {
             "architecture_planner": "prepare_arch_handoff",
             "iac_generator": "prepare_iac_handoff",
+            "saas_advisor": "prepare_saas_handoff",
             "main_agent": "run_agent",
         }
     )
@@ -65,6 +71,10 @@ def build_project_chat_graph(db: AsyncSession | None = None, response_message_id
     # IaC Generator flow
     workflow.add_edge("prepare_iac_handoff", "iac_generator")
     workflow.add_edge("iac_generator", "persist_messages")
+    
+    # SaaS Advisor flow (Phase 3)
+    workflow.add_edge("prepare_saas_handoff", "saas_advisor")
+    workflow.add_edge("saas_advisor", "persist_messages")
     
     # Main agent flow
     workflow.add_edge("run_agent", "persist_messages")
@@ -97,6 +107,15 @@ def _agent_router_node(state: GraphState) -> dict:
             }
         }
     
+    # Phase 3: Check for SaaS-specific request (LOW priority)
+    if should_route_to_saas_advisor(state):
+        return {
+            "routing_decision": {
+                "agent": "saas_advisor",
+                "reason": "SaaS architecture guidance requested",
+            }
+        }
+    
     # Default to main agent
     return {
         "routing_decision": {
@@ -115,6 +134,8 @@ def _route_to_agent(state: GraphState) -> str:
         return "architecture_planner"
     elif agent == "iac_generator":
         return "iac_generator"
+    elif agent == "saas_advisor":
+        return "saas_advisor"
     
     return "main_agent"
 
