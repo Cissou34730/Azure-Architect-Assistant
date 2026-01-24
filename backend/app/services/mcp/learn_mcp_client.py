@@ -181,19 +181,28 @@ class MicrosoftLearnMCPClient:
 
     async def _run_connection_owner(self) -> None:
         """Owns MCP connection/session context managers for the app lifetime."""
+        session = None
+        connection_context = None
+        streams = None
+        
         try:
             # Establish connection with timeout
-            self._connection_context = streamablehttp_client(self.endpoint)
-            self._streams = await asyncio.wait_for(
-                self._connection_context.__aenter__(), timeout=self.timeout
+            connection_context = streamablehttp_client(self.endpoint)
+            streams = await asyncio.wait_for(
+                connection_context.__aenter__(), timeout=self.timeout
             )
 
-            read_stream, write_stream, _ = self._streams
+            read_stream, write_stream, _ = streams
 
             # Create and initialize session
-            self._session = ClientSession(read_stream, write_stream)
-            await asyncio.wait_for(self._session.__aenter__(), timeout=self.timeout)
-            await asyncio.wait_for(self._session.initialize(), timeout=self.timeout)
+            session = ClientSession(read_stream, write_stream)
+            await asyncio.wait_for(session.__aenter__(), timeout=self.timeout)
+            await asyncio.wait_for(session.initialize(), timeout=self.timeout)
+
+            # Store references for use by other methods
+            self._session = session
+            self._connection_context = connection_context
+            self._streams = streams
 
             # Discover and cache tools
             await self._refresh_tools()
@@ -217,7 +226,29 @@ class MicrosoftLearnMCPClient:
                 await self._stop_event.wait()
 
         # Cleanup in the same task that entered context managers.
-        await self._cleanup()
+        # This ensures __aexit__ is called in the same task as __aenter__
+        try:
+            if session:
+                logger.debug("Exiting MCP session in owner task")
+                await asyncio.wait_for(
+                    session.__aexit__(None, None, None), timeout=5.0
+                )
+        except Exception as e:
+            logger.warning(f"Error exiting session: {e}")
+        
+        try:
+            if connection_context and streams:
+                logger.debug("Exiting MCP connection context in owner task")
+                await asyncio.wait_for(
+                    connection_context.__aexit__(None, None, None), timeout=5.0
+                )
+        except Exception as e:
+            logger.warning(f"Error exiting connection context: {e}")
+        
+        # Clear references
+        self._session = None
+        self._connection_context = None
+        self._streams = None
         self._initialized = False
 
     async def _refresh_tools(self) -> None:
@@ -296,40 +327,33 @@ class MicrosoftLearnMCPClient:
             self._startup_error = None
 
     async def _cleanup_session(self) -> None:
-        """Internal helper to close the MCP session (innermost)."""
+        """Internal helper to close the MCP session (innermost).
+        
+        Note: This should NOT call __aexit__ from a different task.
+        The session cleanup happens in _run_connection_owner() when it exits.
+        This method just clears references.
+        """
         if not self._session:
             return
-        try:
-            logger.debug("Closing MCP session")
-            await asyncio.wait_for(self._session.__aexit__(None, None, None), timeout=5.0)
-        except asyncio.TimeoutError:
-            logger.warning("Session close timed out")
-        except (asyncio.CancelledError, MCPError) as e:
-            logger.warning(f"Error closing session: {e}")
-        except Exception:
-            logger.exception("Unexpected error closing session")
-        finally:
-            self._session = None
+        # Don't call __aexit__ from a different task - causes RuntimeError
+        # The session will be cleaned up by _run_connection_owner() exiting
+        logger.debug("Clearing MCP session reference (cleanup in owner task)")
+        self._session = None
 
     async def _cleanup_connection_context(self) -> None:
-        """Internal helper to close the MCP connection context (outermost)."""
+        """Internal helper to close the MCP connection context (outermost).
+        
+        Note: This should NOT call __aexit__ from a different task.
+        The connection cleanup happens in _run_connection_owner() when it exits.
+        This method just clears references.
+        """
         if not (self._connection_context and self._streams):
             return
-        try:
-            logger.debug("Closing MCP connection context")
-            await asyncio.wait_for(
-                self._connection_context.__aexit__(None, None, None),
-                timeout=5.0,
-            )
-        except asyncio.TimeoutError:
-            logger.warning("Connection context close timed out")
-        except (asyncio.CancelledError, MCPError) as e:
-            logger.warning(f"Error closing connection context: {e}")
-        except Exception:
-            logger.exception("Unexpected error closing connection context")
-        finally:
-            self._connection_context = None
-            self._streams = None
+        # Don't call __aexit__ from a different task - causes RuntimeError
+        # The connection will be cleaned up by _run_connection_owner() exiting
+        logger.debug("Clearing MCP connection reference (cleanup in owner task)")
+        self._connection_context = None
+        self._streams = None
 
     async def _cleanup(self) -> None:
         """
