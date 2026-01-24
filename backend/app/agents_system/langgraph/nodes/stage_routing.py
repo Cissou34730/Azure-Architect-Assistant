@@ -616,12 +616,8 @@ def should_route_to_saas_advisor(state: GraphState) -> bool:
         logger.info("🏢 Routing to SaaS Advisor: SaaS suitability question detected")
         return True
     
-    # Check context summary for SaaS indicators
-    context_summary = (state.get("context_summary") or "").lower()
-    if any(kw in context_summary for kw in ["multi-tenant", "saas", "b2b", "b2c"]):
-        if any(kw in user_message for kw in ["tenant", "isolation", "architecture", "design"]):
-            logger.info("🏢 Routing to SaaS Advisor: SaaS context + design request")
-            return True
+    # REMOVED: Context-based routing to avoid false positives
+    # Only route based on explicit user message keywords
     
     return False
 

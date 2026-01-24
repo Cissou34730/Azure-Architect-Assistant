@@ -80,7 +80,7 @@ TEST_SCENARIOS = [
     {
         "name": "Cost Estimator - Low Priority",
         "description": "Cost estimation request with architecture",
-        "user_message": "What's the estimated monthly cost for this architecture?",
+        "user_message": "Estimate the monthly cost for this architecture",
         "project_state": {
             "name": "Cost Test",
             "candidateArchitectures": [
