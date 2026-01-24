@@ -559,3 +559,211 @@ def _detect_iac_format(user_message: str) -> str:
         # Default to Bicep (Azure-native)
         return "bicep"
 
+
+# ==============================================================================
+# Phase 3: SaaS Advisor Routing
+# ==============================================================================
+
+
+def should_route_to_saas_advisor(state: GraphState) -> bool:
+    """
+    Determine if request should go to SaaS Advisor sub-agent.
+    
+    Route to SaaS Advisor ONLY when:
+    - User explicitly mentions "SaaS", "multi-tenant", "B2B/B2C"
+    - User asks "should this be SaaS?" or similar suitability questions
+    
+    DO NOT route for:
+    - Regular web applications (even with authentication)
+    - Single-tenant enterprise applications
+    - Internal tools or CRUD apps
+    
+    This is a LOW priority routing check (after Architecture Planner and IaC Generator).
+    
+    Args:
+        state: Current graph state
+        
+    Returns:
+        True if should route to SaaS advisor
+    """
+    user_message = (state.get("user_message") or "").lower()
+    
+    # Explicit SaaS keywords (strict matching)
+    saas_keywords = [
+        "saas", "multi-tenant", "multitenant", "multi tenant",
+        "b2b saas", "b2c saas", "tenant isolation",
+        "subscription-based", "saas architecture",
+        "deployment stamps", "noisy neighbor",
+    ]
+    
+    explicit_saas = any(keyword in user_message for keyword in saas_keywords)
+    
+    if explicit_saas:
+        logger.info("🏢 Routing to SaaS Advisor: explicit SaaS keywords detected")
+        return True
+    
+    # User asks about SaaS suitability
+    suitability_questions = [
+        "should this be saas", "should this be a saas",
+        "is saas appropriate", "is this suitable for saas",
+        "saas or not", "multi-tenant or single-tenant",
+        "should i use saas", "recommend saas",
+    ]
+    
+    asking_about_saas = any(phrase in user_message for phrase in suitability_questions)
+    
+    if asking_about_saas:
+        logger.info("🏢 Routing to SaaS Advisor: SaaS suitability question detected")
+        return True
+    
+    # Check context summary for SaaS indicators
+    context_summary = (state.get("context_summary") or "").lower()
+    if any(kw in context_summary for kw in ["multi-tenant", "saas", "b2b", "b2c"]):
+        if any(kw in user_message for kw in ["tenant", "isolation", "architecture", "design"]):
+            logger.info("🏢 Routing to SaaS Advisor: SaaS context + design request")
+            return True
+    
+    return False
+
+
+def prepare_saas_advisor_handoff(state: GraphState) -> dict[str, Any]:
+    """
+    Prepare handoff context for SaaS Advisor sub-agent.
+    
+    Extracts project requirements, tenant requirements, and constraints
+    to pass to the specialized SaaS advisor agent.
+    
+    Args:
+        state: Current graph state
+        
+    Returns:
+        State update with agent_handoff_context for SaaS advisor
+    """
+    project_state = state.get("current_project_state") or {}
+    context_summary = state.get("context_summary") or ""
+    
+    # Extract project requirements
+    requirements = project_state.get("requirements") or {}
+    requirements_text = _format_requirements(requirements)
+    
+    # Extract tenant requirements from context
+    tenant_requirements = _extract_tenant_requirements(state)
+    
+    # Extract current architecture if exists
+    architectures = project_state.get("candidateArchitectures") or []
+    current_architecture = ""
+    if architectures:
+        latest_arch = architectures[-1]
+        current_architecture = latest_arch.get("description", "")
+        diagram = latest_arch.get("diagram", "")
+        if diagram:
+            current_architecture += f"\n\n**Diagram:**\n{diagram}"
+    
+    # Extract constraints
+    constraints = {
+        "budget": requirements.get("budget"),
+        "timeline": requirements.get("timeline"),
+        "compliance": requirements.get("compliance", []),
+        "regions": requirements.get("allowedRegions", []),
+    }
+    
+    handoff_context = {
+        "project_context": context_summary,
+        "requirements": requirements_text,
+        "current_architecture": current_architecture,
+        "tenant_requirements": tenant_requirements,
+        "constraints": constraints,
+        "user_request": state.get("user_message", ""),
+        "routing_reason": "SaaS-specific architecture guidance requested",
+    }
+    
+    logger.info(
+        f"Prepared SaaS Advisor handoff context: "
+        f"customer_type={tenant_requirements.get('customer_type', 'unknown')}, "
+        f"expected_tenants={tenant_requirements.get('expected_tenants', 'unknown')}"
+    )
+    
+    return {
+        "agent_handoff_context": handoff_context,
+        "current_agent": "saas_advisor",
+    }
+
+
+def _extract_tenant_requirements(state: GraphState) -> dict[str, Any]:
+    """
+    Extract tenant-specific requirements from state.
+    
+    Looks for:
+    - Expected number of tenants
+    - Customer type (B2B, B2C)
+    - Isolation level (high, medium, low)
+    - Compliance requirements
+    
+    Args:
+        state: Current graph state
+        
+    Returns:
+        Dictionary of tenant requirements
+    """
+    user_message = (state.get("user_message") or "").lower()
+    context_summary = (state.get("context_summary") or "").lower()
+    project_state = state.get("current_project_state") or {}
+    requirements = project_state.get("requirements") or {}
+    
+    combined_text = f"{user_message} {context_summary}"
+    
+    tenant_reqs: dict[str, Any] = {}
+    
+    # Detect customer type
+    if "b2b" in combined_text:
+        tenant_reqs["customer_type"] = "b2b"
+    elif "b2c" in combined_text:
+        tenant_reqs["customer_type"] = "b2c"
+    elif "enterprise" in combined_text and ("customer" in combined_text or "client" in combined_text):
+        tenant_reqs["customer_type"] = "b2b"
+    elif "consumer" in combined_text or "individual user" in combined_text:
+        tenant_reqs["customer_type"] = "b2c"
+    
+    # Try to extract expected tenant count
+    import re
+    tenant_count_patterns = [
+        r"(\d+)\s*tenants?",
+        r"(\d+)\s*customers?",
+        r"expect\s*(\d+)",
+        r"support\s*(\d+)",
+    ]
+    
+    for pattern in tenant_count_patterns:
+        match = re.search(pattern, combined_text)
+        if match:
+            tenant_reqs["expected_tenants"] = int(match.group(1))
+            break
+    
+    # Detect isolation level
+    isolation_keywords = {
+        "high": ["hipaa", "healthcare", "financial", "bank", "government", "dedicated", "isolated"],
+        "medium": ["enterprise", "b2b", "custom sla"],
+        "low": ["b2c", "shared", "freemium"],
+    }
+    
+    for level, keywords in isolation_keywords.items():
+        if any(kw in combined_text for kw in keywords):
+            tenant_reqs["isolation_level"] = level
+            break
+    
+    # Extract compliance requirements
+    compliance_keywords = ["hipaa", "gdpr", "soc 2", "pci dss", "iso 27001"]
+    compliance = []
+    for comp in compliance_keywords:
+        if comp in combined_text:
+            compliance.append(comp.upper())
+    
+    if compliance:
+        tenant_reqs["compliance"] = compliance
+    
+    # Check if tenant tiers mentioned
+    if any(tier in combined_text for tier in ["free tier", "premium", "standard", "enterprise tier"]):
+        tenant_reqs["tenant_tiers"] = ["free", "standard", "premium"]
+    
+    return tenant_reqs
+
