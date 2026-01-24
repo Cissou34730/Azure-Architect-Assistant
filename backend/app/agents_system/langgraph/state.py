@@ -56,6 +56,13 @@ class GraphState(TypedDict, total=False):
     specialist_used: str | None
     specialist_notes: str | None
 
+    # Phase 2 fields (multi-agent handoff)
+    current_agent: str | None  # "main", "architecture_planner", "iac_generator"
+    agent_handoff_context: dict[str, Any] | None  # Context passed between agents
+    routing_decision: dict[str, str] | None  # {"agent": "...", "reason": "..."}
+    sub_agent_input: str | None  # Prepared input for sub-agent
+    sub_agent_output: str | None  # Output from sub-agent
+
 
 # Graph configuration constants
 MAX_AGENT_ITERATIONS = 10

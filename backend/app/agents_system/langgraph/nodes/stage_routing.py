@@ -220,3 +220,189 @@ def propose_next_step(state: GraphState) -> dict[str, Any]:
         "final_answer": final_answer + next_step_prompt,
     }
 
+
+# Phase 2: Multi-Agent Routing
+# -----------------------------------------------------------------------------
+
+
+def should_route_to_architecture_planner(state: GraphState) -> bool:
+    """
+    Determine if request should go to Architecture Planner sub-agent.
+    
+    Route to Architecture Planner when:
+    - User explicitly requests "architecture", "design", "proposal"
+    - Project stage suggests architecture planning needed
+    - Complexity indicators detected (multi-region, HA, DR, compliance)
+    
+    Args:
+        state: Current graph state
+        
+    Returns:
+        True if should route to architecture planner
+    """
+    user_message = (state.get("user_message") or "").lower()
+    
+    # Explicit architecture request keywords
+    arch_keywords = [
+        "architecture", "design the architecture", "propose architecture",
+        "candidate architecture", "architecture proposal", "system design",
+        "how should i architect", "what should the architecture look like",
+        "design solution", "propose solution", "architecture diagram",
+    ]
+    
+    if any(keyword in user_message for keyword in arch_keywords):
+        logger.info("🎯 Routing to Architecture Planner: explicit request detected")
+        return True
+    
+    # Check project stage
+    next_stage = state.get("next_stage")
+    if next_stage == ProjectStage.PROPOSE_CANDIDATE.value:
+        if any(kw in user_message for kw in ["architecture", "design", "propose", "solution"]):
+            logger.info("🎯 Routing to Architecture Planner: proposal stage + design request")
+            return True
+    
+    # Check complexity indicators
+    context_summary = state.get("context_summary") or ""
+    project_state = state.get("current_project_state") or {}
+    
+    # Extract NFR requirements from project state
+    requirements = project_state.get("requirements") or {}
+    nfr_text = (context_summary + " " + str(requirements)).lower()
+    
+    complexity_indicators = [
+        "multi-region", "high availability", "disaster recovery",
+        "compliance", "soc 2", "hipaa", "gdpr", "pci dss",
+        "microservices", "event-driven", "real-time",
+        "99.9%", "99.95%", "99.99%",  # SLA indicators
+        "global", "worldwide", "distributed",
+    ]
+    
+    complexity_count = sum(1 for indicator in complexity_indicators if indicator in nfr_text)
+    if complexity_count >= 3:
+        logger.info(
+            f"🎯 Routing to Architecture Planner: complexity threshold "
+            f"({complexity_count} indicators)"
+        )
+        return True
+    
+    return False
+
+
+def prepare_architecture_planner_handoff(state: GraphState) -> dict[str, Any]:
+    """
+    Prepare handoff context for Architecture Planner sub-agent.
+    
+    Extracts requirements, NFR constraints, and project context to pass
+    to the specialized architecture planning agent.
+    
+    Args:
+        state: Current graph state
+        
+    Returns:
+        State update with agent_handoff_context
+    """
+    project_state = state.get("current_project_state") or {}
+    context_summary = state.get("context_summary") or ""
+    
+    # Extract requirements
+    requirements = project_state.get("requirements") or {}
+    requirements_text = _format_requirements(requirements)
+    
+    # Extract NFR summary
+    nfr_summary = _extract_nfr_summary(requirements, context_summary)
+    
+    # Extract constraints
+    constraints = {
+        "budget": requirements.get("budget"),
+        "timeline": requirements.get("timeline"),
+        "compliance": requirements.get("compliance", []),
+        "regions": requirements.get("allowedRegions", []),
+        "excluded_services": requirements.get("excludedServices", []),
+    }
+    # Remove None values
+    constraints = {k: v for k, v in constraints.items() if v}
+    
+    # Extract previous architectural decisions
+    previous_decisions = project_state.get("adrs") or []
+    
+    handoff_context = {
+        "project_context": context_summary,
+        "requirements": requirements_text,
+        "nfr_summary": nfr_summary,
+        "constraints": constraints,
+        "previous_decisions": previous_decisions,
+        "user_request": state.get("user_message", ""),
+        "routing_reason": "Complex architecture design required with NFR analysis",
+    }
+    
+    logger.info(
+        f"Prepared Architecture Planner handoff context: "
+        f"{len(nfr_summary)} chars NFR, {len(previous_decisions)} ADRs"
+    )
+    
+    return {
+        "agent_handoff_context": handoff_context,
+        "current_agent": "architecture_planner",
+    }
+
+
+def _format_requirements(requirements: dict[str, Any]) -> str:
+    """Format requirements dictionary for handoff."""
+    if not requirements:
+        return "No explicit requirements provided."
+    
+    formatted = []
+    if "workloadType" in requirements:
+        formatted.append(f"- Workload Type: {requirements['workloadType']}")
+    if "expectedUsers" in requirements:
+        formatted.append(f"- Expected Users: {requirements['expectedUsers']}")
+    if "dataVolume" in requirements:
+        formatted.append(f"- Data Volume: {requirements['dataVolume']}")
+    if "sla" in requirements:
+        formatted.append(f"- SLA Target: {requirements['sla']}")
+    if "rto" in requirements:
+        formatted.append(f"- RTO: {requirements['rto']}")
+    if "rpo" in requirements:
+        formatted.append(f"- RPO: {requirements['rpo']}")
+    
+    return "\n".join(formatted) if formatted else str(requirements)
+
+
+def _extract_nfr_summary(requirements: dict[str, Any], context: str) -> str:
+    """Extract non-functional requirements summary."""
+    nfr_parts = []
+    
+    # Performance requirements
+    if "sla" in requirements:
+        nfr_parts.append(f"**Performance:** SLA target: {requirements['sla']}")
+    
+    # Scalability requirements
+    if "expectedUsers" in requirements or "dataVolume" in requirements:
+        scale_info = []
+        if "expectedUsers" in requirements:
+            scale_info.append(f"Users: {requirements['expectedUsers']}")
+        if "dataVolume" in requirements:
+            scale_info.append(f"Data: {requirements['dataVolume']}")
+        nfr_parts.append(f"**Scalability:** {', '.join(scale_info)}")
+    
+    # Reliability requirements
+    if "rto" in requirements or "rpo" in requirements:
+        reliability_info = []
+        if "rto" in requirements:
+            reliability_info.append(f"RTO: {requirements['rto']}")
+        if "rpo" in requirements:
+            reliability_info.append(f"RPO: {requirements['rpo']}")
+        nfr_parts.append(f"**Reliability:** {', '.join(reliability_info)}")
+    
+    # Security/Compliance requirements
+    if "compliance" in requirements:
+        compliance_list = requirements["compliance"]
+        if compliance_list:
+            nfr_parts.append(f"**Security/Compliance:** {', '.join(compliance_list)}")
+    
+    # Budget constraints
+    if "budget" in requirements:
+        nfr_parts.append(f"**Cost:** Budget constraint: {requirements['budget']}")
+    
+    return "\n".join(nfr_parts) if nfr_parts else "No explicit NFR requirements provided."
+

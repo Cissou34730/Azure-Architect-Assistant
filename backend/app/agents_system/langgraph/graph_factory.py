@@ -8,37 +8,92 @@ from langgraph.graph import END, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .nodes.agent import run_agent_node
+from .nodes.architecture_planner import architecture_planner_node
 from .nodes.context import build_context_summary_node, load_project_state_node
 from .nodes.persist import apply_state_updates_node, persist_messages_node
 from .nodes.postprocess import postprocess_node
 from .nodes.research import build_research_plan_node
+from .nodes.stage_routing import (
+    prepare_architecture_planner_handoff,
+    should_route_to_architecture_planner,
+)
 from .state import GraphState
 
 
 def build_project_chat_graph(db: AsyncSession | None = None, response_message_id: str = "") -> StateGraph:
-    """Build and compile the project chat graph."""
+    """Build and compile the project chat graph with multi-agent routing."""
     workflow = StateGraph(GraphState)
 
-    # Use partials or wrapper functions to bind dependencies
+    # Add nodes
     workflow.add_node("load_state", _wrap_load_state(db))
     workflow.add_node("build_summary", _wrap_build_summary(db))
     workflow.add_node("build_research", build_research_plan_node)
+    workflow.add_node("agent_router", _agent_router_node)
+    workflow.add_node("prepare_arch_handoff", prepare_architecture_planner_handoff)
+    workflow.add_node("architecture_planner", architecture_planner_node)
     workflow.add_node("run_agent", _wrap_run_agent(db))
-    workflow.add_node("postprocess", _wrap_postprocess(response_message_id))
     workflow.add_node("persist_messages", _wrap_persist_messages(db))
+    workflow.add_node("postprocess", _wrap_postprocess(response_message_id))
     workflow.add_node("apply_updates", _wrap_apply_updates(db))
 
-    # Define edges (linear flow for Phase 2)
+    # Define edges
     workflow.set_entry_point("load_state")
     workflow.add_edge("load_state", "build_summary")
     workflow.add_edge("build_summary", "build_research")
-    workflow.add_edge("build_research", "run_agent")
+    workflow.add_edge("build_research", "agent_router")
+    
+    # Conditional routing from agent_router
+    workflow.add_conditional_edges(
+        "agent_router",
+        _route_to_agent,
+        {
+            "architecture_planner": "prepare_arch_handoff",
+            "main_agent": "run_agent",
+        }
+    )
+    
+    # Architecture Planner flow
+    workflow.add_edge("prepare_arch_handoff", "architecture_planner")
+    workflow.add_edge("architecture_planner", "persist_messages")
+    
+    # Main agent flow
     workflow.add_edge("run_agent", "persist_messages")
+    
+    # Common postprocessing flow
     workflow.add_edge("persist_messages", "postprocess")
     workflow.add_edge("postprocess", "apply_updates")
     workflow.add_edge("apply_updates", END)
 
     return workflow.compile()
+
+
+def _agent_router_node(state: GraphState) -> dict:
+    """Router node that decides which agent to invoke."""
+    if should_route_to_architecture_planner(state):
+        return {
+            "routing_decision": {
+                "agent": "architecture_planner",
+                "reason": "Architecture design request detected",
+            }
+        }
+    
+    return {
+        "routing_decision": {
+            "agent": "main",
+            "reason": "Standard conversational interaction",
+        }
+    }
+
+
+def _route_to_agent(state: GraphState) -> str:
+    """Routing function for conditional edge."""
+    routing_decision = state.get("routing_decision", {})
+    agent = routing_decision.get("agent", "main")
+    
+    if agent == "architecture_planner":
+        return "architecture_planner"
+    
+    return "main_agent"
 
 
 def _wrap_load_state(db: AsyncSession | None):

@@ -1,0 +1,209 @@
+{
+  "us1": {
+    "missingRequiredKeys": []
+  },
+  "final": {
+    "missingRequiredKeys": [],
+    "stateSummary": {
+      "keys": [
+        "adrs",
+        "applicationStructure",
+        "assumptions",
+        "candidateArchitectures",
+        "clarificationQuestions",
+        "context",
+        "costEstimates",
+        "dataCompliance",
+        "decisions",
+        "diagrams",
+        "findings",
+        "iacArtifacts",
+        "ingestionStats",
+        "iterationEvents",
+        "lastUpdated",
+        "mcpQueries",
+        "mindMap",
+        "mindMapCoverage",
+        "nfrs",
+        "openQuestions",
+        "projectId",
+        "referenceDocuments",
+        "requirements",
+        "technicalConstraints",
+        "traceabilityIssues",
+        "traceabilityLinks",
+        "wafChecklist"
+      ],
+      "counts": {
+        "requirements": 8,
+        "adrs": 0,
+        "diagrams": 0,
+        "findings": 0,
+        "traceabilityLinks": 0,
+        "traceabilityIssues": 0
+      },
+      "mindMapCoverage": {
+        "topicCount": 13,
+        "statusCounts": {
+          "not-addressed": 11,
+          "addressed": 2
+        }
+      }
+    }
+  },
+  "advisoryQuality": {
+    "averages": {
+      "proactivity": 1.6,
+      "correction": 0.8,
+      "evidence": 1.0,
+      "clarity": 1.8,
+      "total": 5.2,
+      "maxTotal": 8
+    },
+    "turnsPassed": 4,
+    "totalTurns": 5,
+    "passRate": 0.8,
+    "overallPassed": true
+  },
+  "steps": [
+    {
+      "id": "turn1-suboptimal-choice",
+      "request": "I want to use Azure SQL Database with DTU-based pricing for this payment API that needs to handle 10,000 transactions per second globally.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "kbCallCount": 0,
+      "advisoryQuality": {
+        "proactivity": 2,
+        "correction": 2,
+        "evidence": 1,
+        "clarity": 2,
+        "total": 7,
+        "maxTotal": 8,
+        "passed": true,
+        "details": {
+          "proactivity": "Strong proactivity (3 indicators)",
+          "correction": "Strong correction/challenge (3 indicators)",
+          "evidence": "Some evidence (2 references)",
+          "clarity": "Well-structured (headings + lists)"
+        }
+      }
+    },
+    {
+      "id": "turn2-missing-dr",
+      "request": "The architecture looks good. Let's move forward with Azure SQL in a single region.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "kbCallCount": 0,
+      "advisoryQuality": {
+        "proactivity": 2,
+        "correction": 1,
+        "evidence": 1,
+        "clarity": 2,
+        "total": 6,
+        "maxTotal": 8,
+        "passed": true,
+        "details": {
+          "proactivity": "Strong proactivity (4 indicators)",
+          "correction": "Some correction/challenge (2 indicators)",
+          "evidence": "Some evidence (2 references)",
+          "clarity": "Well-structured (headings + lists)"
+        }
+      }
+    },
+    {
+      "id": "turn3-vague-security",
+      "request": "For security, we'll just use HTTPS and call it a day.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "kbCallCount": 0,
+      "advisoryQuality": {
+        "proactivity": 1,
+        "correction": 0,
+        "evidence": 1,
+        "clarity": 2,
+        "total": 4,
+        "maxTotal": 8,
+        "passed": true,
+        "details": {
+          "proactivity": "Some proactivity (2 indicators)",
+          "correction": "No challenges or corrections",
+          "evidence": "Some evidence (3 references)",
+          "clarity": "Well-structured (headings + lists)"
+        }
+      }
+    },
+    {
+      "id": "turn4-no-monitoring",
+      "request": "We don't need monitoring for the first version. We can add it later if there are problems.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "kbCallCount": 0,
+      "advisoryQuality": {
+        "proactivity": 2,
+        "correction": 1,
+        "evidence": 1,
+        "clarity": 2,
+        "total": 6,
+        "maxTotal": 8,
+        "passed": true,
+        "details": {
+          "proactivity": "Strong proactivity (3 indicators)",
+          "correction": "Some correction/challenge (2 indicators)",
+          "evidence": "Some evidence (3 references)",
+          "clarity": "Well-structured (headings + lists)"
+        }
+      }
+    },
+    {
+      "id": "turn5-next-steps",
+      "request": "Okay, I've made my decisions. That's all for now.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "kbCallCount": 0,
+      "advisoryQuality": {
+        "proactivity": 1,
+        "correction": 0,
+        "evidence": 1,
+        "clarity": 1,
+        "total": 3,
+        "maxTotal": 8,
+        "passed": false,
+        "details": {
+          "proactivity": "Some proactivity (2 indicators)",
+          "correction": "No challenges or corrections",
+          "evidence": "Some evidence (2 references)",
+          "clarity": "Some structure (basic formatting)"
+        }
+      }
+    }
+  ],
+  "mode": "in-process",
+  "scenario": {
+    "id": "scenario-behavior",
+    "name": "Behavior Test - Proactive Advisory"
+  },
+  "dbPersistence": {
+    "projectId": "7eb5ef20-1141-4397-86c0-22dfd705492b",
+    "projectsDbPath": "C:\\Users\\cyril.beurier\\code\\Azure-Architect-Assistant-archchatbot\\backend\\data\\projects.db",
+    "diagramsDbPath": "C:\\Users\\cyril.beurier\\code\\Azure-Architect-Assistant-archchatbot\\backend\\data\\diagrams.db",
+    "assertions": {
+      "projectRowExists": false,
+      "projectStateRowExists": false,
+      "wafChecklistNonEmpty": false,
+      "adrsNonEmpty": false,
+      "diagramsExist": false
+    },
+    "details": {},
+    "error": "projects.db query failed: no such table: project"
+  }
+}
