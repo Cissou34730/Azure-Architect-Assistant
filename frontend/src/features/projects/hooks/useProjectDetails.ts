@@ -56,6 +56,7 @@ export function useProjectDetails(projectId: string | undefined) {
     messages: chatHook.messages,
     chatInput: chatHook.chatInput,
     setChatInput: chatHook.setChatInput,
+    sendMessage: chatHook.sendMessage,
     architectureProposal: proposalHook.architectureProposal,
     proposalStage: proposalHook.proposalStage,
     ...operations,

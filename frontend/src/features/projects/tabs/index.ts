@@ -1,18 +1,16 @@
-import { registerTab } from "./registry";
-import { documentsTab } from "./definitions/documents";
-import { chatTab } from "./definitions/chat";
-import { stateTab } from "./definitions/state";
-import { proposalTab } from "./definitions/proposal";
-import { diagramsTab } from "./definitions/diagrams";
-import { aaaTab } from "./definitions/aaa";
+// OLD TAB SYSTEM - Disabled in favor of UnifiedProjectPage
+// Keeping imports and registrations commented out for reference
+// If you need to revert to the old 3-tab structure, uncomment these lines
 
-// Register default tabs
-registerTab(documentsTab);
-registerTab(chatTab);
-registerTab(stateTab);
-registerTab(proposalTab);
-registerTab(diagramsTab);
-registerTab(aaaTab);
+import { registerTab } from "./registry";
+import { overviewTab } from "./definitions/overview";
+import { workspaceTab } from "./definitions/workspace";
+import { deliverablesTab } from "./definitions/deliverables";
+
+// Register new tabs (3-tab structure) - DISABLED
+// registerTab(overviewTab);
+// registerTab(workspaceTab);
+// registerTab(deliverablesTab);
 
 export { getTabs } from "./registry";
 export * from "./types";

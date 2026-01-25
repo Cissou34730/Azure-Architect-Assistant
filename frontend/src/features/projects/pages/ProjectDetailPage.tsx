@@ -1,13 +1,32 @@
 import { useParams, Outlet } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useProjectDetails } from "../hooks/useProjectDetails";
-import { TabNavigation } from "../../../components/common";
+import { ErrorBoundary } from "../../../components/common";
 import { ProjectProvider } from "../context/ProjectProvider";
-import { getTabs } from "../tabs";
+import { CommandPalette } from "../components/common/CommandPalette";
+// Old tab navigation - disabled in favor of UnifiedProjectPage
+// import { TabNavigation } from "../../../components/common";
+// import { getTabs } from "../tabs";
 
 export default function ProjectDetailPage() {
   const { projectId } = useParams();
   const projectDetails = useProjectDetails(projectId);
-  const { selectedProject, loading, activeTab, setActiveTab } = projectDetails;
+  const { selectedProject, loading } = projectDetails;
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K: Open command palette
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setIsCommandPaletteOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   if (selectedProject === null && loading) {
     return (
@@ -30,35 +49,19 @@ export default function ProjectDetailPage() {
     );
   }
 
-  const tabs = getTabs();
-
+  // New unified layout - no tabs, just render the child route
   return (
-    <ProjectProvider value={projectDetails}>
-      <div className="container mx-auto p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {selectedProject.name}
-          </h1>
-          <p className="text-sm text-gray-500">
-            Project ID: {selectedProject.id}
-          </p>
-        </div>
+    <ErrorBoundary>
+      <ProjectProvider value={projectDetails}>
+        {/* Outlet renders UnifiedProjectPage or legacy tab pages */}
+        <Outlet />
 
-        <div className="bg-white rounded-lg shadow">
-          <TabNavigation
-            tabs={tabs}
-            activeTab={activeTab}
-            onTabChange={(tabId: string) => {
-              // setActiveTab now navigates
-              setActiveTab(tabId);
-            }}
-          />
-
-          <div className="p-6">
-            <Outlet />
-          </div>
-        </div>
-      </div>
-    </ProjectProvider>
+        {/* Command Palette - Available globally */}
+        <CommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+        />
+      </ProjectProvider>
+    </ErrorBoundary>
   );
 }
