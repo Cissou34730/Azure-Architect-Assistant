@@ -7,6 +7,15 @@
 
 ---
 
+## Repository Structure
+
+**Important**: This is a monorepo using npm workspaces:
+- **Root directory**: Contains workspace configuration, ESLint config (`eslint.config.js`), and TypeScript config
+- **Frontend workspace**: `frontend/` directory contains React application
+- **Package management**: React, React-DOM, React Router installed in `frontend/package.json`
+- **Build commands**: Run from root using workspace syntax (e.g., `npm run build --workspace=frontend`)
+- **Convenience scripts**: Root `package.json` has shortcuts: `npm run build`, `npm run lint` (automatically target frontend workspace)
+
 ## Executive Summary
 
 ### Current State
@@ -79,43 +88,37 @@ npm run type-check
 
 ---
 
-### Task 0.2: Install Missing React Type Definitions
+### Task 0.2: Verify React Type Definitions
 
 **Priority**: P0 - Critical  
 **Estimated Time**: 5 minutes  
 **Files**: `frontend/package.json`
 
-**Problem**:
-```
-Could not find a declaration file for module 'react'
-Could not find a declaration file for module 'react-dom'
-Could not find a declaration file for module 'react-router-dom'
-```
+**Current State**:
+- `@types/react@^19.2.6` is already installed in `frontend/package.json`
+- `@types/react-dom@^19.2.3` is already installed in `frontend/package.json`
+- `react-router-dom@^7.11.0` includes built-in types (no separate `@types` package needed)
+- React, react-dom, and react-router-dom are installed in the frontend workspace
 
 **Steps**:
-1. Navigate to frontend directory
-2. Install missing type packages:
+1. Verify all type packages are present:
    ```bash
-   cd frontend
-   npm install --save-dev @types/react @types/react-dom
+   # From root directory
+   npm list @types/react @types/react-dom --workspace=frontend
    ```
-3. Verify `package.json` devDependencies include:
-   ```json
-   "@types/react": "^19.2.6",
-   "@types/react-dom": "^19.2.3"
-   ```
-4. Note: `react-router-dom` v7.11.0 includes built-in types, so no separate `@types` package needed
+2. If any errors about missing types persist, check `frontend/tsconfig.json` configuration
+3. Verify workspace is properly configured in root `package.json`
 
 **Acceptance Criteria**:
-- [ ] All `@types` packages installed in `devDependencies`
-- [ ] No "Could not find declaration file" errors
-- [ ] `package-lock.json` updated with new dependencies
+- [ ] All `@types` packages confirmed in `frontend/package.json` devDependencies
+- [ ] No "Could not find declaration file" errors for React packages
+- [ ] Workspace structure verified in root `package.json`
 
 **Validation**:
 ```bash
-cd frontend
-npm run type-check
-# Should show significantly fewer errors
+# From root directory
+npm run build --workspace=frontend
+# Should complete without React type errors
 ```
 
 ---
@@ -126,26 +129,28 @@ npm run type-check
 **Estimated Time**: 10 minutes
 
 **Steps**:
-1. Run complete build pipeline:
+1. Run complete build pipeline from root directory:
    ```bash
-   cd frontend
-   npm run type-check
+   # From root directory (workspace commands)
    npm run lint
    npm run build
    ```
+   Note: There is no separate `type-check` script. TypeScript checking is done as part of `npm run build` (which runs `tsc && vite build`)
 2. Review any remaining errors (should be zero)
 3. Verify `frontend/dist` folder contains compiled assets
 
 **Acceptance Criteria**:
-- [ ] `npm run type-check` completes with exit code 0
-- [ ] `npm run lint` completes with exit code 0
-- [ ] `npm run build` completes with exit code 0
+- [ ] `npm run lint` completes with exit code 0 (from root, uses workspace)
+- [ ] `npm run build` completes with exit code 0 (from root, includes TypeScript compilation)
 - [ ] `frontend/dist` folder populated with production assets
+- [ ] No TypeScript compilation errors in build output
 
 **Validation**:
 ```bash
-cd frontend
-npm run build && echo "Build successful"
+# From root directory (uses workspace configuration)
+npm run lint
+npm run build
+# Both should complete with exit code 0
 ```
 
 ---
@@ -158,10 +163,15 @@ npm run build && echo "Build successful"
 
 **Steps**:
 1. Create or update `frontend/README.md`
-2. Document Node.js version requirement (from `.nvmrc` or package engines)
-3. Document npm version requirement
-4. List all prerequisite system dependencies
-5. Add build troubleshooting section
+2. Document workspace setup:
+   - Project uses npm workspaces (configured in root `package.json`)
+   - Frontend workspace located in `frontend/` directory
+   - All build/lint commands run from root using workspace flag
+3. Document Node.js version requirement (from `.nvmrc` or package engines)
+4. Document npm version requirement
+5. List all prerequisite system dependencies
+6. Document that ESLint is configured at root (`eslint.config.js`) but also has local config (`frontend/.eslintrc.json`)
+7. Add build troubleshooting section
 
 **Acceptance Criteria**:
 - [ ] README includes "Prerequisites" section
@@ -641,8 +651,8 @@ Cap DOM size and eliminate scroll jank for large datasets (chat messages, requir
 
 1. **Install `react-virtuoso`**:
    ```bash
-   cd frontend
-   npm install react-virtuoso
+   # From root directory
+   npm install react-virtuoso --workspace=frontend
    ```
 
 2. **Verify installation**:
@@ -666,7 +676,8 @@ Cap DOM size and eliminate scroll jank for large datasets (chat messages, requir
 
 **Validation**:
 ```bash
-npm list react-virtuoso
+# From root directory
+npm list react-virtuoso --workspace=frontend
 # Should show installed version
 ```
 
@@ -1115,6 +1126,332 @@ npm list react-virtuoso
 | Scroll FPS | 20-30 | >50 | 2x improvement |
 | Memory (1000 msgs) | 150MB | <50MB | 66% reduction |
 | Initial render time | 800ms | <200ms | 75% faster |
+
+---
+
+## Phase 2.5: E2E Testing Infrastructure (Optional)
+
+**Duration**: 1 day  
+**Owner**: [Assign]  
+**Dependencies**: Phase 0 complete  
+**Status**: 🔴 Not Started
+
+### Overview
+Set up Playwright for automated end-to-end performance testing. This enables automated validation of performance improvements and prevents regressions.
+
+---
+
+### Task 2.5.1: Install and Configure Playwright
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 2 hours  
+**Files**: 
+- `package.json` (root)
+- `playwright.config.ts` (new)
+- `frontend/tests/e2e/` (new directory)
+
+**Steps**:
+
+1. **Install Playwright**:
+   ```bash
+   # From root directory
+   npm install -D @playwright/test
+   npx playwright install
+   ```
+
+2. **Create Playwright config**:
+   ```typescript
+   // playwright.config.ts
+   import { defineConfig, devices } from '@playwright/test';
+
+   export default defineConfig({
+     testDir: './frontend/tests/e2e',
+     fullyParallel: true,
+     forbidOnly: !!process.env.CI,
+     retries: process.env.CI ? 2 : 0,
+     workers: process.env.CI ? 1 : undefined,
+     reporter: 'html',
+     use: {
+       baseURL: 'http://localhost:5173',
+       trace: 'on-first-retry',
+     },
+     projects: [
+       {
+         name: 'chromium',
+         use: { ...devices['Desktop Chrome'] },
+       },
+     ],
+     webServer: {
+       command: 'npm run frontend',
+       url: 'http://localhost:5173',
+       reuseExistingServer: !process.env.CI,
+     },
+   });
+   ```
+
+3. **Add test scripts to root package.json**:
+   ```json
+   "scripts": {
+     "test:e2e": "playwright test",
+     "test:e2e:ui": "playwright test --ui",
+     "test:e2e:report": "playwright show-report"
+   }
+   ```
+
+4. **Create test directory structure**:
+   ```bash
+   mkdir -p frontend/tests/e2e/performance
+   mkdir -p frontend/tests/e2e/fixtures
+   ```
+
+**Acceptance Criteria**:
+- [ ] Playwright installed and configured
+- [ ] Test directory structure created
+- [ ] Basic config runs without errors
+- [ ] Browsers installed successfully
+
+**Validation**:
+```bash
+npx playwright --version
+# Should show Playwright version
+```
+
+---
+
+### Task 2.5.2: Create Performance Test Utilities
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/tests/e2e/utils/performance.ts` (new)
+- `frontend/tests/e2e/fixtures/mockData.ts` (new)
+
+**Steps**:
+
+1. **Create performance measurement utilities**:
+   ```typescript
+   // frontend/tests/e2e/utils/performance.ts
+   import { Page } from '@playwright/test';
+
+   export async function measureRenderTime(page: Page): Promise<number> {
+     return await page.evaluate(() => {
+       const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+       return navigation.domContentLoadedEventEnd - navigation.fetchStart;
+     });
+   }
+
+   export async function measureDOMSize(page: Page): Promise<number> {
+     return await page.evaluate(() => document.querySelectorAll('*').length);
+   }
+
+   export async function measureMemoryUsage(page: Page): Promise<number | null> {
+     return await page.evaluate(() => {
+       if ('memory' in performance) {
+         return (performance as any).memory.usedJSHeapSize;
+       }
+       return null;
+     });
+   }
+
+   export async function measureScrollFPS(page: Page, scrollHeight: number): Promise<number> {
+     return await page.evaluate((height) => {
+       return new Promise((resolve) => {
+         let frameCount = 0;
+         let lastTime = performance.now();
+         const duration = 1000; // 1 second
+
+         function countFrame() {
+           frameCount++;
+           const currentTime = performance.now();
+           if (currentTime - lastTime < duration) {
+             requestAnimationFrame(countFrame);
+           } else {
+             resolve(frameCount);
+           }
+         }
+
+         // Start scrolling
+         window.scrollBy({ top: height, behavior: 'smooth' });
+         requestAnimationFrame(countFrame);
+       });
+     }, scrollHeight);
+   }
+   ```
+
+2. **Create mock data generators**:
+   ```typescript
+   // frontend/tests/e2e/fixtures/mockData.ts
+   export function generateMockMessages(count: number) {
+     return Array.from({ length: count }, (_, i) => ({
+       id: `msg-${i}`,
+       role: i % 2 === 0 ? 'user' : 'assistant',
+       content: `Mock message ${i}`,
+       timestamp: new Date(Date.now() - (count - i) * 60000).toISOString(),
+     }));
+   }
+
+   export function generateMockDiagrams(count: number) {
+     const mermaidSample = 'graph TD\n  A[Start] --> B[End]';
+     return Array.from({ length: count }, (_, i) => ({
+       id: `diagram-${i}`,
+       title: `Diagram ${i}`,
+       type: 'c4-context',
+       mermaidSource: mermaidSample,
+       createdAt: new Date().toISOString(),
+     }));
+   }
+   ```
+
+**Acceptance Criteria**:
+- [ ] Performance utilities created and typed
+- [ ] Mock data generators available
+- [ ] Utilities testable independently
+
+---
+
+### Task 2.5.3: Write Performance Regression Tests
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 3 hours  
+**Files**:
+- `frontend/tests/e2e/performance/chat-scroll.spec.ts` (new)
+- `frontend/tests/e2e/performance/diagram-loading.spec.ts` (new)
+- `frontend/tests/e2e/performance/context-renders.spec.ts` (new)
+
+**Steps**:
+
+1. **Create chat scroll performance test**:
+   ```typescript
+   // frontend/tests/e2e/performance/chat-scroll.spec.ts
+   import { test, expect } from '@playwright/test';
+   import { measureDOMSize, measureScrollFPS } from '../utils/performance';
+
+   test.describe('Chat Scroll Performance', () => {
+     test.beforeEach(async ({ page }) => {
+       await page.goto('/projects/test-project-id');
+       // TODO: Mock API to return 500 messages
+     });
+
+     test('should maintain <500 DOM nodes with virtualization', async ({ page }) => {
+       const domSize = await measureDOMSize(page);
+       expect(domSize).toBeLessThan(500);
+     });
+
+     test('should maintain >50 FPS during scroll', async ({ page }) => {
+       const fps = await measureScrollFPS(page, 1000);
+       expect(fps).toBeGreaterThan(50);
+     });
+   });
+   ```
+
+2. **Create diagram loading test**:
+   ```typescript
+   // frontend/tests/e2e/performance/diagram-loading.spec.ts
+   import { test, expect } from '@playwright/test';
+
+   test.describe('Diagram Loading Performance', () => {
+     test('should lazy load diagrams outside viewport', async ({ page }) => {
+       await page.goto('/projects/test-project-id/deliverables?tab=diagrams');
+       
+       // Check that off-screen diagrams show placeholders
+       const placeholders = await page.locator('[data-testid="diagram-placeholder"]').count();
+       expect(placeholders).toBeGreaterThan(0);
+
+       // Check that visible diagrams are rendered
+       const rendered = await page.locator('svg').count();
+       expect(rendered).toBeGreaterThan(0);
+       expect(rendered).toBeLessThan(placeholders + rendered);
+     });
+
+     test('should not block main thread on initial load', async ({ page }) => {
+       const metrics = await page.metrics();
+       // Add performance assertions based on metrics
+     });
+   });
+   ```
+
+3. **Create context render isolation test**:
+   ```typescript
+   // frontend/tests/e2e/performance/context-renders.spec.ts
+   import { test, expect } from '@playwright/test';
+
+   test.describe('Context Render Isolation', () => {
+     test('typing in chat should not re-render side panels', async ({ page }) => {
+       await page.goto('/projects/test-project-id');
+       
+       // Add data attributes to track renders in dev build
+       // Or use React DevTools protocol
+       
+       await page.fill('[data-testid="chat-input"]', 'test message');
+       
+       // Assert that left/right panels didn't re-render
+       // (requires instrumentation in components)
+     });
+   });
+   ```
+
+**Acceptance Criteria**:
+- [ ] All performance tests written and passing
+- [ ] Tests cover key performance scenarios
+- [ ] Tests use appropriate thresholds
+- [ ] Mock data setup for isolated testing
+
+**Validation**:
+```bash
+npm run test:e2e
+# All tests should pass
+```
+
+---
+
+### Task 2.5.4: Integrate with CI/CD
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 1 hour  
+**Files**:
+- `.github/workflows/performance-tests.yml` (new or update existing)
+
+**Steps**:
+
+1. **Add GitHub Actions workflow**:
+   ```yaml
+   name: Performance Tests
+   on:
+     pull_request:
+       branches: [main, develop]
+     push:
+       branches: [main]
+
+   jobs:
+     test:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v4
+         - uses: actions/setup-node@v4
+           with:
+             node-version: '20'
+         - name: Install dependencies
+           run: |
+             npm ci
+             npx playwright install --with-deps
+         - name: Run E2E tests
+           run: npm run test:e2e
+         - uses: actions/upload-artifact@v4
+           if: always()
+           with:
+             name: playwright-report
+             path: playwright-report/
+             retention-days: 30
+   ```
+
+2. **Add performance budgets to workflow**
+3. **Configure failure notifications**
+
+**Acceptance Criteria**:
+- [ ] CI workflow runs on PRs
+- [ ] Test reports uploaded as artifacts
+- [ ] Performance budgets enforced
+- [ ] Team notified of failures
 
 ---
 
@@ -1747,13 +2084,18 @@ ls -lh frontend/dist/assets/*.js
 
 **Validation**:
 ```bash
+# From root directory
 npm run build
 # Check main bundle size
 ls -lh frontend/dist/assets/index-*.js
+# Or on Windows PowerShell:
+Get-ChildItem frontend/dist/assets/index-*.js | Format-Table Name, Length
 # Should be significantly smaller
 
 # Check for mermaid chunk
 ls -lh frontend/dist/assets/mermaid-*.js
+# Or on Windows PowerShell:
+Get-ChildItem frontend/dist/assets/mermaid-*.js | Format-Table Name, Length
 ```
 
 ---
@@ -2730,26 +3072,35 @@ Eliminate redundant full-history fetches by implementing incremental chat update
 ### Useful Commands
 
 ```bash
-# Build and analyze bundle
-cd frontend
+# Build and analyze bundle (from root)
 npm run build
-npx vite-bundle-visualizer
+npx vite-bundle-visualizer frontend/dist
 
-# Run performance tests
-npm run test:perf
+# Run performance tests (if Playwright installed)
+npm run test:e2e
 
 # Profile specific scenario
-npm run dev
+npm run frontend  # Starts dev server
 # Then open Chrome DevTools → Performance tab
 
-# Measure bundle size
-ls -lh dist/assets/*.js | awk '{print $5, $9}'
+# Run linter
+npm run lint
+npm run lint:fix
 
-# Check for duplicate dependencies
-npx npkill
+# Measure bundle size
+ls -lh frontend/dist/assets/*.js | awk '{print $5, $9}'
+# Or on Windows PowerShell:
+Get-ChildItem frontend/dist/assets/*.js | Format-Table Name, Length
+
+# Check for duplicate dependencies (from root)
+npm dedupe
+npm list --all | grep -E 'deduped|extraneous'
 
 # Audit dependencies
-npm audit
+npm audit --workspace=frontend
+
+# Check workspace structure
+npm list --workspaces
 ```
 
 ### Recommended VSCode Extensions
