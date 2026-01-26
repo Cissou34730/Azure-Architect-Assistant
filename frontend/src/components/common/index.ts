@@ -7,6 +7,8 @@ export { LoadingIndicator } from "./LoadingIndicator";
 export { Banner } from "./Banner";
 export { ToastContainer } from "./Toast";
 export { PageLoader } from "./PageLoader";
+export { ProjectSelectorDropdown } from "./ProjectSelectorDropdown";
+export { DeleteProjectModal } from "./DeleteProjectModal";
 export type { Toast, ToastType } from "./Toast";
 
 // New design system components

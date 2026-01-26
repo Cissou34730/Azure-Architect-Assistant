@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useProjectContext } from "../context/useProjectContext";
-import { QuickActionsBar } from "../components/unified/QuickActionsBar";
+import { ProjectHeader } from "../components/ProjectHeader";
 import { LeftContextPanel } from "../components/unified/LeftContextPanel";
 import { CenterChatArea } from "../components/unified/CenterChatArea";
 import { RightDeliverablesPanel } from "../components/unified/RightDeliverablesPanel";
@@ -29,7 +29,16 @@ export default function UnifiedProjectPage() {
     return stored !== null ? stored === "true" : true;
   });
 
-  // Extract data from projectState
+  // Persist panel states to localStorage
+  useEffect(() => {
+    localStorage.setItem("leftPanelOpen", String(leftPanelOpen));
+  }, [leftPanelOpen]);
+
+  useEffect(() => {
+    localStorage.setItem("rightPanelOpen", String(rightPanelOpen));
+  }, [rightPanelOpen]);
+
+  // Extract data from projectState - simple property access, no memo needed in React 19+
   const requirements = projectState?.requirements || [];
   const assumptions = projectState?.assumptions || [];
   const questions = projectState?.clarificationQuestions || [];
@@ -40,51 +49,6 @@ export default function UnifiedProjectPage() {
   
   // Mock documents - in real app, these would come from API
   const documents: Array<{ id: string; name: string; size?: number; uploadedAt?: string }> = [];
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + [: Toggle left panel
-      if ((e.metaKey || e.ctrlKey) && e.key === "[") {
-        e.preventDefault();
-        setLeftPanelOpen((prev) => !prev);
-      }
-      // Cmd/Ctrl + ]: Toggle right panel
-      if ((e.metaKey || e.ctrlKey) && e.key === "]") {
-        e.preventDefault();
-        setRightPanelOpen((prev) => !prev);
-      }
-      // Cmd/Ctrl + /: Toggle both panels
-      if ((e.metaKey || e.ctrlKey) && e.key === "/") {
-        e.preventDefault();
-        setLeftPanelOpen((prev) => !prev);
-        setRightPanelOpen((prev) => !prev);
-      }
-      // Cmd/Ctrl + U: Focus upload
-      if ((e.metaKey || e.ctrlKey) && e.key === "u") {
-        e.preventDefault();
-        handleUploadClick();
-      }
-      // Cmd/Ctrl + G: Generate diagram
-      if ((e.metaKey || e.ctrlKey) && e.key === "g") {
-        e.preventDefault();
-        handleGenerateDiagramClick();
-      }
-      // Cmd/Ctrl + K: Create ADR
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        handleCreateAdrClick();
-      }
-      // Cmd/Ctrl + E: Export
-      if ((e.metaKey || e.ctrlKey) && e.key === "e") {
-        e.preventDefault();
-        handleExportClick();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   const handleSendMessage = useCallback(
     async (content: string) => {
@@ -108,40 +72,49 @@ export default function UnifiedProjectPage() {
   );
 
   // Action handlers
-  const handleUploadClick = () => {
+  const handleUploadClick = useCallback(() => {
     // TODO: Trigger document upload - could expand upload section or open modal
     console.log("Upload clicked");
-  };
+  }, []);
 
-  const handleGenerateDiagramClick = () => {
+  const handleGenerateDiagramClick = useCallback(() => {
     // TODO: Trigger diagram generation flow
     console.log("Generate diagram clicked");
-  };
+  }, []);
 
-  const handleCreateAdrClick = () => {
+  const handleCreateAdrClick = useCallback(() => {
     // TODO: Trigger ADR creation flow
     console.log("Create ADR clicked");
-  };
+  }, []);
 
-  const handleExportClick = () => {
+  const handleExportClick = useCallback(() => {
     // TODO: Trigger export flow
     console.log("Export clicked");
-  };
+  }, []);
 
-  const handleNavigateToDiagrams = () => {
+  const handleNavigateToDiagrams = useCallback(() => {
     // Navigate to deliverables page with diagrams tab
     navigate(`/projects/${projectId}/deliverables?tab=diagrams`);
-  };
+  }, [navigate, projectId]);
 
-  const handleNavigateToAdrs = () => {
+  const handleNavigateToAdrs = useCallback(() => {
     // Navigate to deliverables page with ADRs tab
     navigate(`/projects/${projectId}/deliverables?tab=adrs`);
-  };
+  }, [navigate, projectId]);
 
-  const handleNavigateToCosts = () => {
+  const handleNavigateToCosts = useCallback(() => {
     // Navigate to deliverables page with costs tab
     navigate(`/projects/${projectId}/deliverables?tab=costs`);
-  };
+  }, [navigate, projectId]);
+
+  // Panel toggle handlers
+  const toggleLeftPanel = useCallback(() => {
+    setLeftPanelOpen((prev) => !prev);
+  }, []);
+
+  const toggleRightPanel = useCallback(() => {
+    setRightPanelOpen((prev) => !prev);
+  }, []);
 
   if (!selectedProject) {
     return (
@@ -167,17 +140,12 @@ export default function UnifiedProjectPage() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
-      {/* Quick Actions Bar - Sticky at top */}
-      <QuickActionsBar
-        projectName={selectedProject.name}
+      {/* Project Header - Sticky below main nav */}
+      <ProjectHeader
         onUploadClick={handleUploadClick}
-        onGenerateDiagramClick={handleGenerateDiagramClick}
-        onCreateAdrClick={handleCreateAdrClick}
+        onGenerateClick={handleGenerateDiagramClick}
+        onAdrClick={handleCreateAdrClick}
         onExportClick={handleExportClick}
-        onMenuClick={() => {
-          setLeftPanelOpen(true);
-          setRightPanelOpen(true);
-        }}
       />
 
       {/* Main content area - 3 columns */}
@@ -185,7 +153,7 @@ export default function UnifiedProjectPage() {
         {/* Left Context Panel */}
         <LeftContextPanel
           isOpen={leftPanelOpen}
-          onToggle={() => setLeftPanelOpen(!leftPanelOpen)}
+          onToggle={toggleLeftPanel}
           requirements={requirements}
           assumptions={assumptions}
           questions={questions}
@@ -205,7 +173,7 @@ export default function UnifiedProjectPage() {
         {/* Right Deliverables Panel */}
         <RightDeliverablesPanel
           isOpen={rightPanelOpen}
-          onToggle={() => setRightPanelOpen(!rightPanelOpen)}
+          onToggle={toggleRightPanel}
           adrs={adrs}
           diagrams={diagrams}
           costEstimates={costEstimates}

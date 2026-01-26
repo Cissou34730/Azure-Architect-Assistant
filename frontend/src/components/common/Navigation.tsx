@@ -4,12 +4,12 @@ export function Navigation() {
   const navItems = [
     {
       to: "/projects",
-      label: "Architecture Projects",
+      label: "Projects",
       ariaLabel: "View architecture projects",
     },
     {
       to: "/kb",
-      label: "Knowledge Base Query",
+      label: "Knowledge Base",
       ariaLabel: "Query knowledge bases",
     },
     {
@@ -21,23 +21,22 @@ export function Navigation() {
 
   return (
     <nav
-      className="bg-white shadow-sm border-b border-gray-200"
+      className="sticky top-0 bg-white shadow-sm border-b border-gray-200 z-40"
       role="navigation"
       aria-label="Main navigation"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex space-x-8" role="tablist">
+        <div className="flex justify-between items-center h-14">
+          <div className="flex space-x-8">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
-                role="tab"
                 aria-label={item.ariaLabel}
                 className={({ isActive }: { isActive: boolean }) =>
                   `px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
-                      ? "text-accent-primary border-b-2 border-accent-primary"
+                      ? "text-blue-600 border-b-2 border-blue-600"
                       : "text-gray-600 hover:text-gray-900"
                   }`
                 }
@@ -46,7 +45,7 @@ export function Navigation() {
               </NavLink>
             ))}
           </div>
-          <div className="text-sm text-gray-600" role="banner">
+          <div className="text-sm text-gray-600">
             Azure Architect Assistant
           </div>
         </div>

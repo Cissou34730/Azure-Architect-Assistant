@@ -35,7 +35,7 @@ export function QuickActionsBar({
             </button>
           )}
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0">
+            <div className="h-8 w-8 rounded-lg bg-linear-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0">
               <span className="text-white font-semibold text-sm">
                 {projectName.charAt(0).toUpperCase()}
               </span>

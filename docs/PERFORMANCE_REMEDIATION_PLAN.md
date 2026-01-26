@@ -1,0 +1,2775 @@
+# Performance Remediation Plan - Azure Architect Assistant
+
+**Version**: 1.0  
+**Date**: January 26, 2026  
+**Status**: Ready for Implementation  
+**Branch**: `perf/remediate-react-project`
+
+---
+
+## Executive Summary
+
+### Current State
+- **Build Status**: ❌ Critical failures blocking development
+- **Performance Baseline**: Lighthouse Score ~60-70 (estimated)
+- **Time to Interactive**: 8-12s on 3G
+- **Total Blocking Time**: 1500-2500ms
+
+### Target State
+- **Build Status**: ✅ Clean build with zero errors
+- **Performance Goal**: Lighthouse Score >90
+- **Time to Interactive**: <3s on 3G
+- **Total Blocking Time**: <300ms
+
+### Expected Improvements
+- **Initial Load**: 40-60% faster (via code splitting)
+- **Interaction Jank**: 70-80% reduction (via context splitting)
+- **DOM Efficiency**: 80-90% fewer nodes (via virtualization)
+- **Network Efficiency**: 50-70% smaller payloads (via incremental updates)
+
+---
+
+## Phase 0: Build Stability (BLOCKING)
+
+**Duration**: 1-2 hours  
+**Owner**: [Assign]  
+**Dependencies**: None  
+**Status**: 🔴 Not Started
+
+### Overview
+Restore build integrity by resolving TypeScript compilation errors and missing dependencies. All subsequent work is blocked until this phase completes successfully.
+
+---
+
+### Task 0.1: Fix Duplicate `assumptions` Field
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 15 minutes  
+**File**: `frontend/src/types/api.ts`
+
+**Problem**:
+```typescript
+// Line 190
+readonly assumptions: readonly Record<string, any>[];
+
+// Line 218
+readonly assumptions?: readonly string[];
+```
+
+**Steps**:
+1. Open `frontend/src/types/api.ts`
+2. Locate the interface containing duplicate `assumptions` fields (lines 190 and 218)
+3. Determine correct type by reviewing backend API contract
+4. Choose one of the following resolutions:
+   - **Option A**: If backend returns array of objects → Keep line 190, remove line 218
+   - **Option B**: If backend returns array of strings → Keep line 218, remove line 190
+   - **Option C**: If different contexts → Rename one field (e.g., `assumptionsList`, `assumptionObjects`)
+
+**Acceptance Criteria**:
+- [ ] No duplicate identifier errors in TypeScript compilation
+- [ ] API types correctly match backend response structure
+- [ ] All consuming code updated to use correct field name
+
+**Validation**:
+```bash
+cd frontend
+npm run type-check
+# Should complete with 0 errors related to 'assumptions'
+```
+
+---
+
+### Task 0.2: Install Missing React Type Definitions
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 5 minutes  
+**Files**: `frontend/package.json`
+
+**Problem**:
+```
+Could not find a declaration file for module 'react'
+Could not find a declaration file for module 'react-dom'
+Could not find a declaration file for module 'react-router-dom'
+```
+
+**Steps**:
+1. Navigate to frontend directory
+2. Install missing type packages:
+   ```bash
+   cd frontend
+   npm install --save-dev @types/react @types/react-dom
+   ```
+3. Verify `package.json` devDependencies include:
+   ```json
+   "@types/react": "^19.2.6",
+   "@types/react-dom": "^19.2.3"
+   ```
+4. Note: `react-router-dom` v7.11.0 includes built-in types, so no separate `@types` package needed
+
+**Acceptance Criteria**:
+- [ ] All `@types` packages installed in `devDependencies`
+- [ ] No "Could not find declaration file" errors
+- [ ] `package-lock.json` updated with new dependencies
+
+**Validation**:
+```bash
+cd frontend
+npm run type-check
+# Should show significantly fewer errors
+```
+
+---
+
+### Task 0.3: Verify Full Build Pipeline
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 10 minutes
+
+**Steps**:
+1. Run complete build pipeline:
+   ```bash
+   cd frontend
+   npm run type-check
+   npm run lint
+   npm run build
+   ```
+2. Review any remaining errors (should be zero)
+3. Verify `frontend/dist` folder contains compiled assets
+
+**Acceptance Criteria**:
+- [ ] `npm run type-check` completes with exit code 0
+- [ ] `npm run lint` completes with exit code 0
+- [ ] `npm run build` completes with exit code 0
+- [ ] `frontend/dist` folder populated with production assets
+
+**Validation**:
+```bash
+cd frontend
+npm run build && echo "Build successful"
+```
+
+---
+
+### Task 0.4: Document Build Requirements
+
+**Priority**: P1 - High  
+**Estimated Time**: 15 minutes  
+**File**: `frontend/README.md` (create if missing)
+
+**Steps**:
+1. Create or update `frontend/README.md`
+2. Document Node.js version requirement (from `.nvmrc` or package engines)
+3. Document npm version requirement
+4. List all prerequisite system dependencies
+5. Add build troubleshooting section
+
+**Acceptance Criteria**:
+- [ ] README includes "Prerequisites" section
+- [ ] README includes "Build Instructions" section
+- [ ] README includes "Common Issues" section
+
+**Deliverable**: Updated `frontend/README.md` with build documentation
+
+---
+
+## Phase 1: Context Architecture Redesign
+
+**Duration**: 2-3 days  
+**Owner**: [Assign]  
+**Dependencies**: Phase 0 complete  
+**Status**: 🔴 Not Started
+
+### Overview
+Eliminate unnecessary component rerenders by splitting the monolithic `ProjectContext` into domain-specific contexts. This is the foundation for all subsequent performance improvements.
+
+---
+
+### Task 1.1: Create Chat Context
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 3 hours  
+**Files**: 
+- `frontend/src/features/projects/context/ProjectChatContext.tsx` (new)
+- `frontend/src/features/projects/context/useProjectChatContext.ts` (new)
+
+**Steps**:
+
+1. **Create context definition**:
+   ```typescript
+   // ProjectChatContext.tsx
+   import { createContext } from "react";
+   import type { Message } from "../../../types/api";
+
+   export interface ProjectChatContextType {
+     readonly messages: readonly Message[];
+     readonly sendMessage: (content: string) => Promise<void>;
+     readonly loading: boolean;
+     readonly loadingMessage: string;
+     readonly refreshMessages: () => Promise<void>;
+   }
+
+   export const ProjectChatContext = createContext<ProjectChatContextType | null>(null);
+   ```
+
+2. **Create custom hook**:
+   ```typescript
+   // useProjectChatContext.ts
+   import { useContext } from "react";
+   import { ProjectChatContext } from "./ProjectChatContext";
+
+   export function useProjectChatContext() {
+     const context = useContext(ProjectChatContext);
+     if (context === null) {
+       throw new Error("useProjectChatContext must be used within ProjectChatProvider");
+     }
+     return context;
+   }
+   ```
+
+3. **Extract chat logic from `useProjectDetails.ts`**:
+   - Move `useChat` hook result into separate provider
+   - Move `useChatHandlers` into provider implementation
+
+**Acceptance Criteria**:
+- [ ] `ProjectChatContext` defined with correct TypeScript types
+- [ ] `useProjectChatContext` hook throws error outside provider
+- [ ] Context value is memoized with correct dependencies
+- [ ] No breaking changes to existing consumers (yet)
+
+**Validation**:
+```bash
+npm run type-check
+# Should compile without errors
+```
+
+---
+
+### Task 1.2: Create State Context
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 3 hours  
+**Files**:
+- `frontend/src/features/projects/context/ProjectStateContext.tsx` (new)
+- `frontend/src/features/projects/context/useProjectStateContext.ts` (new)
+
+**Steps**:
+
+1. **Create context definition**:
+   ```typescript
+   // ProjectStateContext.tsx
+   import { createContext } from "react";
+   import type { ProjectState } from "../../../types/api";
+
+   export interface ProjectStateContextType {
+     readonly projectState: ProjectState | null;
+     readonly loading: boolean;
+     readonly refreshState: () => Promise<void>;
+     readonly analyzeDocuments: (files: File[]) => Promise<void>;
+   }
+
+   export const ProjectStateContext = createContext<ProjectStateContextType | null>(null);
+   ```
+
+2. **Create custom hook** with error boundary
+3. **Extract state logic from `useProjectDetails.ts`**:
+   - Move `useProjectState` hook result into provider
+   - Ensure state updates don't trigger chat rerenders
+
+4. **Add memoization**:
+   ```typescript
+   const value = useMemo(() => ({
+     projectState,
+     loading,
+     refreshState,
+     analyzeDocuments,
+   }), [projectState, loading, refreshState, analyzeDocuments]);
+   ```
+
+**Acceptance Criteria**:
+- [ ] `ProjectStateContext` defined and exported
+- [ ] Context value properly memoized
+- [ ] Stable callback references via `useCallback`
+- [ ] Passes TypeScript strict mode
+
+**Validation**:
+- Add `console.log` render counter in `LeftContextPanel`
+- Type in chat → verify panel does NOT re-render
+
+---
+
+### Task 1.3: Create Meta Context
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/src/features/projects/context/ProjectMetaContext.tsx` (new)
+- `frontend/src/features/projects/context/useProjectMetaContext.ts` (new)
+
+**Steps**:
+
+1. **Create context for project metadata**:
+   ```typescript
+   export interface ProjectMetaContextType {
+     readonly selectedProject: Project | null;
+     readonly setSelectedProject: (project: Project | null) => void;
+     readonly loadingProject: boolean;
+     readonly activeTab: string;
+     readonly setActiveTab: (tab: string) => void;
+   }
+   ```
+
+2. **Extract from `useProjectDetails.ts`**:
+   - Project selection state
+   - Tab navigation state
+   - Loading flags
+
+3. **Minimize update frequency**:
+   - Project changes are rare (navigation events)
+   - Tab changes should be isolated from chat/state updates
+
+**Acceptance Criteria**:
+- [ ] Meta context updates don't trigger chat/state rerenders
+- [ ] Context value memoized correctly
+- [ ] All references stable via `useCallback`
+
+**Validation**:
+```typescript
+// Add to ProjectMetaContext.tsx (dev only)
+if (import.meta.env.DEV) {
+  console.log('ProjectMetaContext rendered');
+}
+```
+
+---
+
+### Task 1.4: Compose Provider Hierarchy
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/src/features/projects/context/ProjectProvider.tsx` (modify)
+- `frontend/src/features/projects/pages/ProjectDetailPage.tsx` (modify)
+
+**Steps**:
+
+1. **Update `ProjectProvider.tsx`**:
+   ```typescript
+   export function ProjectProvider({ children }: { children: React.ReactNode }) {
+     const projectId = useParams<{ projectId: string }>().projectId;
+     
+     // Meta context (top level - changes rarely)
+     const metaValue = useProjectMeta(projectId);
+     
+     // State context (middle level)
+     const stateValue = useProjectState(projectId);
+     
+     // Chat context (leaf level - changes frequently)
+     const chatValue = useProjectChat(projectId);
+
+     return (
+       <ProjectMetaContext.Provider value={metaValue}>
+         <ProjectStateContext.Provider value={stateValue}>
+           <ProjectChatContext.Provider value={chatValue}>
+             {children}
+           </ProjectChatContext.Provider>
+         </ProjectStateContext.Provider>
+       </ProjectMetaContext.Provider>
+     );
+   }
+   ```
+
+2. **Order contexts by update frequency** (least to most frequent)
+3. **Ensure each provider value is memoized**
+4. **Add error boundaries** at each level
+
+**Acceptance Criteria**:
+- [ ] Nested provider structure correct
+- [ ] No circular dependencies
+- [ ] Each provider independently testable
+- [ ] Error boundaries catch context-specific failures
+
+**Validation**:
+- Render `<ProjectProvider>` → verify three separate context providers exist
+- Check React DevTools component tree
+
+---
+
+### Task 1.5: Migrate Consumers to Split Contexts
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 4 hours  
+**Files**:
+- `frontend/src/features/projects/pages/UnifiedProjectPage.tsx`
+- `frontend/src/features/projects/components/unified/CenterChatArea.tsx`
+- `frontend/src/features/projects/components/unified/LeftContextPanel.tsx`
+- `frontend/src/features/projects/components/unified/RightDeliverablesPanel.tsx`
+- `frontend/src/features/projects/components/ProjectHeader.tsx`
+
+**Steps**:
+
+1. **Update `UnifiedProjectPage.tsx`**:
+   ```typescript
+   // Before
+   const { selectedProject, projectState, messages, sendMessage, loading } = useProjectContext();
+
+   // After
+   const { selectedProject } = useProjectMetaContext();
+   const { projectState } = useProjectStateContext();
+   const { messages, sendMessage, loading } = useProjectChatContext();
+   ```
+
+2. **Update `CenterChatArea` component**:
+   - Import `useProjectChatContext` only
+   - Remove dependency on full context
+
+3. **Update `LeftContextPanel` component**:
+   - Import `useProjectStateContext` only
+   - Access requirements, assumptions, questions from state context
+
+4. **Update `RightDeliverablesPanel` component**:
+   - Import `useProjectStateContext` only
+   - Access adrs, diagrams, costEstimates from state context
+
+5. **Update `ProjectHeader` component**:
+   - Import `useProjectMetaContext` only
+   - Access selectedProject for title display
+
+**Acceptance Criteria**:
+- [ ] All consumers use specific context hooks (not generic `useProjectContext`)
+- [ ] No TypeScript errors
+- [ ] Application functions identically to before
+- [ ] Each component only subscribes to context it needs
+
+**Validation**:
+```bash
+npm run build
+# Should succeed with no type errors
+```
+
+---
+
+### Task 1.6: Memoize Heavy Components
+
+**Priority**: P1 - High  
+**Estimated Time**: 3 hours  
+**Files**:
+- `frontend/src/features/projects/components/ProjectHeader.tsx`
+- `frontend/src/features/projects/components/unified/LeftContextPanel.tsx`
+- `frontend/src/features/projects/components/unified/RightDeliverablesPanel.tsx`
+- `frontend/src/features/projects/components/unified/CenterChatArea.tsx`
+
+**Steps**:
+
+1. **Wrap each component in `React.memo`**:
+   ```typescript
+   // Before
+   export function ProjectHeader({ onUploadClick, ... }) {
+     // component body
+   }
+
+   // After
+   export const ProjectHeader = React.memo(function ProjectHeader({ 
+     onUploadClick, 
+     ... 
+   }) {
+     // component body
+   });
+   ```
+
+2. **Add custom comparison for complex props**:
+   ```typescript
+   export const LeftContextPanel = React.memo(
+     function LeftContextPanel(props) { ... },
+     (prevProps, nextProps) => {
+       // Custom equality check for array props
+       return (
+         prevProps.isOpen === nextProps.isOpen &&
+         prevProps.requirements === nextProps.requirements &&
+         prevProps.assumptions === nextProps.assumptions
+       );
+     }
+   );
+   ```
+
+3. **Stabilize callback props in parent**:
+   ```typescript
+   // In UnifiedProjectPage.tsx
+   const toggleLeftPanel = useCallback(() => {
+     setLeftPanelOpen((prev) => !prev);
+   }, []); // Empty deps - function is stable
+   ```
+
+**Acceptance Criteria**:
+- [ ] All major components wrapped in `React.memo`
+- [ ] Custom comparisons for array/object props
+- [ ] All callback props stable (via `useCallback`)
+- [ ] No unnecessary rerenders during typing
+
+**Validation**:
+- Install React DevTools Profiler
+- Record interaction: Type message in chat
+- Verify: `LeftContextPanel` and `RightDeliverablesPanel` show 0 renders
+
+---
+
+### Task 1.7: Add Render Tracking (Dev Mode)
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 1 hour  
+**Files**:
+- `frontend/src/hooks/useRenderCount.ts` (new)
+- Various components (conditional instrumentation)
+
+**Steps**:
+
+1. **Create `useRenderCount` hook**:
+   ```typescript
+   // useRenderCount.ts
+   import { useRef, useEffect } from "react";
+
+   export function useRenderCount(componentName: string) {
+     const count = useRef(0);
+     
+     useEffect(() => {
+       count.current += 1;
+       if (import.meta.env.DEV) {
+         console.log(`[Render] ${componentName}: ${count.current}`);
+       }
+     });
+     
+     return count.current;
+   }
+   ```
+
+2. **Add to key components** (dev only):
+   ```typescript
+   export function UnifiedProjectPage() {
+     useRenderCount('UnifiedProjectPage');
+     // rest of component
+   }
+   ```
+
+3. **Add conditional logging for context updates**:
+   ```typescript
+   // In ProjectChatContext
+   useEffect(() => {
+     if (import.meta.env.DEV) {
+       console.log('[Context] ProjectChatContext updated', { messagesCount: messages.length });
+     }
+   }, [messages]);
+   ```
+
+**Acceptance Criteria**:
+- [ ] Render counts visible in console (dev mode only)
+- [ ] Production build strips all logging
+- [ ] Minimal performance overhead
+
+**Validation**:
+```bash
+npm run dev
+# Open console → verify render counts logged
+npm run build
+# Verify console.log calls removed from bundle
+```
+
+---
+
+### Task 1.8: Phase 1 Integration Testing
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 2 hours
+
+**Test Scenarios**:
+
+1. **Scenario: Chat typing does not re-render panels**
+   - Open Unified Project Page
+   - Open React DevTools Profiler
+   - Start recording
+   - Type message in chat input
+   - Send message
+   - Stop recording
+   - **Expected**: Only `CenterChatArea` and `ChatPanel` re-render
+   - **Expected**: `LeftContextPanel` and `RightDeliverablesPanel` render count = 0
+
+2. **Scenario: Panel toggle is isolated**
+   - Open Unified Project Page
+   - Start Profiler recording
+   - Toggle left panel open/closed
+   - Stop recording
+   - **Expected**: Only `LeftContextPanel` re-renders
+   - **Expected**: `CenterChatArea` and `RightDeliverablesPanel` render count = 0
+
+3. **Scenario: State refresh updates only state consumers**
+   - Open page with project data
+   - Start Profiler recording
+   - Trigger state refresh (e.g., analyze documents)
+   - Stop recording
+   - **Expected**: `LeftContextPanel` and `RightDeliverablesPanel` re-render
+   - **Expected**: `CenterChatArea` (chat) render count = 0 (unless new messages)
+
+**Acceptance Criteria**:
+- [ ] All three scenarios pass validation
+- [ ] Render counts match expectations
+- [ ] No console errors or warnings
+- [ ] Application functionality unchanged
+
+**Rollback Plan**:
+- Feature flag: `ENABLE_SPLIT_CONTEXT=false`
+- Revert to monolithic context if >10% render increase detected
+
+---
+
+## Phase 2: List Virtualization & Pagination
+
+**Duration**: 3-4 days  
+**Owner**: [Assign]  
+**Dependencies**: Phase 1 complete  
+**Status**: 🔴 Not Started
+
+### Overview
+Cap DOM size and eliminate scroll jank for large datasets (chat messages, requirements, ADRs). Implement windowing to render only visible items.
+
+---
+
+### Task 2.1: Install Virtualization Library
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 15 minutes  
+**Files**: `frontend/package.json`
+
+**Steps**:
+
+1. **Install `react-virtuoso`**:
+   ```bash
+   cd frontend
+   npm install react-virtuoso
+   ```
+
+2. **Verify installation**:
+   ```json
+   // package.json
+   "dependencies": {
+     "react-virtuoso": "^4.7.0"
+   }
+   ```
+
+3. **Why `react-virtuoso` over `react-window`**:
+   - Better support for variable-height items (chat messages vary widely)
+   - Simpler API for dynamic content
+   - Built-in scroll position preservation
+   - Better TypeScript support
+
+**Acceptance Criteria**:
+- [ ] `react-virtuoso` installed in dependencies
+- [ ] No peer dependency warnings
+- [ ] `package-lock.json` updated
+
+**Validation**:
+```bash
+npm list react-virtuoso
+# Should show installed version
+```
+
+---
+
+### Task 2.2: Implement Chat Message Virtualization
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 4 hours  
+**Files**:
+- `frontend/src/features/projects/components/workspace/ChatPanel.tsx`
+
+**Steps**:
+
+1. **Import Virtuoso components**:
+   ```typescript
+   import { Virtuoso } from 'react-virtuoso';
+   ```
+
+2. **Replace message mapping with Virtuoso**:
+   ```typescript
+   // Before
+   {messages.map((message) => (
+     <MessageBubble key={message.id} message={message} />
+   ))}
+
+   // After
+   <Virtuoso
+     data={messages}
+     itemContent={(index, message) => (
+       <MessageBubble key={message.id} message={message} />
+     )}
+     followOutput="smooth"
+     atBottomThreshold={100}
+   />
+   ```
+
+3. **Configure auto-scroll behavior**:
+   ```typescript
+   const virtuosoRef = useRef<VirtuosoHandle>(null);
+   const [atBottom, setAtBottom] = useState(true);
+
+   // Only auto-scroll if user is near bottom
+   useEffect(() => {
+     if (atBottom && virtuosoRef.current) {
+       virtuosoRef.current.scrollToIndex({
+         index: messages.length - 1,
+         behavior: 'smooth',
+       });
+     }
+   }, [messages, atBottom]);
+   ```
+
+4. **Add overscan for smooth scrolling**:
+   ```typescript
+   <Virtuoso
+     overscan={200} // Render 200px above/below viewport
+     // ... other props
+   />
+   ```
+
+5. **Preserve scroll position on new message**:
+   - Virtuoso handles this automatically via `followOutput` prop
+
+**Acceptance Criteria**:
+- [ ] Only visible messages rendered in DOM
+- [ ] Smooth scroll performance (60 FPS)
+- [ ] Auto-scroll when user at bottom
+- [ ] Manual scroll position preserved when not at bottom
+- [ ] New messages appear without jarring jumps
+
+**Validation**:
+1. Create mock conversation with 500+ messages
+2. Performance panel: Record scroll interaction
+3. Verify: FPS graph shows green bars (no dropped frames)
+4. Inspect DOM: Should see ~20-30 message nodes (not 500)
+
+---
+
+### Task 2.3: Add Message Pagination (Load Older)
+
+**Priority**: P1 - High  
+**Estimated Time**: 3 hours  
+**Files**:
+- `frontend/src/features/projects/components/workspace/ChatPanel.tsx`
+- `frontend/src/features/projects/hooks/useChatMessaging.ts`
+- `frontend/src/services/chatService.ts`
+
+**Steps**:
+
+1. **Add pagination state**:
+   ```typescript
+   const [hasOlderMessages, setHasOlderMessages] = useState(true);
+   const [loadingOlder, setLoadingOlder] = useState(false);
+   ```
+
+2. **Implement "Load Older" handler**:
+   ```typescript
+   const loadOlderMessages = useCallback(async () => {
+     if (messages.length === 0) return;
+     
+     setLoadingOlder(true);
+     try {
+       const oldestMessageId = messages[0].id;
+       const olderMessages = await chatApi.fetchMessagesBefore(
+         projectId,
+         oldestMessageId,
+         50 // limit
+       );
+       
+       if (olderMessages.length < 50) {
+         setHasOlderMessages(false);
+       }
+       
+       setMessages((prev) => [...olderMessages, ...prev]);
+     } finally {
+       setLoadingOlder(false);
+     }
+   }, [projectId, messages]);
+   ```
+
+3. **Add button to Virtuoso header**:
+   ```typescript
+   <Virtuoso
+     components={{
+       Header: () => hasOlderMessages ? (
+         <button
+           onClick={loadOlderMessages}
+           disabled={loadingOlder}
+           className="w-full py-3 text-sm text-blue-600 hover:bg-blue-50"
+         >
+           {loadingOlder ? 'Loading...' : 'Load older messages'}
+         </button>
+       ) : (
+         <div className="py-2 text-center text-xs text-gray-500">
+           Beginning of conversation
+         </div>
+       )
+     }}
+     // ... other props
+   />
+   ```
+
+4. **Update API service** (placeholder for backend implementation):
+   ```typescript
+   // chatService.ts
+   async fetchMessagesBefore(
+     projectId: string,
+     beforeMessageId: string,
+     limit: number = 50
+   ): Promise<readonly Message[]> {
+     // TODO: Backend needs to implement pagination
+     // For now, return empty array to avoid errors
+     return [];
+   }
+   ```
+
+**Acceptance Criteria**:
+- [ ] "Load older" button visible at top of chat when scrolled up
+- [ ] Button disabled during loading
+- [ ] Older messages prepended correctly
+- [ ] Scroll position preserved after load
+- [ ] Button hidden when no more messages
+
+**Validation**:
+1. Mock 200 messages in database
+2. Initial load shows last 50
+3. Scroll to top → click "Load older"
+4. Verify: 50 additional messages loaded
+5. Verify: Scroll position unchanged
+
+---
+
+### Task 2.4: Cap In-Memory Message Count
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/src/features/projects/hooks/useChat.ts`
+- `frontend/src/utils/messageArchive.ts` (new)
+
+**Steps**:
+
+1. **Create message archive utility**:
+   ```typescript
+   // messageArchive.ts
+   const ARCHIVE_KEY_PREFIX = 'chat_archive_';
+   const MAX_IN_MEMORY = 200;
+
+   export function archiveOldMessages(
+     projectId: string,
+     messages: Message[]
+   ): Message[] {
+     if (messages.length <= MAX_IN_MEMORY) {
+       return messages;
+     }
+
+     const toArchive = messages.slice(0, messages.length - MAX_IN_MEMORY);
+     const toKeep = messages.slice(-MAX_IN_MEMORY);
+
+     // Archive to sessionStorage
+     const archived = getArchivedMessages(projectId);
+     sessionStorage.setItem(
+       `${ARCHIVE_KEY_PREFIX}${projectId}`,
+       JSON.stringify([...archived, ...toArchive])
+     );
+
+     return toKeep;
+   }
+
+   export function getArchivedMessages(projectId: string): Message[] {
+     const stored = sessionStorage.getItem(`${ARCHIVE_KEY_PREFIX}${projectId}`);
+     return stored ? JSON.parse(stored) : [];
+   }
+   ```
+
+2. **Apply archiving in chat hook**:
+   ```typescript
+   // useChat.ts
+   useEffect(() => {
+     if (messages.length > 200) {
+       const capped = archiveOldMessages(projectId, messages);
+       setMessages(capped);
+     }
+   }, [messages, projectId]);
+   ```
+
+3. **Restore archived messages on "Load older"**:
+   ```typescript
+   const loadOlderMessages = useCallback(async () => {
+     // First check archive
+     const archived = getArchivedMessages(projectId);
+     if (archived.length > 0) {
+       const toRestore = archived.slice(-50);
+       setMessages((prev) => [...toRestore, ...prev]);
+       // Update archive to remove restored messages
+       return;
+     }
+
+     // Then fetch from server
+     // ... existing server fetch logic
+   }, [projectId]);
+   ```
+
+**Acceptance Criteria**:
+- [ ] In-memory messages never exceed 200
+- [ ] Older messages stored in sessionStorage
+- [ ] Archived messages restored before server fetch
+- [ ] Memory footprint stable over time
+
+**Validation**:
+1. Load conversation with 500+ messages
+2. Monitor heap size in Memory panel
+3. Verify: Heap does not grow beyond baseline + 200 messages
+4. Check sessionStorage for archived messages
+
+---
+
+### Task 2.5: Virtualize Requirements List
+
+**Priority**: P1 - High  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/src/features/projects/components/unified/LeftContextPanel.tsx`
+
+**Steps**:
+
+1. **Add conditional rendering based on count**:
+   ```typescript
+   const VIRTUALIZE_THRESHOLD = 50;
+   const shouldVirtualize = requirements.length > VIRTUALIZE_THRESHOLD;
+   ```
+
+2. **Render with Virtuoso if above threshold**:
+   ```typescript
+   {shouldVirtualize ? (
+     <Virtuoso
+       style={{ height: '400px' }}
+       data={requirements}
+       itemContent={(index, req) => (
+         <RequirementItem key={req.id} requirement={req} />
+       )}
+     />
+   ) : (
+     requirements.map((req) => (
+       <RequirementItem key={req.id} requirement={req} />
+     ))
+   )}
+   ```
+
+3. **Extract requirement rendering to separate component**:
+   ```typescript
+   const RequirementItem = memo(({ requirement }) => (
+     <div className="p-3 bg-white border-b">
+       <p className="text-sm">{requirement.text}</p>
+       {requirement.category && (
+         <Badge>{requirement.category}</Badge>
+       )}
+     </div>
+   ));
+   ```
+
+**Acceptance Criteria**:
+- [ ] Small lists (<50) render normally
+- [ ] Large lists (>50) use virtualization
+- [ ] No visual difference between modes
+- [ ] Smooth scroll in both modes
+
+**Validation**:
+1. Test with 20 requirements → verify full render
+2. Test with 100 requirements → verify virtualization
+3. Performance panel: No long tasks during scroll
+
+---
+
+### Task 2.6: Virtualize ADR Library
+
+**Priority**: P1 - High  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/src/features/projects/components/deliverables/AdrLibrary.tsx`
+
+**Steps**:
+
+1. **Similar to requirements virtualization**
+2. **Add search filtering before virtualization**:
+   ```typescript
+   const filteredAdrs = useMemo(() => {
+     return adrs.filter((adr) =>
+       adr.title.toLowerCase().includes(searchTerm.toLowerCase())
+     );
+   }, [adrs, searchTerm]);
+   ```
+
+3. **Virtualize filtered results**:
+   ```typescript
+   const VIRTUALIZE_THRESHOLD = 30;
+   
+   {filteredAdrs.length > VIRTUALIZE_THRESHOLD ? (
+     <Virtuoso
+       data={filteredAdrs}
+       itemContent={(index, adr) => <AdrCard adr={adr} />}
+     />
+   ) : (
+     <div className="grid grid-cols-1 gap-4">
+       {filteredAdrs.map((adr) => <AdrCard key={adr.id} adr={adr} />)}
+     </div>
+   )}
+   ```
+
+**Acceptance Criteria**:
+- [ ] Search filters before virtualization
+- [ ] Virtualization threshold at 30 items
+- [ ] Card grid layout preserved
+- [ ] Smooth performance with 100+ ADRs
+
+---
+
+### Task 2.7: Virtualize Cost Line Items
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 1.5 hours  
+**Files**:
+- `frontend/src/features/projects/components/deliverables/CostBreakdown.tsx`
+
+**Steps**:
+
+1. **Apply to line items table**:
+   ```typescript
+   {lineItems.length > 20 ? (
+     <div style={{ height: '400px' }}>
+       <Virtuoso
+         data={sortedLineItems}
+         itemContent={(index, item) => (
+           <CostLineItem key={index} item={item} />
+         )}
+       />
+     </div>
+   ) : (
+     <table>
+       {sortedLineItems.map((item, idx) => (
+         <CostLineItem key={idx} item={item} />
+       ))}
+     </table>
+   )}
+   ```
+
+2. **Maintain table styling in virtualized mode**
+3. **Preserve sort functionality**
+
+**Acceptance Criteria**:
+- [ ] Tables with <20 items render normally
+- [ ] Tables with >20 items use virtualization
+- [ ] Sort order maintained
+- [ ] Column alignment preserved
+
+---
+
+### Task 2.8: Phase 2 Integration Testing
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 2 hours
+
+**Test Scenarios**:
+
+1. **Scenario: Chat scroll performance with 500 messages**
+   - Load project with 500+ messages
+   - Performance panel: Record scroll interaction
+   - Flick-scroll from bottom to top
+   - **Expected**: FPS graph shows >50 FPS (green bars)
+   - **Expected**: No dropped frames during scroll
+   - **Expected**: DOM node count <100 (inspect Elements tab)
+
+2. **Scenario: Message pagination**
+   - Load chat (starts with last 50 messages)
+   - Scroll to top
+   - Click "Load older messages"
+   - **Expected**: 50 more messages load
+   - **Expected**: Scroll position preserved
+   - **Expected**: No visual jump
+
+3. **Scenario: Memory stability**
+   - Load conversation with 1000 messages (simulated)
+   - Memory panel: Take heap snapshot
+   - Scroll through all messages
+   - Take second heap snapshot
+   - **Expected**: Heap growth <10MB
+   - **Expected**: Message count in memory caps at 200
+
+4. **Scenario: Requirements list virtualization**
+   - Load project with 100+ requirements
+   - **Expected**: DOM shows ~20-30 requirement nodes (not 100)
+   - Scroll through list
+   - **Expected**: Smooth 60 FPS
+   - **Expected**: New items render as scrolled into view
+
+**Acceptance Criteria**:
+- [ ] All scenarios pass
+- [ ] No regressions in functionality
+- [ ] Measurable performance improvement
+
+**Metrics**:
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Chat DOM nodes (500 msgs) | 1500+ | <100 | 93% reduction |
+| Scroll FPS | 20-30 | >50 | 2x improvement |
+| Memory (1000 msgs) | 150MB | <50MB | 66% reduction |
+| Initial render time | 800ms | <200ms | 75% faster |
+
+---
+
+## Phase 3: Lazy & Cached Rendering
+
+**Duration**: 3-4 days  
+**Owner**: [Assign]  
+**Dependencies**: Phase 1 complete  
+**Status**: 🔴 Not Started
+
+### Overview
+Remove main-thread blocking from heavy renderers (Mermaid diagrams, syntax highlighting, charts). Implement viewport-aware lazy loading and output caching.
+
+---
+
+### Task 3.1: Global Mermaid Initialization
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 30 minutes  
+**Files**:
+- `frontend/src/utils/mermaidConfig.ts` (new)
+- `frontend/src/main.tsx`
+- `frontend/src/components/diagrams/hooks/useMermaidRenderer.ts`
+
+**Steps**:
+
+1. **Create global config utility**:
+   ```typescript
+   // mermaidConfig.ts
+   import mermaid from 'mermaid';
+
+   let initialized = false;
+
+   export function initMermaid() {
+     if (initialized) return;
+     
+     mermaid.initialize({
+       startOnLoad: false,
+       theme: 'default',
+       securityLevel: 'antiscript',
+       fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+     });
+     
+     initialized = true;
+   }
+
+   export function isMermaidInitialized() {
+     return initialized;
+   }
+   ```
+
+2. **Call once in main.tsx**:
+   ```typescript
+   // main.tsx
+   import { initMermaid } from './utils/mermaidConfig';
+
+   initMermaid(); // Run once at app startup
+
+   createRoot(document.getElementById("root")!).render(
+     // ... app render
+   );
+   ```
+
+3. **Remove initialization from hook**:
+   ```typescript
+   // useMermaidRenderer.ts - DELETE this useEffect
+   useEffect(() => {
+     mermaid.initialize({
+       // ... config
+     });
+   }, []);
+   ```
+
+**Acceptance Criteria**:
+- [ ] `mermaid.initialize` called only once per app lifecycle
+- [ ] All diagrams render correctly
+- [ ] No "already initialized" warnings
+
+**Validation**:
+1. Add `console.log` in `initMermaid()`
+2. Load page → verify logged once
+3. Navigate between pages with diagrams → verify no additional logs
+
+---
+
+### Task 3.2: Create Intersection Observer Hook
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/src/hooks/useIntersectionObserver.ts` (new)
+
+**Steps**:
+
+1. **Create reusable hook**:
+   ```typescript
+   // useIntersectionObserver.ts
+   import { useEffect, useRef, useState } from 'react';
+
+   interface UseIntersectionObserverOptions {
+     threshold?: number;
+     rootMargin?: string;
+     freezeOnceVisible?: boolean;
+   }
+
+   export function useIntersectionObserver({
+     threshold = 0.1,
+     rootMargin = '50px',
+     freezeOnceVisible = false,
+   }: UseIntersectionObserverOptions = {}) {
+     const ref = useRef<HTMLElement>(null);
+     const [isVisible, setIsVisible] = useState(false);
+     const [hasBeenVisible, setHasBeenVisible] = useState(false);
+
+     useEffect(() => {
+       const element = ref.current;
+       if (!element) return;
+
+       if (freezeOnceVisible && hasBeenVisible) return;
+
+       const observer = new IntersectionObserver(
+         ([entry]) => {
+           const visible = entry.isIntersecting;
+           setIsVisible(visible);
+           
+           if (visible && !hasBeenVisible) {
+             setHasBeenVisible(true);
+           }
+         },
+         { threshold, rootMargin }
+       );
+
+       observer.observe(element);
+
+       return () => {
+         observer.disconnect();
+       };
+     }, [threshold, rootMargin, freezeOnceVisible, hasBeenVisible]);
+
+     return { ref, isVisible, hasBeenVisible };
+   }
+   ```
+
+2. **Add TypeScript types**
+3. **Add JSDoc documentation**
+
+**Acceptance Criteria**:
+- [ ] Hook returns ref, isVisible, hasBeenVisible
+- [ ] Supports configurable threshold and rootMargin
+- [ ] `freezeOnceVisible` prevents re-observing
+- [ ] Properly cleans up observer on unmount
+
+**Validation**:
+```typescript
+// Test component
+function TestComponent() {
+  const { ref, isVisible } = useIntersectionObserver();
+  return (
+    <div ref={ref} style={{ height: '100px', marginTop: '2000px' }}>
+      {isVisible ? 'Visible!' : 'Not visible'}
+    </div>
+  );
+}
+```
+
+---
+
+### Task 3.3: Implement Lazy Mermaid Rendering
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 3 hours  
+**Files**:
+- `frontend/src/components/diagrams/hooks/useMermaidRenderer.ts`
+- `frontend/src/components/diagrams/MermaidRenderer.tsx`
+
+**Steps**:
+
+1. **Add intersection observer to hook**:
+   ```typescript
+   // useMermaidRenderer.ts
+   import { useIntersectionObserver } from '../../../hooks/useIntersectionObserver';
+
+   export function useMermaidRenderer({
+     sourceCode,
+     diagramId,
+     lazy = true, // Enable lazy by default
+   }: UseMermaidRendererProps) {
+     const [renderError, setRenderError] = useState<string | null>(null);
+     const [isRendered, setIsRendered] = useState(false);
+     const mermaidRef = useRef<HTMLDivElement>(null);
+     
+     // Viewport detection
+     const { isVisible, hasBeenVisible } = useIntersectionObserver({
+       threshold: 0.1,
+       rootMargin: '100px', // Start rendering 100px before entering viewport
+       freezeOnceVisible: true, // Only render once
+     });
+
+     const shouldRender = !lazy || hasBeenVisible;
+
+     // ... rendering logic
+   }
+   ```
+
+2. **Modify render effect**:
+   ```typescript
+   useEffect(() => {
+     if (!shouldRender) return;
+     void renderCurrentDiagram();
+   }, [shouldRender, renderCurrentDiagram]);
+   ```
+
+3. **Update component to show placeholder**:
+   ```typescript
+   // MermaidRenderer.tsx
+   export default function MermaidRenderer({ diagramId, sourceCode, diagramType }) {
+     const { mermaidRef, renderError, isRendered, isVisible } = useMermaidRenderer({
+       sourceCode,
+       diagramId,
+       lazy: true,
+     });
+
+     if (renderError !== null) {
+       return <ErrorDisplay error={renderError} />;
+     }
+
+     return (
+       <div className="relative bg-white min-h-50 flex items-center justify-center">
+         <div
+           ref={mermaidRef}
+           className={`transition-opacity duration-500 w-full overflow-auto ${
+             isRendered ? "opacity-100" : "opacity-0"
+           }`}
+         />
+         {!isVisible && !isRendered && (
+           <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+             <svg className="w-12 h-12 text-gray-400" /* diagram icon */ />
+           </div>
+         )}
+         {isVisible && !isRendered && (
+           <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm animate-pulse">
+             Generating {diagramType}...
+           </div>
+         )}
+       </div>
+     );
+   }
+   ```
+
+**Acceptance Criteria**:
+- [ ] Diagrams off-screen show placeholder
+- [ ] Diagrams render when scrolled into view (with 100px margin)
+- [ ] Once rendered, diagram stays rendered
+- [ ] No performance regression for single-diagram views
+
+**Validation**:
+1. Open Diagrams gallery with 20+ diagrams
+2. Performance panel: Record page load
+3. **Expected**: No long tasks during initial load
+4. **Expected**: Diagrams render progressively during scroll
+5. Inspect DOM: Off-screen diagrams have placeholder div (no SVG)
+
+---
+
+### Task 3.4: Implement SVG Output Caching
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/src/utils/diagramCache.ts` (new)
+- `frontend/src/components/diagrams/hooks/useMermaidRenderer.ts`
+
+**Steps**:
+
+1. **Create cache utility**:
+   ```typescript
+   // diagramCache.ts
+   interface CacheEntry {
+     svg: string;
+     timestamp: number;
+   }
+
+   class DiagramCache {
+     private cache = new Map<string, CacheEntry>();
+     private maxAge = 1000 * 60 * 60; // 1 hour
+
+     get(key: string): string | null {
+       const entry = this.cache.get(key);
+       if (!entry) return null;
+
+       // Check if expired
+       if (Date.now() - entry.timestamp > this.maxAge) {
+         this.cache.delete(key);
+         return null;
+       }
+
+       return entry.svg;
+     }
+
+     set(key: string, svg: string): void {
+       this.cache.set(key, {
+         svg,
+         timestamp: Date.now(),
+       });
+     }
+
+     invalidate(key: string): void {
+       this.cache.delete(key);
+     }
+
+     clear(): void {
+       this.cache.clear();
+     }
+
+     size(): number {
+       return this.cache.size;
+     }
+   }
+
+   export const diagramCache = new DiagramCache();
+   ```
+
+2. **Integrate cache into renderer**:
+   ```typescript
+   // useMermaidRenderer.ts
+   import { diagramCache } from '../../../utils/diagramCache';
+
+   const renderCurrentDiagram = useCallback(async () => {
+     const container = mermaidRef.current;
+     if (container === null) return;
+
+     // Generate cache key from source code hash
+     const cacheKey = `${diagramId}-${hashCode(sourceCode)}`;
+
+     try {
+       setRenderError(null);
+       setIsRendered(false);
+
+       // Check cache first
+       const cachedSvg = diagramCache.get(cacheKey);
+       if (cachedSvg) {
+         container.innerHTML = cachedSvg;
+         setIsRendered(true);
+         return;
+       }
+
+       // Render fresh
+       container.innerHTML = "";
+       const { svg } = await mermaid.render(`mermaid-${diagramId}`, sourceCode);
+
+       // Store in cache
+       diagramCache.set(cacheKey, svg);
+       
+       container.innerHTML = svg;
+       setIsRendered(true);
+     } catch (err) {
+       // ... error handling
+     }
+   }, [sourceCode, diagramId]);
+
+   // Helper: Simple hash function
+   function hashCode(str: string): string {
+     let hash = 0;
+     for (let i = 0; i < str.length; i++) {
+       const char = str.charCodeAt(i);
+       hash = (hash << 5) - hash + char;
+       hash = hash & hash;
+     }
+     return hash.toString(36);
+   }
+   ```
+
+**Acceptance Criteria**:
+- [ ] Identical diagrams reuse cached SVG
+- [ ] Cache key includes source code hash (invalidates on change)
+- [ ] Cache entries expire after 1 hour
+- [ ] Cache survives navigation (but not page reload)
+
+**Validation**:
+1. Open diagram gallery
+2. Navigate to detail view of diagram #1
+3. Navigate back to gallery
+4. **Expected**: Diagram #1 renders instantly (<10ms in Profiler)
+5. Check `diagramCache.size()` in console → verify entries stored
+
+---
+
+### Task 3.5: Eliminate Duplicate Renders (Preview vs Modal)
+
+**Priority**: P1 - High  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/src/features/projects/components/deliverables/DiagramGallery.tsx`
+
+**Steps**:
+
+1. **Share diagram renderer across views**:
+   ```typescript
+   // DiagramGallery.tsx
+   function DiagramCard({ diagram }) {
+     return (
+       <Card onClick={() => setSelectedDiagram(diagram)}>
+         <MermaidRenderer
+           diagramId={diagram.id}
+           sourceCode={diagram.mermaidSource}
+           lazy={true}
+         />
+       </Card>
+     );
+   }
+
+   function DiagramModal({ diagram }) {
+     // Same renderer, same cache key → reuses SVG
+     return (
+       <Modal>
+         <MermaidRenderer
+           diagramId={diagram.id}
+           sourceCode={diagram.mermaidSource}
+           lazy={false} // Already rendered in preview, cache hit
+         />
+       </Modal>
+     );
+   }
+   ```
+
+2. **Verify cache is hit in modal**:
+   - Add logging in `useMermaidRenderer` (dev mode)
+   - Log "Cache hit" vs "Rendering fresh"
+
+**Acceptance Criteria**:
+- [ ] Opening modal shows cached SVG instantly
+- [ ] No re-render of Mermaid in modal
+- [ ] Performance Profiler shows <5ms for modal diagram
+
+**Validation**:
+1. Open diagram gallery
+2. Click diagram to open modal
+3. Performance Profiler: Record interaction
+4. **Expected**: No mermaid.render call in timeline
+5. **Expected**: Modal appears instantly
+
+---
+
+### Task 3.6: Lazy Load Recharts
+
+**Priority**: P1 - High  
+**Estimated Time**: 1.5 hours  
+**Files**:
+- `frontend/src/features/projects/components/deliverables/charts/CostPieChart.tsx`
+- `frontend/src/features/projects/components/deliverables/CostBreakdown.tsx`
+
+**Steps**:
+
+1. **Wrap chart in React.lazy**:
+   ```typescript
+   // CostBreakdown.tsx
+   import { lazy, Suspense } from 'react';
+
+   const CostPieChart = lazy(() => 
+     import('./charts/CostPieChart').then(module => ({
+       default: module.CostPieChart
+     }))
+   );
+
+   // In component render
+   <Suspense fallback={<ChartSkeleton />}>
+     <CostPieChart lineItems={lineItems} />
+   </Suspense>
+   ```
+
+2. **Create loading skeleton**:
+   ```typescript
+   function ChartSkeleton() {
+     return (
+       <div className="w-full h-80 bg-gray-100 animate-pulse rounded-lg flex items-center justify-center">
+         <div className="text-gray-400">Loading chart...</div>
+       </div>
+     );
+   }
+   ```
+
+3. **Verify bundle splitting**:
+   - Run `npm run build`
+   - Check `dist/assets` for separate chunk file
+   - Should see file like `CostPieChart-[hash].js`
+
+**Acceptance Criteria**:
+- [ ] Chart code in separate bundle chunk
+- [ ] Skeleton shows while chunk loads
+- [ ] Chart renders correctly after load
+- [ ] Main bundle size reduced by ~200KB
+
+**Validation**:
+```bash
+npm run build
+ls -lh frontend/dist/assets/*.js
+# Look for separate chunk containing recharts
+```
+
+---
+
+### Task 3.7: Defer Large Syntax Highlighting
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/src/features/projects/components/deliverables/IacViewer.tsx`
+
+**Steps**:
+
+1. **Add line count check**:
+   ```typescript
+   const SYNTAX_HIGHLIGHT_THRESHOLD = 1000;
+   const lineCount = content.split('\n').length;
+   const shouldDeferHighlight = lineCount > SYNTAX_HIGHLIGHT_THRESHOLD;
+   ```
+
+2. **Show plain text by default for large files**:
+   ```typescript
+   const [showHighlighted, setShowHighlighted] = useState(!shouldDeferHighlight);
+
+   return (
+     <div>
+       {shouldDeferHighlight && !showHighlighted && (
+         <button
+           onClick={() => setShowHighlighted(true)}
+           className="mb-4 px-4 py-2 bg-blue-600 text-white rounded"
+         >
+           Enable Syntax Highlighting ({lineCount} lines)
+         </button>
+       )}
+       
+       {showHighlighted ? (
+         <SyntaxHighlighter language={language} style={oneDark}>
+           {content}
+         </SyntaxHighlighter>
+       ) : (
+         <pre className="p-4 bg-gray-900 text-gray-100 overflow-auto">
+           <code>{content}</code>
+         </pre>
+       )}
+     </div>
+   );
+   ```
+
+3. **Lazy load SyntaxHighlighter**:
+   ```typescript
+   const SyntaxHighlighter = lazy(() =>
+     import('react-syntax-highlighter').then(module => ({
+       default: module.Prism
+     }))
+   );
+   ```
+
+**Acceptance Criteria**:
+- [ ] Small files (<1000 lines) highlight immediately
+- [ ] Large files show plain text with opt-in button
+- [ ] Button shows line count
+- [ ] Highlighting applies when clicked
+
+**Validation**:
+1. Open 5000-line Terraform file
+2. Performance panel: Record open action
+3. **Expected**: No long tasks (highlighting deferred)
+4. Click "Enable Syntax Highlighting"
+5. **Expected**: Highlighting applies in <500ms
+
+---
+
+### Task 3.8: Dynamic Import for Mermaid
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 1.5 hours  
+**Files**:
+- `frontend/src/utils/mermaidConfig.ts`
+- `frontend/src/components/diagrams/hooks/useMermaidRenderer.ts`
+
+**Steps**:
+
+1. **Convert to dynamic import**:
+   ```typescript
+   // mermaidConfig.ts
+   let mermaidInstance: typeof import('mermaid') | null = null;
+
+   export async function getMermaid() {
+     if (!mermaidInstance) {
+       const module = await import('mermaid');
+       mermaidInstance = module.default;
+       
+       mermaidInstance.initialize({
+         startOnLoad: false,
+         theme: 'default',
+         securityLevel: 'antiscript',
+         fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+       });
+     }
+     
+     return mermaidInstance;
+   }
+   ```
+
+2. **Update renderer to use async import**:
+   ```typescript
+   // useMermaidRenderer.ts
+   const renderCurrentDiagram = useCallback(async () => {
+     const container = mermaidRef.current;
+     if (!container) return;
+
+     try {
+       const mermaid = await getMermaid();
+       const { svg } = await mermaid.render(`mermaid-${diagramId}`, sourceCode);
+       container.innerHTML = svg;
+       setIsRendered(true);
+     } catch (err) {
+       // error handling
+     }
+   }, [diagramId, sourceCode]);
+   ```
+
+3. **Remove static import**:
+   ```typescript
+   // DELETE: import mermaid from 'mermaid';
+   ```
+
+**Acceptance Criteria**:
+- [ ] Mermaid code in separate bundle chunk
+- [ ] First diagram load triggers chunk download
+- [ ] Subsequent diagrams reuse loaded module
+- [ ] Main bundle reduced by ~500KB
+
+**Validation**:
+```bash
+npm run build
+# Check main bundle size
+ls -lh frontend/dist/assets/index-*.js
+# Should be significantly smaller
+
+# Check for mermaid chunk
+ls -lh frontend/dist/assets/mermaid-*.js
+```
+
+---
+
+### Task 3.9: Phase 3 Integration Testing
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 3 hours
+
+**Test Scenarios**:
+
+1. **Scenario: Lazy diagram rendering**
+   - Open Diagrams tab with 20+ diagrams
+   - Performance panel: Record page load
+   - **Expected**: Zero long tasks >100ms during load
+   - **Expected**: Main thread mostly idle until scroll
+   - Scroll through gallery
+   - **Expected**: Diagrams render progressively
+   - **Expected**: Each diagram render <50ms
+
+2. **Scenario: Diagram cache effectiveness**
+   - Open diagram gallery
+   - Wait for all diagrams to render
+   - Navigate to detail page of diagram #5
+   - **Expected**: Diagram appears instantly (<10ms)
+   - Navigate back to gallery
+   - Navigate to detail page of diagram #5 again
+   - **Expected**: Still instant (cache persists)
+
+3. **Scenario: Bundle size reduction**
+   - Build production bundle
+   - Measure main bundle size
+   - **Expected**: Main bundle <400KB gzipped
+   - **Expected**: Mermaid in separate chunk (~500KB)
+   - **Expected**: Recharts in separate chunk (~200KB)
+   - **Expected**: react-syntax-highlighter in separate chunk (~300KB)
+
+4. **Scenario: Chart lazy loading**
+   - Open Cost Estimates tab
+   - Network panel: Monitor requests
+   - **Expected**: Chart chunk loads only when tab opened
+   - **Expected**: Skeleton shows during load
+   - **Expected**: Chart renders correctly after load
+
+5. **Scenario: Large IaC file performance**
+   - Open IaC file with 5000+ lines
+   - **Expected**: Plain text appears instantly
+   - **Expected**: "Enable Syntax Highlighting" button visible
+   - Performance panel: Record button click
+   - **Expected**: Highlighting completes in <500ms
+
+**Acceptance Criteria**:
+- [ ] All scenarios pass
+- [ ] Measured improvements meet targets
+- [ ] No functionality regressions
+
+**Metrics**:
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Main bundle (gzip) | 1000KB | <400KB | 60% reduction |
+| Diagrams tab load | 2-3 long tasks | 0 tasks >100ms | 100% elimination |
+| Diagram render time | 200-500ms each | <50ms (cached) | 90% faster |
+| Memory (20 diagrams) | 80MB | 30MB | 62% reduction |
+
+---
+
+## Phase 4: Data Transform Optimization
+
+**Duration**: 1-2 days  
+**Owner**: [Assign]  
+**Dependencies**: Phase 1 complete  
+**Status**: 🔴 Not Started
+
+### Overview
+Eliminate redundant computation in render paths by memoizing expensive data transformations and debouncing user input filters.
+
+---
+
+### Task 4.1: Memoize Requirements Filtering
+
+**Priority**: P1 - High  
+**Estimated Time**: 1 hour  
+**Files**:
+- `frontend/src/features/projects/components/overview/RequirementsCard.tsx`
+- `frontend/src/features/projects/components/unified/LeftContextPanel.tsx`
+
+**Steps**:
+
+1. **Identify expensive transforms**:
+   ```typescript
+   // Before (runs every render)
+   const functionalReqs = requirements.filter(r => r.category === 'functional');
+   const nonFunctionalReqs = requirements.filter(r => r.category === 'non-functional');
+   ```
+
+2. **Apply useMemo**:
+   ```typescript
+   // After
+   const functionalReqs = useMemo(() => 
+     requirements.filter(r => r.category === 'functional'),
+     [requirements]
+   );
+   
+   const nonFunctionalReqs = useMemo(() => 
+     requirements.filter(r => r.category === 'non-functional'),
+     [requirements]
+   );
+   ```
+
+3. **Memoize sorted requirements**:
+   ```typescript
+   const sortedRequirements = useMemo(() => {
+     return [...requirements].sort((a, b) => 
+       a.priority.localeCompare(b.priority)
+     );
+   }, [requirements]);
+   ```
+
+**Acceptance Criteria**:
+- [ ] All filter/sort operations wrapped in `useMemo`
+- [ ] Dependencies correctly specified
+- [ ] No unnecessary recalculation on unrelated updates
+
+**Validation**:
+- Add `console.log` inside filter callback
+- Update unrelated state → verify log doesn't fire
+
+---
+
+### Task 4.2: Create Debounced Search Hook
+
+**Priority**: P1 - High  
+**Estimated Time**: 1 hour  
+**Files**:
+- `frontend/src/hooks/useDebounce.ts` (new)
+
+**Steps**:
+
+1. **Create hook**:
+   ```typescript
+   // useDebounce.ts
+   import { useState, useEffect } from 'react';
+
+   export function useDebounce<T>(value: T, delay: number = 300): T {
+     const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+     useEffect(() => {
+       const handler = setTimeout(() => {
+         setDebouncedValue(value);
+       }, delay);
+
+       return () => {
+         clearTimeout(handler);
+       };
+     }, [value, delay]);
+
+     return debouncedValue;
+   }
+   ```
+
+2. **Add TypeScript types**
+3. **Add JSDoc documentation**
+
+**Acceptance Criteria**:
+- [ ] Hook returns debounced value
+- [ ] Configurable delay
+- [ ] Properly cleans up timers
+- [ ] Type-safe for any value type
+
+---
+
+### Task 4.3: Debounce ADR Search
+
+**Priority**: P1 - High  
+**Estimated Time**: 1 hour  
+**Files**:
+- `frontend/src/features/projects/components/deliverables/AdrLibrary.tsx`
+
+**Steps**:
+
+1. **Apply debounce to search input**:
+   ```typescript
+   const [searchTerm, setSearchTerm] = useState('');
+   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+   const filteredAdrs = useMemo(() => {
+     if (!debouncedSearchTerm) return adrs;
+     
+     const term = debouncedSearchTerm.toLowerCase();
+     return adrs.filter((adr) =>
+       adr.title.toLowerCase().includes(term) ||
+       adr.decision?.toLowerCase().includes(term)
+     );
+   }, [adrs, debouncedSearchTerm]);
+   ```
+
+2. **Show loading indicator during debounce**:
+   ```typescript
+   const isSearching = searchTerm !== debouncedSearchTerm;
+
+   {isSearching && <LoadingSpinner size="sm" />}
+   ```
+
+**Acceptance Criteria**:
+- [ ] Search executes only after 300ms pause
+- [ ] No filter calculation per keystroke
+- [ ] Loading indicator shows during debounce
+- [ ] Results update smoothly
+
+**Validation**:
+1. Type quickly in search box
+2. React Profiler: Record typing
+3. **Expected**: Single render 300ms after typing stops
+4. **Expected**: No renders during typing
+
+---
+
+### Task 4.4: Memoize Activity Timeline Grouping
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 1.5 hours  
+**Files**:
+- `frontend/src/features/projects/components/overview/ActivityTimeline.tsx`
+
+**Steps**:
+
+1. **Identify grouping logic**:
+   ```typescript
+   // Before (runs every render)
+   const groupedActivities = activities.reduce((groups, activity) => {
+     const date = new Date(activity.timestamp).toLocaleDateString();
+     if (!groups[date]) groups[date] = [];
+     groups[date].push(activity);
+     return groups;
+   }, {} as Record<string, Activity[]>);
+   ```
+
+2. **Apply memoization**:
+   ```typescript
+   const groupedActivities = useMemo(() => {
+     return activities.reduce((groups, activity) => {
+       const date = new Date(activity.timestamp).toLocaleDateString();
+       if (!groups[date]) groups[date] = [];
+       groups[date].push(activity);
+       return groups;
+     }, {} as Record<string, Activity[]>);
+   }, [activities]);
+   ```
+
+3. **Memoize date sorting**:
+   ```typescript
+   const sortedDates = useMemo(() => 
+     Object.keys(groupedActivities).sort((a, b) => 
+       new Date(b).getTime() - new Date(a).getTime()
+     ),
+     [groupedActivities]
+   );
+   ```
+
+**Acceptance Criteria**:
+- [ ] Grouping logic memoized
+- [ ] Date sorting memoized
+- [ ] No recalculation on unrelated updates
+
+---
+
+### Task 4.5: Memoize Cost Calculations
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 1.5 hours  
+**Files**:
+- `frontend/src/features/projects/components/deliverables/CostBreakdown.tsx`
+- `frontend/src/features/projects/components/deliverables/charts/CostPieChart.tsx`
+
+**Steps**:
+
+1. **Memoize sorted line items**:
+   ```typescript
+   const sortedLineItems = useMemo(() => {
+     return [...lineItems].sort((a, b) => 
+       (b.monthlyCost || 0) - (a.monthlyCost || 0)
+     );
+   }, [lineItems]);
+   ```
+
+2. **Memoize pie chart data transformation**:
+   ```typescript
+   // In CostPieChart.tsx
+   const chartData = useMemo(() => {
+     const sorted = [...lineItems].sort(
+       (a, b) => (b.monthlyCost || 0) - (a.monthlyCost || 0)
+     );
+     const topItems = sorted.slice(0, 5);
+     const otherItems = sorted.slice(5);
+     const othersCost = otherItems.reduce(
+       (sum, item) => sum + (item.monthlyCost || 0), 
+       0
+     );
+
+     const data = topItems.map((item) => ({
+       name: item.name || 'Unknown',
+       value: item.monthlyCost || 0,
+     }));
+
+     if (othersCost > 0) {
+       data.push({ name: 'Others', value: othersCost });
+     }
+
+     return data;
+   }, [lineItems]);
+   ```
+
+3. **Memoize total calculations**:
+   ```typescript
+   const totalCost = useMemo(() => 
+     lineItems.reduce((sum, item) => sum + (item.monthlyCost || 0), 0),
+     [lineItems]
+   );
+   ```
+
+**Acceptance Criteria**:
+- [ ] All expensive calculations memoized
+- [ ] Chart data transformation runs once per lineItems change
+- [ ] No stuttering when interacting with cost view
+
+---
+
+### Task 4.6: Memoize Diagram Filtering
+
+**Priority**: P2 - Medium  
+**Estimated Time**: 1 hour  
+**Files**:
+- `frontend/src/features/projects/components/deliverables/DiagramGallery.tsx`
+
+**Steps**:
+
+1. **Memoize filtered diagrams**:
+   ```typescript
+   const filteredDiagrams = useMemo(() => {
+     if (filter === 'all') return diagrams;
+     
+     return diagrams.filter((diagram) => {
+       const type = (diagram.type || '').toLowerCase();
+       return type.includes(filter);
+     });
+   }, [diagrams, filter]);
+   ```
+
+2. **Memoize sorted diagrams**:
+   ```typescript
+   const sortedDiagrams = useMemo(() => {
+     return [...filteredDiagrams].sort((a, b) => {
+       const dateA = a.createdAt || '';
+       const dateB = b.createdAt || '';
+       return dateB.localeCompare(dateA);
+     });
+   }, [filteredDiagrams]);
+   ```
+
+**Acceptance Criteria**:
+- [ ] Filter changes trigger single recalculation
+- [ ] Unrelated updates don't re-filter
+- [ ] Smooth filter transitions
+
+---
+
+### Task 4.7: Phase 4 Integration Testing
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 1 hour
+
+**Test Scenarios**:
+
+1. **Scenario: ADR search performance**
+   - Load 100+ ADRs
+   - React Profiler: Record typing in search
+   - Type "architecture" quickly
+   - **Expected**: Single render 300ms after typing stops
+   - **Expected**: Render commit <30ms
+   - **Expected**: No per-character renders
+
+2. **Scenario: Cost calculation efficiency**
+   - Load estimate with 50+ line items
+   - React Profiler: Record interaction
+   - Toggle expanded view
+   - **Expected**: No cost recalculation (memoized)
+   - **Expected**: Render time <20ms
+
+3. **Scenario: Filter toggle performance**
+   - Open diagram gallery with 30+ diagrams
+   - React Profiler: Record filter change
+   - Click filter "C4 Context"
+   - **Expected**: Single render
+   - **Expected**: Filter calculation <30ms
+
+**Acceptance Criteria**:
+- [ ] All scenarios pass
+- [ ] Measurable improvement in render times
+- [ ] No functionality regressions
+
+**Metrics**:
+| Operation | Before (1000 items) | After (1000 items) | Improvement |
+|-----------|---------------------|--------------------|----- |
+| Search filter | 100-200ms | <30ms | 70-85% faster |
+| Cost calculation | 80-120ms | <20ms | 75-83% faster |
+| Diagram filter | 60-100ms | <20ms | 67-80% faster |
+
+---
+
+## Phase 5: Network Efficiency
+
+**Duration**: 2-3 days  
+**Owner**: [Assign]  
+**Dependencies**: Phase 2 complete  
+**Status**: 🔴 Not Started
+
+### Overview
+Eliminate redundant full-history fetches by implementing incremental chat updates and optimistic UI patterns.
+
+---
+
+### Task 5.1: Add Feature Flag Support
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 30 minutes  
+**Files**:
+- `frontend/.env` (create)
+- `frontend/.env.example` (create)
+- `frontend/src/config/featureFlags.ts` (new)
+
+**Steps**:
+
+1. **Create feature flags config**:
+   ```typescript
+   // featureFlags.ts
+   export const featureFlags = {
+     enableIncrementalChat: import.meta.env.VITE_ENABLE_INCREMENTAL_CHAT === 'true',
+     enableSplitContext: import.meta.env.VITE_ENABLE_SPLIT_CONTEXT === 'true',
+   } as const;
+
+   export function isFeatureEnabled(flag: keyof typeof featureFlags): boolean {
+     return featureFlags[flag];
+   }
+   ```
+
+2. **Create .env.example**:
+   ```bash
+   # Feature Flags
+   VITE_ENABLE_INCREMENTAL_CHAT=false
+   VITE_ENABLE_SPLIT_CONTEXT=true
+   ```
+
+3. **Create .env for development**:
+   ```bash
+   VITE_ENABLE_INCREMENTAL_CHAT=true
+   VITE_ENABLE_SPLIT_CONTEXT=true
+   ```
+
+4. **Add .env to .gitignore** (should already be there)
+
+**Acceptance Criteria**:
+- [ ] Feature flags configurable via environment variables
+- [ ] Type-safe flag checking
+- [ ] Example file documents all flags
+
+---
+
+### Task 5.2: Implement Optimistic Message Append
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 3 hours  
+**Files**:
+- `frontend/src/features/projects/hooks/useChatMessaging.ts`
+
+**Steps**:
+
+1. **Add optimistic message creation**:
+   ```typescript
+   function createOptimisticMessage(content: string): Message {
+     return {
+       id: `temp-${Date.now()}`,
+       role: 'user',
+       content,
+       timestamp: new Date().toISOString(),
+       kbSources: [],
+     };
+   }
+   ```
+
+2. **Modify sendMessage to append locally**:
+   ```typescript
+   const sendMessage = useCallback(
+     async (message: string, onStateUpdate?: (state: ProjectState) => void) {
+       if (projectId === null || message.trim() === '') {
+         throw new Error('Invalid message or project');
+       }
+
+       // Create optimistic user message
+       const optimisticUserMessage = createOptimisticMessage(message);
+       
+       // Append immediately to UI
+       setMessages((prev) => [...prev, optimisticUserMessage]);
+
+       setLoading(true);
+       setLoadingMessage('Processing your question...');
+
+       try {
+         const response = await chatApi.sendMessage(projectId, message);
+
+         if (featureFlags.enableIncrementalChat) {
+           // Incremental mode: append only new messages from response
+           setMessages((prev) => {
+             // Remove temp message, add confirmed messages
+             const withoutTemp = prev.filter(m => !m.id.startsWith('temp-'));
+             return [...withoutTemp, ...response.messages];
+           });
+         } else {
+           // Legacy mode: refetch all messages
+           await fetchMessages();
+         }
+
+         if (onStateUpdate !== undefined) {
+           onStateUpdate(response.projectState);
+         }
+
+         return response;
+       } catch (error) {
+         // Remove optimistic message on error
+         setMessages((prev) => prev.filter(m => !m.id.startsWith('temp-')));
+         throw error;
+       } finally {
+         setLoading(false);
+         setLoadingMessage('');
+       }
+     },
+     [projectId, fetchMessages, setLoading, setLoadingMessage, setMessages]
+   );
+   ```
+
+**Acceptance Criteria**:
+- [ ] User message appears instantly (optimistic)
+- [ ] On success, replace temp ID with real message
+- [ ] On error, remove optimistic message
+- [ ] Works with feature flag toggle
+
+**Validation**:
+1. Network panel: Throttle to Slow 3G
+2. Send message
+3. **Expected**: User message appears instantly
+4. **Expected**: No GET /chat request after POST
+5. **Expected**: Only new messages appended
+
+---
+
+### Task 5.3: Add Server Response Contract
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 1 hour  
+**Files**:
+- `frontend/src/types/api.ts`
+- Backend API documentation (for reference)
+
+**Steps**:
+
+1. **Update chat response type**:
+   ```typescript
+   // api.ts
+   export interface ChatResponse {
+     // New incremental format
+     readonly messages: readonly Message[]; // Only new messages
+     readonly projectState: ProjectState;
+     readonly conversationId?: string;
+     readonly lastMessageId?: string;
+   }
+   ```
+
+2. **Document expected backend behavior**:
+   ```typescript
+   /**
+    * POST /projects/:id/chat
+    * 
+    * Expected response (incremental mode):
+    * {
+    *   messages: [
+    *     { id: "msg-123", role: "user", content: "...", timestamp: "..." },
+    *     { id: "msg-124", role: "assistant", content: "...", timestamp: "..." }
+    *   ],
+    *   projectState: { ... },
+    *   lastMessageId: "msg-124"
+    * }
+    * 
+    * Only returns messages created by this request (user + assistant response).
+    * Client is responsible for maintaining full conversation history.
+    */
+   ```
+
+**Acceptance Criteria**:
+- [ ] Type definitions updated
+- [ ] API contract documented
+- [ ] Backend team notified of expected format (if separate team)
+
+---
+
+### Task 5.4: Implement Pagination Endpoint (Client-Side)
+
+**Priority**: P1 - High  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/src/services/chatService.ts`
+- `frontend/src/types/api.ts`
+
+**Steps**:
+
+1. **Add pagination params type**:
+   ```typescript
+   // api.ts
+   export interface MessagePaginationParams {
+     readonly limit?: number;
+     readonly before?: string; // Message ID
+     readonly after?: string; // Message ID
+   }
+   ```
+
+2. **Add paginated fetch method**:
+   ```typescript
+   // chatService.ts
+   export const chatApi = {
+     // ... existing methods
+
+     async fetchMessagesBefore(
+       projectId: string,
+       beforeMessageId: string,
+       limit: number = 50
+     ): Promise<readonly Message[]> {
+       const params = new URLSearchParams({
+         before: beforeMessageId,
+         limit: String(limit),
+       });
+
+       return fetchWithErrorHandling<readonly Message[]>(
+         `${API_BASE}/projects/${projectId}/chat/messages?${params}`,
+         {
+           method: 'GET',
+           headers: { 'Content-Type': 'application/json' },
+         },
+         'fetch paginated messages'
+       );
+     },
+
+     async fetchMessagesAfter(
+       projectId: string,
+       afterMessageId: string,
+       limit: number = 50
+     ): Promise<readonly Message[]> {
+       const params = new URLSearchParams({
+         after: afterMessageId,
+         limit: String(limit),
+       });
+
+       return fetchWithErrorHandling<readonly Message[]>(
+         `${API_BASE}/projects/${projectId}/chat/messages?${params}`,
+         {
+           method: 'GET',
+           headers: { 'Content-Type': 'application/json' },
+         },
+         'fetch paginated messages'
+       );
+     },
+   };
+   ```
+
+3. **Add fallback for unsupported backend**:
+   ```typescript
+   // If backend doesn't support pagination yet
+   async fetchMessagesBefore(...) {
+     try {
+       // Try paginated endpoint
+       return await fetchPaginated(...);
+     } catch (error) {
+       // Fallback to full fetch
+       console.warn('Pagination not supported, falling back to full fetch');
+       const allMessages = await this.fetchMessages(projectId);
+       return allMessages.slice(0, limit); // Client-side pagination
+     }
+   }
+   ```
+
+**Acceptance Criteria**:
+- [ ] Pagination methods added to chatApi
+- [ ] Query params correctly formatted
+- [ ] Graceful fallback if backend unsupported
+- [ ] TypeScript types correct
+
+---
+
+### Task 5.5: Add Message Deduplication
+
+**Priority**: P1 - High  
+**Estimated Time**: 1.5 hours  
+**Files**:
+- `frontend/src/features/projects/hooks/useChatMessaging.ts`
+
+**Steps**:
+
+1. **Enhance message reconciliation**:
+   ```typescript
+   function deduplicateMessages(messages: readonly Message[]): readonly Message[] {
+     const seen = new Set<string>();
+     const deduplicated: Message[] = [];
+
+     for (const message of messages) {
+       if (!seen.has(message.id)) {
+         seen.add(message.id);
+         deduplicated.push(message);
+       }
+     }
+
+     return deduplicated;
+   }
+   ```
+
+2. **Apply deduplication after state updates**:
+   ```typescript
+   const sendMessage = useCallback(async (message: string) => {
+     // ... send logic
+
+     setMessages((prev) => {
+       const combined = [...prev, ...response.messages];
+       return deduplicateMessages(combined);
+     });
+   }, []);
+   ```
+
+3. **Add idempotency key to requests**:
+   ```typescript
+   const sendMessage = useCallback(async (message: string) => {
+     const idempotencyKey = `${projectId}-${Date.now()}-${Math.random()}`;
+     
+     const response = await chatApi.sendMessage(
+       projectId,
+       message,
+       { idempotencyKey }
+     );
+     // ... rest
+   }, [projectId]);
+   ```
+
+**Acceptance Criteria**:
+- [ ] No duplicate messages in UI
+- [ ] Deduplication by message ID
+- [ ] Preserves message order
+- [ ] Idempotency key prevents double-send
+
+---
+
+### Task 5.6: Add Error Recovery
+
+**Priority**: P1 - High  
+**Estimated Time**: 2 hours  
+**Files**:
+- `frontend/src/features/projects/hooks/useChatMessaging.ts`
+- `frontend/src/components/common/ErrorRetry.tsx` (new)
+
+**Steps**:
+
+1. **Track failed messages**:
+   ```typescript
+   interface FailedMessage {
+     readonly content: string;
+     readonly error: string;
+     readonly retryCount: number;
+   }
+
+   const [failedMessages, setFailedMessages] = useState<FailedMessage[]>([]);
+   ```
+
+2. **Add retry logic**:
+   ```typescript
+   const retrySendMessage = useCallback(async (content: string, retryCount = 0) => {
+     const MAX_RETRIES = 3;
+
+     try {
+       await sendMessage(content);
+       // Remove from failed list on success
+       setFailedMessages((prev) => prev.filter(m => m.content !== content));
+     } catch (error) {
+       if (retryCount < MAX_RETRIES) {
+         // Add exponential backoff
+         const delay = Math.pow(2, retryCount) * 1000;
+         setTimeout(() => {
+           retrySendMessage(content, retryCount + 1);
+         }, delay);
+       } else {
+         // Max retries exceeded, add to failed list
+         setFailedMessages((prev) => [...prev, {
+           content,
+           error: error instanceof Error ? error.message : 'Unknown error',
+           retryCount,
+         }]);
+       }
+     }
+   }, [sendMessage]);
+   ```
+
+3. **Show retry UI for failed messages**:
+   ```typescript
+   // In ChatPanel.tsx
+   {failedMessages.map((failed, idx) => (
+     <div key={idx} className="bg-red-50 border border-red-200 p-4 rounded">
+       <p className="text-sm text-red-800">Failed to send message</p>
+       <p className="text-xs text-red-600 mt-1">{failed.error}</p>
+       <button
+         onClick={() => retrySendMessage(failed.content)}
+         className="mt-2 text-sm text-red-600 hover:text-red-800"
+       >
+         Retry
+       </button>
+     </div>
+   ))}
+   ```
+
+**Acceptance Criteria**:
+- [ ] Failed messages tracked separately
+- [ ] Automatic retry with exponential backoff
+- [ ] Manual retry button for max retries exceeded
+- [ ] Error messages shown to user
+
+---
+
+### Task 5.7: Phase 5 Integration Testing
+
+**Priority**: P0 - Critical  
+**Estimated Time**: 2 hours
+
+**Test Scenarios**:
+
+1. **Scenario: Incremental message append**
+   - Send 10 messages in quick succession
+   - Network panel: Monitor all requests
+   - **Expected**: 10 POST requests
+   - **Expected**: ZERO GET /chat requests
+   - **Expected**: Each POST payload <5KB
+   - **Expected**: Total network data <50KB (vs 500KB+ before)
+
+2. **Scenario: Optimistic UI**
+   - Throttle network to Slow 3G
+   - Send message
+   - **Expected**: User message appears instantly (<50ms)
+   - **Expected**: Loading indicator shows during API call
+   - **Expected**: Assistant message appends after response
+
+3. **Scenario: Error recovery**
+   - Disconnect network
+   - Send message
+   - **Expected**: Error banner appears
+   - **Expected**: "Retry" button visible
+   - Reconnect network
+   - Click "Retry"
+   - **Expected**: Message sends successfully
+
+4. **Scenario: Message deduplication**
+   - Send message
+   - Manually duplicate a message ID in state (dev console)
+   - **Expected**: Only one copy visible in UI
+   - **Expected**: No console errors
+
+5. **Scenario: Feature flag toggle**
+   - Set `VITE_ENABLE_INCREMENTAL_CHAT=false`
+   - Restart dev server
+   - Send message
+   - **Expected**: Falls back to full refetch
+   - **Expected**: Functionality unchanged
+
+**Acceptance Criteria**:
+- [ ] All scenarios pass
+- [ ] Network efficiency improvements measured
+- [ ] No data loss or duplication
+
+**Metrics**:
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Chat send payload | 50-500KB | <5KB | 90-99% reduction |
+| Requests per send | 2 (POST + GET) | 1 (POST only) | 50% reduction |
+| Total data (10 sends) | 500KB-5MB | <50KB | 90-99% reduction |
+| Message latency (3G) | 3-5s | 0.5-1s | 70-80% faster |
+
+---
+
+## Cross-Phase Validation
+
+### Performance Benchmarking Suite
+
+**File**: `frontend/tests/performance/benchmarks.spec.ts` (create)
+
+**Test Cases**:
+
+1. **Lighthouse CI Integration**
+   ```bash
+   npm run lighthouse:ci
+   # Target scores:
+   # - Performance: >90
+   # - Accessibility: >95
+   # - Best Practices: >90
+   # - SEO: >90
+   ```
+
+2. **Bundle Size Regression Tests**
+   ```typescript
+   describe('Bundle Size', () => {
+     it('main bundle should be <400KB gzipped', async () => {
+       const mainBundle = await getBundleSize('dist/assets/index-*.js');
+       expect(mainBundle).toBeLessThan(400 * 1024);
+     });
+
+     it('mermaid chunk should lazy load', async () => {
+       const chunks = await getChunkNames('dist/assets');
+       expect(chunks).toContain('mermaid');
+     });
+   });
+   ```
+
+3. **Render Performance Tests**
+   ```typescript
+   describe('Render Performance', () => {
+     it('chat typing should not re-render panels', async () => {
+       const renderCounts = await measureRenders(() => {
+         typeInChatInput('hello world');
+       });
+       
+       expect(renderCounts.LeftContextPanel).toBe(0);
+       expect(renderCounts.RightDeliverablesPanel).toBe(0);
+     });
+   });
+   ```
+
+---
+
+## Rollout & Monitoring
+
+### Phased Rollout Plan
+
+1. **Phase 0**: Deploy immediately (build fixes)
+2. **Phase 1**: Deploy to 20% users with `ENABLE_SPLIT_CONTEXT` flag
+   - Monitor error rates
+   - Compare render counts via telemetry
+   - Rollout to 100% if no regressions
+3. **Phase 2**: Deploy to all users (no flag needed - conditional on item count)
+4. **Phase 3**: Deploy to all users (progressive enhancement)
+5. **Phase 4**: Deploy to all users (memoization)
+6. **Phase 5**: Deploy to 50% users with `ENABLE_INCREMENTAL_CHAT` flag
+   - Monitor message delivery reliability
+   - Compare network efficiency
+   - Rollout to 100% if <0.1% error rate
+
+### Success Metrics Dashboard
+
+**Track in Analytics**:
+- Initial Load Time (p50, p95, p99)
+- Time to Interactive (p50, p95, p99)
+- Total Blocking Time (p50, p95, p99)
+- Chat Message Send Latency
+- Bundle Size (main + chunks)
+- Error Rates (by phase)
+
+**Alerts**:
+- Performance regression >10% (any metric)
+- Error rate increase >1%
+- Bundle size increase >50KB
+
+---
+
+## Appendix
+
+### Useful Commands
+
+```bash
+# Build and analyze bundle
+cd frontend
+npm run build
+npx vite-bundle-visualizer
+
+# Run performance tests
+npm run test:perf
+
+# Profile specific scenario
+npm run dev
+# Then open Chrome DevTools → Performance tab
+
+# Measure bundle size
+ls -lh dist/assets/*.js | awk '{print $5, $9}'
+
+# Check for duplicate dependencies
+npx npkill
+
+# Audit dependencies
+npm audit
+```
+
+### Recommended VSCode Extensions
+
+- **React DevTools**: Component tree inspection
+- **Performance Analyzer**: Real-time render tracking
+- **Bundle Analyzer**: Visualize bundle composition
+- **Import Cost**: Show package size inline
+
+### References
+
+- [React Performance Optimization](https://react.dev/learn/render-and-commit)
+- [Web Vitals Guide](https://web.dev/vitals/)
+- [Mermaid.js Documentation](https://mermaid.js.org/)
+- [React Virtuoso Guide](https://virtuoso.dev/)
+
+---
+
+**Document End**
+
+*Last Updated: January 26, 2026*  
+*Version: 1.0*  
+*Status: Ready for Implementation*

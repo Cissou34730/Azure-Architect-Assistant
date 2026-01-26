@@ -1,10 +1,16 @@
-import { useState, useRef, useEffect, memo, useCallback } from "react";
+import { useState, useRef, useEffect, memo, useCallback, useMemo } from "react";
 import { Send, Loader2 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import ReactMarkdown from "react-markdown";
+import type { Components } from "react-markdown";
 import { Badge } from "../../../../components/common";
 import type { Message } from "../../../../types/api";
+
+const timeFormatter = new Intl.DateTimeFormat(undefined, {
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 interface ChatPanelProps {
   messages: readonly Message[];
@@ -17,8 +23,14 @@ export function ChatPanel({ messages, onSendMessage, loading = false }: ChatPane
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Use requestAnimationFrame to avoid forced reflow
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      requestAnimationFrame(() => {
+        // Smooth scrolling can be surprisingly expensive when messages are long.
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      });
+    }
   }, [messages]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -170,7 +182,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Messag
         </div>
 
         <p className="text-xs text-gray-500 mt-1 px-1">
-          {new Date(message.timestamp).toLocaleTimeString()}
+          {timeFormatter.format(new Date(message.timestamp))}
         </p>
       </div>
 
@@ -186,33 +198,39 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Messag
 });
 
 const MessageContent = memo(function MessageContent({ content, isUser }: { content: string; isUser: boolean }) {
+  // Memoize the markdown components to prevent recreating on every render
+  const markdownComponents = useMemo<Components>(
+    () => ({
+      code({ className, children }) {
+        const match = /language-(\w+)/.exec(className || "");
+        const isInline = !match;
+        const code = String(children).replace(/\n$/, "");
+        
+        return !isInline && match ? (
+          <SyntaxHighlighter
+            style={oneDark}
+            language={match[1]}
+            PreTag="div"
+          >
+            {code}
+          </SyntaxHighlighter>
+        ) : (
+          <code className={className}>
+            {children}
+          </code>
+        );
+      },
+    }),
+    []
+  );
+
   if (isUser) {
     return <p className="text-sm whitespace-pre-wrap">{content}</p>;
   }
 
   return (
     <div className="prose prose-sm max-w-none prose-pre:bg-gray-900 prose-pre:text-gray-100">
-      <ReactMarkdown
-        components={{
-          code({ className, children }) {
-            const match = /language-(\w+)/.exec(className || "");
-            const isInline = !match;
-            return !isInline && match ? (
-              <SyntaxHighlighter
-                style={oneDark as any}
-                language={match[1]}
-                PreTag="div"
-              >
-                {String(children).replace(/\n$/, "")}
-              </SyntaxHighlighter>
-            ) : (
-              <code className={className}>
-                {children}
-              </code>
-            );
-          },
-        }}
-      >
+      <ReactMarkdown components={markdownComponents}>
         {content}
       </ReactMarkdown>
     </div>

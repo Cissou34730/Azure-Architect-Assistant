@@ -74,6 +74,10 @@ export const router = createBrowserRouter([
             path: "deliverables",
             element: <ProjectDeliverablesPage />,
           },
+          {
+            path: "documents",
+            element: <Navigate to=".." replace />,
+          },
           // Old tab system commented out
           // ...getTabs().map((tab) => ({
           //   path: tab.path,
