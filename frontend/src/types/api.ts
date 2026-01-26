@@ -215,7 +215,6 @@ export interface ProjectState {
   readonly complianceRequirements?: readonly string[];
   readonly dataResidency?: string;
   readonly constraints?: readonly string[];
-  readonly assumptions?: readonly string[];
 }
 
 export interface KbSource {

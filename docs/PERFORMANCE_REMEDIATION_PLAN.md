@@ -16,6 +16,64 @@
 - **Build commands**: Run from root using workspace syntax (e.g., `npm run build --workspace=frontend`)
 - **Convenience scripts**: Root `package.json` has shortcuts: `npm run build`, `npm run lint` (automatically target frontend workspace)
 
+---
+
+## Execution Log
+
+- **2026-01-26 (UTC)**: Task 0.1 reviewed and actioned — duplicate `assumptions` field in `ProjectState` detected. Chosen resolution: keep structured assumption objects to match backend state models and remove the legacy flat `assumptions?: string[]` compatibility field from the frontend type definitions. See change: [frontend/src/types/api.ts](frontend/src/types/api.ts#L180-L230).
+
+  - **Files changed**: [frontend/src/types/api.ts](frontend/src/types/api.ts#L180-L230)
+  - **Result**: Type definition now aligns with backend models (`assumptions: Record<string, any>[]`).
+  - **Next step**: Run frontend type-check and full build from repository root (`npm run build --workspace=frontend`) to validate no remaining TypeScript errors.
+
+  - **2026-01-26 (UTC)**: Task 0.2 verified — React type definitions present in `frontend/package.json` devDependencies (`@types/react@^19.2.6`, `@types/react-dom@^19.2.3`). No missing React type packages detected.
+
+    - **Files checked**: [frontend/package.json](frontend/package.json)
+    - **Result**: Type packages in devDependencies are present; proceed to run `npm run build --workspace=frontend` to validate full build.
+
+  ---
+
+  **2026-01-26 (UTC)**: Task 0.3 attempted — Run full lint and build pipeline (no installs) from `frontend/`.
+
+  - **Commands executed**: `npm run lint` then `npm run build` (inside `frontend/`, as requested).
+  - **Outcome**: Build pipeline failed — `eslint` reported 1191 problems (1164 errors, 27 warnings) and `tsc` failed with TypeScript errors preventing `vite build` from completing.
+
+  - **Key failures (representative)**:
+    - Lint: many `@typescript-eslint` rule violations (strict-boolean-expressions, no-confusing-void-expression, naming-convention, complexity, max-lines, etc.) across multiple components (examples: `CostBreakdown.tsx`, `IacViewer.tsx`, `DiagramGallery.tsx`, `LeftContextPanel.tsx`).
+    - Build: TypeScript errors in `src/features/projects/components/deliverables/IacViewer.tsx` (unknown `IacFile` type) and unused imports in `src/features/projects/tabs/index.ts` causing `tsc` to fail.
+
+  - **Files referenced** (sample):
+    - [frontend/src/features/projects/components/deliverables/CostBreakdown.tsx](frontend/src/features/projects/components/deliverables/CostBreakdown.tsx)
+    - [frontend/src/features/projects/components/deliverables/IacViewer.tsx](frontend/src/features/projects/components/deliverables/IacViewer.tsx)
+    - [frontend/src/features/projects/tabs/index.ts](frontend/src/features/projects/tabs/index.ts)
+    - [frontend/src/features/projects/components/unified/LeftContextPanel.tsx](frontend/src/features/projects/components/unified/LeftContextPanel.tsx)
+
+  - **Result**: Phase 0 Task 0.3 is blocked by lint and TypeScript build errors. According to the remediation plan, these must be resolved to restore build stability before Phase 1.
+
+    - **Next verification step (per plan)**: Fix the TypeScript/lint issues and re-run `npm run lint` and `npm run build` inside `frontend/` until both succeed.
+
+  **2026-01-26 (UTC)**: Task 1.1 implemented — created `ProjectChatContext` and `useProjectChatContext`, and updated `ProjectProvider` to expose a memoized chat context derived from the existing project context value.
+
+  - **Files added**: [frontend/src/features/projects/context/ProjectChatContext.tsx](frontend/src/features/projects/context/ProjectChatContext.tsx), [frontend/src/features/projects/context/useProjectChatContext.ts](frontend/src/features/projects/context/useProjectChatContext.ts)
+  - **Files modified**: [frontend/src/features/projects/context/ProjectProvider.tsx](frontend/src/features/projects/context/ProjectProvider.tsx)
+  - **Result**: Chat consumers can migrate to `useProjectChatContext()` while existing consumers continue to receive the old `ProjectContext`.
+  - **Next step (per plan)**: Implement Task 1.2 (ProjectStateContext) and Task 1.3 (ProjectMetaContext) to fully split `useProjectDetails` outputs into separate contexts.
+  
+  **2026-01-26 (UTC)**: Task 1.2 implemented — created `ProjectStateContext` and `useProjectStateContext`, and updated `ProjectProvider` to include the state provider in the context hierarchy.
+
+    - **Files added**: [frontend/src/features/projects/context/ProjectStateContext.tsx](frontend/src/features/projects/context/ProjectStateContext.tsx), [frontend/src/features/projects/context/useProjectStateContext.ts](frontend/src/features/projects/context/useProjectStateContext.ts)
+    - **Files modified**: [frontend/src/features/projects/context/ProjectProvider.tsx](frontend/src/features/projects/context/ProjectProvider.tsx)
+    - **Result**: State consumers can migrate to `useProjectStateContext()`; provider hierarchy is now (project meta?) -> state -> chat, reducing unnecessary rerenders when chat updates.
+    - **Next step (per plan)**: Implement Task 1.3 (ProjectMetaContext).
+
+  **2026-01-26 (UTC)**: Task 1.3 implemented — created `ProjectMetaContext` and `useProjectMetaContext`, and updated `ProjectProvider` to include the meta provider at the top of the hierarchy.
+
+    - **Files added**: [frontend/src/features/projects/context/ProjectMetaContext.tsx](frontend/src/features/projects/context/ProjectMetaContext.tsx), [frontend/src/features/projects/context/useProjectMetaContext.ts](frontend/src/features/projects/context/useProjectMetaContext.ts)
+    - **Files modified**: [frontend/src/features/projects/context/ProjectProvider.tsx](frontend/src/features/projects/context/ProjectProvider.tsx)
+    - **Result**: Provider hierarchy is now `ProjectMetaContext` → `projectContextInstance` → `ProjectStateContext` → `ProjectChatContext`. Meta updates (selection, tab) will not trigger chat/state re-renders.
+    - **Next step (per plan)**: Add error boundaries and complete validation checks (render counters in dev) to confirm contexts isolate renders as intended.
+
+
 ## Executive Summary
 
 ### Current State

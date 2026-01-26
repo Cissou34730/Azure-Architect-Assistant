@@ -26,7 +26,7 @@
 	- Vite for frontend build tool
 
 	[x] Code Style and Conventions:
-	- Liting: ESLint with recommended settings for TypeScript and React
+	- Liting: ESLint with recommended settings for TypeScript and React, eslint must be run from the root directory and use /eslint.config.js
 	- Formatting: Prettier with default settings
 	- Python: Follow ruff recommended style guide
 	- TypeScript: Use strict mode. Avoid using `any` type.

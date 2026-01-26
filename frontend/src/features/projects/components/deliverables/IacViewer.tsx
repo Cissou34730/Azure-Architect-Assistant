@@ -3,7 +3,7 @@ import { Code, Download, Copy, CheckCircle, AlertCircle } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Card, CardHeader, CardTitle, CardContent, Badge, EmptyState } from "../../../../components/common";
-import type { IacArtifact } from "../../../../types/api";
+import type { IacArtifact, IacFile } from "../../../../types/api";
 
 interface IacViewerProps {
   iacArtifacts: readonly IacArtifact[];
