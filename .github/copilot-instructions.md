@@ -1,52 +1,59 @@
 <!-- Use this file to provide workspace-specific custom instructions to Copilot. For more details, visit https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
-- [x] Verify that the copilot-instructions.md file in the .github directory is created.
 
-- [x] Clarify Project Requirements
-	Azure Architect assistant. There are 4 main features. Project to describe the project we want to build an architecutre on. Chat with technical documentation. Manage the technical document build a RAG and generate an architecture document and IaC code.
-	The frontend is TypeScript React, backend in Python.
-	
-	[x] Mandatory rules to follow before writing code:
-	- Always use `uv` for package management and environment handling
-	- Use uv python to launch python scripts
-	- Use descriptive variable names (days_until_expiration vs d) and clear logic. If you need a comment to explain what the code does, the code is likely too complex.
-	- Use descriptive files, folders names
-	- DRY (Don't Repeat Yourself): If you copy-paste code, you create a maintenance debt. Abstract duplicate logic into a single function or class so you only have to fix bugs in one place
-	- Avoid over-engineering. The simplest solution that solves the problem is usually the best. Complexity increases the surface area for bugs
-	- Do not add functionality until it is necessary. Speculative coding leads to unused, unmaintained bloat
-	- Single Responsibility Principle (SRP): A function, class, or module should have one, and only one, reason to change. THE MOST IMPORTANT RULE FOR YOU
-	- Never trust data coming from outside your system (user input, API responses). Always validate types
-	- Version control (Git) is a save point. Make small, descriptive commits that fix one thing at a time
+# Copilot workspace instructions — Azure Architect Assistant
 
-	[x] Technical Stack Requirements:
-	- React 19+ with TypeScript
-	- Use TypeScript 5+
-	- Use only TailwindCSS 4.1 for Styling
-	- Backend in Python 3.10+
-	- Use `uv` for Python package and environment management
-	- Vite for frontend build tool
+Purpose
+- Assist contributors and Copilot in a consistent way for the "Azure Architect Assistant" project: a monorepo with a TypeScript React frontend and a Python backend that together provide: (1) project description authoring, (2) interactive documentation chat, (3) RAG/KB management, and (4) architecture + IaC generation.
 
-	[x] Code Style and Conventions:
-	- Liting: ESLint with recommended settings for TypeScript and React
-	- Formatting: Prettier with default settings
-	- Python: Follow ruff recommended style guide
-	- TypeScript: Use strict mode. Avoid using `any` type.
-	- Not hardcoding values. Use configuration files where appropriate.
+High-level rules (always)
+- Make the smallest change that solves the problem; prefer incremental, reviewable diffs and small commits.
+- Follow Single Responsibility Principle (SRP) and DRY; prefer simple, readable code over cleverness.
+- Use descriptive names (e.g., days_until_expiration); if a comment is needed to explain complex logic, consider refactoring.
+- Validate and sanitize all external input (APIs, user input, files); never assume correctness.
+- Do not add new frameworks or major dependencies without explicit approval.
 
-	[X] Project Structure:
-	- Frontend and backend code should be in separate folders at the root level.
-	- Use a monorepo structure to manage both frontend and backend codebases.
-	- Place new file in appropriate directories based on their functionality.
-	- Prefer composable and small modules functions
-	- All documents and md file except README.md must go to /docs in the relevant folders
+Documentation policy (NEW / IMPORTANT)
+- All project documentation must reside under the single top-level docs directory: /docs at the repository root.
+- Only one high-level global overview document (for example: /docs/README.md or /docs/HIGH_LEVEL_OVERVIEW.md) is allowed directly inside the /docs root. All other documentation must live in subfolders under /docs (for example: /docs/frontend, /docs/backend, /docs/architecture, /docs/iac, /docs/operational, /docs/specs).
+- Do NOT create package-level docs outside /docs (avoid frontend/docs or backend/docs); prefer /docs/frontend and /docs/backend so documentation discovery is centralized.
+- Maintain a top-level table of contents at /docs/README.md that links to subfolders and major documents.
+- Documentation must be updated for any significant change (API/behavior changes, feature additions, infra/IaC changes, public docs). Pull requests that modify behavior must include corresponding doc updates or an explicit justification in the PR description.
+- Each doc should include a short "Last updated" metadata header and minimal change notes for significant edits.
 
-	[x] What to avoid
-	- Introduce any new frameworks or libraries unless absolutely necessary and without consent
-	- Do not use `pip` directly for project dependency management. Use `uv add`, `uv sync`, and `uv lock` instead to keep reproducible builds.
+Repository layout & docs (summary)
+- Monorepo top-level code folders: `frontend/` and `backend/`.
+- Centralized docs folder: `/docs/` with subfolders as needed (see policy above).
+- New public-facing behavior must include or update docs and tests.
 
-- [x] Customize the Project
-	
-	Verify that all previous steps have been completed successfully and you have marked the step as completed.
-	Develop a plan to modify codebase according to user requirements.
-	Apply modifications using appropriate tools and user-provided references.
-	Skip this step for "Hello World" projects.
-	
+Tech stack & tooling
+- Frontend: React 19+, TypeScript 5+, Vite, TailwindCSS 4.1. Use strict TypeScript and `any` is strictly prohibited implicit or explicit.
+- Backend: Python 3.10+. Use `uv` for environment and dependency management (uv add / uv sync / uv lock).
+- Run Python scripts via `uv python <script>` (or repository-standard uv wrapper).
+- Linting/formatting: ESLint (TS/React) + Prettier for frontend, Ruff for Python.
+- Tests: unit tests required for logic changes; run the test suite before submitting PRs.
+
+Dependency & release rules
+- For Python, do NOT use pip directly in CI or contributor instructions — use `uv` commands to ensure reproducible environments.
+- For frontend dependencies, use the repository’s configured package manager and lockfiles (respect existing package-lock.json) in the /frontend folder.
+
+Coding & PR conventions
+- Small, focused commits with descriptive messages; one concern per PR.
+- Include tests and documentation updates for behavioral changes.
+- In PR description: summary, motivation, testing steps, and any migration notes.
+- If a change affects infra/IaC or developer workflows, include upgrade/migration guidance.
+
+Copilot-specific guidance
+- Prefer minimal, idiomatic code suggestions that follow the rules above.
+- When offering multi-file changes, present a clear plan and split into small PRs.
+- For any ambiguous requirement or design decision, ask a clarifying question rather than making broad assumptions.
+- When generating IaC or architecture text, include assumptions, constraints, and a short justification for design choices.
+
+When to escalate
+- If a proposed change touches security-sensitive code, secrets, or infra configuration, open an issue and request a security/infra review.
+- If a requested feature implies adding a major new dependency, propose alternatives and request approval.
+
+Contact / process
+- If uncertain about conventions or priority, open an issue describing the trade-offs and tag the maintainers; do not proceed with large, risky changes without consensus.
+
+Change log
+- Record notable edits to this file in PR descriptions to keep its guidance current.
