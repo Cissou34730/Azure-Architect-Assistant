@@ -1,10 +1,12 @@
 import { useContext } from "react";
-import { ProjectChatContext } from "./ProjectChatContext";
+import { projectChatContext } from "./ProjectChatContext";
 
 export function useProjectChatContext() {
-  const context = useContext(ProjectChatContext);
+  const context = useContext(projectChatContext);
   if (context === null) {
-    throw new Error("useProjectChatContext must be used within ProjectChatProvider");
+    throw new Error(
+      "useProjectChatContext must be used within ProjectChatProvider",
+    );
   }
   return context;
 }

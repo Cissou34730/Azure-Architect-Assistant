@@ -9,6 +9,6 @@ export interface ProjectMetaContextType {
   readonly setActiveTab: (tab: string) => void;
 }
 
-export const ProjectMetaContext = createContext<ProjectMetaContextType | null>(
+export const projectMetaContext = createContext<ProjectMetaContextType | null>(
   null
 );

@@ -14,13 +14,16 @@ interface StatCardProps {
 }
 
 export function StatCard({
-  icon: Icon,
+  icon: iconProp,
   label,
   value,
   trend,
   className = "",
   iconColor = "text-blue-600",
 }: StatCardProps) {
+// eslint-disable-next-line @typescript-eslint/naming-convention
+  const Icon = iconProp;
+
   return (
     <Card className={className} hover>
       <CardContent className="flex items-center justify-between">
@@ -28,7 +31,7 @@ export function StatCard({
           <p className="text-sm font-medium text-gray-600">{label}</p>
           <div className="flex items-baseline mt-1">
             <p className="text-2xl font-semibold text-gray-900">{value}</p>
-            {trend && (
+            {trend !== undefined && (
               <span
                 className={`ml-2 text-sm font-medium ${
                   trend.isPositive ? "text-green-600" : "text-red-600"
@@ -40,7 +43,7 @@ export function StatCard({
             )}
           </div>
         </div>
-        <div className={`rounded-full bg-opacity-10 p-3 ${iconColor}`}>
+        <div className={`p-3 rounded-full bg-opacity-10 ${iconColor}`}>
           <Icon className={`h-6 w-6 ${iconColor}`} />
         </div>
       </CardContent>

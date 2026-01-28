@@ -7,22 +7,165 @@ interface Requirement {
   readonly category?: string;
   readonly text?: string;
   readonly ambiguity?: { readonly isAmbiguous?: boolean; readonly notes?: string };
-  readonly sources?: ReadonlyArray<{ readonly documentId?: string; readonly fileName?: string; readonly excerpt?: string }>;
+  readonly sources?: readonly { readonly documentId?: string; readonly fileName?: string; readonly excerpt?: string }[];
 }
 
 interface RequirementsCardProps {
-  requirements: readonly Requirement[];
+  readonly requirements: readonly Requirement[];
 }
 
 interface GroupedRequirements {
-  business: Requirement[];
-  functional: Requirement[];
-  nfr: Requirement[];
-  other: Requirement[];
+  readonly business: Requirement[];
+  readonly functional: Requirement[];
+  readonly nfr: Requirement[];
+  readonly other: Requirement[];
+}
+
+interface RequirementItemProps {
+  readonly requirement: Requirement;
+  readonly groupKey: string;
+  readonly index: number;
+}
+
+interface RequirementSourcesProps {
+  readonly sources: readonly {
+    readonly documentId?: string;
+    readonly fileName?: string;
+    readonly excerpt?: string;
+  }[];
+}
+
+function RequirementSources({ sources }: RequirementSourcesProps) {
+  if (sources.length === 0) return null;
+
+  return (
+    <div className="mt-2 ml-6 flex flex-wrap gap-1">
+      {sources.slice(0, 3).map((src) => {
+        const sourceLabel =
+          src.fileName !== undefined && src.fileName !== ""
+            ? src.fileName
+            : src.documentId !== undefined && src.documentId !== ""
+              ? src.documentId
+              : "Source";
+        return (
+          <Badge key={`${sourceLabel}-${src.excerpt ?? ""}`} variant="info" size="sm">
+            {sourceLabel}
+          </Badge>
+        );
+      })}
+      {sources.length > 3 && (
+        <Badge variant="default" size="sm">
+          +{sources.length - 3} more
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+function RequirementItem({
+  requirement,
+  groupKey,
+  index,
+}: RequirementItemProps) {
+  const isAmbiguous = requirement.ambiguity?.isAmbiguous === true;
+  const text =
+    requirement.text !== undefined && requirement.text !== ""
+      ? requirement.text
+      : "Untitled requirement";
+
+  return (
+    <div
+      key={requirement.id ?? `${groupKey}-${index}`}
+      className="bg-gray-50 rounded-md p-3 text-sm"
+    >
+      <div className="flex items-start gap-2">
+        {isAmbiguous && (
+          <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+        )}
+        <p className="text-gray-900 flex-1">{text}</p>
+      </div>
+      {isAmbiguous &&
+        requirement.ambiguity.notes !== undefined &&
+        requirement.ambiguity.notes !== "" && (
+          <p className="text-xs text-amber-700 mt-1 ml-6">
+            {requirement.ambiguity.notes}
+          </p>
+        )}
+      {requirement.sources !== undefined && (
+        <RequirementSources sources={requirement.sources} />
+      )}
+    </div>
+  );
+}
+
+interface RequirementCategoryProps {
+  readonly label: string;
+  readonly categoryKey: string;
+  readonly items: readonly Requirement[];
+  readonly isExpanded: boolean;
+  readonly onToggle: (key: string) => void;
+}
+
+function RequirementCategory({
+  label,
+  categoryKey,
+  items,
+  isExpanded,
+  onToggle,
+}: RequirementCategoryProps) {
+  const ambiguousCount = items.filter((r) => r.ambiguity?.isAmbiguous === true).length;
+
+  return (
+    <div key={categoryKey} className="border-b border-gray-100 last:border-b-0">
+      <button
+        type="button"
+        onClick={() => {
+          onToggle(categoryKey);
+        }}
+        className="w-full flex items-center justify-between py-3 px-4 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          {isExpanded ? (
+            <ChevronDown className="h-4 w-4 text-gray-500" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-gray-500" />
+          )}
+          <span className="font-medium text-gray-900">{label}</span>
+          <Badge variant="default" size="sm">
+            {items.length}
+          </Badge>
+          {ambiguousCount > 0 && (
+            <Badge variant="warning" size="sm">
+              {ambiguousCount} ambiguous
+            </Badge>
+          )}
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="px-4 pb-3 space-y-2">
+          {items.length === 0 ? (
+            <p className="text-sm text-gray-500 italic">No requirements in this category</p>
+          ) : (
+            items.map((req, idx) => (
+              <RequirementItem
+                key={req.id ?? `${categoryKey}-${idx}`}
+                requirement={req}
+                groupKey={categoryKey}
+                index={idx}
+              />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function RequirementsCard({ requirements }: RequirementsCardProps) {
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["business"]));
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    new Set(["business"]),
+  );
 
   const grouped: GroupedRequirements = {
     business: [],
@@ -32,98 +175,21 @@ export function RequirementsCard({ requirements }: RequirementsCardProps) {
   };
 
   for (const req of requirements) {
-    const category = (req?.category || "").toLowerCase();
-    if (category === "business") grouped.business.push(req);
-    else if (category === "functional") grouped.functional.push(req);
-    else if (category === "nfr") grouped.nfr.push(req);
+    const categoryName = (req.category ?? "").toLowerCase();
+    if (categoryName === "business") grouped.business.push(req);
+    else if (categoryName === "functional") grouped.functional.push(req);
+    else if (categoryName === "nfr") grouped.nfr.push(req);
     else grouped.other.push(req);
   }
 
-  const toggleGroup = (group: string) => {
+  const toggleGroup = (groupKey: string) => {
     const newExpanded = new Set(expandedGroups);
-    if (newExpanded.has(group)) {
-      newExpanded.delete(group);
+    if (newExpanded.has(groupKey)) {
+      newExpanded.delete(groupKey);
     } else {
-      newExpanded.add(group);
+      newExpanded.add(groupKey);
     }
     setExpandedGroups(newExpanded);
-  };
-
-  const renderGroup = (label: string, key: string, items: Requirement[]) => {
-    const isExpanded = expandedGroups.has(key);
-    const ambiguousCount = items.filter(r => r.ambiguity?.isAmbiguous).length;
-
-    return (
-      <div key={key} className="border-b border-gray-100 last:border-b-0">
-        <button
-          onClick={() => toggleGroup(key)}
-          className="w-full flex items-center justify-between py-3 px-4 hover:bg-gray-50 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-gray-500" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-gray-500" />
-            )}
-            <span className="font-medium text-gray-900">{label}</span>
-            <Badge variant="default" size="sm">
-              {items.length}
-            </Badge>
-            {ambiguousCount > 0 && (
-              <Badge variant="warning" size="sm">
-                {ambiguousCount} ambiguous
-              </Badge>
-            )}
-          </div>
-        </button>
-
-        {isExpanded && (
-          <div className="px-4 pb-3 space-y-2">
-            {items.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">No requirements in this category</p>
-            ) : (
-              items.map((req, idx) => {
-                const isAmbiguous = req.ambiguity?.isAmbiguous;
-                const text = req.text || "Untitled requirement";
-
-                return (
-                  <div
-                    key={req.id || `${key}-${idx}`}
-                    className="bg-gray-50 rounded-md p-3 text-sm"
-                  >
-                    <div className="flex items-start gap-2">
-                      {isAmbiguous && (
-                      <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                      )}
-                      <p className="text-gray-900 flex-1">{text}</p>
-                    </div>
-                    {isAmbiguous && req.ambiguity?.notes && (
-                      <p className="text-xs text-amber-700 mt-1 ml-6">
-                        {req.ambiguity.notes}
-                      </p>
-                    )}
-                    {req.sources && req.sources.length > 0 && (
-                      <div className="mt-2 ml-6 flex flex-wrap gap-1">
-                        {req.sources.slice(0, 3).map((src, srcIdx) => (
-                          <Badge key={srcIdx} variant="info" size="sm">
-                            {src.fileName || src.documentId || "Source"}
-                          </Badge>
-                        ))}
-                        {req.sources.length > 3 && (
-                          <Badge variant="default" size="sm">
-                            +{req.sources.length - 3} more
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-      </div>
-    );
   };
 
   return (
@@ -138,10 +204,34 @@ export function RequirementsCard({ requirements }: RequirementsCardProps) {
           </div>
         ) : (
           <div>
-            {renderGroup("Business", "business", grouped.business)}
-            {renderGroup("Functional", "functional", grouped.functional)}
-            {renderGroup("Non-Functional", "nfr", grouped.nfr)}
-            {renderGroup("Other", "other", grouped.other)}
+            <RequirementCategory
+              label="Business"
+              categoryKey="business"
+              items={grouped.business}
+              isExpanded={expandedGroups.has("business")}
+              onToggle={toggleGroup}
+            />
+            <RequirementCategory
+              label="Functional"
+              categoryKey="functional"
+              items={grouped.functional}
+              isExpanded={expandedGroups.has("functional")}
+              onToggle={toggleGroup}
+            />
+            <RequirementCategory
+              label="Non-Functional"
+              categoryKey="nfr"
+              items={grouped.nfr}
+              isExpanded={expandedGroups.has("nfr")}
+              onToggle={toggleGroup}
+            />
+            <RequirementCategory
+              label="Other"
+              categoryKey="other"
+              items={grouped.other}
+              isExpanded={expandedGroups.has("other")}
+              onToggle={toggleGroup}
+            />
           </div>
         )}
       </CardContent>

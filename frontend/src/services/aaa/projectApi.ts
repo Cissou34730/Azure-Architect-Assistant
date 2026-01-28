@@ -2,6 +2,7 @@ import { fetchWithErrorHandling } from "../serviceError";
 
 import { API_BASE } from "../config";
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types -- Dynamic backend state structure
 type ProjectState = Record<string, unknown>;
 
 export const aaaProjectApi = {
@@ -11,6 +12,7 @@ export const aaaProjectApi = {
       formData.append("documents", file);
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types -- Backend returns untyped document metadata
     await fetchWithErrorHandling<{ documents: unknown[] }>(
       `${API_BASE}/projects/${projectId}/documents`,
       { method: "POST", body: formData },

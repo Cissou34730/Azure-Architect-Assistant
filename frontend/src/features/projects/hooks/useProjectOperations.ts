@@ -2,6 +2,7 @@ import { Project, ProjectState } from "../../../types/api";
 import { useDocumentUpload } from "./useDocumentUpload";
 import { useDocumentAnalysis } from "./useDocumentAnalysis";
 import { useRequirementHandlers } from "./useRequirementHandlers";
+import { useToast } from "../../../hooks/useToast";
 
 interface UseProjectOperationsProps {
   readonly selectedProject: Project | null;
@@ -13,12 +14,9 @@ interface UseProjectOperationsProps {
   readonly refreshState: () => Promise<void>;
   readonly generateProposal: (
     projectId: string,
-    onComplete?: () => void
+    onComplete?: () => void,
   ) => void;
   readonly setActiveTab: (tabId: string) => void;
-  readonly success: (msg: string) => void;
-  readonly showError: (msg: string) => void;
-  readonly warning: (msg: string) => void;
 }
 
 export function useProjectOperations({
@@ -31,10 +29,8 @@ export function useProjectOperations({
   refreshState,
   generateProposal,
   setActiveTab,
-  success,
-  showError,
-  warning,
 }: UseProjectOperationsProps) {
+  const { success, error: showError, warning } = useToast();
   const { handleUploadDocuments } = useDocumentUpload({
     selectedProject,
     files,

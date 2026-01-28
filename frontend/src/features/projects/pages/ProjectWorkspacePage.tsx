@@ -25,42 +25,33 @@ export default function ProjectWorkspacePage() {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => { window.removeEventListener("keydown", handleKeyDown); };
   }, []);
 
-  const requirements = projectState?.requirements || [];
-  const assumptions = projectState?.assumptions || [];
-  const questions = projectState?.clarificationQuestions || [];
+  const requirements = projectState?.requirements ?? [];
+  const assumptions = projectState?.assumptions ?? [];
+  const questions = projectState?.clarificationQuestions ?? [];
   
   // Mock documents - in real app, these would come from project state or separate API
-  const documents: Array<{ id: string; name: string; size?: number; uploadedAt?: string }> = [];
+  const documents: { id: string; name: string; size?: number; uploadedAt?: string }[] = [];
 
   const handleSend = useCallback(
     async (content: string) => {
-      if (!selectedProject || !content.trim()) return;
-      
-      // Update the chat input first
+      const trimmedContent = content.trim();
+      if (selectedProject === null || trimmedContent === "") {
+        return;
+      }
+
       setChatInput(content);
-      
-      // Create a proper form event
-      const fakeEvent = {
-        preventDefault: () => {},
-        currentTarget: {
-          elements: {
-            chatInput: { value: content }
-          }
-        }
-      } as any;
-      
-      await handleSendChatMessage(fakeEvent);
-      
-      // Clear the input after sending
+
+      await handleSendChatMessage();
+
       setChatInput("");
     },
     [selectedProject, handleSendChatMessage, setChatInput]
   );
 
-  if (!selectedProject) {
+  if (selectedProject === null) {
     return (
       <div className="text-center py-12 text-gray-500">
         Project not found
@@ -87,7 +78,7 @@ export default function ProjectWorkspacePage() {
           questions={questions}
           documents={documents}
           isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          onToggle={() => { setSidebarOpen(!sidebarOpen); }}
         />
       </div>
     </div>

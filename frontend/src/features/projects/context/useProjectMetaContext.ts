@@ -1,10 +1,12 @@
 import { useContext } from "react";
-import { ProjectMetaContext } from "./ProjectMetaContext";
+import { projectMetaContext } from "./ProjectMetaContext";
 
 export function useProjectMetaContext() {
-  const context = useContext(ProjectMetaContext);
+  const context = useContext(projectMetaContext);
   if (context === null) {
-    throw new Error("useProjectMetaContext must be used within ProjectMetaProvider");
+    throw new Error(
+      "useProjectMetaContext must be used within ProjectMetaProvider",
+    );
   }
   return context;
 }

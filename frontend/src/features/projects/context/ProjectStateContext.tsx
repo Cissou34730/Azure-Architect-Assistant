@@ -4,10 +4,10 @@ import type { ProjectState } from "../../../types/api";
 export interface ProjectStateContextType {
   readonly projectState: ProjectState | null;
   readonly loading: boolean;
-  readonly refreshState: () => Promise<void> | void;
-  readonly analyzeDocuments: () => Promise<ProjectState | void>;
+  readonly refreshState: () => Promise<void>;
+  readonly analyzeDocuments: () => Promise<ProjectState>;
 }
 
-export const ProjectStateContext = createContext<ProjectStateContextType | null>(
+export const projectStateContext = createContext<ProjectStateContextType | null>(
   null
 );

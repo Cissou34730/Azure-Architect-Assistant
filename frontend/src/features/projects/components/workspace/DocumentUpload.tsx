@@ -7,6 +7,94 @@ interface DocumentUploadProps {
   className?: string;
 }
 
+function UploadedFileItem({
+  file,
+  index,
+  onRemove,
+}: {
+  file: File;
+  index: number;
+  onRemove: (index: number) => void;
+}) {
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  return (
+    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <File className="h-5 w-5 text-gray-600 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">
+            {file.name}
+          </p>
+          <p className="text-xs text-gray-600">{formatFileSize(file.size)}</p>
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          onRemove(index);
+        }}
+        className="p-1 hover:bg-gray-200 rounded transition-colors shrink-0"
+        aria-label="Remove file"
+      >
+        <X className="h-4 w-4 text-gray-600" />
+      </button>
+    </div>
+  );
+}
+
+function UploadArea({
+  dragOver,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onFileSelect,
+}: {
+  dragOver: boolean;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+  onFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={`p-8 border-2 border-dashed rounded-lg transition-colors ${
+        dragOver ? "border-blue-500 bg-blue-50" : "border-gray-300 bg-gray-50"
+      }`}
+    >
+      <div className="flex flex-col items-center text-center">
+        <Upload
+          className={`h-12 w-12 mb-4 ${
+            dragOver ? "text-blue-600" : "text-gray-400"
+          }`}
+        />
+        <p className="text-sm font-medium text-gray-900 mb-1">
+          Drop files here or click to browse
+        </p>
+        <p className="text-xs text-gray-600 mb-4">
+          Supports PDF, DOCX, TXT, MD files
+        </p>
+        <label className="cursor-pointer bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          <input
+            type="file"
+            multiple
+            accept=".pdf,.docx,.txt,.md"
+            onChange={onFileSelect}
+            className="hidden"
+          />
+          Browse Files
+        </label>
+      </div>
+    </div>
+  );
+}
+
 export function DocumentUpload({ onUpload, className = "" }: DocumentUploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -31,7 +119,7 @@ export function DocumentUpload({ onUpload, className = "" }: DocumentUploadProps
   }, []);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
+    if (e.target.files !== null) {
       const files = Array.from(e.target.files);
       setSelectedFiles(files);
     }
@@ -56,49 +144,16 @@ export function DocumentUpload({ onUpload, className = "" }: DocumentUploadProps
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   return (
     <div className={className} data-upload-area>
       <Card>
-        <div
+        <UploadArea
+          dragOver={dragOver}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`p-8 border-2 border-dashed rounded-lg transition-colors ${
-            dragOver
-              ? "border-blue-500 bg-blue-50"
-              : "border-gray-300 bg-gray-50"
-          }`}
-        >
-          <div className="flex flex-col items-center text-center">
-            <Upload
-              className={`h-12 w-12 mb-4 ${
-                dragOver ? "text-blue-600" : "text-gray-400"
-              }`}
-            />
-            <p className="text-sm font-medium text-gray-900 mb-1">
-              Drop files here or click to browse
-            </p>
-            <p className="text-xs text-gray-600 mb-4">
-              Supports PDF, DOCX, TXT, MD files
-            </p>
-            <label className="cursor-pointer bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              <input
-                type="file"
-                multiple
-                accept=".pdf,.docx,.txt,.md"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              Browse Files
-            </label>
-          </div>
-        </div>
+          onFileSelect={handleFileSelect}
+        />
 
         {selectedFiles.length > 0 && (
           <div className="mt-4 space-y-2">
@@ -107,29 +162,12 @@ export function DocumentUpload({ onUpload, className = "" }: DocumentUploadProps
             </h4>
             <div className="space-y-2">
               {selectedFiles.map((file, index) => (
-                <div
-                  key={`${file.name}-${index}`}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <File className="h-5 w-5 text-gray-600 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {file.name}
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        {formatFileSize(file.size)}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => removeFile(index)}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors shrink-0"
-                    aria-label="Remove file"
-                  >
-                    <X className="h-4 w-4 text-gray-600" />
-                  </button>
-                </div>
+                <UploadedFileItem
+                  key={`${file.name}-${file.size}-${file.lastModified}`}
+                  file={file}
+                  index={index}
+                  onRemove={removeFile}
+                />
               ))}
             </div>
 
@@ -142,7 +180,7 @@ export function DocumentUpload({ onUpload, className = "" }: DocumentUploadProps
                 {uploading ? "Uploading..." : "Upload Files"}
               </button>
               <button
-                onClick={() => setSelectedFiles([])}
+                onClick={() => { setSelectedFiles([]); }}
                 disabled={uploading}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
               >

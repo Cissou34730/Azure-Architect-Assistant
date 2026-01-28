@@ -1,8 +1,8 @@
 import type { PhaseDetail, IngestionPhase } from "../../types/ingestion";
 
-type Props = {
+interface Props {
   phases?: readonly PhaseDetail[];
-};
+}
 
 const phaseOrder: IngestionPhase[] = [
   "loading",
@@ -12,7 +12,7 @@ const phaseOrder: IngestionPhase[] = [
 ];
 
 const statusColor: Record<string, string> = {
-  not_started: "bg-gray-300",
+  ["not_started"]: "bg-gray-300",
   pending: "bg-gray-300",
   running: "bg-blue-500",
   paused: "bg-yellow-500",

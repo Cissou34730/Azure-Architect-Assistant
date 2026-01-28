@@ -1,17 +1,11 @@
-import { Message, ProjectState, KbSource } from "../types/api";
+import { Message, SendMessageResponse } from "../types/api";
 import { API_BASE } from "./config";
 import { fetchWithErrorHandling } from "./serviceError";
-
-export interface SendMessageResponse {
-  readonly message: string;
-  readonly projectState: ProjectState;
-  readonly kbSources?: readonly KbSource[];
-}
 
 export const chatApi = {
   async sendMessage(
     projectId: string,
-    message: string
+    message: string,
   ): Promise<SendMessageResponse> {
     return fetchWithErrorHandling<SendMessageResponse>(
       `${API_BASE}/projects/${projectId}/chat`,
@@ -23,7 +17,7 @@ export const chatApi = {
         },
         body: JSON.stringify({ message }),
       },
-      "send message"
+      "send message",
     );
   },
 

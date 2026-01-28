@@ -1,4 +1,40 @@
-import { KbQueryResponse } from "../../types/api";
+import { KbQueryResponse, KbSource } from "../../types/api";
+
+interface SourceItemProps {
+  readonly source: KbSource;
+}
+
+function SourceItem({ source }: SourceItemProps) {
+  return (
+    <div className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <a
+            href={source.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 font-medium"
+          >
+            {source.title}
+          </a>
+          <div className="flex items-center gap-3 mt-1">
+            {source.kbName !== undefined && source.kbName !== "" && (
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
+                {source.kbName}
+              </span>
+            )}
+            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+              {source.section}
+            </span>
+            <span className="text-xs text-gray-500">
+              Relevance: {(source.score * 100).toFixed(1)}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   readonly response: KbQueryResponse | null;
@@ -10,10 +46,8 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
     return null;
   }
 
-  const sources = Array.isArray(response.sources) ? response.sources : [];
-  const followUps = Array.isArray(response.suggestedFollowUps)
-    ? response.suggestedFollowUps
-    : [];
+  const sources = response.sources;
+  const followUps = response.suggestedFollowUps ?? [];
 
   if (!response.hasResults) {
     return (
@@ -43,37 +77,11 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
             Sources ({sources.length})
           </h2>
           <div className="space-y-3">
-            {sources.map((source) => (
-              <div
-                key={`${source.url}-${source.section}`}
-                className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      {source.title}
-                    </a>
-                    <div className="flex items-center gap-3 mt-1">
-                      {source.kbName !== undefined && source.kbName !== "" && (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
-                          {source.kbName}
-                        </span>
-                      )}
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                        {source.section}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        Relevance: {(source.score * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {sources.map((source, index) => (
+              <SourceItem
+                key={`${source.url}-${index}`} // eslint-disable-line react/no-array-index-key
+                source={source}
+              />
             ))}
           </div>
         </div>
@@ -81,23 +89,26 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
 
       {/* Suggested Follow-ups */}
       {followUps.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-blue-900 mb-3">
-              Suggested Follow-up Questions
-            </h2>
-            <div className="space-y-2">
-              {followUps.map((followUp) => (
-                <button
-                  key={followUp}
-                  onClick={() => { onFollowUp(followUp); }}
-                  className="block w-full text-left px-4 py-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                >
-                  <span className="text-blue-700">💬 {followUp}</span>
-                </button>
-              ))}
-            </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-blue-900 mb-3">
+            Suggested Follow-up Questions
+          </h2>
+          <div className="space-y-2">
+            {followUps.map((followUp) => (
+              <button
+                key={followUp}
+                type="button"
+                onClick={() => {
+                  onFollowUp(followUp);
+                }}
+                className="block w-full text-left px-4 py-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
+              >
+                <span className="text-blue-700">💬 {followUp}</span>
+              </button>
+            ))}
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }

@@ -25,7 +25,7 @@ export default function ProjectDetailPage() {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => { window.removeEventListener("keydown", handleKeyDown); };
   }, []);
 
   if (selectedProject === null && loading) {
@@ -59,7 +59,7 @@ export default function ProjectDetailPage() {
         {/* Command Palette - Available globally */}
         <CommandPalette
           isOpen={isCommandPaletteOpen}
-          onClose={() => setIsCommandPaletteOpen(false)}
+          onClose={() => { setIsCommandPaletteOpen(false); }}
         />
       </ProjectProvider>
     </ErrorBoundary>

@@ -2,36 +2,123 @@ import { Card, CardHeader, CardTitle, CardContent, Badge } from "../../../../com
 import { CoverageProgress } from "./charts/CoverageProgress";
 
 interface MindMapCoverage {
-  version?: string;
-  computedAt?: string;
-  topics?: Record<string, { status?: string }>;
+  readonly version?: string;
+  readonly computedAt?: string;
+  readonly topics?: Record<string, { readonly status?: string }>;
 }
 
 interface ArchitectureCoverageCardProps {
-  coverage: MindMapCoverage | null | undefined;
+  readonly coverage: MindMapCoverage | null | undefined;
 }
 
-export function ArchitectureCoverageCard({ coverage }: ArchitectureCoverageCardProps) {
-  const topics = coverage?.topics || {};
-  const topicEntries = Object.entries(topics);
+interface StatusCounts {
+  readonly complete: number;
+  readonly partial: number;
+  readonly missing: number;
+}
 
+function useCoverageData(coverage: MindMapCoverage | null | undefined) {
   const statusCounts = {
     complete: 0,
     partial: 0,
     missing: 0,
   };
 
+  const topics =
+    coverage !== null && coverage !== undefined
+      ? coverage.topics ?? {}
+      : {};
+  const topicEntries = Object.entries(topics);
+
   for (const [, data] of topicEntries) {
-    const status = data.status?.toLowerCase() || "missing";
-    if (status === "complete") statusCounts.complete++;
-    else if (status === "partial") statusCounts.partial++;
-    else statusCounts.missing++;
+    const rawStatus = data.status ?? "missing";
+    const status = rawStatus.toLowerCase();
+    if (status === "complete") statusCounts.complete += 1;
+    else if (status === "partial") statusCounts.partial += 1;
+    else statusCounts.missing += 1;
   }
 
   const totalTopics = topicEntries.length;
-  const coveragePercentage = totalTopics > 0
-    ? Math.round((statusCounts.complete / totalTopics) * 100)
-    : 0;
+  const coveragePercentage =
+    totalTopics > 0
+      ? Math.round((statusCounts.complete / totalTopics) * 100)
+      : 0;
+
+  return {
+    topicEntries,
+    statusCounts,
+    coveragePercentage,
+  };
+}
+
+interface CoverageGridProps {
+  readonly counts: StatusCounts;
+}
+
+function CoverageGrid({ counts }: CoverageGridProps) {
+  return (
+    <div className="grid grid-cols-3 gap-2 text-center">
+      <div>
+        <div className="text-2xl font-bold text-green-600">
+          {counts.complete}
+        </div>
+        <div className="text-xs text-gray-600">Complete</div>
+      </div>
+      <div>
+        <div className="text-2xl font-bold text-amber-600">
+          {counts.partial}
+        </div>
+        <div className="text-xs text-gray-600">Partial</div>
+      </div>
+      <div>
+        <div className="text-2xl font-bold text-gray-400">
+          {counts.missing}
+        </div>
+        <div className="text-xs text-gray-600">Missing</div>
+      </div>
+    </div>
+  );
+}
+
+interface TopicListProps {
+  readonly entries: readonly [string, { readonly status?: string }][];
+}
+
+function TopicList({ entries }: TopicListProps) {
+  return (
+    <div className="pt-4 border-t border-gray-200 space-y-2 max-h-60 overflow-y-auto">
+      {entries.map(([topic, data]) => {
+        const rawStatus = data.status ?? "missing";
+        const status = rawStatus.toLowerCase();
+        let variant: "success" | "warning" | "default" = "default";
+        if (status === "complete") variant = "success";
+        else if (status === "partial") variant = "warning";
+
+        return (
+          <div key={topic} className="flex items-center justify-between text-sm">
+            <span className="text-gray-700 truncate flex-1">
+              {topic.replace(/_/g, " ")}
+            </span>
+            <Badge variant={variant} size="sm">
+              {status}
+            </Badge>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function ArchitectureCoverageCard({
+  coverage,
+}: ArchitectureCoverageCardProps) {
+  const { topicEntries, statusCounts, coveragePercentage } =
+    useCoverageData(coverage);
+
+  const updatedDate =
+    coverage !== null && coverage !== undefined
+      ? coverage.computedAt ?? ""
+      : "";
 
   return (
     <Card>
@@ -49,53 +136,13 @@ export function ArchitectureCoverageCard({ coverage }: ArchitectureCoverageCardP
               <CoverageProgress percentage={coveragePercentage} />
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
-                <div className="text-2xl font-bold text-green-600">
-                  {statusCounts.complete}
-                </div>
-                <div className="text-xs text-gray-600">Complete</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-amber-600">
-                  {statusCounts.partial}
-                </div>
-                <div className="text-xs text-gray-600">Partial</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-gray-400">
-                  {statusCounts.missing}
-                </div>
-                <div className="text-xs text-gray-600">Missing</div>
-              </div>
-            </div>
+            <CoverageGrid counts={statusCounts} />
 
-            <div className="pt-4 border-t border-gray-200 space-y-2 max-h-60 overflow-y-auto">
-              {topicEntries.map(([topic, data]) => {
-                const status = data.status?.toLowerCase() || "missing";
-                let variant: "success" | "warning" | "default" = "default";
-                if (status === "complete") variant = "success";
-                else if (status === "partial") variant = "warning";
+            <TopicList entries={topicEntries} />
 
-                return (
-                  <div
-                    key={topic}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <span className="text-gray-700 truncate flex-1">
-                      {topic.replace(/_/g, " ")}
-                    </span>
-                    <Badge variant={variant} size="sm">
-                      {status}
-                    </Badge>
-                  </div>
-                );
-              })}
-            </div>
-
-            {coverage?.computedAt && (
+            {updatedDate !== "" && (
               <p className="text-xs text-gray-500 text-center pt-2">
-                Updated: {new Date(coverage.computedAt).toLocaleString()}
+                Updated: {new Date(updatedDate).toLocaleString()}
               </p>
             )}
           </div>

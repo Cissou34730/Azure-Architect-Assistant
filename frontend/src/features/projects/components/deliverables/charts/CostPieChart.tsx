@@ -2,7 +2,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recha
 import type { CostLineItem } from "../../../../../types/api";
 
 interface CostPieChartProps {
-  lineItems: readonly CostLineItem[];
+  readonly lineItems: readonly CostLineItem[];
 }
 
 const COLORS = [
@@ -19,16 +19,16 @@ const COLORS = [
 export function CostPieChart({ lineItems }: CostPieChartProps) {
   // Sort by cost and take top 5, group rest as "Others"
   const sortedItems = [...lineItems].sort(
-    (a, b) => (b.monthlyCost || 0) - (a.monthlyCost || 0)
+    (a, b) => b.monthlyCost - a.monthlyCost
   );
 
   const topItems = sortedItems.slice(0, 5);
   const otherItems = sortedItems.slice(5);
-  const othersCost = otherItems.reduce((sum, item) => sum + (item.monthlyCost || 0), 0);
+  const othersCost = otherItems.reduce((sum, item) => sum + item.monthlyCost, 0);
 
   const data = topItems.map((item) => ({
-    name: item.name || "Unknown",
-    value: item.monthlyCost || 0,
+    name: item.name,
+    value: item.monthlyCost,
   }));
 
   if (othersCost > 0) {
@@ -39,8 +39,9 @@ export function CostPieChart({ lineItems }: CostPieChartProps) {
     return `$${value.toFixed(2)}`;
   };
 
-  const formatPercentage = (value: number, total: number) => {
-    return `${((value / total) * 100).toFixed(1)}%`;
+  const formatPercentage = (value: number, totalAmount: number) => {
+    if (totalAmount === 0) return "0.0%";
+    return `${((value / totalAmount) * 100).toFixed(1)}%`;
   };
 
   const total = data.reduce((sum, item) => sum + item.value, 0);
@@ -54,16 +55,34 @@ export function CostPieChart({ lineItems }: CostPieChartProps) {
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={({ name, value }) => `${name}: ${formatPercentage(value, total)}`}
+            label={({
+              name,
+              value,
+            }: {
+              name?: string | number;
+              value?: string | number;
+            }) => {
+              const nameStr = String(name ?? "Unknown");
+              const numValue = Number(value ?? 0);
+              return `${nameStr}: ${formatPercentage(numValue, total)}`;
+            }}
             outerRadius={80}
             fill="#8884d8"
             dataKey="value"
           >
-            {data.map((_entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            {data.map((entry, index) => (
+              /* eslint-disable-next-line @typescript-eslint/no-deprecated */
+              <Cell
+                key={`cell-${entry.name}`}
+                fill={COLORS[index % COLORS.length]}
+              />
             ))}
           </Pie>
-          <Tooltip formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : "N/A"} />
+          <Tooltip
+            formatter={(value: number | string | undefined) =>
+              formatCurrency(Number(value ?? 0))
+            }
+          />
           <Legend />
         </PieChart>
       </ResponsiveContainer>

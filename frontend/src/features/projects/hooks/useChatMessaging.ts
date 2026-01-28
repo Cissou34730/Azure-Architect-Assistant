@@ -16,7 +16,7 @@ function serializeKbSources(message: Message): string {
   }
 
   return message.kbSources
-    .map((source) => `${source.url}|${source.title ?? ""}`)
+    .map((source) => `${source.url}|${source.title}`)
     .join(";;");
 }
 
@@ -46,25 +46,28 @@ function canReuseMessage(prevMessage: Message, nextMessage: Message): boolean {
 
 function reconcileMessages(
   previousMessages: readonly Message[],
-  fetchedMessages: readonly Message[]
+  fetchedMessages: readonly Message[],
 ): readonly Message[] {
   if (previousMessages.length === 0) {
     return fetchedMessages;
   }
 
-  const previousById = new Map(previousMessages.map((message) => [message.id, message]));
-  let reusedAny = false;
+  const previousById = new Map(
+    previousMessages.map((message) => [message.id, message]),
+  );
 
   const reconciled = fetchedMessages.map((nextMessage) => {
     const prevMessage = previousById.get(nextMessage.id);
-    if (prevMessage !== undefined && canReuseMessage(prevMessage, nextMessage)) {
-      reusedAny = true;
+    if (
+      prevMessage !== undefined &&
+      canReuseMessage(prevMessage, nextMessage)
+    ) {
       return prevMessage;
     }
     return nextMessage;
   });
 
-  return reusedAny ? reconciled : fetchedMessages;
+  return reconciled;
 }
 
 export function useChatMessaging({
@@ -80,7 +83,9 @@ export function useChatMessaging({
 
     try {
       const fetchedMessages = await chatApi.fetchMessages(projectId);
-      setMessages((previousMessages) => reconcileMessages(previousMessages, fetchedMessages));
+      setMessages((previousMessages) =>
+        reconcileMessages(previousMessages, fetchedMessages),
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Fetch failed";
       console.error(`Error fetching messages: ${msg}`);
@@ -111,7 +116,7 @@ export function useChatMessaging({
         setLoadingMessage("");
       }
     },
-    [projectId, fetchMessages, setLoading, setLoadingMessage]
+    [projectId, fetchMessages, setLoading, setLoadingMessage],
   );
 
   return { fetchMessages, sendMessage };

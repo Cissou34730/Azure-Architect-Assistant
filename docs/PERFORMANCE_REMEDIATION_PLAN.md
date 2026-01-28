@@ -73,6 +73,13 @@
     - **Result**: Provider hierarchy is now `ProjectMetaContext` → `projectContextInstance` → `ProjectStateContext` → `ProjectChatContext`. Meta updates (selection, tab) will not trigger chat/state re-renders.
     - **Next step (per plan)**: Add error boundaries and complete validation checks (render counters in dev) to confirm contexts isolate renders as intended.
 
+  **2026-01-27 (UTC)**: Task 1.4 implemented — composed provider hierarchy and added `ErrorBoundary` wrappers at each provider level; added dev-only render logging can be placed in individual contexts/pages for validation.
+
+    - **Files modified**: [frontend/src/features/projects/context/ProjectProvider.tsx](frontend/src/features/projects/context/ProjectProvider.tsx)
+    - **Result**: Each context is now wrapped with an `ErrorBoundary` to isolate failures to the smallest scope.
+    - **Validation**: Add `console.log` lines in `LeftContextPanel` and `ProjectMetaContext` during development to observe render isolation (task left to dev environment).
+
+
 
 ## Executive Summary
 
@@ -503,7 +510,7 @@ if (import.meta.env.DEV) {
    - Access selectedProject for title display
 
 **Acceptance Criteria**:
-- [ ] All consumers use specific context hooks (not generic `useProjectContext`)
+- [x] All consumers use specific context hooks (not generic `useProjectContext`)
 - [ ] No TypeScript errors
 - [ ] Application functions identically to before
 - [ ] Each component only subscribes to context it needs
@@ -1479,8 +1486,16 @@ npm run test:e2e
        branches: [main, develop]
      push:
        branches: [main]
+  **2026-01-27 (UTC)**: Task 1.5 implemented — migrated UnifiedProjectPage, CenterChatArea, LeftContextPanel, and RightDeliverablesPanel to consume split contexts directly.
 
-   jobs:
+  - **Files changed**:
+    - [frontend/src/features/projects/pages/UnifiedProjectPage.tsx](frontend/src/features/projects/pages/UnifiedProjectPage.tsx)
+    - [frontend/src/features/projects/components/unified/CenterChatArea.tsx](frontend/src/features/projects/components/unified/CenterChatArea.tsx)
+    - [frontend/src/features/projects/components/unified/LeftContextPanel.tsx](frontend/src/features/projects/components/unified/LeftContextPanel.tsx)
+    - [frontend/src/features/projects/components/unified/RightDeliverablesPanel.tsx](frontend/src/features/projects/components/unified/RightDeliverablesPanel.tsx)
+
+  - **Result**: Consumers now import `useProjectMetaContext`, `useProjectStateContext`, or `useProjectChatContext` as appropriate. Prop-drilling of project state/chat artifacts has been reduced.
+    - **Next step**: Run dev build and add `React.memo`/useCallback optimizations (Task 1.6). Note: full build still blocked by existing lint/TS issues from Phase 0.
      test:
        runs-on: ubuntu-latest
        steps:

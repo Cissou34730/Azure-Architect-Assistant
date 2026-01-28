@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { Project } from "../../types/api";
+import { DeleteProjectModalContent } from "./DeleteProjectModalContent";
 
 interface DeleteProjectModalProps {
   readonly project: Project;
@@ -77,24 +78,11 @@ export function DeleteProjectModal({
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          <p id="modal-description" className="text-sm text-gray-600 mb-4">
-            Are you sure you want to delete{" "}
-            <span className="font-semibold text-gray-900">{project.name}</span>?
-          </p>
-          <p className="text-sm text-gray-600 mb-4">
-            This action cannot be undone. All project data, including:
-          </p>
-          <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mb-4">
-            <li>Requirements and assumptions</li>
-            <li>Architecture diagrams</li>
-            <li>ADRs and cost estimates</li>
-            <li>Chat messages and documents</li>
-          </ul>
-          <p className="text-sm text-red-600 font-medium">will be permanently deleted.</p>
-
-          {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <DeleteProjectModalContent projectName={project.name} />
+        
+        <div className="px-6 pb-6">
+          {error !== null && error !== "" && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-800">{error}</p>
             </div>
           )}

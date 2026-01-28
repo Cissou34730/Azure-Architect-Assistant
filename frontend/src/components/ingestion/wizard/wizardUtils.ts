@@ -61,25 +61,22 @@ export function canProceed(data: ValidationData): boolean {
 }
 
 function validateConfig(data: ValidationData): boolean {
-  if (
-    data.sourceType === "website" ||
-    data.sourceType === "web_documentation" ||
-    data.sourceType === "web_generic"
-  ) {
-    return data.urls.some((url) => isHttpUrl(url));
+  switch (data.sourceType) {
+    case "website":
+    case "web_documentation":
+    case "web_generic":
+      return data.urls.some((url) => isHttpUrl(url));
+    case "youtube":
+      return data.videoUrls.some((url) => url.trim() !== "");
+    case "pdf":
+      return (
+        data.pdfLocalPaths.some((p) => p.trim() !== "") ||
+        data.pdfUrls.some((url) => url.trim() !== "") ||
+        data.pdfFolderPath.trim() !== ""
+      );
+    case "markdown":
+      return data.markdownFolderPath.trim() !== "";
+    default:
+      return false;
   }
-  if (data.sourceType === "youtube") {
-    return data.videoUrls.some((url) => url.trim() !== "");
-  }
-  if (data.sourceType === "pdf") {
-    return (
-      data.pdfLocalPaths.some((p) => p.trim() !== "") ||
-      data.pdfUrls.some((url) => url.trim() !== "") ||
-      data.pdfFolderPath.trim() !== ""
-    );
-  }
-  if (data.sourceType === "markdown") {
-    return data.markdownFolderPath.trim() !== "";
-  }
-  return false;
 }

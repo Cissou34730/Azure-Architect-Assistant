@@ -5,14 +5,13 @@ import { fetchWithErrorHandling } from "../serviceError";
 import { API_BASE } from "../config";
 
 export interface AgentConversationHistoryResponse {
-  messages: Array<
-    Message & {
-      id: string;
-      projectId: string;
-      timestamp: string;
-      wafSources?: unknown[];
-    }
-  >;
+  messages: (Message & {
+    id: string;
+    projectId: string;
+    timestamp: string;
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types -- Backend returns untyped WAF sources
+    wafSources?: unknown[];
+  })[];
   total: number;
 }
 
@@ -22,37 +21,45 @@ export const agentApi = {
       `${API_BASE}/agent/chat`,
       {
         method: "POST",
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message }),
       },
-      "chat with agent"
+      "chat with agent",
     );
   },
 
   async chatWithProject(
     projectId: string,
-    message: string
-  ): Promise<AgentResponse & { project_state?: ProjectState }> {
-    return fetchWithErrorHandling<
+    message: string,
+  ): Promise<AgentResponse & { projectState?: ProjectState }> {
+    const res = await fetchWithErrorHandling<
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       AgentResponse & { project_state?: ProjectState }
     >(
       `${API_BASE}/agent/projects/${projectId}/chat`,
       {
         method: "POST",
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message }),
       },
-      "chat with agent (project context)"
+      "chat with agent (project context)",
     );
+
+    return {
+      ...res,
+      projectState: res.project_state,
+    };
   },
 
   async getProjectHistory(
-    projectId: string
+    projectId: string,
   ): Promise<AgentConversationHistoryResponse> {
     return fetchWithErrorHandling<AgentConversationHistoryResponse>(
       `${API_BASE}/agent/projects/${projectId}/history`,
       { method: "GET" },
-      "load agent conversation history"
+      "load agent conversation history",
     );
   },
 };

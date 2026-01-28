@@ -1,10 +1,12 @@
 import { useContext } from "react";
-import { ProjectStateContext } from "./ProjectStateContext";
+import { projectStateContext } from "./ProjectStateContext";
 
 export function useProjectStateContext() {
-  const context = useContext(ProjectStateContext);
+  const context = useContext(projectStateContext);
   if (context === null) {
-    throw new Error("useProjectStateContext must be used within ProjectStateProvider");
+    throw new Error(
+      "useProjectStateContext must be used within ProjectStateProvider",
+    );
   }
   return context;
 }

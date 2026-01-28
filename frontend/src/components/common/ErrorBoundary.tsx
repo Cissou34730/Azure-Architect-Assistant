@@ -31,7 +31,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
+      if (this.props.fallback !== undefined && this.props.fallback !== null) {
         return this.props.fallback;
       }
 
@@ -47,7 +47,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             <p className="text-gray-600 mb-6">
               We encountered an unexpected error. Please try again or contact support if the problem persists.
             </p>
-            {this.state.error && (
+            {this.state.error !== null && (
               <div className="mb-6 p-4 bg-gray-50 rounded-lg text-left">
                 <p className="text-xs font-mono text-gray-700 break-all">
                   {this.state.error.message}

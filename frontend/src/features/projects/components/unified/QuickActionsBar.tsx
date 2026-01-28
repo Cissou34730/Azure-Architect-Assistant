@@ -1,13 +1,15 @@
-import { Upload, Sparkles, FileText, Download, Menu } from "lucide-react";
+import { Upload, Sparkles, FileText, Download } from "lucide-react";
 import { useState } from "react";
+import { ActionButton } from "./QuickActionsBar/ActionButton";
+import { ProjectIdentity } from "./QuickActionsBar/ProjectIdentity";
 
 interface QuickActionsBarProps {
-  projectName: string;
-  onUploadClick: () => void;
-  onGenerateDiagramClick: () => void;
-  onCreateAdrClick: () => void;
-  onExportClick: () => void;
-  onMenuClick?: () => void;
+  readonly projectName: string;
+  readonly onUploadClick: () => void;
+  readonly onGenerateDiagramClick: () => void;
+  readonly onCreateAdrClick: () => void;
+  readonly onExportClick: () => void;
+  readonly onMenuClick?: () => void;
 }
 
 export function QuickActionsBar({
@@ -24,30 +26,7 @@ export function QuickActionsBar({
     <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
       <div className="flex items-center justify-between px-6 py-3">
         {/* Left: Mobile menu + Project name */}
-        <div className="flex items-center gap-4">
-          {onMenuClick && (
-            <button
-              onClick={onMenuClick}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Toggle menu"
-            >
-              <Menu className="h-5 w-5 text-gray-700" />
-            </button>
-          )}
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-linear-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0">
-              <span className="text-white font-semibold text-sm">
-                {projectName.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900 leading-tight">
-                {projectName}
-              </h1>
-              <p className="text-xs text-gray-500">Architecture Workspace</p>
-            </div>
-          </div>
-        </div>
+        <ProjectIdentity projectName={projectName} onMenuClick={onMenuClick} />
 
         {/* Right: Action buttons */}
         <div className="flex items-center gap-2">
@@ -115,45 +94,5 @@ export function QuickActionsBar({
         </div>
       </div>
     </div>
-  );
-}
-
-interface ActionButtonProps {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  onClick: () => void;
-  shortcut?: string;
-  showTooltip?: boolean;
-  variant?: "default" | "primary";
-}
-
-function ActionButton({
-  icon: Icon,
-  label,
-  onClick,
-  shortcut,
-  showTooltip,
-  variant = "default",
-}: ActionButtonProps) {
-  const baseClasses = "flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-medium text-sm";
-  const variantClasses =
-    variant === "primary"
-      ? "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-      : "bg-gray-100 text-gray-700 hover:bg-gray-200";
-
-  return (
-    <button
-      onClick={onClick}
-      className={`${baseClasses} ${variantClasses}`}
-      title={showTooltip && shortcut ? `${label} (${shortcut})` : label}
-    >
-      <Icon className="h-4 w-4" />
-      <span className="hidden lg:inline">{label}</span>
-      {shortcut && (
-        <kbd className="hidden xl:inline-block px-1.5 py-0.5 bg-white/10 border border-white/20 rounded text-xs">
-          {shortcut}
-        </kbd>
-      )}
-    </button>
   );
 }

@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import type { ProjectContextType } from "./types";
 import { projectContextInstance } from "./ProjectContextInstance";
-import { ProjectChatContext } from "./ProjectChatContext";
-import { ProjectStateContext } from "./ProjectStateContext";
-import { ProjectMetaContext } from "./ProjectMetaContext";
+import { projectChatContext } from "./ProjectChatContext";
+import { projectStateContext } from "./ProjectStateContext";
+import { projectMetaContext } from "./ProjectMetaContext";
+import { ErrorBoundary } from "../../../components/common/ErrorBoundary";
 
 export function ProjectProvider({
   value,
@@ -13,17 +14,17 @@ export function ProjectProvider({
   readonly children: React.ReactNode;
 }) {
   const stateValue = useMemo(() => ({
-    projectState: value.projectState ?? null,
-    loading: Boolean(value.loading),
+    projectState: value.projectState,
+    loading: value.loading,
     refreshState: value.refreshState,
     analyzeDocuments: value.analyzeDocuments,
   }), [value.projectState, value.loading, value.refreshState, value.analyzeDocuments]);
 
   const metaValue = useMemo(() => ({
-    selectedProject: value.selectedProject ?? null,
+    selectedProject: value.selectedProject,
     setSelectedProject: value.setSelectedProject,
-    loadingProject: Boolean(value.loadingProject),
-    activeTab: value.activeTab ?? null,
+    loadingProject: value.loadingProject,
+    activeTab: value.activeTab,
     setActiveTab: value.setActiveTab,
   }), [
     value.selectedProject,
@@ -34,10 +35,10 @@ export function ProjectProvider({
   ]);
 
   const chatValue = useMemo(() => ({
-    messages: value.messages ?? [],
+    messages: value.messages,
     sendMessage: value.sendMessage,
-    loading: Boolean(value.loading),
-    loadingMessage: value.loadingMessage ?? null,
+    loading: value.loading,
+    loadingMessage: value.loadingMessage,
     refreshMessages: value.refreshState,
   }), [
     value.messages,
@@ -48,14 +49,22 @@ export function ProjectProvider({
   ]);
 
   return (
-    <ProjectMetaContext.Provider value={metaValue}>
-      <projectContextInstance.Provider value={value}>
-        <ProjectStateContext.Provider value={stateValue}>
-          <ProjectChatContext.Provider value={chatValue}>
-            {children}
-          </ProjectChatContext.Provider>
-        </ProjectStateContext.Provider>
-      </projectContextInstance.Provider>
-    </ProjectMetaContext.Provider>
+    <ErrorBoundary>
+      <projectMetaContext.Provider value={metaValue}>
+        <ErrorBoundary>
+          <projectContextInstance.Provider value={value}>
+            <ErrorBoundary>
+              <projectStateContext.Provider value={stateValue}>
+                <ErrorBoundary>
+                  <projectChatContext.Provider value={chatValue}>
+                    {children}
+                  </projectChatContext.Provider>
+                </ErrorBoundary>
+              </projectStateContext.Provider>
+            </ErrorBoundary>
+          </projectContextInstance.Provider>
+        </ErrorBoundary>
+      </projectMetaContext.Provider>
+    </ErrorBoundary>
   );
 }

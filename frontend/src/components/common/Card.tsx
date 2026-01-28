@@ -10,7 +10,7 @@ interface CardProps {
 export function Card({ children, className = "", hover = false, onClick }: CardProps) {
   const baseClasses = "bg-white rounded-lg border border-gray-200 shadow-sm";
   const hoverClasses = hover ? "hover:shadow-md transition-shadow cursor-pointer" : "";
-  const clickClasses = onClick ? "cursor-pointer" : "";
+  const clickClasses = onClick !== undefined ? "cursor-pointer" : "";
 
   return (
     <div
@@ -32,7 +32,7 @@ export function CardHeader({ children, className = "", action }: CardHeaderProps
   return (
     <div className={`px-6 py-4 border-b border-gray-200 flex items-center justify-between ${className}`}>
       <div>{children}</div>
-      {action && <div>{action}</div>}
+      {action !== undefined && action !== null && <div>{action}</div>}
     </div>
   );
 }

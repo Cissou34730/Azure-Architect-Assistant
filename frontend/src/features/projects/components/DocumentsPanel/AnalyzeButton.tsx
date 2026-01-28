@@ -18,7 +18,7 @@ export function AnalyzeButton({
   const isAnalyzing = loading && loadingMessage.includes("Analyzing");
   const hasNoRequirements =
     textRequirements.trim() === "" &&
-    (!selectedProject.textRequirements ||
+    (selectedProject.textRequirements === undefined ||
       selectedProject.textRequirements.trim() === "");
 
   return (
