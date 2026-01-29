@@ -1,123 +1,53 @@
-import type { Dispatch, SetStateAction } from "react";
-import { useCallback } from "react";
-import { chatApi } from "../../../services/chatService";
-import { Message, ProjectState } from "../../../types/api";
+import { useState } from "react";
+import type { FailedMessage, UseChatMessagingProps } from "./chat-messaging-types";
+import {
+  useFetchMessages,
+  useFetchOlderMessages,
+  useMessageArchiver,
+  useMessagesRef,
+} from "./chat-messaging-fetch";
+import { useRetrySendMessage, useSendMessage } from "./chat-messaging-send";
 
-interface UseChatMessagingProps {
-  readonly projectId: string | null;
-  readonly setMessages: Dispatch<SetStateAction<readonly Message[]>>;
-  readonly setLoading: (loading: boolean) => void;
-  readonly setLoadingMessage: (msg: string) => void;
-}
-
-function serializeKbSources(message: Message): string {
-  if (message.kbSources === undefined || message.kbSources.length === 0) {
-    return "";
-  }
-
-  return message.kbSources
-    .map((source) => `${source.url}|${source.title}`)
-    .join(";;");
-}
-
-function canReuseMessage(prevMessage: Message, nextMessage: Message): boolean {
-  if (prevMessage === nextMessage) {
-    return true;
-  }
-
-  if (prevMessage.id !== nextMessage.id) {
-    return false;
-  }
-
-  if (prevMessage.role !== nextMessage.role) {
-    return false;
-  }
-
-  if (prevMessage.content !== nextMessage.content) {
-    return false;
-  }
-
-  if (prevMessage.timestamp !== nextMessage.timestamp) {
-    return false;
-  }
-
-  return serializeKbSources(prevMessage) === serializeKbSources(nextMessage);
-}
-
-function reconcileMessages(
-  previousMessages: readonly Message[],
-  fetchedMessages: readonly Message[],
-): readonly Message[] {
-  if (previousMessages.length === 0) {
-    return fetchedMessages;
-  }
-
-  const previousById = new Map(
-    previousMessages.map((message) => [message.id, message]),
-  );
-
-  const reconciled = fetchedMessages.map((nextMessage) => {
-    const prevMessage = previousById.get(nextMessage.id);
-    if (
-      prevMessage !== undefined &&
-      canReuseMessage(prevMessage, nextMessage)
-    ) {
-      return prevMessage;
-    }
-    return nextMessage;
-  });
-
-  return reconciled;
-}
+export type { FailedMessage } from "./chat-messaging-types";
 
 export function useChatMessaging({
   projectId,
+  messages,
   setMessages,
   setLoading,
   setLoadingMessage,
 }: UseChatMessagingProps) {
-  const fetchMessages = useCallback(async () => {
-    if (projectId === null || projectId === "") {
-      return;
-    }
+  const [failedMessages, setFailedMessages] = useState<
+    readonly FailedMessage[]
+  >([]);
+  const messagesRef = useMessagesRef(messages);
+  useMessageArchiver({ projectId, messages, setMessages });
 
-    try {
-      const fetchedMessages = await chatApi.fetchMessages(projectId);
-      setMessages((previousMessages) =>
-        reconcileMessages(previousMessages, fetchedMessages),
-      );
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Fetch failed";
-      console.error(`Error fetching messages: ${msg}`);
-    }
-  }, [projectId, setMessages]);
+  const fetchMessages = useFetchMessages({
+    projectId,
+    messagesRef,
+    setMessages,
+  });
+  const fetchOlderMessages = useFetchOlderMessages({ projectId, setMessages });
+  const sendMessage = useSendMessage({
+    projectId,
+    setMessages,
+    setLoading,
+    setLoadingMessage,
+    setFailedMessages,
+    fetchMessages,
+  });
+  const retrySendMessage = useRetrySendMessage({
+    failedMessages,
+    setFailedMessages,
+    sendMessage,
+  });
 
-  const sendMessage = useCallback(
-    async (message: string, onStateUpdate?: (state: ProjectState) => void) => {
-      if (projectId === null || projectId === "" || message.trim() === "") {
-        throw new Error("Invalid message or project");
-      }
-
-      setLoading(true);
-      setLoadingMessage("Processing your question...");
-
-      try {
-        const response = await chatApi.sendMessage(projectId, message);
-
-        if (onStateUpdate !== undefined) {
-          onStateUpdate(response.projectState);
-        }
-
-        await fetchMessages();
-
-        return response;
-      } finally {
-        setLoading(false);
-        setLoadingMessage("");
-      }
-    },
-    [projectId, fetchMessages, setLoading, setLoadingMessage],
-  );
-
-  return { fetchMessages, sendMessage };
+  return {
+    fetchMessages,
+    fetchOlderMessages,
+    sendMessage,
+    failedMessages,
+    retrySendMessage,
+  };
 }

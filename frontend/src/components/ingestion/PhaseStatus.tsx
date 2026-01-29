@@ -38,6 +38,7 @@ export function PhaseStatus({ phases }: Props) {
               <span className="capitalize">{status}</span>
             </div>
             <div className="h-2 bg-gray-200 rounded">
+              { }
               <div
                 className={`h-2 ${bar} rounded`}
                 style={{ width: `${progress}%` }}

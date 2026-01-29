@@ -106,7 +106,7 @@ const ProjectSelectorDropdownInternal = forwardRef<
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-full sm:w-[400px] bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute top-full left-0 mt-2 w-full sm:w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
           <ProjectSelectorSearch
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}

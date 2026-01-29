@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ChevronDown, ChevronRight, AlertCircle } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "../../../../components/common";
+import { useRenderCount } from "../../../../hooks/useRenderCount";
 
 interface Requirement {
   readonly id?: string;
@@ -163,24 +164,50 @@ function RequirementCategory({
 }
 
 export function RequirementsCard({ requirements }: RequirementsCardProps) {
+  useRenderCount("RequirementsCard");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     new Set(["business"]),
   );
 
-  const grouped: GroupedRequirements = {
-    business: [],
-    functional: [],
-    nfr: [],
-    other: [],
-  };
+  // Task 4.1: Memoize sorted requirements
+  const sortedRequirements = useMemo(() => {
+    return [...requirements].sort((a, b) =>
+      (a.text ?? "").localeCompare(b.text ?? "")
+    );
+  }, [requirements]);
 
-  for (const req of requirements) {
-    const categoryName = (req.category ?? "").toLowerCase();
-    if (categoryName === "business") grouped.business.push(req);
-    else if (categoryName === "functional") grouped.functional.push(req);
-    else if (categoryName === "nfr") grouped.nfr.push(req);
-    else grouped.other.push(req);
-  }
+  // Task 4.1: Identify and memoize expensive transforms
+  const functionalReqs = useMemo(() =>
+    sortedRequirements.filter(r => (r.category ?? "").toLowerCase() === "functional"),
+    [sortedRequirements]
+  );
+
+  const businessReqs = useMemo(() =>
+    sortedRequirements.filter(r => (r.category ?? "").toLowerCase() === "business"),
+    [sortedRequirements]
+  );
+
+  const nfrReqs = useMemo(() =>
+    sortedRequirements.filter(r => (r.category ?? "").toLowerCase() === "nfr" || (r.category ?? "").toLowerCase() === "non-functional"),
+    [sortedRequirements]
+  );
+
+  const otherReqs = useMemo(() =>
+    sortedRequirements.filter(r => {
+      const cat = (r.category ?? "").toLowerCase();
+      return cat !== "business" && cat !== "functional" && cat !== "nfr" && cat !== "non-functional";
+    }),
+    [sortedRequirements]
+  );
+
+  const grouped: GroupedRequirements = useMemo(() => {
+    return {
+      business: businessReqs,
+      functional: functionalReqs,
+      nfr: nfrReqs,
+      other: otherReqs,
+    };
+  }, [businessReqs, functionalReqs, nfrReqs, otherReqs]);
 
   const toggleGroup = (groupKey: string) => {
     const newExpanded = new Set(expandedGroups);

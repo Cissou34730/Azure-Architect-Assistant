@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { projectApi } from "../../../services/projectService";
 import { Project } from "../../../types/api";
 
@@ -16,25 +17,28 @@ export function useDocumentUpload({
   success,
   showError,
 }: UseDocumentUploadProps) {
-  const handleUploadDocuments = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    if (files === null || files.length === 0 || selectedProject === null) {
-      return;
-    }
-
-    try {
-      await projectApi.uploadDocuments(selectedProject.id, files);
-      success("Documents uploaded successfully!");
-      setFiles(null);
-      const fileInput = document.getElementById("file-input");
-      if (fileInput instanceof HTMLInputElement) {
-        fileInput.value = "";
+  const handleUploadDocuments = useCallback(
+    async (e: React.FormEvent): Promise<void> => {
+      e.preventDefault();
+      if (files === null || files.length === 0 || selectedProject === null) {
+        return;
       }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Upload failed";
-      showError(`Error: ${msg}`);
-    }
-  };
+
+      try {
+        await projectApi.uploadDocuments(selectedProject.id, files);
+        success("Documents uploaded successfully!");
+        setFiles(null);
+        const fileInput = document.getElementById("file-input");
+        if (fileInput instanceof HTMLInputElement) {
+          fileInput.value = "";
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Upload failed";
+        showError(`Error: ${msg}`);
+      }
+    },
+    [selectedProject, files, setFiles, success, showError],
+  );
 
   return { handleUploadDocuments };
 }

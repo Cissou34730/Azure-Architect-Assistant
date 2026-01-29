@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import type { CostLineItem } from "../../../../../types/api";
 
@@ -18,22 +19,27 @@ const COLORS = [
 
 export function CostPieChart({ lineItems }: CostPieChartProps) {
   // Sort by cost and take top 5, group rest as "Others"
-  const sortedItems = [...lineItems].sort(
-    (a, b) => b.monthlyCost - a.monthlyCost
-  );
+  const data = useMemo(() => {
+    const sortedItems = [...lineItems].sort(
+      (a, b) => b.monthlyCost - a.monthlyCost
+    );
 
-  const topItems = sortedItems.slice(0, 5);
-  const otherItems = sortedItems.slice(5);
-  const othersCost = otherItems.reduce((sum, item) => sum + item.monthlyCost, 0);
+    const topItems = sortedItems.slice(0, 5);
+    const otherItems = sortedItems.slice(5);
+    const othersCost = otherItems.reduce((sum, item) => sum + item.monthlyCost, 0);
 
-  const data = topItems.map((item) => ({
-    name: item.name,
-    value: item.monthlyCost,
-  }));
+    const result = topItems.map((item) => ({
+      name: item.name,
+      value: item.monthlyCost,
+    }));
 
-  if (othersCost > 0) {
-    data.push({ name: "Others", value: othersCost });
-  }
+    if (othersCost > 0) {
+      result.push({ name: "Others", value: othersCost });
+    }
+    return result;
+  }, [lineItems]);
+
+  const total = useMemo(() => data.reduce((sum, item) => sum + item.value, 0), [data]);
 
   const formatCurrency = (value: number) => {
     return `$${value.toFixed(2)}`;
@@ -43,8 +49,6 @@ export function CostPieChart({ lineItems }: CostPieChartProps) {
     if (totalAmount === 0) return "0.0%";
     return `${((value / totalAmount) * 100).toFixed(1)}%`;
   };
-
-  const total = data.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <div className="w-full h-80">

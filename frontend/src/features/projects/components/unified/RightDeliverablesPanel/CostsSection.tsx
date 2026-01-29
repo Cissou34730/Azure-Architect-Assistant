@@ -1,3 +1,4 @@
+import { Virtuoso } from "react-virtuoso";
 import type { CostEstimate } from "../../../../../types/api";
 import { Section } from "./Section";
 import { CostCard } from "./CostCard";
@@ -18,14 +19,19 @@ export function CostsSection({ costs, expanded, onToggle, onNavigate }: CostsSec
       count={costs.length}
       onViewAll={onNavigate}
     >
-      <div className="space-y-2">
-        {costs.map((cost) => (
-          <CostCard 
-            key={cost.id}
-            estimate={cost}
-            onClick={onNavigate ?? (() => { /* No-op */ })}
-          />
-        ))}
+      <div className="h-40">
+        <Virtuoso
+          data={costs}
+          itemContent={(_index, cost) => (
+            <div className="pb-2">
+              <CostCard 
+                estimate={cost}
+                onClick={onNavigate ?? (() => { /* No-op */ })}
+              />
+            </div>
+          )}
+          style={{ height: "100%" }}
+        />
       </div>
     </Section>
   );

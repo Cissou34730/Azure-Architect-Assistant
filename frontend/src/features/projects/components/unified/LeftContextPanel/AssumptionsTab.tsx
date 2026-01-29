@@ -1,4 +1,5 @@
 import { Lightbulb } from "lucide-react";
+import { Virtuoso } from "react-virtuoso";
 
 interface Assumption {
   readonly id?: string;
@@ -19,16 +20,22 @@ export function AssumptionsTab({ assumptions }: AssumptionsTabProps) {
   }
 
   return (
-    <div className="p-4 space-y-2">
-      {assumptions.map((assumption, idx) => (
-        <div
-          key={assumption.id ?? `a-${idx}`}
-          className="flex items-start gap-2 p-3 bg-white rounded-lg border border-gray-200"
-        >
-          <Lightbulb className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="text-sm text-gray-700">{assumption.text ?? ""}</div>
-        </div>
-      ))}
+    <div className="h-full">
+      <Virtuoso
+        data={assumptions}
+        itemContent={(index, assumption) => (
+          <div className="px-4 py-1">
+            <div
+              key={assumption.id ?? `a-${index}`}
+              className="flex items-start gap-2 p-3 bg-white rounded-lg border border-gray-200"
+            >
+              <Lightbulb className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-sm text-gray-700">{assumption.text ?? ""}</div>
+            </div>
+          </div>
+        )}
+        style={{ height: "100%" }}
+      />
     </div>
   );
 }

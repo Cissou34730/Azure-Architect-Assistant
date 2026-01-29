@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, memo } from "react";
 import { 
   ChevronLeft,
   Sparkles
@@ -9,6 +9,7 @@ import { AdrsSection } from "./RightDeliverablesPanel/AdrsSection";
 import { FindingsSection } from "./RightDeliverablesPanel/FindingsSection";
 import { CostsSection } from "./RightDeliverablesPanel/CostsSection";
 import { PanelHeader } from "./RightDeliverablesPanel/PanelHeader";
+import { useRenderCount } from "../../../../hooks/useRenderCount";
 
 interface RightDeliverablesPanelProps {
   readonly isOpen: boolean;
@@ -20,13 +21,14 @@ interface RightDeliverablesPanelProps {
 
 const STORAGE_KEY = "rightPanelOpen";
 
-export function RightDeliverablesPanel({ 
+function RightDeliverablesPanel({ 
   isOpen, 
   onToggle,
   onNavigateToDiagrams,
   onNavigateToAdrs,
   onNavigateToCosts
 }: RightDeliverablesPanelProps) {
+  useRenderCount("RightDeliverablesPanel");
   const {
     expandedSections,
     searchQuery,
@@ -112,3 +114,6 @@ export function RightDeliverablesPanel({
     </div>
   );
 }
+
+const rightDeliverablesPanel = memo(RightDeliverablesPanel);
+export { rightDeliverablesPanel as RightDeliverablesPanel };

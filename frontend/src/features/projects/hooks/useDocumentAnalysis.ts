@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { Project, ProjectState } from "../../../types/api";
 
 interface UseDocumentAnalysisProps {
@@ -19,7 +20,7 @@ export function useDocumentAnalysis({
   showError,
   warning,
 }: UseDocumentAnalysisProps) {
-  const handleAnalyzeDocuments = async (): Promise<void> => {
+  const handleAnalyzeDocuments = useCallback(async (): Promise<void> => {
     if (selectedProject === null) {
       return;
     }
@@ -31,7 +32,7 @@ export function useDocumentAnalysis({
 
     if (!hasText && !hasFiles) {
       warning(
-        "Please provide either text requirements or upload documents before analyzing."
+        "Please provide either text requirements or upload documents before analyzing.",
       );
       return;
     }
@@ -44,7 +45,15 @@ export function useDocumentAnalysis({
       const msg = error instanceof Error ? error.message : "Analysis failed";
       showError(`Error: ${msg}`);
     }
-  };
+  }, [
+    selectedProject,
+    files,
+    analyzeDocuments,
+    setActiveTab,
+    success,
+    showError,
+    warning,
+  ]);
 
   return { handleAnalyzeDocuments };
 }

@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import { ChevronLeft, ChevronRight, FileText, HelpCircle, Lightbulb, File } from "lucide-react";
 import { useProjectStateContext } from "../../context/useProjectStateContext";
-import { TabHeader, type TabType, type TabItem } from "./LeftContextPanel/TabHeader";
+import { TabHeader } from "./LeftContextPanel/TabHeader";
 import { TabContent } from "./LeftContextPanel/TabContent";
+import type { TabType, TabItem } from "./LeftContextPanel/TabHeader";
+import { useRenderCount } from "../../../../hooks/useRenderCount";
 
 interface LeftContextPanelProps {
   readonly isOpen: boolean;
@@ -11,25 +13,46 @@ interface LeftContextPanelProps {
 
 const STORAGE_KEY = "leftPanelOpen";
 
-export function LeftContextPanel({ isOpen, onToggle }: LeftContextPanelProps) {
+function LeftContextPanelBase({ isOpen, onToggle }: LeftContextPanelProps) {
+  useRenderCount("LeftContextPanel");
   const [activeTab, setActiveTab] = useState<TabType>("requirements");
   const { projectState } = useProjectStateContext();
 
-  const requirements = projectState?.requirements ?? [];
-  const assumptions = projectState?.assumptions ?? [];
-  const questions = projectState?.clarificationQuestions ?? [];
-  const documents = projectState?.referenceDocuments ?? [];
+  const requirements = useMemo(() => projectState?.requirements ?? [], [projectState?.requirements]);
+  const assumptions = useMemo(() => projectState?.assumptions ?? [], [projectState?.assumptions]);
+  const questions = useMemo(() => projectState?.clarificationQuestions ?? [], [projectState?.clarificationQuestions]);
+  const documents = useMemo(() => projectState?.referenceDocuments ?? [], [projectState?.referenceDocuments]);
+
+  // Task 4.1: Memoize requirements filtering in the panel
+  const functionalReqs = useMemo(() =>
+    requirements.filter(r => (r.category ?? "").toLowerCase() === "functional"),
+    [requirements]
+  );
+
+  const nfrReqs = useMemo(() =>
+    requirements.filter(r => (r.category ?? "").toLowerCase() === "nfr" || (r.category ?? "").toLowerCase() === "non-functional"),
+    [requirements]
+  );
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, String(isOpen));
   }, [isOpen]);
 
-  const tabs: readonly TabItem[] = useMemo(() => [
-    { id: "requirements", label: "Requirements", icon: FileText, count: requirements.length },
-    { id: "assumptions", label: "Assumptions", icon: Lightbulb, count: assumptions.length },
-    { id: "questions", label: "Questions", icon: HelpCircle, count: questions.length },
-    { id: "documents", label: "Documents", icon: File, count: documents.length },
-  ], [requirements.length, assumptions.length, questions.length, documents.length]);
+  const tabs: readonly TabItem[] = useMemo(
+    () => [
+      { 
+        id: "requirements", 
+        label: "Requirements", 
+        icon: FileText, 
+        count: requirements.length,
+        tooltip: `${functionalReqs.length} Functional, ${nfrReqs.length} NFR`
+      },
+      { id: "assumptions", label: "Assumptions", icon: Lightbulb, count: assumptions.length },
+      { id: "questions", label: "Questions", icon: HelpCircle, count: questions.length },
+      { id: "documents", label: "Documents", icon: File, count: documents.length },
+    ],
+    [requirements.length, assumptions.length, questions.length, documents.length, functionalReqs.length, nfrReqs.length]
+  );
 
   if (!isOpen) {
     return (
@@ -58,13 +81,9 @@ export function LeftContextPanel({ isOpen, onToggle }: LeftContextPanelProps) {
         </button>
       </div>
 
-      <TabHeader 
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+      <TabHeader tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-hidden">
         <TabContent 
           activeTab={activeTab}
           requirements={requirements}
@@ -76,4 +95,7 @@ export function LeftContextPanel({ isOpen, onToggle }: LeftContextPanelProps) {
     </div>
   );
 }
+
+const leftContextPanel = memo(LeftContextPanelBase);
+export { leftContextPanel as LeftContextPanel };
 

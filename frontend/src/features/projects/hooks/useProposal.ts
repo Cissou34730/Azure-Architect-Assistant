@@ -17,7 +17,7 @@ function closeEventSource(ref: React.RefObject<EventSource | null>): void {
   }
 }
 
-export const useProposal = () => {
+export function useProposal() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const { error: showError } = useToast();
   const [architectureProposal, setArchitectureProposal] = useState("");
@@ -70,4 +70,4 @@ export const useProposal = () => {
     loading,
     generateProposal,
   };
-};
+}

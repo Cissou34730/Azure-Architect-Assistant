@@ -1,12 +1,22 @@
+import { useCallback, memo } from "react";
 import { ChatPanel } from "../workspace/ChatPanel";
 import { useProjectChatContext } from "../../context/useProjectChatContext";
+import { useRenderCount } from "../../../../hooks/useRenderCount";
 
-export function CenterChatArea() {
-  const { messages, sendMessage, loading } = useProjectChatContext();
+function CenterChatArea() {
+  useRenderCount("CenterChatArea");
+  const { 
+    messages, 
+    sendMessage, 
+    loading, 
+    fetchOlderMessages,
+    failedMessages,
+    retrySendMessage
+  } = useProjectChatContext();
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = useCallback(async (content: string) => {
     await sendMessage(content);
-  };
+  }, [sendMessage]);
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -16,8 +26,14 @@ export function CenterChatArea() {
           messages={messages}
           onSendMessage={handleSendMessage}
           loading={loading}
+          onLoadOlderMessages={fetchOlderMessages}
+          failedMessages={failedMessages}
+          onRetryMessage={retrySendMessage}
         />
       </div>
     </div>
   );
 }
+
+const centerChatArea = memo(CenterChatArea);
+export { centerChatArea as CenterChatArea };

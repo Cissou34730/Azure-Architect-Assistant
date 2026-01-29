@@ -7,6 +7,7 @@ export interface TabItem {
   readonly label: string;
   readonly icon: React.ElementType;
   readonly count: number;
+  readonly tooltip?: string;
 }
 
 interface TabHeaderProps {
@@ -41,6 +42,7 @@ function TabButton({ tab, isActive, onClick }: TabButtonProps) {
   return (
     <button
       onClick={onClick}
+      title={tab.tooltip}
       className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 text-xs font-medium transition-colors border-b-2 ${
         isActive
           ? "text-blue-600 border-blue-600 bg-blue-50"

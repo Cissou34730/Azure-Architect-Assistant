@@ -1,8 +1,11 @@
 import { useState, useMemo } from "react";
+import { VirtuosoGrid } from "react-virtuoso";
 import { Network, X, Download, ZoomIn } from "lucide-react";
 import { Card, CardContent, Badge, EmptyState } from "../../../../components/common";
 import MermaidRenderer from "../../../../components/diagrams/MermaidRenderer";
 import type { DiagramData } from "../../../../types/api";
+
+const VIRTUALIZE_THRESHOLD = 9;
 
 interface DiagramGalleryProps {
   readonly diagrams: readonly DiagramData[];
@@ -63,7 +66,8 @@ function DiagramCard({ diagram, onClick }: DiagramCardProps) {
           {diagram.sourceCode !== "" ? (
             <>
               <MermaidRenderer
-                diagramId={`diagram-preview-${diagram.id}`}
+                diagramId={diagram.id}
+                prefix="preview"
                 sourceCode={diagram.sourceCode}
               />
               <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all flex items-center justify-center">
@@ -145,7 +149,8 @@ function DiagramModal({ diagram, onClose }: DiagramModalProps) {
           {diagram.sourceCode !== "" ? (
             <div className="flex items-center justify-center min-h-full">
               <MermaidRenderer
-                diagramId={`modal-${diagram.id}`}
+                diagramId={diagram.id}
+                prefix="modal"
                 sourceCode={diagram.sourceCode}
               />
             </div>
@@ -172,6 +177,15 @@ export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
     });
   }, [diagrams, filter]);
 
+  // Task 4.6: Memoize sorted diagrams
+  const sortedDiagrams = useMemo(() => {
+    return [...filteredDiagrams].sort((a, b) => {
+      const dateA = a.createdAt || "";
+      const dateB = b.createdAt || "";
+      return dateB.localeCompare(dateA);
+    });
+  }, [filteredDiagrams]);
+
   if (diagrams.length === 0) {
     return (
       <EmptyState
@@ -194,15 +208,31 @@ export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
     <div className="space-y-6">
       <FilterChips currentFilter={filter} onFilterChange={setFilter} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredDiagrams.map((diagram) => (
-          <DiagramCard
-            key={diagram.id}
-            diagram={diagram}
-            onClick={setSelectedDiagram}
-          />
-        ))}
-      </div>
+      {sortedDiagrams.length > VIRTUALIZE_THRESHOLD ? (
+        <VirtuosoGrid
+          useWindowScroll
+          data={sortedDiagrams}
+          overscan={400}
+          listClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          itemContent={(_index, diagram) => (
+            <DiagramCard
+              key={diagram.id}
+              diagram={diagram}
+              onClick={setSelectedDiagram}
+            />
+          )}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {sortedDiagrams.map((diagram) => (
+            <DiagramCard
+              key={diagram.id}
+              diagram={diagram}
+              onClick={setSelectedDiagram}
+            />
+          ))}
+        </div>
+      )}
 
       {selectedDiagram !== null && (
         <DiagramModal

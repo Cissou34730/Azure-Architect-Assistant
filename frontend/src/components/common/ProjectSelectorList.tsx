@@ -34,7 +34,7 @@ export function ProjectSelectorList({
   }
 
   return (
-    <div className="py-2 max-h-[400px] overflow-y-auto">
+    <div className="py-2 max-h-96 overflow-y-auto">
       {filteredProjects.map((project, index) => (
         <ProjectSelectorDropdownItem
           key={project.id}

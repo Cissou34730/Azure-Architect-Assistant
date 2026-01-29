@@ -4,8 +4,10 @@ import { LeftContextPanel } from "../components/unified/LeftContextPanel";
 import { CenterChatArea } from "../components/unified/CenterChatArea";
 import { RightDeliverablesPanel } from "../components/unified/RightDeliverablesPanel";
 import { useUnifiedProjectPage } from "../hooks/useUnifiedProjectPage";
+import { useRenderCount } from "../../../hooks/useRenderCount";
 
 export default function UnifiedProjectPage() {
+  useRenderCount("UnifiedProjectPage");
   const { selectedProject } = useProjectMetaContext();
   const {
     loading,

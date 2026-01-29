@@ -1,4 +1,5 @@
 import { LayoutGrid } from "lucide-react";
+import { Virtuoso } from "react-virtuoso";
 import type { DiagramData } from "../../../../../types/api";
 import { Section } from "./Section";
 import { DiagramPreviewCard } from "./DiagramPreviewCard";
@@ -20,29 +21,28 @@ export function DiagramsSection({ diagrams, expanded, onToggle, onNavigate }: Di
       count={diagrams.length}
       onViewAll={onNavigate}
     >
-      <div className="grid grid-cols-1 gap-2.5">
-        {diagrams.slice(0, 3).map((diagram, idx) => (
-          <DiagramPreviewCard 
-            key={diagram.id !== "" ? diagram.id : `diag-${idx}`}
-            diagram={diagram}
-            onClick={onNavigate ?? (() => { /* No-op */ })}
-          />
-        ))}
-        {diagrams.length === 0 && (
+      <div className="h-64">
+        {diagrams.length === 0 ? (
           <EmptyState 
             icon={<LayoutGrid className="h-8 w-8 text-gray-200" />}
             message="No diagrams generated"
             actionLabel="Generate Diagram"
             onClick={onNavigate ?? (() => { /* No-op */ })}
           />
-        )}
-        {diagrams.length > 3 && (
-          <button
-            onClick={onNavigate}
-            className="w-full text-center text-sm text-blue-600 hover:text-blue-700 py-2"
-          >
-            +{diagrams.length - 3} more diagrams
-          </button>
+        ) : (
+          <Virtuoso
+            data={diagrams}
+            itemContent={(index, diagram) => (
+              <div className="pb-2.5">
+                <DiagramPreviewCard 
+                  key={diagram.id !== "" ? diagram.id : `diag-${index}`}
+                  diagram={diagram}
+                  onClick={onNavigate ?? (() => { /* No-op */ })}
+                />
+              </div>
+            )}
+            style={{ height: "100%" }}
+          />
         )}
       </div>
     </Section>

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { FileText } from "lucide-react";
-import { EmptyState } from "../../../../components/common";
+import { useDebounce } from "../../../../hooks/useDebounce";
+import { EmptyState, LoadingSpinner } from "../../../../components/common";
 import type { AdrArtifact } from "../../../../types/api";
 import { AdrFilters, type ViewMode, type StatusFilter } from "./adrlib/AdrFilters";
 import { AdrGrid } from "./adrlib/AdrGrid";
@@ -15,6 +16,8 @@ export function AdrLibrary({ adrs }: AdrLibraryProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const isSearching = searchQuery !== debouncedSearchQuery;
   const [selectedAdr, setSelectedAdr] = useState<AdrArtifact | null>(null);
 
   const filteredAdrs = useMemo(() => {
@@ -26,8 +29,8 @@ export function AdrLibrary({ adrs }: AdrLibraryProps) {
       }
 
       // Search filter
-      if (searchQuery !== "") {
-        const query = searchQuery.toLowerCase();
+      if (debouncedSearchQuery !== "") {
+        const query = debouncedSearchQuery.toLowerCase();
         const title = adr.title.toLowerCase();
         const context = adr.context.toLowerCase();
         const decision = adr.decision.toLowerCase();
@@ -40,7 +43,7 @@ export function AdrLibrary({ adrs }: AdrLibraryProps) {
 
       return true;
     });
-  }, [adrs, statusFilter, searchQuery]);
+  }, [adrs, statusFilter, debouncedSearchQuery]);
 
   if (adrs.length === 0) {
     return (
@@ -71,8 +74,9 @@ export function AdrLibrary({ adrs }: AdrLibraryProps) {
         onViewModeChange={setViewMode}
       />
 
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-gray-600 flex items-center gap-2">
         {filteredAdrs.length} of {adrs.length} ADRs
+        {isSearching && <LoadingSpinner size="sm" />}
       </p>
 
       {filteredAdrs.length === 0 ? (

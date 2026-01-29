@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, memo } from "react";
 import { Command } from "lucide-react";
 import { ProjectSelectorDropdown, ProjectSelectorDropdownRef } from "../../../components/common/ProjectSelectorDropdown";
 import { DeleteProjectModal } from "../../../components/common/DeleteProjectModal";
@@ -7,6 +7,7 @@ import { Project } from "../../../types/api";
 import { useProjectHeaderKeyboard } from "./useProjectHeaderKeyboard";
 import { ProjectHeaderShortcuts } from "./ProjectHeaderShortcuts";
 import { ProjectHeaderActions } from "./ProjectHeaderActions";
+import { useRenderCount } from "../../../hooks/useRenderCount";
 
 interface ProjectHeaderProps {
   readonly onUploadClick?: () => void;
@@ -15,12 +16,13 @@ interface ProjectHeaderProps {
   readonly onExportClick?: () => void;
 }
 
-export function ProjectHeader({
+function ProjectHeader({
   onUploadClick,
   onGenerateClick,
   onAdrClick,
   onExportClick,
 }: ProjectHeaderProps) {
+  useRenderCount("ProjectHeader");
   const {
     projects,
     currentProject,
@@ -57,7 +59,7 @@ export function ProjectHeader({
   return (
     <>
       <div className="sticky top-14 bg-linear-to-r from-blue-50 to-indigo-50 border-b border-gray-200 z-30 shadow-sm">
-        <div className="max-w-[1920px] mx-auto px-6 py-4">
+        <div className="max-w-screen-2xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="shrink-0">
               <ProjectSelectorDropdown
@@ -106,3 +108,6 @@ export function ProjectHeader({
     </>
   );
 }
+
+const projectHeader = memo(ProjectHeader);
+export { projectHeader as ProjectHeader };

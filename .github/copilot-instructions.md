@@ -29,7 +29,7 @@
 	- Liting: ESLint with recommended settings for TypeScript and React, eslint must be run from the root directory and use /eslint.config.js
 	- Formatting: Prettier with default settings
 	- Python: Follow ruff recommended style guide and configurations in pyproject.toml
-	- TypeScript: Use strict mode. Avoid using `any` type.
+	- TypeScript: Use strict mode.type implecitly or explicitly. NEVER EVER allows any type. All const, variable, function return types must be typed.
 	- Not hardcoding values. Use configuration files where appropriate.
 	- Naming convention is different between front and backend use apiMappings.ts to map names if needed	
 	- mypy.ini at the root of the project for type checking configuration
@@ -50,5 +50,6 @@
 	Verify that all previous steps have been completed successfully and you have marked the step as completed.
 	Develop a plan to modify codebase according to user requirements.
 	Apply modifications using appropriate tools and user-provided references.
-	Skip this step for "Hello World" projects.
 	
+	-[x] Quality ensurance checklist:
+	- Ensure commit messages are clear and descriptive of the changes made.

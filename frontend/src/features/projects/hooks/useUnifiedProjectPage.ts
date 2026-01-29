@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useProjectContext } from "../context/useProjectContext";
+import { useProjectMetaContext } from "../context/useProjectMetaContext";
 import { useProjectStateContext } from "../context/useProjectStateContext";
 import { useProjectChatContext } from "../context/useProjectChatContext";
 import { useUnifiedNavigation } from "./useUnifiedNavigation";
@@ -10,7 +10,7 @@ export function useUnifiedProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
 
-  const { loadingProject } = useProjectContext();
+  const { loadingProject } = useProjectMetaContext();
   const { projectState, loading: loadingState } = useProjectStateContext();
   const { loading: loadingChat } = useProjectChatContext();
 

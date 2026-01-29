@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent, Badge } from "../../../../components/common";
 import {
   FileText,
@@ -103,13 +104,40 @@ export function ActivityTimeline({
   events,
   maxEvents = 10,
 }: ActivityTimelineProps) {
-  const sortedEvents = [...events]
-    .sort((a, b) => {
-      const dateA = a.createdAt;
-      const dateB = b.createdAt;
-      return dateB.localeCompare(dateA);
-    })
-    .slice(0, maxEvents);
+  const sortedEvents = useMemo(() => {
+    return [...events]
+      .sort((a, b) => {
+        const dateA = a.createdAt;
+        const dateB = b.createdAt;
+        return dateB.localeCompare(dateA);
+      })
+      .slice(0, maxEvents);
+  }, [events, maxEvents]);
+
+  const groupedEvents = useMemo(() => {
+    const acc = new Map<string, IterationEvent[]>();
+    for (const event of sortedEvents) {
+      const date = new Date(event.createdAt).toLocaleDateString(undefined, {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const existing = acc.get(date);
+      if (existing !== undefined) {
+        existing.push(event);
+      } else {
+        acc.set(date, [event]);
+      }
+    }
+    return acc;
+  }, [sortedEvents]);
+
+  const groupDates = useMemo(() => {
+    return Array.from(groupedEvents.keys()).sort((a, b) =>
+      new Date(b).getTime() - new Date(a).getTime()
+    );
+  }, [groupedEvents]);
 
   return (
     <Card>
@@ -123,9 +151,21 @@ export function ActivityTimeline({
           <div className="relative">
             <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200" />
 
-            <div className="space-y-6">
-              {sortedEvents.map((event) => (
-                <ActivityItem key={event.id} event={event} />
+            <div className="space-y-8">
+              {groupDates.map((date) => (
+                <div key={date} className="space-y-4">
+                  <div className="relative pl-11">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-gray-400 border-2 border-white box-content" />
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {date}
+                    </h3>
+                  </div>
+                  <div className="space-y-6">
+                    {(groupedEvents.get(date) ?? []).map((event) => (
+                      <ActivityItem key={event.id} event={event} />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
 

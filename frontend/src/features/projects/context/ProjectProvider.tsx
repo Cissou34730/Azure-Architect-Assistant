@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import type { ProjectContextType } from "./types";
 import { projectContextInstance } from "./ProjectContextInstance";
 import { projectChatContext } from "./ProjectChatContext";
 import { projectStateContext } from "./ProjectStateContext";
 import { projectMetaContext } from "./ProjectMetaContext";
 import { ErrorBoundary } from "../../../components/common/ErrorBoundary";
+import { useRenderCount } from "../../../hooks/useRenderCount";
 
 export function ProjectProvider({
   value,
@@ -13,6 +14,20 @@ export function ProjectProvider({
   readonly value: ProjectContextType;
   readonly children: React.ReactNode;
 }) {
+  useRenderCount("ProjectProvider");
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log("[Context] ProjectState value changed");
+    }
+  }, [value.projectState]);
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log("[Context] ProjectChat (messages) value changed");
+    }
+  }, [value.messages]);
+
   const stateValue = useMemo(() => ({
     projectState: value.projectState,
     loading: value.loading,
@@ -39,13 +54,19 @@ export function ProjectProvider({
     sendMessage: value.sendMessage,
     loading: value.loading,
     loadingMessage: value.loadingMessage,
-    refreshMessages: value.refreshState,
+    refreshMessages: value.refreshMessages,
+    fetchOlderMessages: value.fetchOlderMessages,
+    failedMessages: value.failedMessages,
+    retrySendMessage: value.retrySendMessage,
   }), [
     value.messages,
     value.sendMessage,
     value.loading,
     value.loadingMessage,
-    value.refreshState,
+    value.refreshMessages,
+    value.fetchOlderMessages,
+    value.failedMessages,
+    value.retrySendMessage,
   ]);
 
   return (

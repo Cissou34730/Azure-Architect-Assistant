@@ -1,3 +1,4 @@
+import { Virtuoso } from "react-virtuoso";
 import type { FindingArtifact } from "../../../../../types/api";
 import { Section } from "./Section";
 import { DeliverableCard } from "./DeliverableCard";
@@ -16,14 +17,19 @@ export function FindingsSection({ findings, expanded, onToggle }: FindingsSectio
       onToggle={onToggle}
       count={findings.length}
     >
-      <div className="space-y-2">
-        {findings.slice(0, 3).map((finding) => (
-          <DeliverableCard 
-            key={finding.id}
-            artifact={finding}
-            onClick={() => { /* No-op */ }}
-          />
-        ))}
+      <div className="h-48">
+        <Virtuoso
+          data={findings}
+          itemContent={(_index, finding) => (
+            <div className="pb-2">
+              <DeliverableCard 
+                artifact={finding}
+                onClick={() => { /* No-op */ }}
+              />
+            </div>
+          )}
+          style={{ height: "100%" }}
+        />
       </div>
     </Section>
   );

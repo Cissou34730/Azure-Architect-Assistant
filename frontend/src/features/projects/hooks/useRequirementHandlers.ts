@@ -21,14 +21,14 @@ export function useRequirementHandlers({
   success,
   showError,
 }: UseRequirementHandlersProps) {
-  const handleSaveTextRequirements = async (): Promise<void> => {
+  const handleSaveTextRequirements = useCallback(async (): Promise<void> => {
     if (selectedProject === null) {
       return;
     }
     try {
       const updated = await projectApi.saveTextRequirements(
         selectedProject.id,
-        textRequirements
+        textRequirements,
       );
       setSelectedProject(updated);
       success("Requirements saved successfully!");
@@ -36,7 +36,13 @@ export function useRequirementHandlers({
       const msg = error instanceof Error ? error.message : "Save failed";
       showError(`Error: ${msg}`);
     }
-  };
+  }, [
+    selectedProject,
+    textRequirements,
+    setSelectedProject,
+    success,
+    showError,
+  ]);
 
   const handleGenerateProposal = useCallback((): void => {
     if (selectedProject === null) {

@@ -1,6 +1,9 @@
+import { VirtuosoGrid } from "react-virtuoso";
 import { Card, CardContent, Badge } from "../../../../../components/common";
 import type { AdrArtifact } from "../../../../../types/api";
 import { getStatusVariant } from "./AdrUtils";
+
+const VIRTUALIZE_THRESHOLD = 12;
 
 interface AdrGridItemProps {
   readonly adr: AdrArtifact;
@@ -53,6 +56,24 @@ interface AdrGridProps {
 }
 
 export function AdrGrid({ adrs, onSelect }: AdrGridProps) {
+  if (adrs.length > VIRTUALIZE_THRESHOLD) {
+    return (
+      <VirtuosoGrid
+        useWindowScroll
+        data={adrs}
+        overscan={400}
+        listClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        itemContent={(_index, adr) => (
+          <AdrGridItem
+            key={`${adr.id}-${adr.title}`}
+            adr={adr}
+            onSelect={onSelect}
+          />
+        )}
+      />
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {adrs.map((adr) => (

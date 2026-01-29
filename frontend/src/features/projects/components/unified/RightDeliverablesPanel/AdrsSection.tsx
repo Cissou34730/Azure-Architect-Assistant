@@ -1,3 +1,4 @@
+import { Virtuoso } from "react-virtuoso";
 import type { AdrArtifact } from "../../../../../types/api";
 import { Section } from "./Section";
 import { DeliverableCard } from "./DeliverableCard";
@@ -18,22 +19,19 @@ export function AdrsSection({ adrs, expanded, onToggle, onNavigate }: AdrsSectio
       count={adrs.length}
       onViewAll={onNavigate}
     >
-      <div className="space-y-2">
-        {adrs.slice(0, 3).map((adr) => (
-          <DeliverableCard 
-            key={adr.id}
-            artifact={adr}
-            onClick={onNavigate ?? (() => { /* No-op */ })}
-          />
-        ))}
-        {adrs.length > 3 && (
-          <button 
-            onClick={onNavigate}
-            className="w-full py-2 border-t border-gray-50 text-[11px] font-medium text-blue-600 hover:text-blue-700"
-          >
-            View all {adrs.length} ADRs
-          </button>
-        )}
+      <div className="h-48">
+        <Virtuoso
+          data={adrs}
+          itemContent={(_index, adr) => (
+            <div className="pb-2">
+              <DeliverableCard 
+                artifact={adr}
+                onClick={onNavigate ?? (() => { /* No-op */ })}
+              />
+            </div>
+          )}
+          style={{ height: "100%" }}
+        />
       </div>
     </Section>
   );

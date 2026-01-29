@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from "react";
 import { useToast } from "../../../hooks/useToast";
 import { SendMessageResponse } from "../../../types/api";
 
@@ -12,19 +13,22 @@ export function useChatHandlers({
 }: UseChatHandlersProps) {
   const { error: showError } = useToast();
 
-  const handleSendChatMessage = async (e?: React.FormEvent): Promise<void> => {
-    e?.preventDefault();
-    if (chatInput.trim() === "") {
-      return;
-    }
+  const handleSendChatMessage = useCallback(
+    async (e?: React.FormEvent): Promise<void> => {
+      e?.preventDefault();
+      if (chatInput.trim() === "") {
+        return;
+      }
 
-    try {
-      await sendMessage(chatInput);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Chat failed";
-      showError(`Error: ${msg}`);
-    }
-  };
+      try {
+        await sendMessage(chatInput);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Chat failed";
+        showError(`Error: ${msg}`);
+      }
+    },
+    [chatInput, sendMessage, showError],
+  );
 
-  return { handleSendChatMessage };
+  return useMemo(() => ({ handleSendChatMessage }), [handleSendChatMessage]);
 }

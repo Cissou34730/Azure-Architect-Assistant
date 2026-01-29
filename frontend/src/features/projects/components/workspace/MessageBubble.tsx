@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Badge } from "../../../../components/common";
 import { messageContentComp as MessageContentComp } from "./MessageContent";
 import type { Message } from "../../../../types/api";
+import { useRenderCount } from "../../../../hooks/useRenderCount";
 
 const timeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: "2-digit",
@@ -14,6 +15,7 @@ interface MessageBubbleProps {
 
 // eslint-disable-next-line react-refresh/only-export-components -- Memoized component export pattern
 function MessageBubbleInner({ message }: MessageBubbleProps) {
+  useRenderCount(`MessageBubble(${message.id})`);
   const isUser = message.role === "user";
   const timestamp = new Date(message.timestamp);
   const kbSources = message.kbSources ?? [];
