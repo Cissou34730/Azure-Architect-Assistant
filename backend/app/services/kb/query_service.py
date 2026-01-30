@@ -33,7 +33,7 @@ class KBQueryService:
         self.kb_config = kb_config
         self.kb_id = kb_config.id
         self.kb_name = kb_config.name
-        
+
         # Load query settings from config
         query_settings = get_query_settings()
         self.similarity_threshold = similarity_threshold if similarity_threshold is not None else query_settings.similarity_threshold
@@ -77,7 +77,7 @@ class KBQueryService:
 
         # Filter by threshold
         filtered = [n for n in retrieved_nodes if n.score >= self.similarity_threshold]
-        
+
         # Apply minimum results policy: if we got some results but filtered all out,
         # return top min_results anyway (sorted by score)
         if not filtered and retrieved_nodes:
@@ -86,7 +86,7 @@ class KBQueryService:
                 self.kb_id, len(retrieved_nodes), self.similarity_threshold, self.min_results
             )
             filtered = retrieved_nodes[:self.min_results]
-        
+
         # Limit to requested top_k
         filtered = filtered[:top_k]
         logger.info("[%s] After filtering: %d nodes (returned)", self.kb_id, len(filtered))

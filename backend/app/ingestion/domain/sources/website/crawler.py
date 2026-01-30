@@ -8,7 +8,7 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 import trafilatura
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, FeatureNotFound
 from llama_index.core import Document
 
 logger = logging.getLogger(__name__)
@@ -113,7 +113,7 @@ class WebsiteCrawler:
             else:
                 to_visit.append(link)
                 added += 1
-        
+
         if links:
             logger.info(f"Links found: {len(links)}, added: {added}, skipped (visited: {skipped_visited}, queued: {skipped_queued})")
 
@@ -286,7 +286,7 @@ class WebsiteCrawler:
         if url.lower().endswith(EXCLUDED_EXTENSIONS):
             logger.debug(f'Rejected URL (excluded extension): {url}')
             return False
-            
+
         return True
 
     def _fetch_html_with_redirect(self, url: str) -> tuple[str | None, str | None]:
@@ -328,7 +328,7 @@ class WebsiteCrawler:
         try:
             try:
                 soup = BeautifulSoup(html, 'lxml')
-            except Exception:
+            except FeatureNotFound:
                 soup = BeautifulSoup(html, 'html.parser')
             links = []
             for anchor in soup.find_all('a', href=True):

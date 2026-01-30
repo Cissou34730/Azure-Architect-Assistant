@@ -3,10 +3,10 @@ Indexer
 Vector store indexing with idempotency checks and cleanup support.
 """
 
+import json
 import logging
 import os
 import shutil
-from pathlib import Path
 from typing import cast
 
 from llama_index.core import (
@@ -16,8 +16,8 @@ from llama_index.core import (
     load_index_from_storage,
 )
 
-from app.ingestion.domain.embedding.embedder import EmbeddingResult
 from app.core.app_settings import get_kb_storage_root
+from app.ingestion.domain.embedding.embedder import EmbeddingResult
 
 logger = logging.getLogger(__name__)
 
@@ -57,24 +57,22 @@ class Indexer:
         """Load checkpoint file to recover processed content hashes after crash."""
         if os.path.exists(self.checkpoint_file):
             try:
-                import json
-                with open(self.checkpoint_file, 'r', encoding='utf-8') as f:
+                with open(self.checkpoint_file, encoding='utf-8') as f:
                     data = json.load(f)
                     self._indexed_hashes = set(data.get('indexed_hashes', []))
                     logger.info(f'Loaded checkpoint with {len(self._indexed_hashes)} processed hashes')
-            except Exception as e:
-                logger.warning(f'Failed to load checkpoint file: {e}')
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.warning(f'Failed to load checkpoint file: {exc}')
                 self._indexed_hashes = set()
 
     def _save_checkpoint(self) -> None:
         """Save checkpoint file immediately after indexing (lightweight operation)."""
         try:
-            import json
             os.makedirs(os.path.dirname(self.checkpoint_file), exist_ok=True)
             with open(self.checkpoint_file, 'w', encoding='utf-8') as f:
                 json.dump({'indexed_hashes': list(self._indexed_hashes)}, f)
-        except Exception as e:
-            logger.error(f'Failed to save checkpoint: {e}')
+        except (OSError, TypeError) as exc:
+            logger.error(f'Failed to save checkpoint: {exc}')
 
     def _load_index(self) -> VectorStoreIndex | None:
         """Load existing index from storage if available."""
@@ -237,8 +235,8 @@ class Indexer:
             try:
                 os.remove(self.checkpoint_file)
                 logger.info(f'Deleted checkpoint file: {self.checkpoint_file}')
-            except Exception as e:
-                logger.warning(f'Failed to delete checkpoint file: {e}')
+            except OSError as exc:
+                logger.warning(f'Failed to delete checkpoint file: {exc}')
 
         # Clear in-memory state
         self._index = None

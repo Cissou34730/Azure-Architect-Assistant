@@ -371,8 +371,8 @@ async def get_project_state(project_id: str, db: AsyncSession = Depends(get_db))
 @router.get("/projects/{project_id}/messages", response_model=MessagesResponse)
 async def get_messages(
     project_id: str,
-    before_id: Optional[str] = None,
-    since_id: Optional[str] = None,
+    before_id: str | None = None,
+    since_id: str | None = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:

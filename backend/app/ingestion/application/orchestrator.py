@@ -374,8 +374,8 @@ class IngestionOrchestrator:
             try:
                 await asyncio.to_thread(indexer.persist)
                 logger.info(f'Final persist completed for job {job_id}')
-            except Exception as e:
-                logger.error(f'Failed to persist index on job completion: {e}')
+            except Exception as exc:  # noqa: BLE001
+                logger.error(f'Failed to persist index on job completion: {exc}')
 
         docs_seen = int(counters.get('docs_seen', 0) or 0)
         chunks_seen = int(counters.get('chunks_seen', 0) or 0)

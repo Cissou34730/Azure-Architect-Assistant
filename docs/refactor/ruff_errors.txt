@@ -1,0 +1,841 @@
+SIM116 Use a dictionary instead of consecutive `if` statements
+   --> backend\app\agents_system\langgraph\graph_factory.py:152:5
+    |
+150 |       agent = routing_decision.get("agent", "main")
+151 |
+152 | /     if agent == "architecture_planner":
+153 | |         return "architecture_planner"
+154 | |     elif agent == "iac_generator":
+155 | |         return "iac_generator"
+156 | |     elif agent == "saas_advisor":
+157 | |         return "saas_advisor"
+158 | |     elif agent == "cost_estimator":
+159 | |         return "cost_estimator"
+    | |_______________________________^
+160 |
+161 |       return "main_agent"
+    |
+
+C901 `_extract_cost_summary` is too complex (12 > 10)
+   --> backend\app\agents_system\langgraph\nodes\cost_estimator.py:196:5
+    |
+196 | def _extract_cost_summary(cost_estimate: str) -> dict[str, Any]:
+    |     ^^^^^^^^^^^^^^^^^^^^^
+197 |     """
+198 |     Extract cost summary from cost estimate text.
+    |
+
+PLR0912 Too many branches (11 > 10)
+   --> backend\app\agents_system\langgraph\nodes\cost_estimator.py:196:5
+    |
+196 | def _extract_cost_summary(cost_estimate: str) -> dict[str, Any]:
+    |     ^^^^^^^^^^^^^^^^^^^^^
+197 |     """
+198 |     Extract cost summary from cost estimate text.
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> backend\app\agents_system\langgraph\nodes\cost_estimator.py:208:5
+    |
+206 |         Dictionary with monthly_cost, annual_cost, tco_3_year
+207 |     """
+208 |     import re
+    |     ^^^^^^^^^
+209 |
+210 |     summary: dict[str, Any] = {
+    |
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:231:1
+    |
+229 |     """
+230 |     Determine if request should go to Architecture Planner sub-agent.
+231 |     
+    | ^^^^
+232 |     Route to Architecture Planner when:
+233 |     - User explicitly requests "architecture", "design", "proposal"
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:236:1
+    |
+234 |     - Project stage suggests architecture planning needed
+235 |     - Complexity indicators detected (multi-region, HA, DR, compliance)
+236 |     
+    | ^^^^
+237 |     Args:
+238 |         state: Current graph state
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:239:1
+    |
+237 |     Args:
+238 |         state: Current graph state
+239 |         
+    | ^^^^^^^^
+240 |     Returns:
+241 |         True if should route to architecture planner
+    |
+help: Remove whitespace from blank line
+
+SIM102 Use a single `if` statement instead of nested `if` statements
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:259:5
+    |
+257 |       # Check project stage
+258 |       next_stage = state.get("next_stage")
+259 | /     if next_stage == ProjectStage.PROPOSE_CANDIDATE.value:
+260 | |         if any(kw in user_message for kw in ["architecture", "design", "propose", "solution"]):
+    | |_______________________________________________________________________________________________^
+261 |               logger.info("🎯 Routing to Architecture Planner: proposal stage + design request")
+262 |               return True
+    |
+help: Combine `if` statements using `and`
+
+PLR2004 Magic value used in comparison, consider replacing `3` with a constant variable
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:281:28
+    |
+280 |     complexity_count = sum(1 for indicator in complexity_indicators if indicator in nfr_text)
+281 |     if complexity_count >= 3:
+    |                            ^
+282 |         logger.info(
+283 |             f"🎯 Routing to Architecture Planner: complexity threshold "
+    |
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:294:1
+    |
+292 |     """
+293 |     Prepare handoff context for Architecture Planner sub-agent.
+294 |     
+    | ^^^^
+295 |     Extracts requirements, NFR constraints, and project context to pass
+296 |     to the specialized architecture planning agent.
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:297:1
+    |
+295 |     Extracts requirements, NFR constraints, and project context to pass
+296 |     to the specialized architecture planning agent.
+297 |     
+    | ^^^^
+298 |     Args:
+299 |         state: Current graph state
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:300:1
+    |
+298 |     Args:
+299 |         state: Current graph state
+300 |         
+    | ^^^^^^^^
+301 |     Returns:
+302 |         State update with agent_handoff_context
+    |
+help: Remove whitespace from blank line
+
+C901 `_extract_nfr_summary` is too complex (11 > 10)
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:371:5
+    |
+371 | def _extract_nfr_summary(requirements: dict[str, Any], context: str) -> str:
+    |     ^^^^^^^^^^^^^^^^^^^^
+372 |     """Extract non-functional requirements summary."""
+373 |     nfr_parts = []
+    |
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:413:1
+    |
+411 |     """
+412 |     Determine if request should go to IaC Generator sub-agent.
+413 |     
+    | ^^^^
+414 |     Route to IaC Generator when:
+415 |     - User explicitly requests "terraform", "bicep", "iac"
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:418:1
+    |
+416 |     - Project stage is "iac"
+417 |     - Architecture is finalized (candidateArchitectures exists)
+418 |     
+    | ^^^^
+419 |     Args:
+420 |         state: Current graph state
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:421:1
+    |
+419 |     Args:
+420 |         state: Current graph state
+421 |         
+    | ^^^^^^^^
+422 |     Returns:
+423 |         True if should route to IaC generator
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:461:1
+    |
+459 |     """
+460 |     Prepare handoff context for IaC Generator sub-agent.
+461 |     
+    | ^^^^
+462 |     Extracts architecture, resource list, and constraints to pass
+463 |     to the specialized IaC generation agent.
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:464:1
+    |
+462 |     Extracts architecture, resource list, and constraints to pass
+463 |     to the specialized IaC generation agent.
+464 |     
+    | ^^^^
+465 |     Args:
+466 |         state: Current graph state
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:467:1
+    |
+465 |     Args:
+466 |         state: Current graph state
+467 |         
+    | ^^^^^^^^
+468 |     Returns:
+469 |         State update with agent_handoff_context
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:571:1
+    |
+569 |     """
+570 |     Determine if request should go to SaaS Advisor sub-agent.
+571 |     
+    | ^^^^
+572 |     Route to SaaS Advisor ONLY when:
+573 |     - User explicitly mentions "SaaS", "multi-tenant", "B2B/B2C"
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:575:1
+    |
+573 |     - User explicitly mentions "SaaS", "multi-tenant", "B2B/B2C"
+574 |     - User asks "should this be SaaS?" or similar suitability questions
+575 |     
+    | ^^^^
+576 |     DO NOT route for:
+577 |     - Regular web applications (even with authentication)
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:580:1
+    |
+578 |     - Single-tenant enterprise applications
+579 |     - Internal tools or CRUD apps
+580 |     
+    | ^^^^
+581 |     This is a LOW priority routing check (after Architecture Planner and IaC Generator).
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:582:1
+    |
+581 |     This is a LOW priority routing check (after Architecture Planner and IaC Generator).
+582 |     
+    | ^^^^
+583 |     Args:
+584 |         state: Current graph state
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:585:1
+    |
+583 |     Args:
+584 |         state: Current graph state
+585 |         
+    | ^^^^^^^^
+586 |     Returns:
+587 |         True if should route to SaaS advisor
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:628:1
+    |
+626 |     """
+627 |     Prepare handoff context for SaaS Advisor sub-agent.
+628 |     
+    | ^^^^
+629 |     Extracts project requirements, tenant requirements, and constraints
+630 |     to pass to the specialized SaaS advisor agent.
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:631:1
+    |
+629 |     Extracts project requirements, tenant requirements, and constraints
+630 |     to pass to the specialized SaaS advisor agent.
+631 |     
+    | ^^^^
+632 |     Args:
+633 |         state: Current graph state
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:634:1
+    |
+632 |     Args:
+633 |         state: Current graph state
+634 |         
+    | ^^^^^^^^
+635 |     Returns:
+636 |         State update with agent_handoff_context for SaaS advisor
+    |
+help: Remove whitespace from blank line
+
+C901 `_extract_tenant_requirements` is too complex (13 > 10)
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:688:5
+    |
+688 | def _extract_tenant_requirements(state: GraphState) -> dict[str, Any]:
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+689 |     """
+690 |     Extract tenant-specific requirements from state.
+    |
+
+PLR0912 Too many branches (12 > 10)
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:688:5
+    |
+688 | def _extract_tenant_requirements(state: GraphState) -> dict[str, Any]:
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+689 |     """
+690 |     Extract tenant-specific requirements from state.
+    |
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:691:1
+    |
+689 |     """
+690 |     Extract tenant-specific requirements from state.
+691 |     
+    | ^^^^
+692 |     Looks for:
+693 |     - Expected number of tenants
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:697:1
+    |
+695 |     - Isolation level (high, medium, low)
+696 |     - Compliance requirements
+697 |     
+    | ^^^^
+698 |     Args:
+699 |         state: Current graph state
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:700:1
+    |
+698 |     Args:
+699 |         state: Current graph state
+700 |         
+    | ^^^^^^^^
+701 |     Returns:
+702 |         Dictionary of tenant requirements
+    |
+help: Remove whitespace from blank line
+
+F841 Local variable `requirements` is assigned to but never used
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:707:5
+    |
+705 |     context_summary = (state.get("context_summary") or "").lower()
+706 |     project_state = state.get("current_project_state") or {}
+707 |     requirements = project_state.get("requirements") or {}
+    |     ^^^^^^^^^^^^
+708 |
+709 |     combined_text = f"{user_message} {context_summary}"
+    |
+help: Remove assignment to unused variable `requirements`
+
+PLC0415 `import` should be at the top-level of a file
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:724:5
+    |
+723 |     # Try to extract expected tenant count
+724 |     import re
+    |     ^^^^^^^^^
+725 |     tenant_count_patterns = [
+726 |         r"(\d+)\s*tenants?",
+    |
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:775:1
+    |
+773 |     """
+774 |     Determine if request should go to Cost Estimator sub-agent.
+775 |     
+    | ^^^^
+776 |     Route to Cost Estimator ONLY when:
+777 |     - User explicitly mentions "cost", "price", "pricing", "how much", "TCO", "budget"
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:780:1
+    |
+778 |     - User asks for cost estimate or breakdown
+779 |     - Architecture is finalized (candidateArchitectures exists)
+780 |     
+    | ^^^^
+781 |     DO NOT route for:
+782 |     - General architecture questions (no cost aspect)
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:784:1
+    |
+782 |     - General architecture questions (no cost aspect)
+783 |     - Budget as a constraint (not requesting estimate)
+784 |     
+    | ^^^^
+785 |     This is a LOW priority routing check (after IaC, Architecture, and SaaS).
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:786:1
+    |
+785 |     This is a LOW priority routing check (after IaC, Architecture, and SaaS).
+786 |     
+    | ^^^^
+787 |     Args:
+788 |         state: Current graph state
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:789:1
+    |
+787 |     Args:
+788 |         state: Current graph state
+789 |         
+    | ^^^^^^^^
+790 |     Returns:
+791 |         True if should route to Cost Estimator
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:834:1
+    |
+832 |     """
+833 |     Prepare handoff context for Cost Estimator sub-agent.
+834 |     
+    | ^^^^
+835 |     Extracts architecture, resource list, and constraints to pass
+836 |     to the specialized cost estimation agent.
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:837:1
+    |
+835 |     Extracts architecture, resource list, and constraints to pass
+836 |     to the specialized cost estimation agent.
+837 |     
+    | ^^^^
+838 |     Args:
+839 |         state: Current graph state
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:840:1
+    |
+838 |     Args:
+839 |         state: Current graph state
+840 |         
+    | ^^^^^^^^
+841 |     Returns:
+842 |         State update with agent_handoff_context for Cost Estimator
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:898:1
+    |
+896 |     """
+897 |     Detect Azure region from user message or requirements.
+898 |     
+    | ^^^^
+899 |     Args:
+900 |         user_message: User's message
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:902:1
+    |
+900 |         user_message: User's message
+901 |         requirements: Project requirements
+902 |         
+    | ^^^^^^^^
+903 |     Returns:
+904 |         Azure region (defaults to eastus)
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:936:1
+    |
+934 |     """
+935 |     Detect environment type (production, dev, test).
+936 |     
+    | ^^^^
+937 |     Args:
+938 |         user_message: User's message
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\agents_system\langgraph\nodes\stage_routing.py:940:1
+    |
+938 |         user_message: User's message
+939 |         context_summary: Context summary
+940 |         
+    | ^^^^^^^^
+941 |     Returns:
+942 |         Environment type (defaults to production)
+    |
+help: Remove whitespace from blank line
+
+PLC0415 `import` should be at the top-level of a file
+  --> backend\app\agents_system\tools\aaa_diagram_tool.py:64:9
+   |
+62 |         **kwargs: Any,
+63 |     ) -> str:
+64 |         import asyncio
+   |         ^^^^^^^^^^^^^^
+65 |         return asyncio.run(self._arun(payload=payload, **kwargs))
+   |
+
+PLC0415 `import` should be at the top-level of a file
+   --> backend\app\agents_system\tools\aaa_diagram_tool.py:113:9
+    |
+112 |         # Import services here to avoid circular dependencies
+113 |         from app.models.diagram import AmbiguityReport, Diagram, DiagramSet, DiagramType
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+114 |         from app.services.diagram.ambiguity_detector import AmbiguityDetector
+115 |         from app.services.diagram.database import get_diagram_session
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> backend\app\agents_system\tools\aaa_diagram_tool.py:114:9
+    |
+112 |         # Import services here to avoid circular dependencies
+113 |         from app.models.diagram import AmbiguityReport, Diagram, DiagramSet, DiagramType
+114 |         from app.services.diagram.ambiguity_detector import AmbiguityDetector
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+115 |         from app.services.diagram.database import get_diagram_session
+116 |         from app.services.diagram.diagram_generator import DiagramGenerator
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> backend\app\agents_system\tools\aaa_diagram_tool.py:115:9
+    |
+113 |         from app.models.diagram import AmbiguityReport, Diagram, DiagramSet, DiagramType
+114 |         from app.services.diagram.ambiguity_detector import AmbiguityDetector
+115 |         from app.services.diagram.database import get_diagram_session
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+116 |         from app.services.diagram.diagram_generator import DiagramGenerator
+117 |         from app.services.diagram.llm_client import DiagramLLMClient
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> backend\app\agents_system\tools\aaa_diagram_tool.py:116:9
+    |
+114 |         from app.services.diagram.ambiguity_detector import AmbiguityDetector
+115 |         from app.services.diagram.database import get_diagram_session
+116 |         from app.services.diagram.diagram_generator import DiagramGenerator
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+117 |         from app.services.diagram.llm_client import DiagramLLMClient
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> backend\app\agents_system\tools\aaa_diagram_tool.py:117:9
+    |
+115 |         from app.services.diagram.database import get_diagram_session
+116 |         from app.services.diagram.diagram_generator import DiagramGenerator
+117 |         from app.services.diagram.llm_client import DiagramLLMClient
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+118 |
+119 |         try:
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> backend\app\ingestion\application\orchestrator.py:377:20
+    |
+375 |                 await asyncio.to_thread(indexer.persist)
+376 |                 logger.info(f'Final persist completed for job {job_id}')
+377 |             except Exception as e:
+    |                    ^^^^^^^^^
+378 |                 logger.error(f'Failed to persist index on job completion: {e}')
+    |
+
+PLC0415 `import` should be at the top-level of a file
+  --> backend\app\ingestion\domain\indexing\indexer.py:59:17
+   |
+57 |         if os.path.exists(self.checkpoint_file):
+58 |             try:
+59 |                 import json
+   |                 ^^^^^^^^^^^
+60 |                 with open(self.checkpoint_file, encoding='utf-8') as f:
+61 |                     data = json.load(f)
+   |
+
+BLE001 Do not catch blind exception: `Exception`
+  --> backend\app\ingestion\domain\indexing\indexer.py:64:20
+   |
+62 |                     self._indexed_hashes = set(data.get('indexed_hashes', []))
+63 |                     logger.info(f'Loaded checkpoint with {len(self._indexed_hashes)} processed hashes')
+64 |             except Exception as e:
+   |                    ^^^^^^^^^
+65 |                 logger.warning(f'Failed to load checkpoint file: {e}')
+66 |                 self._indexed_hashes = set()
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> backend\app\ingestion\domain\indexing\indexer.py:71:13
+   |
+69 |         """Save checkpoint file immediately after indexing (lightweight operation)."""
+70 |         try:
+71 |             import json
+   |             ^^^^^^^^^^^
+72 |             os.makedirs(os.path.dirname(self.checkpoint_file), exist_ok=True)
+73 |             with open(self.checkpoint_file, 'w', encoding='utf-8') as f:
+   |
+
+BLE001 Do not catch blind exception: `Exception`
+  --> backend\app\ingestion\domain\indexing\indexer.py:75:16
+   |
+73 |             with open(self.checkpoint_file, 'w', encoding='utf-8') as f:
+74 |                 json.dump({'indexed_hashes': list(self._indexed_hashes)}, f)
+75 |         except Exception as e:
+   |                ^^^^^^^^^
+76 |             logger.error(f'Failed to save checkpoint: {e}')
+   |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> backend\app\ingestion\domain\indexing\indexer.py:239:20
+    |
+237 |                 os.remove(self.checkpoint_file)
+238 |                 logger.info(f'Deleted checkpoint file: {self.checkpoint_file}')
+239 |             except Exception as e:
+    |                    ^^^^^^^^^
+240 |                 logger.warning(f'Failed to delete checkpoint file: {e}')
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> backend\app\ingestion\domain\sources\website\crawler.py:331:20
+    |
+329 |             try:
+330 |                 soup = BeautifulSoup(html, 'lxml')
+331 |             except Exception:
+    |                    ^^^^^^^^^
+332 |                 soup = BeautifulSoup(html, 'html.parser')
+333 |             links = []
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> backend\app\routers\ingestion.py:393:13
+    |
+391 |         # Trigger immediate cleanup (don't wait for orchestrator gate check)
+392 |         try:
+393 |             from datetime import datetime, timezone
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+394 |
+395 |             from app.ingestion.domain.indexing.indexer import Indexer
+    |
+
+PLC0415 `import` should be at the top-level of a file
+   --> backend\app\routers\ingestion.py:395:13
+    |
+393 |             from datetime import datetime, timezone
+394 |
+395 |             from app.ingestion.domain.indexing.indexer import Indexer
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+396 |
+397 |             indexer = Indexer(kb_id=kb_id)
+    |
+
+F821 Undefined name `Optional`
+   --> backend\app\routers\project_management\project_router.py:374:16
+    |
+372 | async def get_messages(
+373 |     project_id: str,
+374 |     before_id: Optional[str] = None,
+    |                ^^^^^^^^
+375 |     since_id: Optional[str] = None,
+376 |     limit: int = 50,
+    |
+
+F821 Undefined name `Optional`
+   --> backend\app\routers\project_management\project_router.py:375:15
+    |
+373 |     project_id: str,
+374 |     before_id: Optional[str] = None,
+375 |     since_id: Optional[str] = None,
+    |               ^^^^^^^^
+376 |     limit: int = 50,
+377 |     db: AsyncSession = Depends(get_db),
+    |
+
+F821 Undefined name `get_llm_service`
+   --> backend\app\routers\project_management\services\document_service.py:230:23
+    |
+228 |         state = json.loads(state_record.state)
+229 |
+230 |         llm_service = get_llm_service()
+    |                       ^^^^^^^^^^^^^^^
+231 |         proposal = await llm_service.generate_architecture_proposal(state, on_progress)
+232 |         return cast(str, proposal)
+    |
+
+PLC0415 `import` should be at the top-level of a file
+  --> backend\app\services\diagram\database.py:37:9
+   |
+36 |         # Log resolved path for debugging (esp. important for E2E tests)
+37 |         import logging
+   |         ^^^^^^^^^^^^^^
+38 |         logger = logging.getLogger(__name__)
+39 |         logger.info(f"Diagrams database: {db_file.absolute()}")
+   |
+
+C901 `_run_connection_owner` is too complex (12 > 10)
+   --> backend\app\services\mcp\learn_mcp_client.py:182:15
+    |
+182 |     async def _run_connection_owner(self) -> None:
+    |               ^^^^^^^^^^^^^^^^^^^^^
+183 |         """Owns MCP connection/session context managers for the app lifetime."""
+184 |         session = None
+    |
+
+PLR0912 Too many branches (14 > 10)
+   --> backend\app\services\mcp\learn_mcp_client.py:182:15
+    |
+182 |     async def _run_connection_owner(self) -> None:
+    |               ^^^^^^^^^^^^^^^^^^^^^
+183 |         """Owns MCP connection/session context managers for the app lifetime."""
+184 |         session = None
+    |
+
+PLR0915 Too many statements (55 > 50)
+   --> backend\app\services\mcp\learn_mcp_client.py:182:15
+    |
+182 |     async def _run_connection_owner(self) -> None:
+    |               ^^^^^^^^^^^^^^^^^^^^^
+183 |         """Owns MCP connection/session context managers for the app lifetime."""
+184 |         session = None
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> backend\app\services\mcp\learn_mcp_client.py:242:16
+    |
+240 |             else:
+241 |                 logger.warning(f"Error exiting session: {e}")
+242 |         except Exception as e:
+    |                ^^^^^^^^^
+243 |             logger.warning(f"Error exiting session: {e}")
+    |
+
+BLE001 Do not catch blind exception: `Exception`
+   --> backend\app\services\mcp\learn_mcp_client.py:257:16
+    |
+255 |             else:
+256 |                 logger.warning(f"Error exiting connection context: {e}")
+257 |         except Exception as e:
+    |                ^^^^^^^^^
+258 |             logger.warning(f"Error exiting connection context: {e}")
+    |
+
+W293 Blank line contains whitespace
+   --> backend\app\services\mcp\learn_mcp_client.py:343:1
+    |
+341 |     async def _cleanup_session(self) -> None:
+342 |         """Internal helper to close the MCP session (innermost).
+343 |         
+    | ^^^^^^^^
+344 |         Note: This should NOT call __aexit__ from a different task.
+345 |         The session cleanup happens in _run_connection_owner() when it exits.
+    |
+help: Remove whitespace from blank line
+
+W293 Blank line contains whitespace
+   --> backend\app\services\mcp\learn_mcp_client.py:357:1
+    |
+355 |     async def _cleanup_connection_context(self) -> None:
+356 |         """Internal helper to close the MCP connection context (outermost).
+357 |         
+    | ^^^^^^^^
+358 |         Note: This should NOT call __aexit__ from a different task.
+359 |         The connection cleanup happens in _run_connection_owner() when it exits.
+    |
+help: Remove whitespace from blank line
+
+S311 Standard pseudo-random generators are not suitable for cryptographic purposes
+   --> backend\app\services\mcp\learn_mcp_client.py:488:26
+    |
+486 |                 # Exponential backoff + jitter
+487 |                 base = min(0.5 * (2 ** (attempt_number - 1)), 8.0)
+488 |                 jitter = random.uniform(0.0, 0.25)
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+489 |                 await asyncio.sleep(min(base + jitter, 8.0))
+    |
+
+S311 Standard pseudo-random generators are not suitable for cryptographic purposes
+  --> backend\app\services\pricing\retail_prices_client.py:50:18
+   |
+48 |         # attempt_number is 1-based
+49 |         base = min(0.5 * (2 ** max(attempt_number - 1, 0)), 8.0)
+50 |         jitter = random.uniform(0.0, 0.25)
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+51 |         return min(base + jitter, 8.0)
+   |
+
+PLC0415 `import` should be at the top-level of a file
+  --> backend\tests\test_aaa_e2e_runner_utils.py:12:9
+   |
+10 |     sys.path.insert(0, str(scripts_e2e))
+11 |     try:
+12 |         import aaa_e2e_runner  # type: ignore
+   |         ^^^^^^^^^^^^^^^^^^^^^
+13 |
+14 |         return aaa_e2e_runner
+   |
+
+Found 75 errors.
+No fixes available (38 hidden fixes can be enabled with the `--unsafe-fixes` option).

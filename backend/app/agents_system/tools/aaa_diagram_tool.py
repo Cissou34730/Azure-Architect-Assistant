@@ -61,7 +61,6 @@ class AAACreateDiagramSetTool(BaseTool):
         payload: str | dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> str:
-        import asyncio
         return asyncio.run(self._arun(payload=payload, **kwargs))
 
     async def _arun(
@@ -75,7 +74,7 @@ class AAACreateDiagramSetTool(BaseTool):
             result = await self._generate_and_persist(args)
             return result
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error(f"Failed to create diagram set: {exc}", exc_info=True)
             return f"ERROR: {exc!s}"
 
@@ -110,11 +109,20 @@ class AAACreateDiagramSetTool(BaseTool):
         )
 
         # Import services here to avoid circular dependencies
-        from app.models.diagram import Diagram, AmbiguityReport, DiagramSet, DiagramType
-        from app.services.diagram.ambiguity_detector import AmbiguityDetector
-        from app.services.diagram.database import get_diagram_session
-        from app.services.diagram.diagram_generator import DiagramGenerator
-        from app.services.diagram.llm_client import DiagramLLMClient
+        from app.models.diagram import (  # noqa: PLC0415
+            AmbiguityReport,
+            Diagram,
+            DiagramSet,
+            DiagramType,
+        )
+        from app.services.diagram.ambiguity_detector import (  # noqa: PLC0415
+            AmbiguityDetector,
+        )
+        from app.services.diagram.database import get_diagram_session  # noqa: PLC0415
+        from app.services.diagram.diagram_generator import (  # noqa: PLC0415
+            DiagramGenerator,
+        )
+        from app.services.diagram.llm_client import DiagramLLMClient  # noqa: PLC0415
 
         try:
             llm_client = DiagramLLMClient()
@@ -177,7 +185,7 @@ class AAACreateDiagramSetTool(BaseTool):
                     )
                     diagram_session.add(diagram)
                     await diagram_session.flush()  # Get ID
-                    
+
                     diagram_refs.append({
                         "diagramSetId": diagram_set.id,
                         "diagramType": diagram_type.value,

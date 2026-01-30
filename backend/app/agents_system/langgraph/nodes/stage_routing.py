@@ -5,12 +5,15 @@ Phase 5: Add explicit stage routing and retry semantics.
 """
 
 import logging
+import re
 from enum import Enum
 from typing import Any, Literal
 
 from ..state import GraphState
 
 logger = logging.getLogger(__name__)
+
+COMPLEXITY_THRESHOLD = 3
 
 
 class ProjectStage(str, Enum):
@@ -228,20 +231,20 @@ def propose_next_step(state: GraphState) -> dict[str, Any]:
 def should_route_to_architecture_planner(state: GraphState) -> bool:
     """
     Determine if request should go to Architecture Planner sub-agent.
-    
+
     Route to Architecture Planner when:
     - User explicitly requests "architecture", "design", "proposal"
     - Project stage suggests architecture planning needed
     - Complexity indicators detected (multi-region, HA, DR, compliance)
-    
+
     Args:
         state: Current graph state
-        
+
     Returns:
         True if should route to architecture planner
     """
     user_message = (state.get("user_message") or "").lower()
-    
+
     # Explicit architecture request keywords
     arch_keywords = [
         "architecture", "design the architecture", "propose architecture",
@@ -249,26 +252,27 @@ def should_route_to_architecture_planner(state: GraphState) -> bool:
         "how should i architect", "what should the architecture look like",
         "design solution", "propose solution", "architecture diagram",
     ]
-    
+
     if any(keyword in user_message for keyword in arch_keywords):
         logger.info("🎯 Routing to Architecture Planner: explicit request detected")
         return True
-    
+
     # Check project stage
     next_stage = state.get("next_stage")
-    if next_stage == ProjectStage.PROPOSE_CANDIDATE.value:
-        if any(kw in user_message for kw in ["architecture", "design", "propose", "solution"]):
-            logger.info("🎯 Routing to Architecture Planner: proposal stage + design request")
-            return True
-    
+    if next_stage == ProjectStage.PROPOSE_CANDIDATE.value and any(
+        kw in user_message for kw in ["architecture", "design", "propose", "solution"]
+    ):
+        logger.info("🎯 Routing to Architecture Planner: proposal stage + design request")
+        return True
+
     # Check complexity indicators
     context_summary = state.get("context_summary") or ""
     project_state = state.get("current_project_state") or {}
-    
+
     # Extract NFR requirements from project state
     requirements = project_state.get("requirements") or {}
     nfr_text = (context_summary + " " + str(requirements)).lower()
-    
+
     complexity_indicators = [
         "multi-region", "high availability", "disaster recovery",
         "compliance", "soc 2", "hipaa", "gdpr", "pci dss",
@@ -276,41 +280,41 @@ def should_route_to_architecture_planner(state: GraphState) -> bool:
         "99.9%", "99.95%", "99.99%",  # SLA indicators
         "global", "worldwide", "distributed",
     ]
-    
+
     complexity_count = sum(1 for indicator in complexity_indicators if indicator in nfr_text)
-    if complexity_count >= 3:
+    if complexity_count >= COMPLEXITY_THRESHOLD:
         logger.info(
             f"🎯 Routing to Architecture Planner: complexity threshold "
             f"({complexity_count} indicators)"
         )
         return True
-    
+
     return False
 
 
 def prepare_architecture_planner_handoff(state: GraphState) -> dict[str, Any]:
     """
     Prepare handoff context for Architecture Planner sub-agent.
-    
+
     Extracts requirements, NFR constraints, and project context to pass
     to the specialized architecture planning agent.
-    
+
     Args:
         state: Current graph state
-        
+
     Returns:
         State update with agent_handoff_context
     """
     project_state = state.get("current_project_state") or {}
     context_summary = state.get("context_summary") or ""
-    
+
     # Extract requirements
     requirements = project_state.get("requirements") or {}
     requirements_text = _format_requirements(requirements)
-    
+
     # Extract NFR summary
     nfr_summary = _extract_nfr_summary(requirements, context_summary)
-    
+
     # Extract constraints
     constraints = {
         "budget": requirements.get("budget"),
@@ -321,10 +325,10 @@ def prepare_architecture_planner_handoff(state: GraphState) -> dict[str, Any]:
     }
     # Remove None values
     constraints = {k: v for k, v in constraints.items() if v}
-    
+
     # Extract previous architectural decisions
     previous_decisions = project_state.get("adrs") or []
-    
+
     handoff_context = {
         "project_context": context_summary,
         "requirements": requirements_text,
@@ -334,12 +338,12 @@ def prepare_architecture_planner_handoff(state: GraphState) -> dict[str, Any]:
         "user_request": state.get("user_message", ""),
         "routing_reason": "Complex architecture design required with NFR analysis",
     }
-    
+
     logger.info(
         f"Prepared Architecture Planner handoff context: "
         f"{len(nfr_summary)} chars NFR, {len(previous_decisions)} ADRs"
     )
-    
+
     return {
         "agent_handoff_context": handoff_context,
         "current_agent": "architecture_planner",
@@ -350,7 +354,7 @@ def _format_requirements(requirements: dict[str, Any]) -> str:
     """Format requirements dictionary for handoff."""
     if not requirements:
         return "No explicit requirements provided."
-    
+
     formatted = []
     if "workloadType" in requirements:
         formatted.append(f"- Workload Type: {requirements['workloadType']}")
@@ -364,78 +368,82 @@ def _format_requirements(requirements: dict[str, Any]) -> str:
         formatted.append(f"- RTO: {requirements['rto']}")
     if "rpo" in requirements:
         formatted.append(f"- RPO: {requirements['rpo']}")
-    
+
     return "\n".join(formatted) if formatted else str(requirements)
 
 
 def _extract_nfr_summary(requirements: dict[str, Any], context: str) -> str:
     """Extract non-functional requirements summary."""
-    nfr_parts = []
-    
-    # Performance requirements
-    if "sla" in requirements:
-        nfr_parts.append(f"**Performance:** SLA target: {requirements['sla']}")
-    
-    # Scalability requirements
-    if "expectedUsers" in requirements or "dataVolume" in requirements:
-        scale_info = []
-        if "expectedUsers" in requirements:
-            scale_info.append(f"Users: {requirements['expectedUsers']}")
-        if "dataVolume" in requirements:
-            scale_info.append(f"Data: {requirements['dataVolume']}")
-        nfr_parts.append(f"**Scalability:** {', '.join(scale_info)}")
-    
-    # Reliability requirements
-    if "rto" in requirements or "rpo" in requirements:
-        reliability_info = []
-        if "rto" in requirements:
-            reliability_info.append(f"RTO: {requirements['rto']}")
-        if "rpo" in requirements:
-            reliability_info.append(f"RPO: {requirements['rpo']}")
-        nfr_parts.append(f"**Reliability:** {', '.join(reliability_info)}")
-    
-    # Security/Compliance requirements
-    if "compliance" in requirements:
-        compliance_list = requirements["compliance"]
-        if compliance_list:
-            nfr_parts.append(f"**Security/Compliance:** {', '.join(compliance_list)}")
-    
-    # Budget constraints
-    if "budget" in requirements:
-        nfr_parts.append(f"**Cost:** Budget constraint: {requirements['budget']}")
-    
+    nfr_parts = _build_nfr_sections(requirements)
     return "\n".join(nfr_parts) if nfr_parts else "No explicit NFR requirements provided."
+
+
+def _build_nfr_sections(requirements: dict[str, Any]) -> list[str]:
+    """Build formatted NFR sections from requirements."""
+    nfr_parts = []
+
+    performance = requirements.get("sla")
+    if performance:
+        nfr_parts.append(f"**Performance:** SLA target: {performance}")
+
+    scale_info = _format_keyed_values(requirements, [("Users", "expectedUsers"), ("Data", "dataVolume")])
+    if scale_info:
+        nfr_parts.append(f"**Scalability:** {scale_info}")
+
+    reliability_info = _format_keyed_values(requirements, [("RTO", "rto"), ("RPO", "rpo")])
+    if reliability_info:
+        nfr_parts.append(f"**Reliability:** {reliability_info}")
+
+    compliance_list = requirements.get("compliance") or []
+    if compliance_list:
+        nfr_parts.append(f"**Security/Compliance:** {', '.join(compliance_list)}")
+
+    budget = requirements.get("budget")
+    if budget:
+        nfr_parts.append(f"**Cost:** Budget constraint: {budget}")
+
+    return nfr_parts
+
+
+def _format_keyed_values(requirements: dict[str, Any], labels: list[tuple[str, str]]) -> str | None:
+    """Format a list of requirement keys as labeled values."""
+    parts = []
+    for label, key in labels:
+        value = requirements.get(key)
+        if value:
+            parts.append(f"{label}: {value}")
+    return ", ".join(parts) if parts else None
 
 
 def should_route_to_iac_generator(state: GraphState) -> bool:
     """
     Determine if request should go to IaC Generator sub-agent.
-    
+
     Route to IaC Generator when:
     - User explicitly requests "terraform", "bicep", "iac"
     - Project stage is "iac"
     - Architecture is finalized (candidateArchitectures exists)
-    
+
     Args:
         state: Current graph state
-        
+
     Returns:
         True if should route to IaC generator
     """
     user_message = (state.get("user_message") or "").lower()
-    
+
     # Explicit IaC keywords
     iac_keywords = [
         "terraform", "bicep", "iac", "infrastructure as code",
         "infrastructure code", "deploy", "provision",
         "generate bicep", "generate terraform", "create iac",
     ]
-    
+
     if any(keyword in user_message for keyword in iac_keywords):
         # Only route if architecture is finalized
         project_state = state.get("current_project_state") or {}
         has_architecture = bool(project_state.get("candidateArchitectures"))
-        
+
         if has_architecture:
             logger.info("🎯 Routing to IaC Generator: explicit request + architecture exists")
             return True
@@ -445,43 +453,43 @@ def should_route_to_iac_generator(state: GraphState) -> bool:
                 "Will not route to IaC Generator."
             )
             return False
-    
+
     # Check project stage
     next_stage = state.get("next_stage")
     if next_stage == ProjectStage.IAC.value:
         logger.info("🎯 Routing to IaC Generator: project stage is 'iac'")
         return True
-    
+
     return False
 
 
 def prepare_iac_generator_handoff(state: GraphState) -> dict[str, Any]:
     """
     Prepare handoff context for IaC Generator sub-agent.
-    
+
     Extracts architecture, resource list, and constraints to pass
     to the specialized IaC generation agent.
-    
+
     Args:
         state: Current graph state
-        
+
     Returns:
         State update with agent_handoff_context
     """
     project_state = state.get("current_project_state") or {}
     context_summary = state.get("context_summary") or ""
-    
+
     # Extract architecture (use first candidate if multiple)
     candidate_architectures = project_state.get("candidateArchitectures") or []
     architecture = candidate_architectures[0] if candidate_architectures else {}
-    
+
     # Extract resource list from architecture
     resource_list = _extract_resource_list(architecture, context_summary)
-    
+
     # Detect IaC format from user message
     user_message = state.get("user_message", "").lower()
     iac_format = _detect_iac_format(user_message)
-    
+
     # Extract constraints
     requirements = project_state.get("requirements") or {}
     constraints = {
@@ -492,7 +500,7 @@ def prepare_iac_generator_handoff(state: GraphState) -> dict[str, Any]:
     }
     # Remove None values
     constraints = {k: v for k, v in constraints.items() if v}
-    
+
     handoff_context = {
         "project_context": context_summary,
         "architecture": architecture,
@@ -502,12 +510,12 @@ def prepare_iac_generator_handoff(state: GraphState) -> dict[str, Any]:
         "user_request": state.get("user_message", ""),
         "routing_reason": "IaC generation for finalized architecture",
     }
-    
+
     logger.info(
         f"Prepared IaC Generator handoff context: "
         f"format={iac_format}, {len(resource_list)} resources"
     )
-    
+
     return {
         "agent_handoff_context": handoff_context,
         "current_agent": "iac_generator",
@@ -517,7 +525,7 @@ def prepare_iac_generator_handoff(state: GraphState) -> dict[str, Any]:
 def _extract_resource_list(architecture: dict[str, Any], context: str) -> list[str]:
     """Extract list of Azure resources from architecture."""
     resources = []
-    
+
     # Try to extract from architecture components
     if "components" in architecture:
         components = architecture["components"]
@@ -527,7 +535,7 @@ def _extract_resource_list(architecture: dict[str, Any], context: str) -> list[s
                     resources.append(f"{component.get('name', 'unnamed')} ({component['type']})")
                 elif isinstance(component, str):
                     resources.append(component)
-    
+
     # If no components, try to parse from description or diagram
     if not resources:
         # Common Azure resource type keywords
@@ -537,15 +545,15 @@ def _extract_resource_list(architecture: dict[str, Any], context: str) -> list[s
             "API Management", "Service Bus", "Event Hubs", "Container Instances",
             "Kubernetes Service", "Redis Cache", "Front Door", "CDN",
         ]
-        
+
         description = architecture.get("description", "")
         diagram = architecture.get("diagram", "")
         combined_text = f"{description} {diagram} {context}".lower()
-        
+
         for resource_type in azure_resources:
             if resource_type.lower() in combined_text:
                 resources.append(resource_type)
-    
+
     return resources if resources else ["Extract from architecture description"]
 
 
@@ -568,26 +576,26 @@ def _detect_iac_format(user_message: str) -> str:
 def should_route_to_saas_advisor(state: GraphState) -> bool:
     """
     Determine if request should go to SaaS Advisor sub-agent.
-    
+
     Route to SaaS Advisor ONLY when:
     - User explicitly mentions "SaaS", "multi-tenant", "B2B/B2C"
     - User asks "should this be SaaS?" or similar suitability questions
-    
+
     DO NOT route for:
     - Regular web applications (even with authentication)
     - Single-tenant enterprise applications
     - Internal tools or CRUD apps
-    
+
     This is a LOW priority routing check (after Architecture Planner and IaC Generator).
-    
+
     Args:
         state: Current graph state
-        
+
     Returns:
         True if should route to SaaS advisor
     """
     user_message = (state.get("user_message") or "").lower()
-    
+
     # Explicit SaaS keywords (strict matching)
     saas_keywords = [
         "saas", "multi-tenant", "multitenant", "multi tenant",
@@ -595,13 +603,13 @@ def should_route_to_saas_advisor(state: GraphState) -> bool:
         "subscription-based", "saas architecture",
         "deployment stamps", "noisy neighbor",
     ]
-    
+
     explicit_saas = any(keyword in user_message for keyword in saas_keywords)
-    
+
     if explicit_saas:
         logger.info("🏢 Routing to SaaS Advisor: explicit SaaS keywords detected")
         return True
-    
+
     # User asks about SaaS suitability
     suitability_questions = [
         "should this be saas", "should this be a saas",
@@ -609,42 +617,42 @@ def should_route_to_saas_advisor(state: GraphState) -> bool:
         "saas or not", "multi-tenant or single-tenant",
         "should i use saas", "recommend saas",
     ]
-    
+
     asking_about_saas = any(phrase in user_message for phrase in suitability_questions)
-    
+
     if asking_about_saas:
         logger.info("🏢 Routing to SaaS Advisor: SaaS suitability question detected")
         return True
-    
+
     # REMOVED: Context-based routing to avoid false positives
     # Only route based on explicit user message keywords
-    
+
     return False
 
 
 def prepare_saas_advisor_handoff(state: GraphState) -> dict[str, Any]:
     """
     Prepare handoff context for SaaS Advisor sub-agent.
-    
+
     Extracts project requirements, tenant requirements, and constraints
     to pass to the specialized SaaS advisor agent.
-    
+
     Args:
         state: Current graph state
-        
+
     Returns:
         State update with agent_handoff_context for SaaS advisor
     """
     project_state = state.get("current_project_state") or {}
     context_summary = state.get("context_summary") or ""
-    
+
     # Extract project requirements
     requirements = project_state.get("requirements") or {}
     requirements_text = _format_requirements(requirements)
-    
+
     # Extract tenant requirements from context
     tenant_requirements = _extract_tenant_requirements(state)
-    
+
     # Extract current architecture if exists
     architectures = project_state.get("candidateArchitectures") or []
     current_architecture = ""
@@ -654,7 +662,7 @@ def prepare_saas_advisor_handoff(state: GraphState) -> dict[str, Any]:
         diagram = latest_arch.get("diagram", "")
         if diagram:
             current_architecture += f"\n\n**Diagram:**\n{diagram}"
-    
+
     # Extract constraints
     constraints = {
         "budget": requirements.get("budget"),
@@ -662,7 +670,7 @@ def prepare_saas_advisor_handoff(state: GraphState) -> dict[str, Any]:
         "compliance": requirements.get("compliance", []),
         "regions": requirements.get("allowedRegions", []),
     }
-    
+
     handoff_context = {
         "project_context": context_summary,
         "requirements": requirements_text,
@@ -672,13 +680,13 @@ def prepare_saas_advisor_handoff(state: GraphState) -> dict[str, Any]:
         "user_request": state.get("user_message", ""),
         "routing_reason": "SaaS-specific architecture guidance requested",
     }
-    
+
     logger.info(
         f"Prepared SaaS Advisor handoff context: "
         f"customer_type={tenant_requirements.get('customer_type', 'unknown')}, "
         f"expected_tenants={tenant_requirements.get('expected_tenants', 'unknown')}"
     )
-    
+
     return {
         "agent_handoff_context": handoff_context,
         "current_agent": "saas_advisor",
@@ -688,80 +696,104 @@ def prepare_saas_advisor_handoff(state: GraphState) -> dict[str, Any]:
 def _extract_tenant_requirements(state: GraphState) -> dict[str, Any]:
     """
     Extract tenant-specific requirements from state.
-    
+
     Looks for:
     - Expected number of tenants
     - Customer type (B2B, B2C)
     - Isolation level (high, medium, low)
     - Compliance requirements
-    
+
     Args:
         state: Current graph state
-        
+
     Returns:
         Dictionary of tenant requirements
     """
     user_message = (state.get("user_message") or "").lower()
     context_summary = (state.get("context_summary") or "").lower()
-    project_state = state.get("current_project_state") or {}
-    requirements = project_state.get("requirements") or {}
-    
+
     combined_text = f"{user_message} {context_summary}"
-    
+
     tenant_reqs: dict[str, Any] = {}
-    
-    # Detect customer type
+
+    customer_type = _detect_customer_type(combined_text)
+    if customer_type:
+        tenant_reqs["customer_type"] = customer_type
+
+    expected_tenants = _detect_expected_tenants(combined_text)
+    if expected_tenants is not None:
+        tenant_reqs["expected_tenants"] = expected_tenants
+
+    isolation_level = _detect_isolation_level(combined_text)
+    if isolation_level:
+        tenant_reqs["isolation_level"] = isolation_level
+
+    compliance = _detect_compliance_requirements(combined_text)
+
+    if compliance:
+        tenant_reqs["compliance"] = compliance
+
+    tenant_tiers = _detect_tenant_tiers(combined_text)
+    if tenant_tiers:
+        tenant_reqs["tenant_tiers"] = tenant_tiers
+
+    return tenant_reqs
+
+
+def _detect_customer_type(combined_text: str) -> str | None:
+    """Detect customer type (B2B/B2C) from text."""
     if "b2b" in combined_text:
-        tenant_reqs["customer_type"] = "b2b"
-    elif "b2c" in combined_text:
-        tenant_reqs["customer_type"] = "b2c"
-    elif "enterprise" in combined_text and ("customer" in combined_text or "client" in combined_text):
-        tenant_reqs["customer_type"] = "b2b"
-    elif "consumer" in combined_text or "individual user" in combined_text:
-        tenant_reqs["customer_type"] = "b2c"
-    
-    # Try to extract expected tenant count
-    import re
+        return "b2b"
+    if "b2c" in combined_text:
+        return "b2c"
+    if "enterprise" in combined_text and ("customer" in combined_text or "client" in combined_text):
+        return "b2b"
+    if "consumer" in combined_text or "individual user" in combined_text:
+        return "b2c"
+    return None
+
+
+def _detect_expected_tenants(combined_text: str) -> int | None:
+    """Detect expected tenant count from text."""
     tenant_count_patterns = [
         r"(\d+)\s*tenants?",
         r"(\d+)\s*customers?",
         r"expect\s*(\d+)",
         r"support\s*(\d+)",
     ]
-    
+
     for pattern in tenant_count_patterns:
         match = re.search(pattern, combined_text)
         if match:
-            tenant_reqs["expected_tenants"] = int(match.group(1))
-            break
-    
-    # Detect isolation level
+            return int(match.group(1))
+    return None
+
+
+def _detect_isolation_level(combined_text: str) -> str | None:
+    """Detect isolation level from text."""
     isolation_keywords = {
         "high": ["hipaa", "healthcare", "financial", "bank", "government", "dedicated", "isolated"],
         "medium": ["enterprise", "b2b", "custom sla"],
         "low": ["b2c", "shared", "freemium"],
     }
-    
+
     for level, keywords in isolation_keywords.items():
         if any(kw in combined_text for kw in keywords):
-            tenant_reqs["isolation_level"] = level
-            break
-    
-    # Extract compliance requirements
+            return level
+    return None
+
+
+def _detect_compliance_requirements(combined_text: str) -> list[str]:
+    """Detect compliance requirements from text."""
     compliance_keywords = ["hipaa", "gdpr", "soc 2", "pci dss", "iso 27001"]
-    compliance = []
-    for comp in compliance_keywords:
-        if comp in combined_text:
-            compliance.append(comp.upper())
-    
-    if compliance:
-        tenant_reqs["compliance"] = compliance
-    
-    # Check if tenant tiers mentioned
+    return [comp.upper() for comp in compliance_keywords if comp in combined_text]
+
+
+def _detect_tenant_tiers(combined_text: str) -> list[str] | None:
+    """Detect tenant tiers mentioned in text."""
     if any(tier in combined_text for tier in ["free tier", "premium", "standard", "enterprise tier"]):
-        tenant_reqs["tenant_tiers"] = ["free", "standard", "premium"]
-    
-    return tenant_reqs
+        return ["free", "standard", "premium"]
+    return None
 
 
 # ==============================================================================
@@ -772,26 +804,26 @@ def _extract_tenant_requirements(state: GraphState) -> dict[str, Any]:
 def should_route_to_cost_estimator(state: GraphState) -> bool:
     """
     Determine if request should go to Cost Estimator sub-agent.
-    
+
     Route to Cost Estimator ONLY when:
     - User explicitly mentions "cost", "price", "pricing", "how much", "TCO", "budget"
     - User asks for cost estimate or breakdown
     - Architecture is finalized (candidateArchitectures exists)
-    
+
     DO NOT route for:
     - General architecture questions (no cost aspect)
     - Budget as a constraint (not requesting estimate)
-    
+
     This is a LOW priority routing check (after IaC, Architecture, and SaaS).
-    
+
     Args:
         state: Current graph state
-        
+
     Returns:
         True if should route to Cost Estimator
     """
     user_message = (state.get("user_message") or "").lower()
-    
+
     # Explicit cost keywords (strict matching)
     cost_keywords = [
         "cost", "price", "pricing", "how much",
@@ -801,14 +833,14 @@ def should_route_to_cost_estimator(state: GraphState) -> bool:
         "cost analysis", "cost breakdown", "cost calculation",
         "cost comparison", "cost optimization",
     ]
-    
+
     explicit_cost = any(keyword in user_message for keyword in cost_keywords)
-    
+
     if explicit_cost:
         # Only route if architecture exists
         project_state = state.get("current_project_state") or {}
         has_architecture = bool(project_state.get("candidateArchitectures"))
-        
+
         if has_architecture:
             logger.info("💰 Routing to Cost Estimator: explicit cost request + architecture exists")
             return True
@@ -818,47 +850,47 @@ def should_route_to_cost_estimator(state: GraphState) -> bool:
                 "Will not route to Cost Estimator."
             )
             return False
-    
+
     # Check project stage
     next_stage = state.get("next_stage")
     if next_stage == ProjectStage.PRICING.value:
         logger.info("💰 Routing to Cost Estimator: project stage is 'pricing'")
         return True
-    
+
     return False
 
 
 def prepare_cost_estimator_handoff(state: GraphState) -> dict[str, Any]:
     """
     Prepare handoff context for Cost Estimator sub-agent.
-    
+
     Extracts architecture, resource list, and constraints to pass
     to the specialized cost estimation agent.
-    
+
     Args:
         state: Current graph state
-        
+
     Returns:
         State update with agent_handoff_context for Cost Estimator
     """
     project_state = state.get("current_project_state") or {}
     context_summary = state.get("context_summary") or ""
-    
+
     # Extract architecture (use first candidate if multiple)
     candidate_architectures = project_state.get("candidateArchitectures") or []
     architecture = candidate_architectures[0] if candidate_architectures else {}
-    
+
     # Extract resource list from architecture
     resource_list = _extract_resource_list(architecture, context_summary)
-    
+
     # Detect region from user message or requirements
     user_message = state.get("user_message", "").lower()
     requirements = project_state.get("requirements") or {}
     region = _detect_region(user_message, requirements)
-    
+
     # Detect environment (production, dev, test)
     environment = _detect_environment(user_message, context_summary)
-    
+
     # Extract constraints
     constraints = {
         "budget": requirements.get("budget"),
@@ -869,7 +901,7 @@ def prepare_cost_estimator_handoff(state: GraphState) -> dict[str, Any]:
     }
     # Remove None/False values
     constraints = {k: v for k, v in constraints.items() if v}
-    
+
     handoff_context = {
         "project_context": context_summary,
         "architecture": architecture,
@@ -880,12 +912,12 @@ def prepare_cost_estimator_handoff(state: GraphState) -> dict[str, Any]:
         "user_request": state.get("user_message", ""),
         "routing_reason": "Cost estimation requested for finalized architecture",
     }
-    
+
     logger.info(
         f"Prepared Cost Estimator handoff context: "
         f"region={region}, environment={environment}, {len(resource_list)} resources"
     )
-    
+
     return {
         "agent_handoff_context": handoff_context,
         "current_agent": "cost_estimator",
@@ -895,11 +927,11 @@ def prepare_cost_estimator_handoff(state: GraphState) -> dict[str, Any]:
 def _detect_region(user_message: str, requirements: dict[str, Any]) -> str:
     """
     Detect Azure region from user message or requirements.
-    
+
     Args:
         user_message: User's message
         requirements: Project requirements
-        
+
     Returns:
         Azure region (defaults to eastus)
     """
@@ -915,17 +947,17 @@ def _detect_region(user_message: str, requirements: dict[str, Any]) -> str:
         "australiaeast", "australiasoutheast", "centralindia",
         "southindia", "westindia",
     ]
-    
+
     # Check user message
     for region in regions:
         if region in user_message:
             return region
-    
+
     # Check requirements
     allowed_regions = requirements.get("allowedRegions", [])
     if allowed_regions:
         return allowed_regions[0]
-    
+
     # Default to East US
     return "eastus"
 
@@ -933,23 +965,23 @@ def _detect_region(user_message: str, requirements: dict[str, Any]) -> str:
 def _detect_environment(user_message: str, context_summary: str) -> str:
     """
     Detect environment type (production, dev, test).
-    
+
     Args:
         user_message: User's message
         context_summary: Context summary
-        
+
     Returns:
         Environment type (defaults to production)
     """
     combined_text = f"{user_message} {context_summary}".lower()
-    
+
     if any(keyword in combined_text for keyword in ["dev", "development", "sandbox"]):
         return "development"
     elif any(keyword in combined_text for keyword in ["test", "testing", "qa", "staging"]):
         return "test"
     elif any(keyword in combined_text for keyword in ["prod", "production"]):
         return "production"
-    
+
     # Default to production for cost estimates
     return "production"
 

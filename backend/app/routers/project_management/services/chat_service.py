@@ -2,7 +2,7 @@ import json
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -153,8 +153,8 @@ class ChatService:
         self,
         project_id: str,
         db: AsyncSession,
-        before_id: Optional[str] = None,
-        since_id: Optional[str] = None,
+        before_id: str | None = None,
+        since_id: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         result = await db.execute(select(Project).where(Project.id == project_id))

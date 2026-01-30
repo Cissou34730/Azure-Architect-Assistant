@@ -15,8 +15,8 @@ from langchain.prompts import PromptTemplate
 from langchain.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
-from ...services.ai.ai_service import get_ai_service
-from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from app.services.ai.ai_service import get_ai_service
+from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
 # build_tools previously used by older flow; tools are created via create_* helpers here
 from ..config.react_prompts import REACT_TEMPLATE, SYSTEM_PROMPT

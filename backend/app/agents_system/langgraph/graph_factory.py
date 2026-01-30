@@ -56,7 +56,7 @@ def build_project_chat_graph(db: AsyncSession | None = None, response_message_id
     workflow.add_edge("load_state", "build_summary")
     workflow.add_edge("build_summary", "build_research")
     workflow.add_edge("build_research", "agent_router")
-    
+
     # Conditional routing from agent_router
     workflow.add_conditional_edges(
         "agent_router",
@@ -69,26 +69,26 @@ def build_project_chat_graph(db: AsyncSession | None = None, response_message_id
             "main_agent": "run_agent",
         }
     )
-    
+
     # Architecture Planner flow
     workflow.add_edge("prepare_arch_handoff", "architecture_planner")
     workflow.add_edge("architecture_planner", "persist_messages")
-    
+
     # IaC Generator flow
     workflow.add_edge("prepare_iac_handoff", "iac_generator")
     workflow.add_edge("iac_generator", "persist_messages")
-    
+
     # SaaS Advisor flow (Phase 3)
     workflow.add_edge("prepare_saas_handoff", "saas_advisor")
     workflow.add_edge("saas_advisor", "persist_messages")
-    
+
     # Cost Estimator flow (Phase 3)
     workflow.add_edge("prepare_cost_handoff", "cost_estimator")
     workflow.add_edge("cost_estimator", "persist_messages")
-    
+
     # Main agent flow
     workflow.add_edge("run_agent", "persist_messages")
-    
+
     # Common postprocessing flow
     workflow.add_edge("persist_messages", "postprocess")
     workflow.add_edge("postprocess", "apply_updates")
@@ -107,7 +107,7 @@ def _agent_router_node(state: GraphState) -> dict:
                 "reason": "IaC generation request with finalized architecture",
             }
         }
-    
+
     # Check for architecture planning request
     if should_route_to_architecture_planner(state):
         return {
@@ -116,7 +116,7 @@ def _agent_router_node(state: GraphState) -> dict:
                 "reason": "Architecture design request detected",
             }
         }
-    
+
     # Phase 3: Check for SaaS-specific request (LOW priority)
     if should_route_to_saas_advisor(state):
         return {
@@ -125,7 +125,7 @@ def _agent_router_node(state: GraphState) -> dict:
                 "reason": "SaaS architecture guidance requested",
             }
         }
-    
+
     # Phase 3: Check for Cost Estimator request (LOWEST priority)
     if should_route_to_cost_estimator(state):
         return {
@@ -134,7 +134,7 @@ def _agent_router_node(state: GraphState) -> dict:
                 "reason": "Cost estimation requested for architecture",
             }
         }
-    
+
     # Default to main agent
     return {
         "routing_decision": {
@@ -148,17 +148,14 @@ def _route_to_agent(state: GraphState) -> str:
     """Routing function for conditional edge."""
     routing_decision = state.get("routing_decision", {})
     agent = routing_decision.get("agent", "main")
-    
-    if agent == "architecture_planner":
-        return "architecture_planner"
-    elif agent == "iac_generator":
-        return "iac_generator"
-    elif agent == "saas_advisor":
-        return "saas_advisor"
-    elif agent == "cost_estimator":
-        return "cost_estimator"
-    
-    return "main_agent"
+
+    agent_routes = {
+        "architecture_planner": "architecture_planner",
+        "iac_generator": "iac_generator",
+        "saas_advisor": "saas_advisor",
+        "cost_estimator": "cost_estimator",
+    }
+    return agent_routes.get(agent, "main_agent")
 
 
 def _wrap_load_state(db: AsyncSession | None):

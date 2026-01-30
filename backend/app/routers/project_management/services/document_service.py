@@ -7,9 +7,9 @@ from typing import Any, cast
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents_system.services.aaa_state_models import ensure_aaa_defaults
 from app.models import Project, ProjectDocument, ProjectState
 from app.services import llm_service
-from app.agents_system.services.aaa_state_models import ensure_aaa_defaults
 
 from .document_parsing import extract_text_from_upload
 
@@ -227,8 +227,8 @@ class DocumentService:
 
         state = json.loads(state_record.state)
 
-        llm_service = get_llm_service()
-        proposal = await llm_service.generate_architecture_proposal(state, on_progress)
+        service = llm_service.get_llm_service()
+        proposal = await service.generate_architecture_proposal(state, on_progress)
         return cast(str, proposal)
 
 
