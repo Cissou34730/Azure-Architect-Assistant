@@ -21,8 +21,9 @@ export function useUnifiedProjectPage() {
 
   // Action handlers
   const handleUploadClick = useCallback(() => {
-    console.log("Upload clicked");
-  }, []);
+    sidePanelState.openLeftPanel();
+    window.dispatchEvent(new CustomEvent("open-documents-tab"));
+  }, [sidePanelState]);
 
   const handleGenerateDiagramClick = useCallback(() => {
     console.log("Generate diagram clicked");

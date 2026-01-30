@@ -1,8 +1,6 @@
 import { lazy } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "./Layout";
-// Commented out old tab system - keeping for reference
-// import { getTabs } from "../features/projects/tabs";
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const ProjectsPage = lazy(
@@ -75,14 +73,13 @@ export const router = createBrowserRouter([
             element: <ProjectDeliverablesPage />,
           },
           {
+            path: "workspace",
+            element: <Navigate to=".." replace />,
+          },
+          {
             path: "documents",
             element: <Navigate to=".." replace />,
           },
-          // Old tab system commented out
-          // ...getTabs().map((tab) => ({
-          //   path: tab.path,
-          //   element: <tab.component />,
-          // })),
         ],
       },
       {

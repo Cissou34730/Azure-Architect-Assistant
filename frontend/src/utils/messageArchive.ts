@@ -38,7 +38,7 @@ export function archiveOldMessages(
   return toKeep;
 }
 
-export function getArchivedMessages(projectId: string): readonly Message[] {
+function getArchivedMessages(projectId: string): readonly Message[] {
   try {
     const stored = sessionStorage.getItem(`${ARCHIVE_KEY_PREFIX}${projectId}`);
     if (stored === null) return [];
@@ -78,7 +78,7 @@ export function getArchivedMessages(projectId: string): readonly Message[] {
   }
 }
 
-export function clearArchivedMessages(projectId: string): void {
+function clearArchivedMessages(projectId: string): void {
   sessionStorage.removeItem(`${ARCHIVE_KEY_PREFIX}${projectId}`);
 }
 

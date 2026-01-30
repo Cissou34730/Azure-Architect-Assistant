@@ -79,7 +79,7 @@ export interface KnowledgeBase {
   readonly lastIndexedAt?: string;
 }
 
-export interface WebDocumentationConfig {
+interface WebDocumentationConfig {
   readonly startUrls: readonly string[];
   readonly allowedDomains?: readonly string[];
   readonly pathPrefix?: string;
@@ -87,7 +87,7 @@ export interface WebDocumentationConfig {
   readonly maxPages?: number;
 }
 
-export interface WebGenericConfig {
+interface WebGenericConfig {
   readonly urls: readonly string[];
   readonly followLinks?: boolean;
   readonly maxDepth?: number;
@@ -158,26 +158,3 @@ export interface StartIngestionResponse {
   readonly kbId: string;
 }
 
-export interface JobListResponse {
-  readonly jobs: readonly IngestionJob[];
-}
-
-export type KBReadyState = "ready" | "pending" | "paused" | "not_ready";
-
-export interface KBStatusSimple {
-  readonly kbId: string;
-  readonly status: KBReadyState;
-  readonly metrics?: {
-    readonly pending?: number;
-    readonly processing?: number;
-    readonly done?: number;
-    readonly error?: number;
-  };
-}
-
-export interface KBIngestionDetails {
-  readonly kbId: string;
-  readonly currentPhase: IngestionPhase;
-  readonly overallProgress: number;
-  readonly phaseDetails: readonly PhaseDetail[];
-}

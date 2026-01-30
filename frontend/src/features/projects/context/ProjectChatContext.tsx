@@ -2,7 +2,7 @@ import { createContext } from "react";
 import type { Message, SendMessageResponse, ProjectState } from "../../../types/api";
 import type { FailedMessage } from "../hooks/useChatMessaging";
 
-export interface ProjectChatContextType {
+interface ProjectChatContextType {
   readonly messages: readonly Message[];
   readonly sendMessage: (
     content: string,

@@ -2,8 +2,6 @@ import { useMemo } from "react";
 import { useProjectState } from "./useProjectState";
 import { useChat } from "./useChat";
 import { useProposal } from "./useProposal";
-import { getTabs } from "../tabs";
-import { useProjectTabNavigation } from "./useProjectTabNavigation";
 import { useProjectData } from "./useProjectData";
 import { useChatHandlers } from "./useChatHandlers";
 import { useProjectOperations } from "./useProjectOperations";
@@ -12,9 +10,6 @@ import { useProjectLoading } from "./useProjectLoading";
 
 // eslint-disable-next-line max-lines-per-function -- Aggregates multiple hooks into a single cohesive API.
 export function useProjectDetails(projectId: string | undefined) {
-  const tabs = getTabs();
-  const { activeTab, setActiveTab } = useProjectTabNavigation(projectId, tabs);
-
   const projectData = useProjectData(projectId);
   const { selectedProject, setSelectedProject, textRequirements } = projectData;
 
@@ -31,7 +26,6 @@ export function useProjectDetails(projectId: string | undefined) {
     analyzeDocuments: stateHook.analyzeDocuments,
     refreshState: stateHook.refreshState,
     generateProposal,
-    setActiveTab,
   });
 
   const { handleSendChatMessage } = useChatHandlers({
@@ -49,8 +43,6 @@ export function useProjectDetails(projectId: string | undefined) {
   return useMemo(
     () => ({
       ...projectData,
-      activeTab,
-      setActiveTab,
       loading,
       loadingMessage: chatHook.loadingMessage,
       projectState: stateHook.projectState,
@@ -71,8 +63,6 @@ export function useProjectDetails(projectId: string | undefined) {
     }),
     [
       projectData,
-      activeTab,
-      setActiveTab,
       loading,
       chatHook.loadingMessage,
       stateHook.projectState,

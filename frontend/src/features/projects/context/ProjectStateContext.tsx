@@ -1,7 +1,7 @@
 import { createContext } from "react";
 import type { ProjectState } from "../../../types/api";
 
-export interface ProjectStateContextType {
+interface ProjectStateContextType {
   readonly projectState: ProjectState | null;
   readonly loading: boolean;
   readonly refreshState: () => Promise<void>;

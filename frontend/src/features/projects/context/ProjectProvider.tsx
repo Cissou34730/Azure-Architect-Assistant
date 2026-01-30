@@ -39,14 +39,10 @@ export function ProjectProvider({
     selectedProject: value.selectedProject,
     setSelectedProject: value.setSelectedProject,
     loadingProject: value.loadingProject,
-    activeTab: value.activeTab,
-    setActiveTab: value.setActiveTab,
   }), [
     value.selectedProject,
     value.setSelectedProject,
     value.loadingProject,
-    value.activeTab,
-    value.setActiveTab,
   ]);
 
   const chatValue = useMemo(() => ({

@@ -31,7 +31,7 @@ export interface FindingArtifact {
   readonly createdAt?: string;
 }
 
-export interface WafEvaluation {
+interface WafEvaluation {
   readonly id: string;
   readonly status: "covered" | "partial" | "notCovered";
   readonly evidence: string;

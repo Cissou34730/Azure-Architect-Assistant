@@ -16,7 +16,6 @@ interface UseProjectOperationsProps {
     projectId: string,
     onComplete?: () => void,
   ) => void;
-  readonly setActiveTab: (tabId: string) => void;
 }
 
 export function useProjectOperations({
@@ -28,7 +27,6 @@ export function useProjectOperations({
   analyzeDocuments,
   refreshState,
   generateProposal,
-  setActiveTab,
 }: UseProjectOperationsProps) {
   const { success, error: showError, warning } = useToast();
   const { handleUploadDocuments } = useDocumentUpload({
@@ -43,7 +41,6 @@ export function useProjectOperations({
     selectedProject,
     files,
     analyzeDocuments,
-    setActiveTab,
     success,
     showError,
     warning,

@@ -27,10 +27,20 @@ export function useSidePanelState() {
     setRightPanelOpen((prev) => !prev);
   }, []);
 
+  const openLeftPanel = useCallback(() => {
+    setLeftPanelOpen(true);
+  }, []);
+
+  const openRightPanel = useCallback(() => {
+    setRightPanelOpen(true);
+  }, []);
+
   return {
     leftPanelOpen,
     rightPanelOpen,
     toggleLeftPanel,
     toggleRightPanel,
+    openLeftPanel,
+    openRightPanel,
   };
 }

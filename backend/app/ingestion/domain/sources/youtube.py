@@ -264,5 +264,8 @@ class YouTubeSourceHandler(BaseSourceHandler):
             List of Documents from all videos
         """
         # TODO: Implement playlist parsing
-        logger.warning('Playlist ingestion not yet implemented')
+        logger.warning(
+            "Playlist ingestion not yet implemented for %s",
+            playlist_url,
+        )
         return []

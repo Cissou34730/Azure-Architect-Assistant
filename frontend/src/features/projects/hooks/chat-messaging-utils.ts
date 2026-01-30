@@ -1,6 +1,6 @@
 import type { Message } from "../../../types/api";
 
-export function serializeKbSources(message: Message): string {
+function serializeKbSources(message: Message): string {
   if (message.kbSources === undefined || message.kbSources.length === 0) {
     return "";
   }
@@ -10,7 +10,7 @@ export function serializeKbSources(message: Message): string {
     .join(";;");
 }
 
-export function canReuseMessage(
+function canReuseMessage(
   prevMessage: Message,
   nextMessage: Message,
 ): boolean {

@@ -30,6 +30,3 @@ export function initMermaid() {
   // Logic moved to getMermaid
 }
 
-export function isMermaidInitialized() {
-  return mermaidInstance !== null;
-}

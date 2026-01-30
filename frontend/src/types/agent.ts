@@ -11,14 +11,6 @@ export interface ReasoningStep {
   readonly observation: string;
 }
 
-export interface AgentResponse {
-  readonly answer: string;
-  readonly success: boolean;
-  readonly reasoningSteps: readonly ReasoningStep[];
-  readonly projectState?: ProjectState;
-  readonly error?: string;
-}
-
 export interface Project {
   readonly id: string;
   readonly name: string;

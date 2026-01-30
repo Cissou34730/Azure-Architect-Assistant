@@ -20,7 +20,7 @@ const statusColor: Record<string, string> = {
   failed: "bg-red-500",
 };
 
-export function PhaseStatus({ phases }: Props) {
+function PhaseStatus({ phases }: Props) {
   const map = new Map<string, PhaseDetail>();
   phases?.forEach((p) => map.set(p.name, p));
 

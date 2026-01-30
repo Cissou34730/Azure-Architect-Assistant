@@ -11,17 +11,11 @@ import {
   CreateKBResponse,
   StartIngestionResponse,
   IngestionJob,
-  JobListResponse,
   KnowledgeBase,
-  KBStatusSimple,
-  KBIngestionDetails,
 } from "../types/ingestion";
-import { ServiceError, fetchWithErrorHandling } from "./serviceError";
+import { fetchWithErrorHandling } from "./serviceError";
 import { API_BASE } from "./config";
 import { keysToSnake } from "../utils/apiMapping";
-
-// Re-export ServiceError as IngestionAPIError for backward compatibility
-export { ServiceError as IngestionAPIError };
 
 /**
  * Create a new knowledge base
@@ -62,29 +56,6 @@ export async function startIngestion(
       body: JSON.stringify({ kb_id: kbId }),
     },
     "start ingestion",
-  );
-}
-
-/**
- * Get job status for a KB
- */
-// Phase 3: KB-level status (ready | pending | not_ready)
-export async function getKBReadyStatus(kbId: string): Promise<KBStatusSimple> {
-  return fetchWithErrorHandling<KBStatusSimple>(
-    `${API_BASE}/kb/${kbId}/status`,
-    { method: "GET" },
-    "get KB status",
-  );
-}
-
-// Phase 3: Ingestion details for pending state
-export async function getKBIngestionDetails(
-  kbId: string,
-): Promise<KBIngestionDetails> {
-  return fetchWithErrorHandling<KBIngestionDetails>(
-    `${API_BASE}/ingestion/kb/${kbId}/details`,
-    { method: "GET" },
-    "get ingestion details",
   );
 }
 
@@ -143,33 +114,6 @@ export async function deleteKB(kbId: string): Promise<void> {
     `${API_BASE}/kb/${kbId}`,
     { method: "DELETE" },
     "delete KB",
-  );
-}
-
-/**
- * List all jobs, optionally filtered by KB
- */
-export async function listJobs(
-  kbId?: string,
-  limit?: number,
-): Promise<JobListResponse> {
-  const params = new URLSearchParams();
-  if (typeof kbId === "string" && kbId !== "") {
-    params.append("kb_id", kbId);
-  }
-  if (typeof limit === "number" && !isNaN(limit)) {
-    params.append("limit", limit.toString());
-  }
-
-  const queryString = params.toString();
-  const url = `${API_BASE}/ingestion/jobs${
-    queryString !== "" ? `?${queryString}` : ""
-  }`;
-
-  return fetchWithErrorHandling<JobListResponse>(
-    url,
-    { method: "GET" },
-    "list jobs",
   );
 }
 

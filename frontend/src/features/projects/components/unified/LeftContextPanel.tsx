@@ -38,6 +38,16 @@ function LeftContextPanelBase({ isOpen, onToggle }: LeftContextPanelProps) {
     localStorage.setItem(STORAGE_KEY, String(isOpen));
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleOpenDocuments = () => {
+      setActiveTab("documents");
+    };
+    window.addEventListener("open-documents-tab", handleOpenDocuments);
+    return () => {
+      window.removeEventListener("open-documents-tab", handleOpenDocuments);
+    };
+  }, []);
+
   const tabs: readonly TabItem[] = useMemo(
     () => [
       { 
