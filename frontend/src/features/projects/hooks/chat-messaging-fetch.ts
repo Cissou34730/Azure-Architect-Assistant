@@ -1,5 +1,5 @@
 import { useCallback, useRef, useEffect } from "react";
-import type { Dispatch, SetStateAction, MutableRefObject } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { chatApi } from "../../../services/chatService";
 import { Message } from "../../../types/api";
 import {
@@ -45,7 +45,7 @@ export function useFetchMessages({
   setMessages,
 }: {
   projectId: string | null;
-  messagesRef: MutableRefObject<readonly Message[]>;
+  messagesRef: { current: readonly Message[] };
   setMessages: Dispatch<SetStateAction<readonly Message[]>>;
 }) {
   return useCallback(async () => {

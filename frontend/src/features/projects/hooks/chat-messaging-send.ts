@@ -1,14 +1,16 @@
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import type { ProjectState } from "../../../types/api";
+import type { ProjectState, SendMessageResponse } from "../../../types/api";
 import type { FailedMessage } from "./chat-messaging-types";
 import {
   handleSendMessage,
   type HandleSendMessageArgs,
 } from "./chat-messaging-send-utils";
 
-interface UseSendMessageArgs
-  extends Omit<HandleSendMessageArgs, "message" | "onStateUpdate"> {}
+type UseSendMessageArgs = Omit<
+  HandleSendMessageArgs,
+  "message" | "onStateUpdate"
+>;
 
 export function useSendMessage({
   projectId,
@@ -48,7 +50,7 @@ interface UseRetrySendMessageArgs {
   readonly sendMessage: (
     message: string,
     onStateUpdate?: (state: ProjectState) => void,
-  ) => Promise<unknown>;
+  ) => Promise<SendMessageResponse>;
 }
 
 export function useRetrySendMessage({

@@ -201,6 +201,14 @@ interface PricingGapsProps {
   readonly gaps: readonly Record<string, unknown>[];
 }
 
+function getPricingGapKey(gap: Record<string, unknown>): string {
+  const name = typeof gap.name === "string" ? gap.name : "";
+  const reason = typeof gap.reason === "string" ? gap.reason : "";
+  if (name !== "") return `gap-${name}`;
+  if (reason !== "") return `gap-${reason}`;
+  return `gap-${JSON.stringify(gap)}`;
+}
+
 export function PricingGaps({ gaps }: PricingGapsProps) {
   if (gaps.length === 0) return null;
 
@@ -213,9 +221,8 @@ export function PricingGaps({ gaps }: PricingGapsProps) {
             Pricing Gaps ({gaps.length})
           </h4>
           <div className="space-y-1">
-            {/* eslint-disable-next-line react/no-array-index-key -- Gap objects have no stable ID */}
-            {gaps.map((gap, idx) => (
-              <div key={idx} className="text-sm text-amber-800">
+            {gaps.map((gap) => (
+              <div key={getPricingGapKey(gap)} className="text-sm text-amber-800">
                 <span className="font-medium">
                   {typeof gap.name === "string" ? gap.name : "Unknown"}:
                 </span>{" "}

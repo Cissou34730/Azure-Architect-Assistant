@@ -63,7 +63,6 @@ export function useMermaidRenderer({
       const errorMessage =
         err instanceof Error ? err.message : "Mermaid rendering failed";
       setRenderError(errorMessage);
-      // eslint-disable-next-line no-console
       console.error("Mermaid Render Error:", err);
     }
   }, [sourceCode, domId, cacheKey, hasBeenVisible]);

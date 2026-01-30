@@ -85,8 +85,7 @@ export function AdrTable({ adrs, onSelect }: AdrTableProps) {
             </>
           )}
           components={{
-            // eslint-disable-next-line @typescript-eslint/naming-convention -- react-virtuoso requires TableRow key
-            // eslint-disable-next-line react/prop-types -- react-virtuoso injects data-index
+            // eslint-disable-next-line @typescript-eslint/naming-convention, react/prop-types -- react-virtuoso requires TableRow key and injects data-index
             TableRow: (props) => {
               const item = adrs[props["data-index"]];
               return (

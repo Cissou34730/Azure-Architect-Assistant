@@ -81,9 +81,7 @@ export function RequirementsTab({ requirements }: RequirementsTabProps) {
       <GroupedVirtuoso
         groupCounts={groupCounts}
         groupContent={(index) => {
-          const group = groupTitles[index];
-          if (group === undefined) return null;
-          const { title } = group;
+          const { title } = groupTitles[index];
           return (
             <div className="bg-white px-4 py-2">
               <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-wide">
@@ -94,7 +92,6 @@ export function RequirementsTab({ requirements }: RequirementsTabProps) {
         }}
         itemContent={(index) => {
           const req = groupedItems[index];
-          if (req === undefined) return null;
           // Determine color based on group index logic or item property
           // A bit tricky with flat map, let's find which group this index belongs to
           let currentGroupIdx = 0;
@@ -106,10 +103,11 @@ export function RequirementsTab({ requirements }: RequirementsTabProps) {
               break;
             }
           }
-          const group = groupTitles[currentGroupIdx];
-          const color = group?.color ?? "gray";
+          const { color } = groupTitles[currentGroupIdx];
           const text =
-            req.text !== undefined && req.text !== "" ? req.text : "Untitled requirement";
+            req.text !== undefined && req.text !== ""
+              ? req.text
+              : "Untitled requirement";
 
           return (
             <div className="px-4 py-1">

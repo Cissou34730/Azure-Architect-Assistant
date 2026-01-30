@@ -180,8 +180,10 @@ export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
   // Task 4.6: Memoize sorted diagrams
   const sortedDiagrams = useMemo(() => {
     return [...filteredDiagrams].sort((a, b) => {
-      const dateA = a.createdAt || "";
-      const dateB = b.createdAt || "";
+      const dateA =
+        a.createdAt !== undefined && a.createdAt !== "" ? a.createdAt : "";
+      const dateB =
+        b.createdAt !== undefined && b.createdAt !== "" ? b.createdAt : "";
       return dateB.localeCompare(dateA);
     });
   }, [filteredDiagrams]);
