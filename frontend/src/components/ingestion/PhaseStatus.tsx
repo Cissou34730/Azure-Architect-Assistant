@@ -1,8 +1,8 @@
 import type { PhaseDetail, IngestionPhase } from "../../types/ingestion";
 
-type Props = {
+interface Props {
   phases?: readonly PhaseDetail[];
-};
+}
 
 const phaseOrder: IngestionPhase[] = [
   "loading",
@@ -12,7 +12,7 @@ const phaseOrder: IngestionPhase[] = [
 ];
 
 const statusColor: Record<string, string> = {
-  not_started: "bg-gray-300",
+  ["not_started"]: "bg-gray-300",
   pending: "bg-gray-300",
   running: "bg-blue-500",
   paused: "bg-yellow-500",
@@ -20,7 +20,7 @@ const statusColor: Record<string, string> = {
   failed: "bg-red-500",
 };
 
-export function PhaseStatus({ phases }: Props) {
+function PhaseStatus({ phases }: Props) {
   const map = new Map<string, PhaseDetail>();
   phases?.forEach((p) => map.set(p.name, p));
 
@@ -38,6 +38,7 @@ export function PhaseStatus({ phases }: Props) {
               <span className="capitalize">{status}</span>
             </div>
             <div className="h-2 bg-gray-200 rounded">
+              { }
               <div
                 className={`h-2 ${bar} rounded`}
                 style={{ width: `${progress}%` }}

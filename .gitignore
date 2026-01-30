@@ -38,6 +38,12 @@ dist-ssr/
 *.local
 frontend/node_modules/
 frontend/dist/
+playwright-report/
+test-results/
+blob-report/
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
 
 # PyInstaller
 *.manifest

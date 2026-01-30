@@ -150,18 +150,55 @@ class ChatService:
         return cast(dict[str, Any], state)
 
     async def get_conversation_messages(
-        self, project_id: str, db: AsyncSession
+        self,
+        project_id: str,
+        db: AsyncSession,
+        before_id: str | None = None,
+        since_id: str | None = None,
+        limit: int = 50,
     ) -> list[dict[str, Any]]:
         result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
         if not project:
             raise ValueError("Project not found")
 
-        result = await db.execute(
-            select(ConversationMessage)
-            .where(ConversationMessage.project_id == project_id)
-            .order_by(ConversationMessage.timestamp.asc())
+        query = select(ConversationMessage).where(
+            ConversationMessage.project_id == project_id
         )
+
+        if before_id:
+            # Find the timestamp of the message before which we want older messages
+            ref_msg = await db.execute(
+                select(ConversationMessage).where(ConversationMessage.id == before_id)
+            )
+            ref_msg_obj = ref_msg.scalar_one_or_none()
+            if ref_msg_obj:
+                query = query.where(ConversationMessage.timestamp < ref_msg_obj.timestamp)
+
+        if since_id:
+            # Find the timestamp of the message since which we want newer messages
+            ref_msg = await db.execute(
+                select(ConversationMessage).where(ConversationMessage.id == since_id)
+            )
+            ref_msg_obj = ref_msg.scalar_one_or_none()
+            if ref_msg_obj:
+                query = query.where(ConversationMessage.timestamp > ref_msg_obj.timestamp)
+
+        if before_id:
+            # Older messages: newest first (for limit/offset), then reverse for client
+            query = query.order_by(ConversationMessage.timestamp.desc()).limit(limit)
+        else:
+            # Newer messages or full history: oldest first
+            query = query.order_by(ConversationMessage.timestamp.asc())
+            if since_id:
+                query = query.limit(limit)
+
+        result = await db.execute(query)
         messages = result.scalars().all()
+
+        if before_id:
+            # Reverse back to chronologic order for the client if we fetched oldest-first via desc limit
+            messages = list(reversed(messages))
+
         return [msg.to_dict() for msg in messages]
 

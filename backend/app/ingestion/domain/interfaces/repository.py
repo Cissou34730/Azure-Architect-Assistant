@@ -36,7 +36,7 @@ class RepositoryProtocol(Protocol):
         """Dequeue and lock a batch of chunks for processing."""
         ...
 
-    def commit_batch_success(self, job_id: str, item_ids: list[int]) -> None:
+    def commit_batch_success(self, job_id: str, _item_ids: list[int]) -> None:
         """Mark batch as successfully processed."""
         ...
 

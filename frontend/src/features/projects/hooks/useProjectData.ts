@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { projectApi } from "../../../services/projectService";
 import { Project } from "../../../types/api";
+import { useToast } from "../../../hooks/useToast";
 
-export function useProjectData(
-  projectId: string | undefined,
-  showError: (msg: string) => void
-) {
+export function useProjectData(projectId: string | undefined) {
+  const { error: showError } = useToast();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [loadingProject, setLoadingProject] = useState(false);
   const [textRequirements, setTextRequirements] = useState("");
@@ -34,13 +33,24 @@ export function useProjectData(
     void fetchProject();
   }, [projectId, showError]);
 
-  return {
-    selectedProject,
-    setSelectedProject,
-    loadingProject,
-    textRequirements,
-    setTextRequirements,
-    files,
-    setFiles,
-  };
+  return useMemo(
+    () => ({
+      selectedProject,
+      setSelectedProject,
+      loadingProject,
+      textRequirements,
+      setTextRequirements,
+      files,
+      setFiles,
+    }),
+    [
+      selectedProject,
+      setSelectedProject,
+      loadingProject,
+      textRequirements,
+      setTextRequirements,
+      files,
+      setFiles,
+    ],
+  );
 }

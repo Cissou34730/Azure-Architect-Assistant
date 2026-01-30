@@ -14,7 +14,7 @@ import asyncio
 import contextlib
 import json
 import logging
-import random
+import secrets
 import time
 from typing import Any
 
@@ -181,36 +181,22 @@ class MicrosoftLearnMCPClient:
 
     async def _run_connection_owner(self) -> None:
         """Owns MCP connection/session context managers for the app lifetime."""
-        session = None
-        connection_context = None
-        streams = None
-        
+        session: ClientSession | None = None
+        connection_context: Any = None
+        streams: Any = None
+
         try:
-            # Establish connection with timeout
-            connection_context = streamablehttp_client(self.endpoint)
-            streams = await asyncio.wait_for(
-                connection_context.__aenter__(), timeout=self.timeout
-            )
+            connection_context, streams = await self._open_connection()
+            session = await self._open_session(streams)
+            self._set_connection_state(session, connection_context, streams)
 
-            read_stream, write_stream, _ = streams
-
-            # Create and initialize session
-            session = ClientSession(read_stream, write_stream)
-            await asyncio.wait_for(session.__aenter__(), timeout=self.timeout)
-            await asyncio.wait_for(session.initialize(), timeout=self.timeout)
-
-            # Store references for use by other methods
-            self._session = session
-            self._connection_context = connection_context
-            self._streams = streams
-
-            # Discover and cache tools
             await self._refresh_tools()
 
             self._initialized = True
             logger.info(
-                f"Successfully initialized Microsoft Learn MCP client. "
-                f"Discovered {len(self._tools_cache)} tools."
+                "Successfully initialized Microsoft Learn MCP client. "
+                "Discovered %s tools.",
+                len(self._tools_cache),
             )
 
         except BaseException as exc:  # noqa: BLE001
@@ -220,44 +206,83 @@ class MicrosoftLearnMCPClient:
             if self._ready_event:
                 self._ready_event.set()
 
-        # Wait until shutdown requests stop.
+        await self._wait_for_stop()
+        await self._close_session(session)
+        await self._close_connection_context(connection_context, streams)
+        self._clear_connection_state()
+
+    async def _open_connection(self) -> tuple[Any, Any]:
+        """Open MCP connection context and return context + streams."""
+        connection_context = streamablehttp_client(self.endpoint)
+        streams = await asyncio.wait_for(
+            connection_context.__aenter__(), timeout=self.timeout
+        )
+        return connection_context, streams
+
+    async def _open_session(self, streams: Any) -> ClientSession:
+        """Open MCP session and return initialized session."""
+        read_stream, write_stream, _ = streams
+        session = ClientSession(read_stream, write_stream)
+        await asyncio.wait_for(session.__aenter__(), timeout=self.timeout)
+        await asyncio.wait_for(session.initialize(), timeout=self.timeout)
+        return session
+
+    def _set_connection_state(
+        self, session: ClientSession, connection_context: Any, streams: Any
+    ) -> None:
+        """Store connection/session references for use by other methods."""
+        self._session = session
+        self._connection_context = connection_context
+        self._streams = streams
+
+    async def _wait_for_stop(self) -> None:
+        """Block until stop event is set."""
         if self._stop_event:
             with contextlib.suppress(Exception):
                 await self._stop_event.wait()
 
-        # Cleanup in the same task that entered context managers.
-        # This ensures __aexit__ is called in the same task as __aenter__
+    async def _close_session(self, session: ClientSession | None) -> None:
+        """Close MCP session in owner task."""
         try:
             if session:
                 logger.debug("Exiting MCP session in owner task")
                 await asyncio.wait_for(
                     session.__aexit__(None, None, None), timeout=5.0
                 )
-        except RuntimeError as e:
+        except RuntimeError as exc:
             # anyio cancel scope errors are expected during shutdown and harmless
-            if "cancel scope" in str(e):
-                logger.debug(f"Ignoring anyio cancel scope error during session exit: {e}")
+            if "cancel scope" in str(exc):
+                logger.debug(
+                    "Ignoring anyio cancel scope error during session exit: %s",
+                    exc,
+                )
             else:
-                logger.warning(f"Error exiting session: {e}")
-        except Exception as e:
-            logger.warning(f"Error exiting session: {e}")
-        
+                logger.warning(f"Error exiting session: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"Error exiting session: {exc}")
+
+    async def _close_connection_context(self, connection_context: Any, streams: Any) -> None:
+        """Close MCP connection context in owner task."""
         try:
             if connection_context and streams:
                 logger.debug("Exiting MCP connection context in owner task")
                 await asyncio.wait_for(
                     connection_context.__aexit__(None, None, None), timeout=5.0
                 )
-        except RuntimeError as e:
+        except RuntimeError as exc:
             # anyio cancel scope errors are expected during shutdown and harmless
-            if "cancel scope" in str(e):
-                logger.debug(f"Ignoring anyio cancel scope error during connection exit: {e}")
+            if "cancel scope" in str(exc):
+                logger.debug(
+                    "Ignoring anyio cancel scope error during connection exit: %s",
+                    exc,
+                )
             else:
-                logger.warning(f"Error exiting connection context: {e}")
-        except Exception as e:
-            logger.warning(f"Error exiting connection context: {e}")
-        
-        # Clear references
+                logger.warning(f"Error exiting connection context: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"Error exiting connection context: {exc}")
+
+    def _clear_connection_state(self) -> None:
+        """Clear connection/session references."""
         self._session = None
         self._connection_context = None
         self._streams = None
@@ -340,7 +365,7 @@ class MicrosoftLearnMCPClient:
 
     async def _cleanup_session(self) -> None:
         """Internal helper to close the MCP session (innermost).
-        
+
         Note: This should NOT call __aexit__ from a different task.
         The session cleanup happens in _run_connection_owner() when it exits.
         This method just clears references.
@@ -354,7 +379,7 @@ class MicrosoftLearnMCPClient:
 
     async def _cleanup_connection_context(self) -> None:
         """Internal helper to close the MCP connection context (outermost).
-        
+
         Note: This should NOT call __aexit__ from a different task.
         The connection cleanup happens in _run_connection_owner() when it exits.
         This method just clears references.
@@ -485,7 +510,7 @@ class MicrosoftLearnMCPClient:
             if attempt_number < max_attempts:
                 # Exponential backoff + jitter
                 base = min(0.5 * (2 ** (attempt_number - 1)), 8.0)
-                jitter = random.uniform(0.0, 0.25)
+                jitter = secrets.randbelow(250) / 1000.0
                 await asyncio.sleep(min(base + jitter, 8.0))
 
         total_ms = (time.perf_counter() - start_total) * 1000.0
@@ -610,7 +635,7 @@ class MicrosoftLearnMCPClient:
         await self.initialize()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, _exc_type, _exc_val, _exc_tb):
         """Async context manager exit."""
         await self.close()
 

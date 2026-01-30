@@ -6,6 +6,7 @@ using the Azure Retail Prices API and providing optimization recommendations.
 """
 
 import logging
+import re
 from typing import Any
 
 from app.agents_system.agents.mcp_react_agent import MCPReActAgent
@@ -205,8 +206,6 @@ def _extract_cost_summary(cost_estimate: str) -> dict[str, Any]:
     Returns:
         Dictionary with monthly_cost, annual_cost, tco_3_year
     """
-    import re
-
     summary: dict[str, Any] = {
         "monthly_cost": None,
         "annual_cost": None,
@@ -222,15 +221,7 @@ def _extract_cost_summary(cost_estimate: str) -> dict[str, Any]:
         r"Total Monthly[:\s]*\$?([\d,]+\.?\d*)",
     ]
 
-    for pattern in monthly_patterns:
-        match = re.search(pattern, cost_estimate, re.IGNORECASE)
-        if match:
-            monthly_str = match.group(1).replace(",", "")
-            try:
-                summary["monthly_cost"] = float(monthly_str)
-                break
-            except ValueError:
-                pass
+    summary["monthly_cost"] = _extract_cost_value(cost_estimate, monthly_patterns)
 
     # Extract annual cost
     annual_patterns = [
@@ -239,15 +230,7 @@ def _extract_cost_summary(cost_estimate: str) -> dict[str, Any]:
         r"Total Annual[:\s]*\$?([\d,]+\.?\d*)",
     ]
 
-    for pattern in annual_patterns:
-        match = re.search(pattern, cost_estimate, re.IGNORECASE)
-        if match:
-            annual_str = match.group(1).replace(",", "")
-            try:
-                summary["annual_cost"] = float(annual_str)
-                break
-            except ValueError:
-                pass
+    summary["annual_cost"] = _extract_cost_value(cost_estimate, annual_patterns)
 
     # Extract 3-year TCO
     tco_patterns = [
@@ -256,15 +239,7 @@ def _extract_cost_summary(cost_estimate: str) -> dict[str, Any]:
         r"Total 3-Year[:\s]*\$?([\d,]+\.?\d*)",
     ]
 
-    for pattern in tco_patterns:
-        match = re.search(pattern, cost_estimate, re.IGNORECASE)
-        if match:
-            tco_str = match.group(1).replace(",", "")
-            try:
-                summary["tco_3_year"] = float(tco_str)
-                break
-            except ValueError:
-                pass
+    summary["tco_3_year"] = _extract_cost_value(cost_estimate, tco_patterns)
 
     # If annual not found but monthly exists, calculate
     if summary["annual_cost"] is None and summary["monthly_cost"]:
@@ -275,3 +250,23 @@ def _extract_cost_summary(cost_estimate: str) -> dict[str, Any]:
         summary["tco_3_year"] = summary["annual_cost"] * 3
 
     return summary
+
+
+def _extract_cost_value(cost_estimate: str, patterns: list[str]) -> float | None:
+    """Extract a numeric cost value matching the provided patterns."""
+    for pattern in patterns:
+        match = re.search(pattern, cost_estimate, re.IGNORECASE)
+        if not match:
+            continue
+        value = _parse_cost_value(match.group(1))
+        if value is not None:
+            return value
+    return None
+
+
+def _parse_cost_value(value: str) -> float | None:
+    """Parse a numeric cost value from a string, returning None on failure."""
+    try:
+        return float(value.replace(",", ""))
+    except ValueError:
+        return None

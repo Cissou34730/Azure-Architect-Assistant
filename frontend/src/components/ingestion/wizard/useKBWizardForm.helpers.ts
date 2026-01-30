@@ -43,8 +43,8 @@ export function useWebsiteInputs() {
 
     // Only auto-set prefix if user hasn't manually modified it
     if (!userModifiedPrefixRef.current && newUrls.length > 0) {
-      const firstUrl = newUrls[0]?.trim();
-      if (firstUrl && firstUrl.startsWith("http")) {
+      const firstUrl = newUrls[0].trim();
+      if (firstUrl !== "" && firstUrl.startsWith("http")) {
         // Auto-derive prefix from first URL (same as start_url)
         setUrlPrefix(firstUrl);
       }

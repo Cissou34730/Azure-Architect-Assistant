@@ -2,7 +2,7 @@ import { Message, ReasoningStep } from "../../../types/agent";
 import { isRecord } from "../../../utils/typeGuards";
 
 // eslint-disable-next-line @typescript-eslint/no-restricted-types
-export function isReasoningStep(step: unknown): step is ReasoningStep {
+function isReasoningStep(step: unknown): step is ReasoningStep {
   return (
     isRecord(step) &&
     typeof step.action === "string" &&

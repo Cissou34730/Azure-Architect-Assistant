@@ -13,6 +13,11 @@
     "build": "npm run build --workspace=frontend",
     "lint": "npm run lint --workspace=frontend",
     "lint:fix": "npm run lint:fix --workspace=frontend",
+    "test:e2e": "npm run test:e2e --workspace=frontend",
+    "test:e2e:ui": "npm run test:e2e:ui --workspace=frontend",
+    "test:e2e:headed": "npm run test:e2e:headed --workspace=frontend",
+    "test:e2e:debug": "npm run test:e2e:debug --workspace=frontend",
+    "test:e2e:install": "npm run test:e2e:install --workspace=frontend",
     "installAll": "npm install --workspace=frontend && uv sync",
     "kill": "powershell -File kill-backend.ps1"
   },

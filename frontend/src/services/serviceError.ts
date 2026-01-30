@@ -3,7 +3,7 @@
  * Standardized error handling for API services
  */
 
-export class ServiceError extends Error {
+class ServiceError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
@@ -71,7 +71,7 @@ function getErrorDetailFromData(
 /**
  * Handle fetch response errors consistently
  */
-export async function handleResponseError(
+async function handleResponseError(
   response: Response,
   operation: string,
 ): Promise<never> {

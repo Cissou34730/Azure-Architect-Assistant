@@ -369,10 +369,18 @@ async def get_project_state(project_id: str, db: AsyncSession = Depends(get_db))
 
 
 @router.get("/projects/{project_id}/messages", response_model=MessagesResponse)
-async def get_messages(project_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
-    """Get conversation history"""
+async def get_messages(
+    project_id: str,
+    before_id: str | None = None,
+    since_id: str | None = None,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get conversation history with pagination support"""
     try:
-        messages = await chat_service.get_conversation_messages(project_id, db)
+        messages = await chat_service.get_conversation_messages(
+            project_id, db, before_id=before_id, since_id=since_id, limit=limit
+        )
         return {"messages": messages}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

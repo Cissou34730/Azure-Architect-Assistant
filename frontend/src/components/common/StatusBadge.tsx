@@ -5,7 +5,7 @@
 
 import { ReactNode } from "react";
 
-export type StatusVariant =
+type StatusVariant =
   | "running"
   | "paused"
   | "completed"

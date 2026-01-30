@@ -5,12 +5,23 @@
 Purpose
 - Assist contributors and Copilot in a consistent way for the "Azure Architect Assistant" project: a monorepo with a TypeScript React frontend and a Python backend that together provide: (1) project description authoring, (2) interactive documentation chat, (3) RAG/KB management, and (4) architecture + IaC generation.
 
+<<<<<<< HEAD
 High-level rules (always)
 - Make the smallest change that solves the problem; prefer incremental, reviewable diffs and small commits.
 - Follow Single Responsibility Principle (SRP) and DRY; prefer simple, readable code over cleverness.
 - Use descriptive names (e.g., days_until_expiration); if a comment is needed to explain complex logic, consider refactoring.
 - Validate and sanitize all external input (APIs, user input, files); never assume correctness.
 - Do not add new frameworks or major dependencies without explicit approval.
+=======
+	[x] Code Style and Conventions:
+	- Liting: ESLint with recommended settings for TypeScript and React, eslint must be run from the root directory and use /eslint.config.js
+	- Formatting: Prettier with default settings
+	- Python: Follow ruff recommended style guide and configurations in pyproject.toml
+	- TypeScript: Use strict mode.type implecitly or explicitly. NEVER EVER allows any type. All const, variable, function return types must be typed.
+	- Not hardcoding values. Use configuration files where appropriate.
+	- Naming convention is different between front and backend use apiMappings.ts to map names if needed	
+	- mypy.ini at the root of the project for type checking configuration
+>>>>>>> archchatbot
 
 Documentation policy (NEW / IMPORTANT)
 - All project documentation must reside under the single top-level docs directory: /docs at the repository root.
@@ -25,6 +36,7 @@ Repository layout & docs (summary)
 - Centralized docs folder: `/docs/` with subfolders as needed (see policy above).
 - New public-facing behavior must include or update docs and tests.
 
+<<<<<<< HEAD
 Tech stack & tooling
 - Frontend: React 19+, TypeScript 5+, Vite, TailwindCSS 4.1. Use strict TypeScript and `any` is strictly prohibited implicit or explicit.
 - Backend: Python 3.10+. Use `uv` for environment and dependency management (uv add / uv sync / uv lock).
@@ -57,3 +69,13 @@ Contact / process
 
 Change log
 - Record notable edits to this file in PR descriptions to keep its guidance current.
+=======
+- [x] Customize the Project
+	
+	Verify that all previous steps have been completed successfully and you have marked the step as completed.
+	Develop a plan to modify codebase according to user requirements.
+	Apply modifications using appropriate tools and user-provided references.
+	
+	-[x] Quality ensurance checklist:
+	- Ensure commit messages are clear and descriptive of the changes made.
+>>>>>>> archchatbot

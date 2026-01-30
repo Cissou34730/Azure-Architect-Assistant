@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import sys
 from pathlib import Path
 
@@ -9,9 +10,7 @@ def _import_runner_module():
     scripts_e2e = repo_root / "scripts" / "e2e"
     sys.path.insert(0, str(scripts_e2e))
     try:
-        import aaa_e2e_runner  # type: ignore
-
-        return aaa_e2e_runner
+        return importlib.import_module("aaa_e2e_runner")
     finally:
         sys.path.pop(0)
 

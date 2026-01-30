@@ -23,6 +23,7 @@ from app.ingestion.application.status_query_service import (
     KBPersistedStatus,
     StatusQueryService,
 )
+from app.ingestion.domain.indexing.indexer import Indexer
 from app.ingestion.infrastructure import (
     create_job_repository,
     create_queue_repository,
@@ -390,13 +391,10 @@ async def cancel_ingestion(kb_id: str) -> dict[str, Any]:
 
         # Trigger immediate cleanup (don't wait for orchestrator gate check)
         try:
-            from app.ingestion.domain.indexing.indexer import Indexer
-            from datetime import datetime, timezone
-            
             indexer = Indexer(kb_id=kb_id)
             indexer.delete_by_job(job_id, kb_id)
             logger.info(f"Cleanup completed for job {job_id}")
-            
+
             # Reset job state
             repo.set_job_status(
                 job_id,

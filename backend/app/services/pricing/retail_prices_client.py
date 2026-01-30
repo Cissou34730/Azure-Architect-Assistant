@@ -13,7 +13,7 @@ a brittle schema. Callers should treat missing fields as expected.
 from __future__ import annotations
 
 import asyncio
-import random
+import secrets
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -47,7 +47,7 @@ class AzureRetailPricesClient:
     def _backoff_seconds(self, attempt_number: int) -> float:
         # attempt_number is 1-based
         base = min(0.5 * (2 ** max(attempt_number - 1, 0)), 8.0)
-        jitter = random.uniform(0.0, 0.25)
+        jitter = secrets.randbelow(250) / 1000.0
         return min(base + jitter, 8.0)
 
     async def _get_json_with_meta(

@@ -165,40 +165,65 @@ const reactRules = {
   ],
 };
 
-export default tseslint.config(
+export default [
   // 1. Global ignores
   {
     ignores: [
       "dist",
-      "frontend/dist",
+      "**/dist",
       "eslint.config.js",
       "**/eslint.config.js",
-      "vite.config.ts",
-      "frontend/vite.config.ts",
+      "**/vite.config.ts",
+      "node_modules",
+      "**/node_modules",
+      "**/*.config.js",
+      "backend/**",
+      "archive/**",
+      "backups/**",
+      "ShouldBeRemoved/**",
+      ".github/**",
+      "*.py",
+      "**/*.py",
+      "**/*.json",
+      "**/*.md",
     ],
   },
 
-  // 2. Base JS/TS recommended configs
-  js.configs.recommended,
-  ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
+  // 2. Base JS recommended config (for any remaining JS files)
+  {
+    files: ["**/*.js", "**/*.mjs", "**/*.cjs"],
+    ...js.configs.recommended,
+  },
+
+  // 3. TypeScript type-checked configs (applies to all TS/TSX files)
+  ...tseslint.configs.strictTypeChecked.map((config) => ({
+    ...config,
+    files: ["**/*.ts", "**/*.tsx"],
+  })),
+  ...tseslint.configs.stylisticTypeChecked.map((config) => ({
+    ...config,
+    files: ["**/*.ts", "**/*.tsx"],
+  })),
+
+  // 4. Language options for TypeScript files
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        project: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.es2020,
+      },
+    },
+  },
 
   // 3. TS files (.ts) – stricter modularity
   {
-    files: ["frontend/src/**/*.ts"],
-
-    languageOptions: {
-      ecmaVersion: "latest",
-      sourceType: "module",
-      globals: {
-        ...globals.browser,
-        ...globals.es2021,
-      },
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
+    files: ["**/*.ts"],
 
     plugins: {
       "check-file": checkFile,
@@ -239,20 +264,7 @@ export default tseslint.config(
 
   // 4. TSX files (.tsx) – allow more lines for readability
   {
-    files: ["frontend/src/**/*.tsx"],
-
-    languageOptions: {
-      ecmaVersion: "latest",
-      sourceType: "module",
-      globals: {
-        ...globals.browser,
-        ...globals.es2021,
-      },
-      parserOptions: {
-        project: true,
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
+    files: ["**/*.tsx"],
 
     plugins: {
       "check-file": checkFile,
@@ -295,5 +307,5 @@ export default tseslint.config(
         { checksVoidReturn: { attributes: false } },
       ],
     },
-  }
-);
+  },
+];

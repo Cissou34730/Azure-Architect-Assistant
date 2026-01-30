@@ -7,7 +7,7 @@ import { isRecord } from "./typeGuards";
  * Utility to map between snake_case (Backend) and camelCase (Frontend)
  */
 
-export function toCamel(str: string): string {
+function toCamel(str: string): string {
   return str.replace(/([-_][a-z])/gi, (match) => {
     return match.toUpperCase().replace("-", "").replace("_", "");
   });
@@ -31,7 +31,7 @@ export function keysToCamel<T>(obj: unknown): T {
   return obj as T;
 }
 
-export function toSnake(str: string): string {
+function toSnake(str: string): string {
   return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 

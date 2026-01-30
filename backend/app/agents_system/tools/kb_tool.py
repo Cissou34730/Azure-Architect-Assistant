@@ -11,8 +11,9 @@ from typing import Any
 from langchain.tools import BaseTool, Tool
 from pydantic import PrivateAttr
 
-from ..agents.rag_agent import RAGAgent, build_cited_reply
 from app.core.app_settings import get_kb_storage_root
+
+from ..agents.rag_agent import RAGAgent, build_cited_reply
 
 
 class KBSearchTool(BaseTool):

@@ -3,19 +3,19 @@ import { API_BASE } from "./config";
 import { fetchWithErrorHandling } from "./serviceError";
 import { projectApi } from "./projectService";
 
-export interface AgentHealth {
+interface AgentHealth {
   readonly status: string;
   readonly mcpClientConnected: boolean;
   readonly openaiConfigured: boolean;
 }
 
-export interface AgentStep {
+interface AgentStep {
   readonly action: string;
   readonly actionInput: string;
   readonly observation: string;
 }
 
-export interface AgentChatResponse {
+interface AgentChatResponse {
   readonly answer: string;
   readonly success: boolean;
   readonly reasoningSteps: readonly AgentStep[];
@@ -23,7 +23,7 @@ export interface AgentChatResponse {
   readonly error?: string;
 }
 
-export interface ChatMessage {
+interface ChatMessage {
   readonly role: string;
   readonly content: string;
 }

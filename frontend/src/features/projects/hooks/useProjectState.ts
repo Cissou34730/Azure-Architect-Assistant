@@ -2,7 +2,7 @@
  * Custom hook for project state management
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { ProjectState } from "../../../types/api";
 import { stateApi } from "../../../services/stateService";
 import { projectApi } from "../../../services/projectService";
@@ -44,11 +44,14 @@ export const useProjectState = (projectId: string | null) => {
     void fetchProjectState();
   }, [fetchProjectState]);
 
-  return {
-    projectState,
-    setProjectState,
-    loading,
-    analyzeDocuments,
-    refreshState: fetchProjectState,
-  };
+  return useMemo(
+    () => ({
+      projectState,
+      setProjectState,
+      loading,
+      analyzeDocuments,
+      refreshState: fetchProjectState,
+    }),
+    [projectState, loading, analyzeDocuments, fetchProjectState],
+  );
 };

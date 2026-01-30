@@ -26,23 +26,23 @@ class LifecycleManagerProtocol(Protocol):
         job_id: str,
         kb_id: str,
         state: Any,
-        producer_config: ProducerConfig,
+        _producer_config: ProducerConfig,
     ) -> JobRuntime:
         """Create a new job runtime with threads."""
         ...
 
-    def start_threads(self, runtime: JobRuntime) -> None:
+    def start_threads(self, _runtime: JobRuntime) -> None:
         """Start producer and consumer threads."""
         ...
 
-    def stop_threads(self, runtime: JobRuntime, timeout: float = 5.0) -> None:
+    def stop_threads(self, _runtime: JobRuntime, timeout: float = 5.0) -> None:
         """Gracefully stop threads and wait for exit."""
         ...
 
-    def is_running(self, runtime: JobRuntime) -> bool:
+    def is_running(self, _runtime: JobRuntime) -> bool:
         """Check if producer thread is alive."""
         ...
 
-    def check_queue_drained(self, runtime: JobRuntime) -> bool:
+    def check_queue_drained(self, _runtime: JobRuntime) -> bool:
         """Check if work queue is empty for cooperative shutdown."""
         ...

@@ -1,7 +1,6 @@
 import { lazy } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "./Layout";
-import { getTabs } from "../features/projects/tabs";
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const ProjectsPage = lazy(
@@ -10,6 +9,10 @@ const ProjectsPage = lazy(
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const ProjectDetailPage = lazy(
   () => import("../features/projects/pages/ProjectDetailPage"),
+);
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const UnifiedProjectPage = lazy(
+  () => import("../features/projects/pages/UnifiedProjectPage"),
 );
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const KBWorkspace = lazy(() =>
@@ -26,6 +29,16 @@ const AgentChatWorkspace = lazy(() =>
   import("../components/agent").then((m) => ({
     default: m.AgentChatWorkspace,
   })),
+);
+
+// Legacy tab pages - kept for reference but not in active routes
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const ProjectOverviewPage = lazy(
+  () => import("../features/projects/pages/ProjectOverviewPage"),
+);
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const ProjectDeliverablesPage = lazy(
+  () => import("../features/projects/pages/ProjectDeliverablesPage"),
 );
 
 export const router = createBrowserRouter([
@@ -47,12 +60,26 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <Navigate to="documents" replace />,
+            element: <UnifiedProjectPage />,
           },
-          ...getTabs().map((tab) => ({
-            path: tab.path,
-            element: <tab.component />,
-          })),
+          // Legacy tab routes - kept for backward compatibility and reference
+          // Users can still navigate to /projects/:id/overview or /projects/:id/deliverables
+          {
+            path: "overview",
+            element: <ProjectOverviewPage />,
+          },
+          {
+            path: "deliverables",
+            element: <ProjectDeliverablesPage />,
+          },
+          {
+            path: "workspace",
+            element: <Navigate to=".." replace />,
+          },
+          {
+            path: "documents",
+            element: <Navigate to=".." replace />,
+          },
         ],
       },
       {
