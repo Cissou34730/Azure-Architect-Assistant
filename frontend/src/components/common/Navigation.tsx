@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 export function Navigation() {
   const navItems = [
     {
-      to: "/projects",
+      to: "/project",
       label: "Projects",
       ariaLabel: "View architecture projects",
     },

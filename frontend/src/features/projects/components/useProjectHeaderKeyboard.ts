@@ -82,7 +82,7 @@ function getShortcuts({
     },
     {
       key: "⌘G",
-      label: "Generate",
+      label: "Generate Analysis",
       action: () => {
         onGenerateClick?.();
       },

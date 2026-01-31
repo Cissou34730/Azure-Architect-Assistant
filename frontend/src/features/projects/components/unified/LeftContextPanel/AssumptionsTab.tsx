@@ -23,6 +23,7 @@ export function AssumptionsTab({ assumptions }: AssumptionsTabProps) {
     <div className="h-full">
       <Virtuoso
         data={assumptions}
+        className="panel-scroll"
         itemContent={(index, assumption) => (
           <div className="px-4 py-1">
             <div

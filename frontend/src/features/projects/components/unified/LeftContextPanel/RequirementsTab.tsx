@@ -80,6 +80,7 @@ export function RequirementsTab({ requirements }: RequirementsTabProps) {
     <div className="h-full">
       <GroupedVirtuoso
         groupCounts={groupCounts}
+        className="panel-scroll"
         groupContent={(index) => {
           const { title } = groupTitles[index];
           return (

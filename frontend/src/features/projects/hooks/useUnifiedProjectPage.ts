@@ -11,7 +11,7 @@ export function useUnifiedProjectPage() {
   const navigate = useNavigate();
 
   const { loadingProject } = useProjectMetaContext();
-  const { projectState, loading: loadingState } = useProjectStateContext();
+  const { projectState, loading: loadingState, analyzeDocuments } = useProjectStateContext();
   const { loading: loadingChat } = useProjectChatContext();
 
   const loading = loadingProject || loadingState || loadingChat;
@@ -26,8 +26,8 @@ export function useUnifiedProjectPage() {
   }, [sidePanelState]);
 
   const handleGenerateDiagramClick = useCallback(() => {
-    console.log("Generate diagram clicked");
-  }, []);
+    void analyzeDocuments();
+  }, [analyzeDocuments]);
 
   const handleCreateAdrClick = useCallback(() => {
     console.log("Create ADR clicked");

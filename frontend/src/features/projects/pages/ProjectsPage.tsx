@@ -17,7 +17,7 @@ export default function ProjectsPage() {
     try {
       const project = await createProject(newProjectName);
       setNewProjectName("");
-      void navigate(`/projects/${project.id}`);
+      void navigate(`/project/${project.id}`);
     } catch (error) {
       console.error("Failed to create project:", error);
     }
@@ -33,7 +33,7 @@ export default function ProjectsPage() {
           <ProjectList
             projects={projects}
             selectedProject={null}
-            onSelectProject={(p) => navigate(`/projects/${p.id}`)}
+            onSelectProject={(p) => navigate(`/project/${p.id}`)}
             projectName={newProjectName}
             onProjectNameChange={setNewProjectName}
             onCreateProject={handleCreate}

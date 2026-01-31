@@ -11,7 +11,7 @@ export function useProjectSelector() {
   const switchProject = useCallback(
     (project: Project) => {
       setState((prev) => ({ ...prev, currentProject: project }));
-      void navigate(`/projects/${project.id}`);
+      void navigate(`/project/${project.id}`);
     },
     [navigate, setState],
   );
@@ -22,7 +22,7 @@ export function useProjectSelector() {
         const nextProjects = prev.projects.filter((p) => p.id !== project.id);
         const isCurrent = prev.currentProject?.id === project.id;
         if (isCurrent) {
-          void navigate("/projects");
+          void navigate("/project");
         }
         return {
           ...prev,
@@ -39,7 +39,7 @@ export function useProjectSelector() {
     ...state,
     switchProject,
     deleteProject,
-    createNewProject: () => { void navigate("/projects"); },
+    createNewProject: () => { void navigate("/project"); },
     refetchProjects: fetchProjects,
   };
 }

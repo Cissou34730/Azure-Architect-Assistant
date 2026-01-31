@@ -21,7 +21,7 @@ export function QuickActions({
       color: "text-blue-600",
       bgColor: "bg-blue-50",
       onClick: () => {
-        void navigate(`/projects/${projectId}/workspace`);
+        void navigate(`/project/${projectId}/workspace`);
       },
     },
     {
@@ -32,7 +32,7 @@ export function QuickActions({
       bgColor: "bg-purple-50",
       onClick: () => {
         void navigate(
-          `/projects/${projectId}/workspace?prompt=generate-candidate`,
+          `/project/${projectId}/workspace?prompt=generate-candidate`,
         );
       },
     },
@@ -43,7 +43,7 @@ export function QuickActions({
       color: "text-green-600",
       bgColor: "bg-green-50",
       onClick: () => {
-        void navigate(`/projects/${projectId}/workspace?prompt=create-adr`);
+        void navigate(`/project/${projectId}/workspace?prompt=create-adr`);
       },
     },
     {
@@ -53,7 +53,7 @@ export function QuickActions({
       color: "text-cyan-600",
       bgColor: "bg-cyan-50",
       onClick: () => {
-        void navigate(`/projects/${projectId}/deliverables?tab=diagrams`);
+        void navigate(`/project/${projectId}/deliverables?tab=diagrams`);
       },
     },
     {
