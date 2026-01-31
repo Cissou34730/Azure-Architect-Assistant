@@ -15,6 +15,7 @@ interface ProjectSelectorDropdownProps {
   readonly onProjectDelete: (project: Project) => void;
   readonly onCreateNew: () => void;
   readonly loading?: boolean;
+  readonly allowDelete?: boolean;
 }
 
 export interface ProjectSelectorDropdownRef {
@@ -35,6 +36,7 @@ const ProjectSelectorDropdownInternal = forwardRef<
     onProjectDelete,
     onCreateNew,
     loading = false,
+    allowDelete = true,
   },
   ref
 ) {
@@ -106,31 +108,20 @@ const ProjectSelectorDropdownInternal = forwardRef<
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-full sm:w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-          <ProjectSelectorSearch
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            searchInputRef={searchInputRef}
-            loading={loading}
-            hasProjects={filteredProjects.length > 0}
-            isSearching={searchQuery !== ""}
-          />
-
-          <ProjectSelectorList
-            loading={loading}
-            filteredProjects={filteredProjects}
-            currentProjectId={currentProject?.id}
-            highlightedIndex={highlightedIndex}
-            onSelect={handleSelect}
-            onDelete={(e, project) => {
-              e.stopPropagation();
-              onProjectDelete(project);
-            }}
-            setHighlightedIndex={setHighlightedIndex}
-          />
-
-          <ProjectSelectorDropdownFooter onCreateNew={onCreateNew} />
-        </div>
+        <ProjectSelectorMenu
+          loading={loading}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchInputRef={searchInputRef}
+          filteredProjects={filteredProjects}
+          currentProjectId={currentProject?.id}
+          highlightedIndex={highlightedIndex}
+          setHighlightedIndex={setHighlightedIndex}
+          onSelect={handleSelect}
+          onProjectDelete={onProjectDelete}
+          allowDelete={allowDelete}
+          onCreateNew={onCreateNew}
+        />
       )}
     </div>
   );
@@ -138,3 +129,64 @@ const ProjectSelectorDropdownInternal = forwardRef<
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const ProjectSelectorDropdown = ProjectSelectorDropdownInternal;
+
+interface ProjectSelectorMenuProps {
+  readonly loading: boolean;
+  readonly searchQuery: string;
+  readonly setSearchQuery: (value: string) => void;
+  readonly searchInputRef: React.RefObject<HTMLInputElement>;
+  readonly filteredProjects: readonly Project[];
+  readonly currentProjectId?: string;
+  readonly highlightedIndex: number;
+  readonly setHighlightedIndex: (index: number) => void;
+  readonly onSelect: (project: Project) => void;
+  readonly onProjectDelete: (project: Project) => void;
+  readonly allowDelete: boolean;
+  readonly onCreateNew: () => void;
+}
+
+function ProjectSelectorMenu({
+  loading,
+  searchQuery,
+  setSearchQuery,
+  searchInputRef,
+  filteredProjects,
+  currentProjectId,
+  highlightedIndex,
+  setHighlightedIndex,
+  onSelect,
+  onProjectDelete,
+  allowDelete,
+  onCreateNew,
+}: ProjectSelectorMenuProps) {
+  return (
+    <div className="absolute top-full left-0 mt-2 w-full sm:w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+      <ProjectSelectorSearch
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchInputRef={searchInputRef}
+        loading={loading}
+        hasProjects={filteredProjects.length > 0}
+        isSearching={searchQuery !== ""}
+      />
+
+      <ProjectSelectorList
+        loading={loading}
+        filteredProjects={filteredProjects}
+        currentProjectId={currentProjectId}
+        highlightedIndex={highlightedIndex}
+        onSelect={onSelect}
+        onDelete={(e, project) => {
+          if (allowDelete) {
+            e.stopPropagation();
+            onProjectDelete(project);
+          }
+        }}
+        setHighlightedIndex={setHighlightedIndex}
+        allowDelete={allowDelete}
+      />
+
+      <ProjectSelectorDropdownFooter onCreateNew={onCreateNew} />
+    </div>
+  );
+}

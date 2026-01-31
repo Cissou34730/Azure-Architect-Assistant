@@ -8,6 +8,7 @@ interface ProjectSelectorDropdownItemProps {
   readonly onSelect: (project: Project) => void;
   readonly onDelete: (e: React.MouseEvent, project: Project) => void;
   readonly onMouseEnter: () => void;
+  readonly allowDelete: boolean;
 }
 
 export function ProjectSelectorDropdownItem({
@@ -17,6 +18,7 @@ export function ProjectSelectorDropdownItem({
   onSelect,
   onDelete,
   onMouseEnter,
+  allowDelete,
 }: ProjectSelectorDropdownItemProps) {
   return (
     <div
@@ -44,8 +46,14 @@ export function ProjectSelectorDropdownItem({
 
       <button
         onClick={(e) => { onDelete(e, project); }}
-        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-        aria-label="Delete project"
+        disabled={!allowDelete}
+        className={`p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${
+          allowDelete
+            ? "text-gray-400 hover:text-red-600 hover:bg-red-50"
+            : "text-gray-300 cursor-not-allowed"
+        }`}
+        aria-label={allowDelete ? "Delete project" : "Delete project (coming soon)"}
+        title={allowDelete ? "Delete project" : "Delete (coming soon)"}
       >
         <Trash2 className="h-4 w-4" />
       </button>

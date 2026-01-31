@@ -9,6 +9,7 @@ interface ProjectSelectorListProps {
   readonly onSelect: (project: Project) => void;
   readonly onDelete: (e: React.MouseEvent, project: Project) => void;
   readonly setHighlightedIndex: (index: number) => void;
+  readonly allowDelete: boolean;
 }
 
 export function ProjectSelectorList({
@@ -19,6 +20,7 @@ export function ProjectSelectorList({
   onSelect,
   onDelete,
   setHighlightedIndex,
+  allowDelete,
 }: ProjectSelectorListProps) {
   if (loading) {
     return (
@@ -46,6 +48,7 @@ export function ProjectSelectorList({
           onMouseEnter={() => {
             setHighlightedIndex(index);
           }}
+          allowDelete={allowDelete}
         />
       ))}
     </div>

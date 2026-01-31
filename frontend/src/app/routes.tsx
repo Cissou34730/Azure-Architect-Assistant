@@ -48,14 +48,14 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/projects" replace />,
+        element: <Navigate to="/project" replace />,
       },
       {
-        path: "projects",
+        path: "project",
         element: <ProjectsPage />,
       },
       {
-        path: "projects/:projectId",
+        path: "project/:projectId",
         element: <ProjectDetailPage />,
         children: [
           {
@@ -63,7 +63,7 @@ export const router = createBrowserRouter([
             element: <UnifiedProjectPage />,
           },
           // Legacy tab routes - kept for backward compatibility and reference
-          // Users can still navigate to /projects/:id/overview or /projects/:id/deliverables
+          // Users can still navigate to /project/:id/overview or /project/:id/deliverables
           {
             path: "overview",
             element: <ProjectOverviewPage />,
@@ -81,6 +81,14 @@ export const router = createBrowserRouter([
             element: <Navigate to=".." replace />,
           },
         ],
+      },
+      {
+        path: "projects",
+        element: <Navigate to="/project" replace />,
+      },
+      {
+        path: "projects/:projectId",
+        element: <Navigate to="/project/:projectId" replace />,
       },
       {
         path: "kb",

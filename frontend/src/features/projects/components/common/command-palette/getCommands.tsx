@@ -24,7 +24,7 @@ function getNavigationCommands(
       icon: <BarChart2 className="h-4 w-4" />,
       keywords: ["overview", "dashboard", "home", "stats"],
       action: () => {
-        onNavigate(`/projects/${projectId}/overview`);
+        onNavigate(`/project/${projectId}/overview`);
       },
       category: "Navigation",
     },
@@ -34,7 +34,7 @@ function getNavigationCommands(
       icon: <MessageSquare className="h-4 w-4" />,
       keywords: ["workspace", "chat", "assistant", "talk"],
       action: () => {
-        onNavigate(`/projects/${projectId}/workspace`);
+        onNavigate(`/project/${projectId}/workspace`);
       },
       category: "Navigation",
     },
@@ -44,7 +44,7 @@ function getNavigationCommands(
       icon: <FileText className="h-4 w-4" />,
       keywords: ["deliverables", "diagrams", "adr", "iac", "costs"],
       action: () => {
-        onNavigate(`/projects/${projectId}/deliverables`);
+        onNavigate(`/project/${projectId}/deliverables`);
       },
       category: "Navigation",
     },
@@ -54,7 +54,7 @@ function getNavigationCommands(
       icon: <FileText className="h-4 w-4" />,
       keywords: ["diagrams", "architecture", "c4", "visual"],
       action: () => {
-        onNavigate(`/projects/${projectId}/deliverables?tab=diagrams`);
+        onNavigate(`/project/${projectId}/deliverables?tab=diagrams`);
       },
       category: "Navigation",
     },
@@ -64,7 +64,7 @@ function getNavigationCommands(
       icon: <FileText className="h-4 w-4" />,
       keywords: ["adr", "decisions", "architecture decision records"],
       action: () => {
-        onNavigate(`/projects/${projectId}/deliverables?tab=adrs`);
+        onNavigate(`/project/${projectId}/deliverables?tab=adrs`);
       },
       category: "Navigation",
     },
@@ -74,7 +74,7 @@ function getNavigationCommands(
       icon: <FileText className="h-4 w-4" />,
       keywords: ["iac", "infrastructure", "bicep", "terraform", "code"],
       action: () => {
-        onNavigate(`/projects/${projectId}/deliverables?tab=iac`);
+        onNavigate(`/project/${projectId}/deliverables?tab=iac`);
       },
       category: "Navigation",
     },
@@ -84,7 +84,7 @@ function getNavigationCommands(
       icon: <BarChart2 className="h-4 w-4" />,
       keywords: ["cost", "pricing", "estimate", "budget", "money"],
       action: () => {
-        onNavigate(`/projects/${projectId}/deliverables?tab=costs`);
+        onNavigate(`/project/${projectId}/deliverables?tab=costs`);
       },
       category: "Navigation",
     },
@@ -102,7 +102,7 @@ function getActionCommands(
       icon: <Upload className="h-4 w-4" />,
       keywords: ["upload", "documents", "files", "add"],
       action: () => {
-        onNavigate(`/projects/${projectId}/workspace`);
+        onNavigate(`/project/${projectId}/workspace`);
         setTimeout(() => {
           const uploadArea = document.querySelector("[data-upload-area]");
           if (uploadArea !== null) {
@@ -118,7 +118,7 @@ function getActionCommands(
       icon: <Download className="h-4 w-4" />,
       keywords: ["export", "download", "adr", "save"],
       action: () => {
-        onNavigate(`/projects/${projectId}/deliverables?tab=adrs`);
+        onNavigate(`/project/${projectId}/deliverables?tab=adrs`);
         setTimeout(() => {
           const exportBtn = document.querySelector("[data-export-adrs]");
           if (exportBtn instanceof HTMLElement) {
@@ -141,7 +141,7 @@ function getActionCommands(
         "terraform",
       ],
       action: () => {
-        onNavigate(`/projects/${projectId}/deliverables?tab=iac`);
+        onNavigate(`/project/${projectId}/deliverables?tab=iac`);
         setTimeout(() => {
           const downloadBtn = document.querySelector("[data-download-all-iac]");
           if (downloadBtn instanceof HTMLElement) {

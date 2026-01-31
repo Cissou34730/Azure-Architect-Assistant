@@ -28,6 +28,7 @@ export function QuestionsTab({ questions }: QuestionsTabProps) {
     <div className="h-full">
       <Virtuoso
         data={questions}
+        className="panel-scroll"
         itemContent={(_index, question) => (
           <div className="px-4 py-1">
             <div

@@ -203,6 +203,7 @@ function ChatMessagesList({
       data={messages}
       initialTopMostItemIndex={messages.length - 1}
       followOutput="smooth"
+      className="panel-scroll"
       itemContent={(_index, message) => (
         <div className="px-6 py-3">
           <MessageBubble key={message.id} message={message} />

@@ -5,6 +5,7 @@ interface ProjectHeaderActionsProps {
   onGenerateClick?: () => void;
   onAdrClick?: () => void;
   onExportClick?: () => void;
+  exportDisabled?: boolean;
 }
 
 export function ProjectHeaderActions({
@@ -12,6 +13,7 @@ export function ProjectHeaderActions({
   onGenerateClick,
   onAdrClick,
   onExportClick,
+  exportDisabled = false,
 }: ProjectHeaderActionsProps) {
   return (
     <>
@@ -30,10 +32,10 @@ export function ProjectHeaderActions({
         <button
           onClick={onGenerateClick}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-          title="Generate architecture (⌘G)"
+          title="Generate analysis (⌘G)"
         >
           <Zap className="h-4 w-4" />
-          <span className="hidden sm:inline">Generate</span>
+          <span className="hidden sm:inline">Generate Analysis</span>
         </button>
       )}
 
@@ -51,8 +53,9 @@ export function ProjectHeaderActions({
       {onExportClick !== undefined && (
         <button
           onClick={onExportClick}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-          title="Export"
+          disabled={exportDisabled}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          title={exportDisabled ? "Export (coming soon)" : "Export"}
         >
           <Download className="h-4 w-4" />
           <span className="hidden sm:inline">Export</span>

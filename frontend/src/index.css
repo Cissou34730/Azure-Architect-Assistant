@@ -36,29 +36,51 @@
 }
 
 @layer components {
+  .btn-primary,
+  .btn-success,
+  .btn-warning,
+  .btn-danger {
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-button);
+    color: #fff;
+    transition: opacity 150ms ease;
+  }
+
   .btn-primary {
-    @apply px-4 py-2 bg-accent-primary text-white rounded-button hover:opacity-90 transition-opacity;
+    background: var(--color-accent-primary);
   }
 
   .btn-success {
-    @apply px-4 py-2 bg-accent-success text-white rounded-button hover:opacity-90 transition-opacity;
+    background: var(--color-accent-success);
   }
 
   .btn-warning {
-    @apply px-4 py-2 bg-accent-warning text-white rounded-button hover:opacity-90 transition-opacity;
+    background: var(--color-accent-warning);
   }
 
   .btn-danger {
-    @apply px-4 py-2 bg-accent-danger text-white rounded-button hover:opacity-90 transition-opacity;
+    background: var(--color-accent-danger);
+  }
+
+  .btn-primary:hover,
+  .btn-success:hover,
+  .btn-warning:hover,
+  .btn-danger:hover {
+    opacity: 0.9;
   }
 
   .card {
-    @apply bg-white rounded-card shadow-md;
+    background: #fff;
+    border-radius: var(--radius-card);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
     padding: var(--spacing-card-padding);
   }
 
   .status-badge {
-    @apply px-3 py-1 rounded-pill text-sm font-medium;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.875rem;
+    font-weight: 500;
   }
 }
 
@@ -76,5 +98,33 @@
 
   .animate-slide-in {
     animation: slide-in 0.3s ease-out;
+  }
+
+  .panel-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .panel-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .panel-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .panel-scroll::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 9999px;
+  }
+
+  .panel-scroll-scope:hover .panel-scroll,
+  .panel-scroll-scope:focus-within .panel-scroll {
+    scrollbar-color: rgba(100, 116, 139, 0.6) transparent;
+  }
+
+  .panel-scroll-scope:hover .panel-scroll::-webkit-scrollbar-thumb,
+  .panel-scroll-scope:focus-within .panel-scroll::-webkit-scrollbar-thumb {
+    background-color: rgba(100, 116, 139, 0.6);
   }
 }

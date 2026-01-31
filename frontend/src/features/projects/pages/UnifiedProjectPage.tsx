@@ -1,10 +1,11 @@
 import { useProjectMetaContext } from "../context/useProjectMetaContext";
-import { ProjectHeader } from "../components/ProjectHeader";
-import { LeftContextPanel } from "../components/unified/LeftContextPanel";
-import { CenterChatArea } from "../components/unified/CenterChatArea";
-import { RightDeliverablesPanel } from "../components/unified/RightDeliverablesPanel";
+import { useCallback, useMemo } from "react";
+import { usePanelWidth } from "../hooks/usePanelWidth";
+import { useWorkspaceTabs } from "../hooks/useWorkspaceTabs";
 import { useUnifiedProjectPage } from "../hooks/useUnifiedProjectPage";
 import { useRenderCount } from "../../../hooks/useRenderCount";
+import type { WorkspaceTab } from "../components/unified/workspace/types";
+import { UnifiedProjectWorkspace } from "./UnifiedProjectWorkspace";
 
 export default function UnifiedProjectPage() {
   useRenderCount("UnifiedProjectPage");
@@ -14,16 +15,62 @@ export default function UnifiedProjectPage() {
     projectState,
     leftPanelOpen,
     rightPanelOpen,
-    handleUploadClick,
     handleGenerateDiagramClick,
-    handleCreateAdrClick,
     handleExportClick,
-    handleNavigateToDiagrams,
-    handleNavigateToAdrs,
-    handleNavigateToCosts,
     toggleLeftPanel,
     toggleRightPanel,
+    openLeftPanel,
   } = useUnifiedProjectPage();
+
+  const leftPanelWidth = usePanelWidth({
+    storageKey: "ux.leftPanelWidth",
+    defaultWidth: 320,
+    minWidth: 260,
+    maxWidth: 480,
+  });
+
+  const rightPanelWidth = usePanelWidth({
+    storageKey: "ux.rightPanelWidth",
+    defaultWidth: 360,
+    minWidth: 280,
+    maxWidth: 520,
+  });
+
+  const initialTabs = useMemo<readonly WorkspaceTab[]>(() => [
+    {
+      id: "input-overview",
+      kind: "input-overview",
+      title: "Inputs",
+      group: "input",
+    },
+  ], []);
+
+  const {
+    tabs,
+    activeTabId,
+    setActiveTabId,
+    openTab,
+    closeTab,
+  } = useWorkspaceTabs(initialTabs);
+
+  const handleUploadClick = useCallback(() => {
+    openLeftPanel();
+    openTab({
+      id: "input-overview",
+      kind: "input-overview",
+      title: "Inputs",
+      group: "input",
+    });
+  }, [openLeftPanel, openTab]);
+
+  const handleAdrClick = useCallback(() => {
+    openTab({
+      id: "artifact-adrs",
+      kind: "artifact-adrs",
+      title: "ADRs",
+      group: "artifact",
+    });
+  }, [openTab]);
 
   if (selectedProject === null) {
     return (
@@ -48,32 +95,24 @@ export default function UnifiedProjectPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
-      <ProjectHeader
-        onUploadClick={handleUploadClick}
-        onGenerateClick={handleGenerateDiagramClick}
-        onAdrClick={handleCreateAdrClick}
-        onExportClick={handleExportClick}
-      />
-
-      <div className="flex-1 flex overflow-hidden">
-        <LeftContextPanel
-          isOpen={leftPanelOpen}
-          onToggle={toggleLeftPanel}
-        />
-
-        <div className="flex-1 overflow-hidden">
-          <CenterChatArea />
-        </div>
-
-        <RightDeliverablesPanel
-          isOpen={rightPanelOpen}
-          onToggle={toggleRightPanel}
-          onNavigateToDiagrams={handleNavigateToDiagrams}
-          onNavigateToAdrs={handleNavigateToAdrs}
-          onNavigateToCosts={handleNavigateToCosts}
-        />
-      </div>
-    </div>
+    <UnifiedProjectWorkspace
+      leftPanelOpen={leftPanelOpen}
+      rightPanelOpen={rightPanelOpen}
+      onToggleLeft={toggleLeftPanel}
+      onToggleRight={toggleRightPanel}
+      onUploadClick={handleUploadClick}
+      onGenerateClick={handleGenerateDiagramClick}
+      onAdrClick={handleAdrClick}
+      onExportClick={handleExportClick}
+      tabs={tabs}
+      activeTabId={activeTabId}
+      onTabChange={setActiveTabId}
+      onCloseTab={closeTab}
+      onOpenTab={openTab}
+      leftPanelWidth={leftPanelWidth.width}
+      rightPanelWidth={rightPanelWidth.width}
+      onResizeLeft={leftPanelWidth.setWidth}
+      onResizeRight={rightPanelWidth.setWidth}
+    />
   );
 }

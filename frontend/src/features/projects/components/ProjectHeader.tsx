@@ -70,6 +70,7 @@ function ProjectHeader({
                 onProjectDelete={handleDeleteRequest}
                 onCreateNew={createNewProject}
                 loading={loading}
+                allowDelete={false}
               />
             </div>
 
@@ -79,6 +80,7 @@ function ProjectHeader({
                 onGenerateClick={onGenerateClick}
                 onAdrClick={onAdrClick}
                 onExportClick={onExportClick}
+                exportDisabled
               />
 
               <button
