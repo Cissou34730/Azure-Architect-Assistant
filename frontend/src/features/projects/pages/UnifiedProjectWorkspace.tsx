@@ -19,6 +19,8 @@ interface UnifiedProjectWorkspaceProps {
   readonly onTabChange: (tabId: string) => void;
   readonly onCloseTab: (tabId: string) => void;
   readonly onOpenTab: (tab: WorkspaceTab) => void;
+  readonly onTogglePin: (tabId: string) => void;
+  readonly onReorderTab: (sourceId: string, targetId: string) => void;
   readonly leftPanelWidth: number;
   readonly rightPanelWidth: number;
   readonly onResizeLeft: (width: number) => void;
@@ -39,6 +41,8 @@ export function UnifiedProjectWorkspace({
   onTabChange,
   onCloseTab,
   onOpenTab,
+  onTogglePin,
+  onReorderTab,
   leftPanelWidth,
   rightPanelWidth,
   onResizeLeft,
@@ -77,6 +81,8 @@ export function UnifiedProjectWorkspace({
             activeTabId={activeTabId}
             onTabChange={onTabChange}
             onCloseTab={onCloseTab}
+            onTogglePin={onTogglePin}
+            onReorderTab={onReorderTab}
           />
         </div>
 

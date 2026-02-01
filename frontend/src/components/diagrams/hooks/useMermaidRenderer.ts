@@ -4,7 +4,7 @@ import { useIntersectionObserver } from "../../../hooks/useIntersectionObserver"
 import { diagramCache } from "../../../utils/diagramCache";
 
 interface UseMermaidRendererProps {
-  sourceCode: string;
+  sourceCode: string | undefined;
   entityId: string; // The unique ID of the diagram entity
   domId: string; // The unique ID for this specific DOM instance
 }
@@ -28,9 +28,10 @@ export function useMermaidRenderer({
 }: UseMermaidRendererProps) {
   const [renderError, setRenderError] = useState<string | null>(null);
   const [isRendered, setIsRendered] = useState(false);
+  const safeSource = useMemo(() => sourceCode?.trim() ?? "", [sourceCode]);
   const cacheKey = useMemo(
-    () => `cache-${entityId}-${getHashCode(sourceCode)}`,
-    [entityId, sourceCode],
+    () => `cache-${entityId}-${getHashCode(safeSource)}`,
+    [entityId, safeSource],
   );
   const { ref, isVisible, hasBeenVisible } =
     useIntersectionObserver<HTMLDivElement>({
@@ -42,6 +43,11 @@ export function useMermaidRenderer({
   const renderCurrentDiagram = useCallback(async () => {
     const container = mermaidRef.current;
     if (container === null || !hasBeenVisible) return;
+    if (safeSource === "") {
+      setRenderError("Diagram source is empty.");
+      container.innerHTML = "";
+      return;
+    }
 
     const cachedSvg = diagramCache.get(cacheKey);
     if (cachedSvg !== null) {
@@ -55,7 +61,7 @@ export function useMermaidRenderer({
       container.innerHTML = "";
       const { svg } = await (
         await getMermaid()
-      ).render(`mermaid-${domId}`, sourceCode);
+      ).render(`mermaid-${domId}`, safeSource);
       diagramCache.set(cacheKey, svg);
       container.innerHTML = svg;
       setIsRendered(true);
@@ -65,7 +71,7 @@ export function useMermaidRenderer({
       setRenderError(errorMessage);
       console.error("Mermaid Render Error:", err);
     }
-  }, [sourceCode, domId, cacheKey, hasBeenVisible]);
+  }, [safeSource, domId, cacheKey, hasBeenVisible]);
 
   useEffect(() => {
     if (hasBeenVisible) {

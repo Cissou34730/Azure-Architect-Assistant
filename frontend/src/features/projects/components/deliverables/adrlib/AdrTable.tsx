@@ -85,14 +85,18 @@ export function AdrTable({ adrs, onSelect }: AdrTableProps) {
             </>
           )}
           components={{
-            // eslint-disable-next-line @typescript-eslint/naming-convention, react/prop-types -- react-virtuoso requires TableRow key and injects data-index
+            // eslint-disable-next-line @typescript-eslint/naming-convention -- react-virtuoso requires TableRow key and injects data-index
             TableRow: (props) => {
-              const item = adrs[props["data-index"]];
+              const indexValue = props["data-index"];
+              const item =
+                typeof indexValue === "number" ? adrs[indexValue] : undefined;
               return (
                 <tr
                   {...props}
                   onClick={() => {
-                    onSelect(item);
+                    if (item !== undefined) {
+                      onSelect(item);
+                    }
                   }}
                   className="hover:bg-gray-50 cursor-pointer divide-y divide-gray-200"
                 />

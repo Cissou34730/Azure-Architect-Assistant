@@ -196,12 +196,17 @@ export function LineItemsTable({
   );
 }
 
-interface PricingGapsProps {
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types -- Backend returns dynamic pricing gap structure
-  readonly gaps: readonly Record<string, unknown>[];
+interface PricingGap {
+  readonly name?: string;
+  readonly reason?: string;
+  readonly [key: string]: string | number | boolean | null | undefined;
 }
 
-function getPricingGapKey(gap: Record<string, unknown>): string {
+interface PricingGapsProps {
+  readonly gaps: readonly PricingGap[];
+}
+
+function getPricingGapKey(gap: PricingGap): string {
   const name = typeof gap.name === "string" ? gap.name : "";
   const reason = typeof gap.reason === "string" ? gap.reason : "";
   if (name !== "") return `gap-${name}`;

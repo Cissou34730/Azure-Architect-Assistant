@@ -1,6 +1,5 @@
-/* eslint-disable react/prop-types -- Render helpers are typed via TypeScript */
 import { ListChecks, MessageSquareQuote, ShieldAlert, FileSearch, Layers, Waypoints } from "lucide-react";
-import type { ProjectState } from "../../../../../types/api";
+import type { ProjectState, WafChecklist } from "../../../../../types/api";
 import { RequirementsTab } from "../LeftContextPanel/RequirementsTab";
 import { AssumptionsTab } from "../LeftContextPanel/AssumptionsTab";
 import { QuestionsTab } from "../LeftContextPanel/QuestionsTab";
@@ -79,7 +78,7 @@ function FindingsList({
   onGenerate,
   loading,
 }: FindingsListProps) {
-  const findings = projectState.findings;
+  const findings = safeArray(projectState.findings);
   if (!hasArtifacts) {
     return (
       <EmptyArtifactState
@@ -119,7 +118,7 @@ function FindingsList({
 }
 
 function WafChecklistView({ projectState }: { readonly projectState: ProjectState }) {
-  const checklist = projectState.wafChecklist;
+  const checklist = normalizeChecklist(projectState.wafChecklist);
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center gap-3">
@@ -148,6 +147,8 @@ function WafChecklistView({ projectState }: { readonly projectState: ProjectStat
 }
 
 function TraceabilityView({ projectState }: { readonly projectState: ProjectState }) {
+  const linkCount = safeArray(projectState.traceabilityLinks).length;
+  const issueCount = safeArray(projectState.traceabilityIssues).length;
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center gap-3">
@@ -157,7 +158,7 @@ function TraceabilityView({ projectState }: { readonly projectState: ProjectStat
         <div>
           <p className="text-sm font-semibold text-gray-900">Traceability</p>
           <p className="text-xs text-gray-500">
-            {projectState.traceabilityLinks.length} links, {projectState.traceabilityIssues.length} issues
+            {linkCount} links, {issueCount} issues
           </p>
         </div>
       </div>
@@ -166,7 +167,7 @@ function TraceabilityView({ projectState }: { readonly projectState: ProjectStat
 }
 
 function CandidateArchitectureView({ projectState }: { readonly projectState: ProjectState }) {
-  const candidates = projectState.candidateArchitectures;
+  const candidates = safeArray(projectState.candidateArchitectures);
   if (candidates.length === 0) {
     return (
       <div className="p-6 text-sm text-gray-500">
@@ -196,7 +197,7 @@ function CandidateArchitectureView({ projectState }: { readonly projectState: Pr
 }
 
 function IterationEventsView({ projectState }: { readonly projectState: ProjectState }) {
-  const events = projectState.iterationEvents;
+  const events = safeArray(projectState.iterationEvents);
   if (events.length === 0) {
     return <div className="p-6 text-sm text-gray-500">No iteration events yet.</div>;
   }
@@ -220,7 +221,7 @@ function IterationEventsView({ projectState }: { readonly projectState: ProjectS
 }
 
 function McpQueriesView({ projectState }: { readonly projectState: ProjectState }) {
-  const queries = projectState.mcpQueries;
+  const queries = safeArray(projectState.mcpQueries);
   if (queries.length === 0) {
     return <div className="p-6 text-sm text-gray-500">No MCP queries recorded yet.</div>;
   }
@@ -241,4 +242,18 @@ function McpQueriesView({ projectState }: { readonly projectState: ProjectState 
       ))}
     </div>
   );
+}
+
+function safeArray<T>(value: readonly T[] | undefined): readonly T[] {
+  if (value === undefined) {
+    return [];
+  }
+  return value;
+}
+
+function normalizeChecklist(value: WafChecklist | undefined): WafChecklist {
+  if (value === undefined) {
+    return { items: [], pillars: [], version: undefined };
+  }
+  return value;
 }

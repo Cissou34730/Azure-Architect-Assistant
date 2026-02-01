@@ -141,7 +141,7 @@ const strictTsCoreRules = {
   ],
 };
 
-const reactRules = {
+  const reactRules = {
   // React + React Hooks recommended rules
   ...reactHooks.configs.recommended.rules,
   ...react.configs.recommended.rules,
@@ -156,6 +156,7 @@ const reactRules = {
   "react/jsx-no-useless-fragment": "error",
   "react/self-closing-comp": "error",
   "react/no-array-index-key": "warn",
+  "react/prop-types": "off",
   "react/function-component-definition": [
     "error",
     {

@@ -22,6 +22,8 @@ interface BaseWorkspaceTab {
   readonly kind: WorkspaceTabKind;
   readonly title: string;
   readonly group: WorkspaceTabGroup;
+  readonly pinned: boolean;
+  readonly dirty: boolean;
 }
 
 export interface InputOverviewTab extends BaseWorkspaceTab {
