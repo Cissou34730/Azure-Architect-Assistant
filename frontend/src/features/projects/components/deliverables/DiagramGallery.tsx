@@ -54,6 +54,7 @@ interface DiagramCardProps {
 }
 
 function DiagramCard({ diagram, onClick }: DiagramCardProps) {
+  const safeSource = getSafeString(diagram.sourceCode).trim();
   return (
     <Card
       hover
@@ -63,12 +64,12 @@ function DiagramCard({ diagram, onClick }: DiagramCardProps) {
     >
       <CardContent className="p-4">
         <div className="aspect-video bg-gray-50 rounded-lg mb-3 overflow-hidden relative group">
-          {diagram.sourceCode !== "" ? (
+          {safeSource !== "" ? (
             <>
               <MermaidRenderer
                 diagramId={diagram.id}
                 prefix="preview"
-                sourceCode={diagram.sourceCode}
+                sourceCode={safeSource}
               />
               <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all flex items-center justify-center">
                 <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -106,6 +107,7 @@ interface DiagramModalProps {
 }
 
 function DiagramModal({ diagram, onClose }: DiagramModalProps) {
+  const safeSource = getSafeString(diagram.sourceCode).trim();
   const handleDownloadSVG = () => {
     // Implementation would export the rendered SVG
     alert("Download SVG - Feature coming soon");
@@ -146,12 +148,12 @@ function DiagramModal({ diagram, onClose }: DiagramModalProps) {
 
         {/* Content */}
         <div className="flex-1 overflow-auto p-6">
-          {diagram.sourceCode !== "" ? (
+          {safeSource !== "" ? (
             <div className="flex items-center justify-center min-h-full">
               <MermaidRenderer
                 diagramId={diagram.id}
                 prefix="modal"
-                sourceCode={diagram.sourceCode}
+                sourceCode={safeSource}
               />
             </div>
           ) : (
@@ -172,7 +174,7 @@ export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
   const filteredDiagrams = useMemo(() => {
     return diagrams.filter((diagram) => {
       if (filter === "all") return true;
-      const type = diagram.diagramType.toLowerCase();
+      const type = getSafeString(diagram.diagramType).toLowerCase();
       return type.includes(filter);
     });
   }, [diagrams, filter]);
@@ -180,10 +182,8 @@ export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
   // Task 4.6: Memoize sorted diagrams
   const sortedDiagrams = useMemo(() => {
     return [...filteredDiagrams].sort((a, b) => {
-      const dateA =
-        a.createdAt !== undefined && a.createdAt !== "" ? a.createdAt : "";
-      const dateB =
-        b.createdAt !== undefined && b.createdAt !== "" ? b.createdAt : "";
+      const dateA = getSafeString(a.createdAt);
+      const dateB = getSafeString(b.createdAt);
       return dateB.localeCompare(dateA);
     });
   }, [filteredDiagrams]);
@@ -246,5 +246,9 @@ export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
       )}
     </div>
   );
+}
+
+function getSafeString(value: string | undefined): string {
+  return typeof value === "string" ? value : "";
 }
 

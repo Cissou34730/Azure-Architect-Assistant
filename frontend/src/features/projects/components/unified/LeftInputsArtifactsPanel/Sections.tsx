@@ -30,6 +30,8 @@ export function InputsSection({
             kind: "input-overview",
             title: "Inputs",
             group: "input",
+            pinned: false,
+            dirty: false,
           });
         }}
       />
@@ -50,6 +52,8 @@ export function InputsSection({
                   title: doc.title,
                   group: "input",
                   documentId: doc.id,
+                  pinned: false,
+                  dirty: false,
                 });
               }}
             />
@@ -68,6 +72,8 @@ export function InputsSection({
             kind: "input-overview",
             title: "Inputs",
             group: "input",
+            pinned: false,
+            dirty: false,
           });
         }}
       />
@@ -104,6 +110,8 @@ export function ArtifactsSection({ artifacts, onOpenTab }: ArtifactsSectionProps
               kind: item.id,
               title: item.title,
               group: "artifact",
+              pinned: false,
+              dirty: false,
             });
           }}
         />

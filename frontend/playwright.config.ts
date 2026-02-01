@@ -3,8 +3,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, "..");
+const dirName = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(dirName, "..");
 const envPath = path.join(repoRoot, ".env");
 
 const resolveFrontendPort = () => {
@@ -15,8 +15,8 @@ const resolveFrontendPort = () => {
 
   if (fs.existsSync(envPath)) {
     const envText = fs.readFileSync(envPath, "utf8");
-    const match = envText.match(/^FRONTEND_PORT\s*=\s*(\d+)/m);
-    if (match) {
+    const match = /^FRONTEND_PORT\s*=\s*(\d+)/m.exec(envText);
+    if (match !== null) {
       const filePort = Number(match[1]);
       if (Number.isFinite(filePort) && filePort > 0) {
         return filePort;
@@ -29,6 +29,7 @@ const resolveFrontendPort = () => {
 
 const frontendPort = resolveFrontendPort();
 const baseURL = `http://localhost:${frontendPort}`;
+const isCi = typeof process.env.CI === "string" && process.env.CI !== "";
 
 export default defineConfig({
   testDir: "./tests",
@@ -36,7 +37,7 @@ export default defineConfig({
   expect: {
     timeout: 5_000,
   },
-  retries: process.env.CI ? 2 : 0,
+  retries: isCi ? 2 : 0,
   use: {
     baseURL,
     trace: "on-first-retry",
@@ -44,8 +45,8 @@ export default defineConfig({
   webServer: {
     command: "npm run dev",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    cwd: __dirname,
+    reuseExistingServer: !isCi,
+    cwd: dirName,
   },
   projects: [
     {
