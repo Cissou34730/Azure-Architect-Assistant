@@ -57,10 +57,10 @@ class AppSettings(BaseSettings):
     mcp_max_retries: int = Field(3)
 
     # LangGraph migration feature flags (Phase 3+)
-    aaa_use_langgraph: bool = Field(default=False)
+    aaa_use_langgraph: bool = Field(default=True)
     # Preferred selection knob: explicit engine choice.
     # Backward compatible with AAA_USE_LANGGRAPH.
-    aaa_agent_engine: Literal["langchain", "langgraph"] = Field(default="langchain")
+    aaa_agent_engine: Literal["langchain", "langgraph"] = Field(default="langgraph")
     aaa_enable_stage_routing: bool = Field(default=False)  # Phase 5
     aaa_enable_multi_agent: bool = Field(default=False)  # Phase 6
 
@@ -68,7 +68,7 @@ class AppSettings(BaseSettings):
     @classmethod
     def _normalize_agent_engine(cls, value):
         if value is None:
-            return "langchain"
+            return "langgraph"
         if isinstance(value, str):
             return value.strip().lower()
         return value

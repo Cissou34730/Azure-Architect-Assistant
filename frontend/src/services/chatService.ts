@@ -2,6 +2,14 @@ import { Message, SendMessageResponse } from "../types/api";
 import { API_BASE } from "./config";
 import { fetchWithErrorHandling } from "./serviceError";
 
+interface AgentProjectChatResponse {
+  readonly answer: string;
+  readonly success: boolean;
+  readonly reasoningSteps: readonly unknown[];
+  readonly projectState?: SendMessageResponse["projectState"];
+  readonly error?: string;
+}
+
 export const chatApi = {
   async sendMessage(
     projectId: string,
@@ -20,8 +28,8 @@ export const chatApi = {
       headers["X-Idempotency-Key"] = options.idempotencyKey;
     }
 
-    return fetchWithErrorHandling<SendMessageResponse>(
-      `${API_BASE}/projects/${projectId}/chat`,
+    const agentResponse = await fetchWithErrorHandling<AgentProjectChatResponse>(
+      `${API_BASE}/agent/projects/${projectId}/chat`,
       {
         method: "POST",
         headers,
@@ -29,6 +37,18 @@ export const chatApi = {
       },
       "send message",
     );
+
+    if (agentResponse.success !== true) {
+      throw new Error(agentResponse.error ?? "Agent chat failed");
+    }
+    if (agentResponse.projectState === undefined) {
+      throw new Error("Agent chat succeeded but returned no project state");
+    }
+
+    return {
+      message: agentResponse.answer,
+      projectState: agentResponse.projectState,
+    };
   },
 
   async fetchMessages(

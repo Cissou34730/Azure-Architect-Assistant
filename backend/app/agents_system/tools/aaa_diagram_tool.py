@@ -186,10 +186,11 @@ class AAACreateDiagramSetTool(BaseTool):
                     diagram_session.add(diagram)
                     await diagram_session.flush()  # Get ID
 
+                    # Frontend expects: {id, diagramType, sourceCode, version, createdAt}
                     diagram_refs.append({
-                        "diagramSetId": diagram_set.id,
+                        "id": diagram.id,
                         "diagramType": diagram_type.value,
-                        "diagramId": diagram.id,
+                        "sourceCode": gen_result.source_code,
                         "version": "1.0.0",
                         "createdAt": diagram.created_at.isoformat(),
                     })

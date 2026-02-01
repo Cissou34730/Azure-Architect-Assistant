@@ -175,7 +175,12 @@ export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
     return diagrams.filter((diagram) => {
       if (filter === "all") return true;
       const type = getSafeString(diagram.diagramType).toLowerCase();
-      return type.includes(filter);
+      // Backend uses: mermaid_functional, c4_context, c4_container
+      // Filter IDs use: functional, c4-context, c4-container
+      if (filter === "functional") return type.includes("functional");
+      if (filter === "c4-context") return type === "c4_context";
+      if (filter === "c4-container") return type === "c4_container";
+      return false;
     });
   }, [diagrams, filter]);
 
