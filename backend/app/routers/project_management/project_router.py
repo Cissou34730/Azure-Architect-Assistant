@@ -334,21 +334,18 @@ async def _append_diagram_reference_to_project_state(
 async def chat_message(
     project_id: str, request: ChatMessageRequest, db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
-    """Send a chat message and get response with updated state"""
-    try:
-        result = await chat_service.process_chat_message(
-            project_id, request.message, db
-        )
-        return result
-    except ValueError as e:
-        raise HTTPException(
-            status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
-        ) from e
-    except Exception as e:
-        logger.error(f"Failed to process chat message: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to process chat message: {e!s}"
-        ) from e
+    """Legacy endpoint (disabled).
+
+    The application uses the LangGraph agent chat endpoint:
+      POST /api/agent/projects/{project_id}/chat
+    """
+    raise HTTPException(
+        status_code=410,
+        detail=(
+            "Project chat endpoint is disabled. Use POST /api/agent/projects/{project_id}/chat "
+            "(LangGraph) instead."
+        ),
+    )
 
 
 @router.get("/projects/{project_id}/state", response_model=StateResponse)

@@ -290,12 +290,17 @@ async def chat_with_project_context(
     """
     settings = get_settings()
 
-    # Phase 3+: Engine routing
-    if getattr(settings, "aaa_agent_engine", "langchain") == "langgraph":
-        return await _handle_langgraph_route(project_id, request.message, db)
+    # LangGraph-only: legacy execution is intentionally disabled.
+    if getattr(settings, "aaa_agent_engine", "langchain") != "langgraph":
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "Agent engine is not configured for LangGraph. Set AAA_AGENT_ENGINE=langgraph "
+                "(or AAA_USE_LANGGRAPH=true)."
+            ),
+        )
 
-    # Legacy execution path
-    return await _handle_legacy_route(project_id, request.message, db)
+    return await _handle_langgraph_route(project_id, request.message, db)
 
 
 def _save_conversation(
