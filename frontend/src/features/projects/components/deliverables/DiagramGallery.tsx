@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { VirtuosoGrid } from "react-virtuoso";
-import { Network, X, Download, ZoomIn } from "lucide-react";
+import { Network, X, Download, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { Card, CardContent, Badge, EmptyState } from "../../../../components/common";
 import MermaidRenderer from "../../../../components/diagrams/MermaidRenderer";
 import type { DiagramData } from "../../../../types/api";
@@ -106,8 +106,28 @@ interface DiagramModalProps {
   readonly onClose: () => void;
 }
 
+function useZoomControls() {
+  const [zoom, setZoom] = useState(100);
+  
+  const handleZoomIn = () => {
+    setZoom((prev) => Math.min(prev + 25, 300));
+  };
+
+  const handleZoomOut = () => {
+    setZoom((prev) => Math.max(prev - 25, 50));
+  };
+
+  const handleResetZoom = () => {
+    setZoom(100);
+  };
+  
+  return { zoom, handleZoomIn, handleZoomOut, handleResetZoom };
+}
+
 function DiagramModal({ diagram, onClose }: DiagramModalProps) {
   const safeSource = getSafeString(diagram.sourceCode).trim();
+  const { zoom, handleZoomIn, handleZoomOut, handleResetZoom } = useZoomControls();
+  
   const handleDownloadSVG = () => {
     // Implementation would export the rendered SVG
     alert("Download SVG - Feature coming soon");
@@ -129,6 +149,36 @@ function DiagramModal({ diagram, onClose }: DiagramModalProps) {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={handleZoomOut}
+              disabled={zoom <= 50}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Zoom Out"
+            >
+              <ZoomOut className="h-5 w-5 text-gray-600" />
+            </button>
+            <span className="text-sm font-medium text-gray-600 min-w-12 text-center">
+              {zoom}%
+            </span>
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              disabled={zoom >= 300}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Zoom In"
+            >
+              <ZoomIn className="h-5 w-5 text-gray-600" />
+            </button>
+            <button
+              type="button"
+              onClick={handleResetZoom}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Reset Zoom"
+            >
+              <Maximize2 className="h-5 w-5 text-gray-600" />
+            </button>
+            <div className="w-px h-6 bg-gray-300 mx-1" />
+            <button
+              type="button"
               onClick={handleDownloadSVG}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               aria-label="Download"
@@ -147,13 +197,17 @@ function DiagramModal({ diagram, onClose }: DiagramModalProps) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto bg-white">
           {safeSource !== "" ? (
-            <div className="flex items-center justify-center min-h-full">
+            <div 
+              className="w-full h-full flex items-center justify-center p-6"
+              style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center', transition: 'transform 0.2s ease' }}
+            >
               <MermaidRenderer
                 diagramId={diagram.id}
                 prefix="modal"
                 sourceCode={safeSource}
+                className="w-full h-full"
               />
             </div>
           ) : (
@@ -179,8 +233,7 @@ export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
       // Filter IDs use: functional, c4-context, c4-container
       if (filter === "functional") return type.includes("functional");
       if (filter === "c4-context") return type === "c4_context";
-      if (filter === "c4-container") return type === "c4_container";
-      return false;
+      return type === "c4_container";
     });
   }, [diagrams, filter]);
 
