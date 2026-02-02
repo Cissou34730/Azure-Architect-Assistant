@@ -2,10 +2,15 @@ import { Message, SendMessageResponse } from "../types/api";
 import { API_BASE } from "./config";
 import { fetchWithErrorHandling } from "./serviceError";
 
+interface ReasoningStep {
+  readonly step: string;
+  readonly reasoning?: string;
+}
+
 interface AgentProjectChatResponse {
   readonly answer: string;
   readonly success: boolean;
-  readonly reasoningSteps: readonly unknown[];
+  readonly reasoningSteps: readonly ReasoningStep[];
   readonly projectState?: SendMessageResponse["projectState"];
   readonly error?: string;
 }
@@ -38,7 +43,7 @@ export const chatApi = {
       "send message",
     );
 
-    if (agentResponse.success !== true) {
+    if (!agentResponse.success) {
       throw new Error(agentResponse.error ?? "Agent chat failed");
     }
     if (agentResponse.projectState === undefined) {

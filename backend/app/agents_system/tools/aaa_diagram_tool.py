@@ -199,14 +199,27 @@ class AAACreateDiagramSetTool(BaseTool):
                 await diagram_session.commit()
                 logger.info(f"✓ DiagramSet committed: id={diagram_set.id}, diagrams={len(diagram_refs)}")
 
-                # Build state update payload
+                # Build state update payload (with full sourceCode for ProjectState)
                 updates = {
                     "diagrams": diagram_refs
                 }
                 payload_str = json.dumps(updates, ensure_ascii=False, indent=2)
 
+                # Build concise user-facing message (no full diagram code in chat)
+                diagram_names = []
+                for ref in diagram_refs:
+                    dtype = ref["diagramType"]
+                    if dtype == "mermaid_functional":
+                        diagram_names.append("Functional Flow")
+                    elif dtype == "c4_context":
+                        diagram_names.append("C4 Context")
+                    elif dtype == "c4_container":
+                        diagram_names.append("C4 Container")
+                    else:
+                        diagram_names.append(dtype)
+
                 return (
-                    f"Created diagram set (id={diagram_set.id}) with {len(diagram_refs)} diagrams at {datetime.now(timezone.utc).isoformat()}.\n"
+                    f"✓ Diagrams ready: {', '.join(diagram_names)}\n"
                     "\n"
                     "AAA_STATE_UPDATE\n"
                     "```json\n"
