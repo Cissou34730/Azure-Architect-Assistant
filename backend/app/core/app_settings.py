@@ -92,6 +92,35 @@ class AppSettings(BaseSettings):
         / "data"
         / "diagrams.db",
     )
+    
+    # WAF Checklist Normalization Settings
+    aaa_feature_waf_normalized: bool = Field(
+        default=False,
+        description="Enable normalized WAF checklist storage (dual-write mode)"
+    )
+
+    waf_namespace_uuid: str = Field(
+        default="3a7e8c2f-1b4d-4f5e-9c3d-2a8b7e6f1c4d",
+        description="Namespace UUID for deterministic checklist item IDs (UUID v5)"
+    )
+
+    waf_template_cache_dir: Path = Field(
+        default_factory=lambda: Path(__file__).resolve().parents[2]
+        / "config"
+        / "checklists",
+        description="Local directory for cached WAF template files"
+    )
+
+    waf_backfill_batch_size: int = Field(
+        default=50,
+        description="Number of projects to process per backfill batch"
+    )
+
+    waf_sync_chunk_size: int = Field(
+        default=500,
+        description="Number of items to process per database transaction during sync"
+    )
+    
     plantuml_jar_path: Path = Field(
         default_factory=lambda: Path(__file__).resolve().parents[2]
         / "lib"

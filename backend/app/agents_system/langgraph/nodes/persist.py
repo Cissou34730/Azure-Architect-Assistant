@@ -100,6 +100,20 @@ async def apply_state_updates_node(
 
         updated_state = await update_project_state(project_id, combined_updates, db)
 
+        # NEW: Sync to normalized DB if feature enabled
+        try:
+            from app.agents_system.checklists.service import get_checklist_service
+            from app.core.app_settings import get_settings
+
+            settings = get_settings()
+            if settings.aaa_feature_waf_normalized:
+                service = await get_checklist_service(db=db, settings=settings)
+                await service.sync_project(
+                    project_id=project_id, project_state=updated_state
+                )
+        except Exception as e:
+            logger.error(f"Failed to sync project {project_id} to normalized DB: {e}")
+
         # Build final answer with additional guidance
         final_answer = agent_output
         final_answer = await _handle_uncovered_topics(

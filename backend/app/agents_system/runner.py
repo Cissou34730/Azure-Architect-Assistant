@@ -5,6 +5,7 @@ Delegates composition to AgentOrchestrator to keep runner thin.
 """
 
 import logging
+from typing import Any
 
 from config.settings import OpenAISettings
 
@@ -82,7 +83,11 @@ class AgentRunner:
         logger.info("Agent system initialization complete")
 
     async def execute_query(
-        self, user_query: str, project_context: str | None = None
+        self, 
+        user_query: str, 
+        project_context: str | None = None,
+        project_id: str | None = None,
+        session: Any = None
     ) -> dict:
         """
         Execute a user query through the agent.
@@ -90,12 +95,11 @@ class AgentRunner:
         Args:
             user_query: User's architectural question or requirement
             project_context: Optional formatted project context string
+            project_id: Optional project ID for WAF processing
+            session: Optional DB session for WAF processing
 
         Returns:
             Dictionary with agent response and metadata
-
-        Raises:
-            RuntimeError: If agent not initialized
         """
         if not self.orchestrator:
             raise RuntimeError("Agent not initialized. Call initialize() first.")
@@ -105,6 +109,31 @@ class AgentRunner:
         result = await self.orchestrator.execute(
             user_query, project_context=project_context
         )
+
+        # Process WAF updates if feature enabled and project_id/session provided
+        from app.core.app_settings import get_settings
+        settings = get_settings()
+        if settings.aaa_feature_waf_normalized and project_id and session:
+            try:
+                from contextlib import asynccontextmanager
+                from app.agents_system.checklists.engine import ChecklistEngine
+                from app.agents_system.checklists.service import get_checklist_registry
+                
+                @asynccontextmanager
+                async def session_factory():
+                    yield session
+
+                registry = get_checklist_registry(settings)
+                engine = ChecklistEngine(
+                    db_session_factory=session_factory, 
+                    registry=registry, 
+                    settings=settings
+                )
+                
+                # engine.process_agent_result handles extraction from result dict
+                await engine.process_agent_result(project_id, result)
+            except Exception as e:
+                logger.error(f"Failed to process WAF results for project {project_id}: {e}")
 
         logger.info(f"Query execution complete (success={result['success']})")
 
