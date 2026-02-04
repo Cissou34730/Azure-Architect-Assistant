@@ -5,6 +5,7 @@ Phase 3: Centralize tool and prompt assembly and inject them into the agent.
 Keeps behavior stable while moving composition concerns out of the agent.
 """
 
+import asyncio
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -42,7 +43,7 @@ class AgentOrchestrator:
         verbose: bool = True,
         summary_chain: SummaryChain | None = None,
         on_start: Callable[[str, str | None, list[Any]], None] | None = None,
-        on_end: Callable[[dict[str, Any]], None] | None = None,
+        on_end: Callable[[dict[str, Any]], Any] | None = None,
         on_error: Callable[[Exception], None] | None = None,
     ) -> None:
         self.openai_settings = openai_settings or OpenAISettings()
@@ -149,7 +150,10 @@ class AgentOrchestrator:
             self._handle_summary(user_query, result)
 
             if self._on_end:
-                self._on_end(result)
+                if asyncio.iscoroutinefunction(self._on_end):
+                    await self._on_end(result)
+                else:
+                    self._on_end(result)
 
             logger.info("AgentOrchestrator: execution complete")
             return result

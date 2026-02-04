@@ -24,8 +24,10 @@ from app.routers.ingestion import router as ingestion_router
 from app.routers.kb_management import router as kb_management_router
 
 # Import routers
+from app.routers.checklists.checklist_router import router as checklist_router
 from app.routers.kb_query import router as kb_query_router
 from app.routers.project_management import router as project_router
+from app.routers.waf import router as waf_router
 from app.services.diagram.database import close_diagram_database
 
 # Suppress third-party Pydantic v2 warnings from dependencies not yet updated
@@ -94,6 +96,8 @@ app.include_router(kb_query_router)  # KB query endpoints
 app.include_router(kb_management_router)  # KB health/list endpoints
 app.include_router(ingestion_router)  # Orchestrator-based ingestion
 app.include_router(agent_router)  # Agent chat endpoints
+app.include_router(waf_router)  # WAF checklist endpoints
+app.include_router(checklist_router)  # New normalized checklists
 app.include_router(diagram_generation_router, prefix="/api/v1")  # Diagram generation
 
 

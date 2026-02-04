@@ -41,6 +41,14 @@ class Project(Base):
     messages = relationship(
         "ConversationMessage", back_populates="project", cascade="all, delete-orphan"
     )
+    checklists = relationship(
+        "Checklist", back_populates="project", cascade="all, delete-orphan"
+    )
+    checklist_evaluations = relationship(
+        "ChecklistItemEvaluation",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
 
     def to_dict(self) -> dict[str, str | None]:
         """Convert to dictionary for API responses."""

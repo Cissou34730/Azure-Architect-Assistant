@@ -381,9 +381,25 @@ async def _apply_legacy_updates(
     """Apply project state updates and derive follow-up questions."""
     try:
         updated_state = await update_project_state(project_id, combined, db)
-        answer = _apply_heuristic_feedback(
-            answer, choice_req, updated_state, combined
-        )
+
+        # NEW: Sync to normalized DB if feature enabled
+        try:
+            from app.agents_system.checklists.service import get_checklist_service
+            from app.core.app_settings import get_settings
+
+            settings = get_settings()
+            if settings.aaa_feature_waf_normalized:
+                service = await get_checklist_service(db=db, settings=settings)
+                sync_result = await service.sync_project(
+                    project_id=project_id, project_state=updated_state
+                )
+                logger.info(
+                    f"Synced project {project_id} to normalized DB: {sync_result}"
+                )
+        except Exception as e:
+            logger.error(f"Failed to sync project {project_id} to normalized DB: {e}")
+
+        answer = _apply_heuristic_feedback(answer, choice_req, updated_state, combined)
         if not choice_req:
             uncovered = derive_uncovered_topic_questions(updated_state)
             if uncovered:
@@ -454,7 +470,10 @@ async def _handle_legacy_route(
         # Execute Agent
         runner = await get_agent_runner()
         result = await runner.execute_query(
-            user_message_text, project_context=context_summary
+            user_message_text, 
+            project_context=context_summary,
+            project_id=project_id,
+            session=db
         )
         intermediate_steps = result.get("intermediate_steps", [])
         answer = str(result.get("output", ""))

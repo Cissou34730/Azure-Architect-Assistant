@@ -15,18 +15,36 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 backend_path = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(backend_path))
 
-# Import diagram models Base for autogenerate
-from app.models.diagram import Base  # noqa: E402
+# Import models Base for autogenerate
+from app.models.diagram import Base as DiagramBase  # noqa: E402
+from app.models.project import Base as ProjectBase  # noqa: E402
 
 # Alembic Config object
 config = context.config
+
+from app.core.app_settings import get_app_settings
+settings = get_app_settings()
+db_path = settings.projects_database
+if db_path:
+    # Handle both absolute and relative paths
+    if not db_path.is_absolute():
+        repo_root = Path(__file__).resolve().parents[2]
+        db_path = (repo_root / db_path).resolve()
+    
+    db_url = f"sqlite+aiosqlite:///{db_path}"
+    config.set_main_option("sqlalchemy.url", db_url)
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Add your model's MetaData object here for 'autogenerate' support
-target_metadata = Base.metadata
+# We combine metadata from both diagram and project bases
+from sqlalchemy import MetaData
+target_metadata = MetaData()
+for base in [DiagramBase, ProjectBase]:
+    for table in base.metadata.tables.values():
+        table.to_metadata(target_metadata)
 
 
 def run_migrations_offline() -> None:

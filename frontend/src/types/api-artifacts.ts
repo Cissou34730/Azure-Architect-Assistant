@@ -53,6 +53,44 @@ export interface WafChecklist {
   readonly items: readonly WafChecklistItem[];
 }
 
+export interface ChecklistSummary {
+  readonly id: string;
+  readonly projectId: string;
+  readonly templateId: string | null;
+  readonly title: string;
+  readonly status: "open" | "archived";
+  readonly itemsCount: number;
+  readonly lastSyncedAt: string | null;
+}
+
+export interface ChecklistItemDetail {
+  readonly id: string;
+  readonly templateItemId: string;
+  readonly title: string;
+  readonly description: string | null;
+  readonly pillar: string | null;
+  readonly severity: "low" | "medium" | "high" | "critical";
+  readonly guidance: Record<string, unknown> | null;
+  readonly metadata: Record<string, unknown> | null;
+  readonly latestEvaluation: {
+    readonly status: string;
+    readonly evaluator: string;
+    readonly timestamp: string;
+  } | null;
+}
+
+export interface ChecklistDetail extends ChecklistSummary {
+  readonly items: readonly ChecklistItemDetail[];
+}
+
+export interface ProgressResponse {
+  readonly totalItems: number;
+  readonly evaluatedItems: number;
+  readonly percentage: number;
+  readonly severityCounts: Record<string, number>;
+  readonly statusCounts: Record<string, number>;
+}
+
 export interface IacFile {
   readonly path: string;
   readonly format: "bicep" | "terraform" | "arm" | "yaml" | "json" | "other";

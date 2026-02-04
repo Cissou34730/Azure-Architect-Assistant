@@ -1,0 +1,25 @@
+{
+  "slug": "waf-2024",
+  "title": "Azure WAF 2024",
+  "version": "2024",
+  "source": "microsoft-learn",
+  "source_url": "https://learn.microsoft.com/en-us/azure/well-architected/checklists",
+  "source_version": "2024-01-01",
+  "content": {
+    "items": []
+  },
+  "items": [
+    {
+      "id": "reliability-1",
+      "title": "Design for high availability",
+      "pillar": "reliability",
+      "severity": "high"
+    },
+    {
+      "id": "security-1",
+      "title": "Use Azure RBAC",
+      "pillar": "security",
+      "severity": "critical"
+    }
+  ]
+}
