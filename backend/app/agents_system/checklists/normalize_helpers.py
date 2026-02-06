@@ -75,13 +75,21 @@ def extract_waf_evaluations(project_state: dict[str, Any]) -> list[dict[str, Any
 def reconstruct_legacy_waf_json(
     template_slug: str,
     version: str,
-    items_with_evals: list[Any]  # Expecting ChecklistItem joined with latest ChecklistItemEvaluation
+    items_with_evals: list[Any],  # Expecting ChecklistItem joined with latest ChecklistItemEvaluation
+    known_pillars: list[str] | None = None
 ) -> dict[str, Any]:
     """
     Reconstruct the legacy ProjectState.state['wafChecklist'] JSON structure
     from normalized database records.
     """
-    pillars = sorted(list(set(getattr(item, "pillar", "General") for item in items_with_evals)))
+    if known_pillars:
+        pillars = sorted(list(set(known_pillars)))
+    else:
+        pillars = sorted(list(set(getattr(item, "pillar", "General") for item in items_with_evals)))
+
+    if not pillars:
+        # Fallback to standard WAF pillars if none found, to ensure UI doesn't break
+        pillars = ["Cost Optimization", "Operational Excellence", "Performance Efficiency", "Reliability", "Security"]
 
     legacy_items = []
     for item in items_with_evals:

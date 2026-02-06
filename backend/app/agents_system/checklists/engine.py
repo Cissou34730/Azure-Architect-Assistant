@@ -302,7 +302,10 @@ class ChecklistEngine:
     async def sync_db_to_project_state(self, project_id: str) -> dict:
         """
         Rebuild wafChecklist JSON from normalized rows.
+        Returns a dictionary keyed by template slug for the ProjectState.
         """
+        from .normalize_helpers import reconstruct_legacy_waf_json
+
         async with self.db_session_factory() as session:
             stmt = (
                 select(Checklist)
@@ -314,30 +317,63 @@ class ChecklistEngine:
             result = await session.execute(stmt)
             checklists = result.scalars().all()
 
-            waf_checklist = {}
+            waf_checklist_map = {}
+
+            # If no checklists found, try to provide at least a skeleton for the default template
+            if not checklists:
+                template_slug = "azure-waf-v1"
+                template_info = self.registry.get_template(template_slug)
+                if template_info:
+                    # Content might be a dict with items, or items might be top level
+                    items = []
+                    if hasattr(template_info, "content") and isinstance(template_info.content, dict):
+                        items = template_info.content.get("items", [])
+                    if not items and hasattr(template_info, "items"):
+                        items = template_info.items
+                    
+                    known_pillars = None
+                    if items:
+                        known_pillars = list(set(i.get("pillar") for i in items if i.get("pillar")))
+
+                    reconstructed = reconstruct_legacy_waf_json(
+                        template_slug=template_slug,
+                        version=template_info.version,
+                        items_with_evals=[],
+                        known_pillars=known_pillars
+                    )
+                    reconstructed["title"] = template_info.title
+                    reconstructed["slug"] = template_slug
+                    waf_checklist_map[template_slug] = reconstructed
+
             for checklist in checklists:
-                checklist_data = {
-                    "title": checklist.title,
-                    "version": checklist.version,
-                    "items": {},
-                }
-                for item in checklist.items:
-                    # Get latest evaluation
-                    latest_eval = None
-                    if item.evaluations:
-                        latest_eval = sorted(
-                            item.evaluations, key=lambda x: x.created_at, reverse=True
-                        )[0]
+                # Use the legacy reconstruction helper for each checklist
+                # Try to get pillars from template to ensure structure even if items are missing
+                known_pillars = None
+                template_info = self.registry.get_template(checklist.template_slug)
+                if template_info:
+                    # Content might be a dict with items, or items might be top level
+                    items = []
+                    if hasattr(template_info, "content") and isinstance(template_info.content, dict):
+                        items = template_info.content.get("items", [])
+                    if not items and hasattr(template_info, "items"):
+                        items = template_info.items
+                    
+                    if items:
+                        known_pillars = list(set(i.get("pillar") for i in items if i.get("pillar")))
 
-                    checklist_data["items"][item.template_item_id] = {
-                        "title": item.title,
-                        "status": latest_eval.status if latest_eval else "not_started",
-                        "evidence": latest_eval.evidence if latest_eval else None,
-                        "severity": item.severity,
-                    }
-                waf_checklist[checklist.template_slug] = checklist_data
+                reconstructed = reconstruct_legacy_waf_json(
+                    template_slug=checklist.template_slug,
+                    version=checklist.version,
+                    items_with_evals=checklist.items,
+                    known_pillars=known_pillars
+                )
+                # Add metadata used in some legacy paths
+                reconstructed["title"] = checklist.title
+                reconstructed["slug"] = checklist.template_slug
+                
+                waf_checklist_map[checklist.template_slug] = reconstructed
 
-            return waf_checklist
+            return waf_checklist_map
 
     async def evaluate_item(
         self, project_id: str, item_id: UUID, evaluation_payload: dict

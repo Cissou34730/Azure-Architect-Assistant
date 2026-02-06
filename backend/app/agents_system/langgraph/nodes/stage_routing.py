@@ -308,20 +308,24 @@ def prepare_architecture_planner_handoff(state: GraphState) -> dict[str, Any]:
     project_state = state.get("current_project_state") or {}
     context_summary = state.get("context_summary") or ""
 
-    # Extract requirements
+    # Extract requirements (handle legacy dict or modern artifact list)
     requirements = project_state.get("requirements") or {}
+    
+    # Normalize for parameter extraction
+    req_params = requirements if isinstance(requirements, dict) else {}
+    
     requirements_text = _format_requirements(requirements)
 
-    # Extract NFR summary
+    # Extract NFR summary (handles both types)
     nfr_summary = _extract_nfr_summary(requirements, context_summary)
 
     # Extract constraints
     constraints = {
-        "budget": requirements.get("budget"),
-        "timeline": requirements.get("timeline"),
-        "compliance": requirements.get("compliance", []),
-        "regions": requirements.get("allowedRegions", []),
-        "excluded_services": requirements.get("excludedServices", []),
+        "budget": req_params.get("budget"),
+        "timeline": req_params.get("timeline"),
+        "compliance": req_params.get("compliance", []),
+        "regions": req_params.get("allowedRegions", []),
+        "excluded_services": req_params.get("excludedServices", []),
     }
     # Remove None values
     constraints = {k: v for k, v in constraints.items() if v}
@@ -350,10 +354,21 @@ def prepare_architecture_planner_handoff(state: GraphState) -> dict[str, Any]:
     }
 
 
-def _format_requirements(requirements: dict[str, Any]) -> str:
-    """Format requirements dictionary for handoff."""
+def _format_requirements(requirements: Any) -> str:
+    """Format requirements dictionary or list for handoff."""
     if not requirements:
         return "No explicit requirements provided."
+
+    if isinstance(requirements, list):
+        items = []
+        for req in requirements:
+            if isinstance(req, dict):
+                title = req.get("title") or req.get("text") or "Requirement"
+                desc = req.get("description") or ""
+                items.append(f"- {title}: {desc}" if desc else f"- {title}")
+            else:
+                items.append(f"- {str(req)}")
+        return "\n".join(items) if items else "No explicit requirements provided."
 
     formatted = []
     if "workloadType" in requirements:
@@ -372,17 +387,20 @@ def _format_requirements(requirements: dict[str, Any]) -> str:
     return "\n".join(formatted) if formatted else str(requirements)
 
 
-def _extract_nfr_summary(requirements: dict[str, Any], context: str) -> str:
+def _extract_nfr_summary(requirements: Any, context: str) -> str:
     """Extract non-functional requirements summary."""
     nfr_parts = _build_nfr_sections(requirements)
     return "\n".join(nfr_parts) if nfr_parts else "No explicit NFR requirements provided."
 
 
-def _build_nfr_sections(requirements: dict[str, Any]) -> list[str]:
+def _build_nfr_sections(requirements: Any) -> list[str]:
     """Build formatted NFR sections from requirements."""
     nfr_parts = []
+    
+    # Normalize for parameter extraction
+    req_params = requirements if isinstance(requirements, dict) else {}
 
-    performance = requirements.get("sla")
+    performance = req_params.get("sla")
     if performance:
         nfr_parts.append(f"**Performance:** SLA target: {performance}")
 
@@ -394,19 +412,22 @@ def _build_nfr_sections(requirements: dict[str, Any]) -> list[str]:
     if reliability_info:
         nfr_parts.append(f"**Reliability:** {reliability_info}")
 
-    compliance_list = requirements.get("compliance") or []
+    compliance_list = req_params.get("compliance", []) if isinstance(req_params.get("compliance", []), list) else []
     if compliance_list:
         nfr_parts.append(f"**Security/Compliance:** {', '.join(compliance_list)}")
 
-    budget = requirements.get("budget")
+    budget = req_params.get("budget")
     if budget:
         nfr_parts.append(f"**Cost:** Budget constraint: {budget}")
 
     return nfr_parts
 
 
-def _format_keyed_values(requirements: dict[str, Any], labels: list[tuple[str, str]]) -> str | None:
+def _format_keyed_values(requirements: Any, labels: list[tuple[str, str]]) -> str | None:
     """Format a list of requirement keys as labeled values."""
+    if not isinstance(requirements, dict):
+        return None
+        
     parts = []
     for label, key in labels:
         value = requirements.get(key)
@@ -492,11 +513,15 @@ def prepare_iac_generator_handoff(state: GraphState) -> dict[str, Any]:
 
     # Extract constraints
     requirements = project_state.get("requirements") or {}
+    
+    # Handle list requirements by normalizing for parameter extraction
+    req_params = requirements if isinstance(requirements, dict) else {}
+    
     constraints = {
-        "regions": requirements.get("allowedRegions", []),
-        "naming_convention": requirements.get("namingConvention"),
-        "tagging_policy": requirements.get("taggingPolicy", {}),
-        "compliance": requirements.get("compliance", []),
+        "regions": req_params.get("allowedRegions", []),
+        "naming_convention": req_params.get("namingConvention"),
+        "tagging_policy": req_params.get("taggingPolicy", {}),
+        "compliance": req_params.get("compliance", []),
     }
     # Remove None values
     constraints = {k: v for k, v in constraints.items() if v}
@@ -664,11 +689,12 @@ def prepare_saas_advisor_handoff(state: GraphState) -> dict[str, Any]:
             current_architecture += f"\n\n**Diagram:**\n{diagram}"
 
     # Extract constraints
+    req_params = requirements if isinstance(requirements, dict) else {}
     constraints = {
-        "budget": requirements.get("budget"),
-        "timeline": requirements.get("timeline"),
-        "compliance": requirements.get("compliance", []),
-        "regions": requirements.get("allowedRegions", []),
+        "budget": req_params.get("budget"),
+        "timeline": req_params.get("timeline"),
+        "compliance": req_params.get("compliance", []),
+        "regions": req_params.get("allowedRegions", []),
     }
 
     handoff_context = {
@@ -892,12 +918,13 @@ def prepare_cost_estimator_handoff(state: GraphState) -> dict[str, Any]:
     environment = _detect_environment(user_message, context_summary)
 
     # Extract constraints
+    req_params = requirements if isinstance(requirements, dict) else {}
     constraints = {
-        "budget": requirements.get("budget"),
+        "budget": req_params.get("budget"),
         "reserved_instances": "reserved instance" in user_message or "ri" in user_message,
         "azure_hybrid_benefit": "ahb" in user_message or "hybrid benefit" in user_message,
         "spot_instances": "spot" in user_message,
-        "compliance": requirements.get("compliance", []),
+        "compliance": req_params.get("compliance", []),
     }
     # Remove None/False values
     constraints = {k: v for k, v in constraints.items() if v}
@@ -954,7 +981,8 @@ def _detect_region(user_message: str, requirements: dict[str, Any]) -> str:
             return region
 
     # Check requirements
-    allowed_regions = requirements.get("allowedRegions", [])
+    req_params = requirements if isinstance(requirements, dict) else {}
+    allowed_regions = req_params.get("allowedRegions", [])
     if allowed_regions:
         return allowed_regions[0]
 

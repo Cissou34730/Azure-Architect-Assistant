@@ -1,6 +1,6 @@
 import pytest
 import uuid
-from app.services.normalize_helpers import (
+from app.agents_system.checklists.normalize_helpers import (
     map_legacy_status, 
     map_normalized_status, 
     extract_waf_evaluations,
