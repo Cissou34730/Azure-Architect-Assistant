@@ -16,6 +16,7 @@ from app.core.app_settings import get_settings
 from app.agents_system.checklists.registry import ChecklistRegistry
 from app.agents_system.checklists.engine import ChecklistEngine
 from app.agents_system.checklists.service import ChecklistService
+from app.models.checklist import ChecklistTemplate
 
 
 @pytest.fixture(scope="session")
@@ -61,7 +62,35 @@ def test_registry(mock_settings, tmp_path):
     """Provide a registry with a temporary cache directory."""
     cache_dir = tmp_path / "checklists"
     cache_dir.mkdir()
-    return ChecklistRegistry(cache_dir=cache_dir, settings=mock_settings)
+    registry = ChecklistRegistry(cache_dir=cache_dir, settings=mock_settings)
+    registry.register_template(
+        ChecklistTemplate(
+            slug="azure-waf-v1",
+            title="Azure WAF",
+            description="Test template",
+            version="1.0",
+            source="tests",
+            source_url="https://example.com",
+            source_version="1.0",
+            content={
+                "items": [
+                    {
+                        "id": "sec-01",
+                        "title": "Secure Admin Access",
+                        "pillar": "Security",
+                        "severity": "high",
+                    },
+                    {
+                        "id": "rel-01",
+                        "title": "Backup Strategy",
+                        "pillar": "Reliability",
+                        "severity": "critical",
+                    },
+                ]
+            },
+        )
+    )
+    return registry
 
 
 @pytest.fixture

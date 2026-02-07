@@ -16,6 +16,26 @@ logger = logging.getLogger(__name__)
 COMPLEXITY_THRESHOLD = 3
 
 
+_NON_ARCH_INTENT_KEYWORDS = [
+    "waf",
+    "checklist",
+    "validate",
+    "validation",
+    "security benchmark",
+    "aaa_record_validation_results",
+    "adr",
+    "decision",
+    "cost",
+    "price",
+    "pricing",
+    "budget",
+    "terraform",
+    "bicep",
+    "iac",
+    "infrastructure as code",
+]
+
+
 class ProjectStage(str, Enum):
     """Project workflow stages."""
     CLARIFY = "clarify"
@@ -244,6 +264,31 @@ def should_route_to_architecture_planner(state: GraphState) -> bool:
         True if should route to architecture planner
     """
     user_message = (state.get("user_message") or "").lower()
+    next_stage = state.get("next_stage")
+
+    # Stage guard: if workflow stage already indicates a non-architecture task,
+    # do not hijack routing with complexity heuristics.
+    blocked_stages = {
+        ProjectStage.VALIDATE.value,
+        ProjectStage.MANAGE_ADR.value,
+        ProjectStage.PRICING.value,
+        ProjectStage.IAC.value,
+        ProjectStage.EXPORT.value,
+    }
+    if next_stage in blocked_stages:
+        logger.info(
+            "Skipping Architecture Planner routing: stage=%s indicates a non-architecture task",
+            next_stage,
+        )
+        return False
+
+    # Intent guard: explicit WAF/validation/checklist/pricing/IaC requests
+    # should not be routed to Architecture Planner.
+    if any(keyword in user_message for keyword in _NON_ARCH_INTENT_KEYWORDS):
+        logger.info(
+            "Skipping Architecture Planner routing: explicit non-architecture intent detected"
+        )
+        return False
 
     # Explicit architecture request keywords
     arch_keywords = [
@@ -258,7 +303,6 @@ def should_route_to_architecture_planner(state: GraphState) -> bool:
         return True
 
     # Check project stage
-    next_stage = state.get("next_stage")
     if next_stage == ProjectStage.PROPOSE_CANDIDATE.value and any(
         kw in user_message for kw in ["architecture", "design", "propose", "solution"]
     ):
@@ -282,7 +326,12 @@ def should_route_to_architecture_planner(state: GraphState) -> bool:
     ]
 
     complexity_count = sum(1 for indicator in complexity_indicators if indicator in nfr_text)
-    if complexity_count >= COMPLEXITY_THRESHOLD:
+    has_design_language = any(
+        kw in user_message for kw in ["architecture", "design", "propose", "solution"]
+    )
+    if complexity_count >= COMPLEXITY_THRESHOLD and (
+        next_stage == ProjectStage.PROPOSE_CANDIDATE.value or has_design_language
+    ):
         logger.info(
             f"🎯 Routing to Architecture Planner: complexity threshold "
             f"({complexity_count} indicators)"

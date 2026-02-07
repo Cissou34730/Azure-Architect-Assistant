@@ -4,7 +4,7 @@ Tests for ChecklistService.
 
 import pytest
 from uuid import uuid4
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from app.agents_system.checklists.service import ChecklistService
 from app.models.checklist import ChecklistItemEvaluation
@@ -28,7 +28,7 @@ async def test_service_sync_project(test_checklist_service):
     }
     
     # Mock engine.sync_project_state_to_db
-    test_checklist_service.engine.sync_project_state_to_db = MagicMock(return_value={"status": "success"})
+    test_checklist_service.engine.sync_project_state_to_db = AsyncMock(return_value={"status": "success"})
     
     await test_checklist_service.sync_project(project_id, project_state)
     
@@ -40,7 +40,7 @@ async def test_service_sync_project(test_checklist_service):
 async def test_service_get_progress(test_checklist_service):
     """Test getting progress via the service."""
     project_id = str(uuid4())
-    test_checklist_service.engine.compute_progress = MagicMock(return_value={"percent_complete": 50})
+    test_checklist_service.engine.compute_progress = AsyncMock(return_value={"percent_complete": 50})
     
     result = await test_checklist_service.get_progress(project_id)
     
@@ -52,10 +52,10 @@ async def test_service_evaluate_item(test_checklist_service):
     """Test evaluating an item via the service."""
     project_id = str(uuid4())
     item_id = uuid4()
-    payload = {"status": "fulfilled", "evidence": "good stuff"}
+    payload = {"status": "fixed", "evidence": "good stuff"}
     
     mock_eval = MagicMock(spec=ChecklistItemEvaluation)
-    test_checklist_service.engine.evaluate_item = MagicMock(return_value=mock_eval)
+    test_checklist_service.engine.evaluate_item = AsyncMock(return_value=mock_eval)
     
     result = await test_checklist_service.evaluate_item(project_id, item_id, payload)
     
@@ -66,10 +66,23 @@ async def test_service_evaluate_item(test_checklist_service):
 async def test_service_list_next_actions(test_checklist_service):
     """Test listing next actions via the service."""
     project_id = str(uuid4())
-    test_checklist_service.engine.list_next_actions = MagicMock(return_value=[{"id": "item1"}])
+    test_checklist_service.engine.list_next_actions = AsyncMock(return_value=[{"id": "item1"}])
     
     result = await test_checklist_service.list_next_actions(project_id, limit=5)
     
     assert len(result) == 1
     assert result[0]["id"] == "item1"
     test_checklist_service.engine.list_next_actions.assert_called_once_with(project_id, 5, None)
+
+
+@pytest.mark.asyncio
+async def test_service_ensure_project_checklist(test_checklist_service):
+    project_id = str(uuid4())
+    test_checklist_service.engine.ensure_project_checklist = AsyncMock(return_value=MagicMock())
+
+    result = await test_checklist_service.ensure_project_checklist(project_id)
+
+    assert result is True
+    test_checklist_service.engine.ensure_project_checklist.assert_called_once_with(
+        project_id, "azure-waf-v1"
+    )

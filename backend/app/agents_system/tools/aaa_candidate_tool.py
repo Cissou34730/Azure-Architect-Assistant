@@ -162,7 +162,7 @@ class AAAGenerateCandidateTool(BaseTool):
         return self._run(**kwargs)
 
 
-def create_aaa_tools() -> list[BaseTool]:
+def create_aaa_tools(_context: Any | None = None) -> list[BaseTool]:
     """Factory returning AAA-specific tools for the agent."""
 
     return [

@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "./Layout";
+import { LegacyProjectAliasRedirect } from "./LegacyProjectAliasRedirect";
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const ProjectsPage = lazy(
@@ -31,16 +32,6 @@ const AgentChatWorkspace = lazy(() =>
   })),
 );
 
-// Legacy tab pages - kept for reference but not in active routes
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const ProjectOverviewPage = lazy(
-  () => import("../features/projects/pages/ProjectOverviewPage"),
-);
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const ProjectDeliverablesPage = lazy(
-  () => import("../features/projects/pages/ProjectDeliverablesPage"),
-);
-
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -62,22 +53,8 @@ export const router = createBrowserRouter([
             index: true,
             element: <UnifiedProjectPage />,
           },
-          // Legacy tab routes - kept for backward compatibility and reference
-          // Users can still navigate to /project/:id/overview or /project/:id/deliverables
           {
-            path: "overview",
-            element: <ProjectOverviewPage />,
-          },
-          {
-            path: "deliverables",
-            element: <ProjectDeliverablesPage />,
-          },
-          {
-            path: "workspace",
-            element: <Navigate to=".." replace />,
-          },
-          {
-            path: "documents",
+            path: "*",
             element: <Navigate to=".." replace />,
           },
         ],
@@ -88,7 +65,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "projects/:projectId",
-        element: <Navigate to="/project/:projectId" replace />,
+        element: <LegacyProjectAliasRedirect />,
       },
       {
         path: "kb",

@@ -3,12 +3,12 @@ Unit tests for orchestrator components.
 Tests: content_hash, idempotency, RetryPolicy, WorkflowDefinition
 """
 
-from backend.app.ingestion.application.orchestrator import (
+from app.ingestion.application.orchestrator import (
     RetryPolicy,
     StepName,
     WorkflowDefinition,
 )
-from backend.app.ingestion.domain.chunking.adapter import compute_content_hash
+from app.ingestion.domain.chunking.adapter import compute_content_hash
 
 
 class TestContentHash:

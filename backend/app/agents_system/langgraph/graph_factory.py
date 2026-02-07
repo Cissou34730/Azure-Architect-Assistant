@@ -17,6 +17,7 @@ from .nodes.postprocess import postprocess_node
 from .nodes.research import build_research_plan_node
 from .nodes.saas_advisor import saas_advisor_node
 from .nodes.stage_routing import (
+    classify_next_stage,
     prepare_architecture_planner_handoff,
     prepare_cost_estimator_handoff,
     prepare_iac_generator_handoff,
@@ -36,6 +37,7 @@ def build_project_chat_graph(db: AsyncSession | None = None, response_message_id
     # Add nodes
     workflow.add_node("load_state", _wrap_load_state(db))
     workflow.add_node("build_summary", _wrap_build_summary(db))
+    workflow.add_node("classify_stage", classify_next_stage)
     workflow.add_node("build_research", build_research_plan_node)
     workflow.add_node("agent_router", _agent_router_node)
     workflow.add_node("prepare_arch_handoff", prepare_architecture_planner_handoff)
@@ -54,7 +56,8 @@ def build_project_chat_graph(db: AsyncSession | None = None, response_message_id
     # Define edges
     workflow.set_entry_point("load_state")
     workflow.add_edge("load_state", "build_summary")
-    workflow.add_edge("build_summary", "build_research")
+    workflow.add_edge("build_summary", "classify_stage")
+    workflow.add_edge("classify_stage", "build_research")
     workflow.add_edge("build_research", "agent_router")
 
     # Conditional routing from agent_router

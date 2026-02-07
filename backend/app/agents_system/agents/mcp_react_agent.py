@@ -42,10 +42,14 @@ class MCPReActAgent:
         openai_api_key: str | None = None,
         mcp_client: MicrosoftLearnMCPClient | None = None,
         model: str | None = None,
+        model_name: str | None = None,
         temperature: float = 0.1,
         max_iterations: int = 8,
         max_execution_time: int = 60,
         verbose: bool = True,
+        # Prompt aliases used by LangGraph specialist nodes
+        system_prompt: str | None = None,
+        react_template: str | None = None,
         # Optional injected dependencies
         llm: ChatOpenAI | None = None,
         tools: list[BaseTool] | None = None,
@@ -53,11 +57,14 @@ class MCPReActAgent:
     ):
         self.openai_api_key = openai_api_key
         self.mcp_client = mcp_client
-        self.model = model
+        # Backward-compatible model alias support (model_name -> model).
+        self.model = model or model_name
         self.temperature = temperature
         self.max_iterations = max_iterations
         self.max_execution_time = max_execution_time
         self.verbose = verbose
+        self.system_prompt = system_prompt or SYSTEM_PROMPT
+        self.react_template = react_template or REACT_TEMPLATE
 
         # Injected or to be initialized
         self.llm: ChatOpenAI | None = llm
@@ -66,7 +73,7 @@ class MCPReActAgent:
         self.agent_facade: AgentFacade | None = None
 
         logger.info(
-            f"MCPReActAgent initialized (model={model}, temperature={temperature}, injected_llm={'yes' if llm else 'no'})"
+            f"MCPReActAgent initialized (model={self.model}, temperature={temperature}, injected_llm={'yes' if llm else 'no'})"
         )
 
     async def initialize(self, callbacks: Iterable[Any] | None = None) -> None:
@@ -112,7 +119,7 @@ class MCPReActAgent:
         tools_meta = [
             {"name": t.name, "description": getattr(t, "description", "")} for t in self.tools
         ]
-        template_text = f"{SYSTEM_PROMPT}\n\n{REACT_TEMPLATE}"
+        template_text = f"{self.system_prompt}\n\n{self.react_template}"
         self.prompt = build_prompt_template(template_text, tools_meta)
 
     async def _initialize_facade(self, callbacks: Iterable[Any] | None) -> None:
@@ -159,6 +166,27 @@ class MCPReActAgent:
             }
         except Exception as e:  # noqa: BLE001
             return self._handle_execution_error(e)
+
+    async def ainvoke(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """
+        Compatibility wrapper for call sites expecting LangChain-style ainvoke.
+
+        Expected payload shape:
+            {
+              "input": "<user query>",
+              "context": "<optional project context>"
+            }
+        """
+        if not self.agent_facade:
+            await self.initialize()
+
+        if self.agent_facade is None:
+            raise RuntimeError("AgentFacade unavailable after initialization")
+
+        agent_input = dict(payload)
+        if "input" not in agent_input and "query" in agent_input:
+            agent_input["input"] = agent_input["query"]
+        return await self.agent_facade.ainvoke(agent_input)
 
     async def stream_execute(self, user_query: str, project_context: str | None = None):
         """Execute agent in streaming mode."""

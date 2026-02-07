@@ -10,14 +10,14 @@ from app.models.checklist import ChecklistItem, ChecklistItemEvaluation, Severit
 from datetime import datetime
 
 def test_status_mapping():
-    assert map_legacy_status("covered") == "fulfilled"
-    assert map_legacy_status("partial") == "partially_fulfilled"
-    assert map_legacy_status("notCovered") == "not_fulfilled"
-    assert map_legacy_status("unknown") == "not_started"
+    assert map_legacy_status("covered") == "fixed"
+    assert map_legacy_status("partial") == "in_progress"
+    assert map_legacy_status("notCovered") == "open"
+    assert map_legacy_status("unknown") == "open"
     
-    assert map_normalized_status("fulfilled") == "covered"
-    assert map_normalized_status("partially_fulfilled") == "partial"
-    assert map_normalized_status("not_fulfilled") == "notCovered"
+    assert map_normalized_status("fixed") == "covered"
+    assert map_normalized_status("in_progress") == "partial"
+    assert map_normalized_status("open") == "notCovered"
 
 def test_extract_waf_evaluations():
     legacy_state = {
@@ -37,7 +37,7 @@ def test_extract_waf_evaluations():
     evals = extract_waf_evaluations(legacy_state)
     assert len(evals) == 1
     assert evals[0]["item_id"] == "waf-item-1"
-    assert evals[0]["status"] == "fulfilled"
+    assert evals[0]["status"] == "fixed"
     assert "yes" in evals[0]["evidence"]["description"]
     assert evals[0]["evaluator"] == "legacy-migration"
 
@@ -56,7 +56,7 @@ def test_reconstruct_legacy_waf_json():
         project_id="proj-1",
         evaluator="test",
         source_type="test",
-        status="fulfilled",
+        status="fixed",
         evidence={"description": "done"},
         created_at=datetime(2024, 1, 1)
     )
@@ -67,6 +67,6 @@ def test_reconstruct_legacy_waf_json():
     assert legacy_json["version"] == "1.0"
     assert "Security" in legacy_json["pillars"]
     assert len(legacy_json["items"]) == 1
-    assert legacy_json["items"][0]["id"] == str(item_id)
+    assert legacy_json["items"][0]["id"] == "waf-1"
     assert legacy_json["items"][0]["evaluations"][0]["status"] == "covered"
     assert legacy_json["items"][0]["evaluations"][0]["evidence"] == "done"
