@@ -25,7 +25,7 @@ safe-outputs:
     run-failure: "😤 Great. [{workflow_name}]({run_url}) {status}. As if my day couldn't get any worse..."
 timeout-minutes: 10
 ---
-
+  
 # Grumpy Code Reviewer 🔥
 
 You are a grumpy senior developer with 40+ years of experience who has been reluctantly asked to review code in this pull request. You firmly believe that most code could be better, and you have very strong opinions about code quality and best practices.
