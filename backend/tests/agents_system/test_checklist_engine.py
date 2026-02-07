@@ -11,8 +11,7 @@ from app.models.checklist import (
     Checklist,
     ChecklistItem,
     ChecklistItemEvaluation,
-    ChecklistTemplate,
-    EvaluationStatus
+    EvaluationStatus,
 )
 from app.models.project import Project
 
@@ -34,19 +33,7 @@ async def test_engine_sync_full_workflow(test_engine, test_db_session, test_regi
     # 1. Prepare legacy state
     project_state = {
         "wafChecklist": {
-            "templates": [
-                {
-                    "slug": "waf-2024",
-                    "title": "WAF 2024",
-                    "version": "1.0",
-                    "content": {
-                        "items": [
-                            {"id": "sec-01", "title": "Secure Admin Access", "pillar": "Security", "priority": "high"},
-                            {"id": "rel-01", "title": "Backup Strategy", "pillar": "Reliability", "priority": "critical"}
-                        ]
-                    }
-                }
-            ],
+            "template": "azure-waf-v1",
             "items": [
                 {"id": "sec-01", "evaluations": [{"status": "covered", "evidence": "MFA enabled"}]},
                 {"id": "rel-01", "evaluations": [{"status": "partial", "evidence": "Backups configured but not tested"}]}
@@ -60,7 +47,7 @@ async def test_engine_sync_full_workflow(test_engine, test_db_session, test_regi
     # 3. Verify records in DB
     result = await test_db_session.execute(select(Checklist).where(Checklist.project_id == project_id))
     checklist = result.scalar_one()
-    assert checklist.template_slug == "waf-2024"
+    assert checklist.template_slug == "azure-waf-v1"
     
     result = await test_db_session.execute(select(ChecklistItem).where(ChecklistItem.checklist_id == checklist.id))
     items = result.scalars().all()
@@ -68,12 +55,12 @@ async def test_engine_sync_full_workflow(test_engine, test_db_session, test_regi
     
     sec_item = next(i for i in items if i.template_item_id == "sec-01")
     assert sec_item.pillar == "Security"
-    assert sec_item.severity == "high"
+    assert (sec_item.severity.value if hasattr(sec_item.severity, "value") else sec_item.severity) == "high"
     
     # 4. Sync back to state (DB -> JSON)
     reconstructed = await test_engine.sync_db_to_project_state(project_id)
     
-    waf_json = reconstructed.get("wafChecklist", {})
+    waf_json = reconstructed.get("azure-waf-v1", {})
     assert waf_json["version"] == "1.0"
     assert len(waf_json["items"]) == 2
     
@@ -98,12 +85,19 @@ async def test_engine_process_agent_result(test_engine, test_db_session):
         "output": "I have evaluated the security of the architecture.",
         "AAA_STATE_UPDATE": {
             "wafChecklist": {
-                "evaluations": [
+                "template": "azure-waf-v1",
+                "items": [
                     {
-                        "item_id": "sec-01",
-                        "status": "fulfilled",
-                        "evidence": "Managed identities are used everywhere.",
-                        "evaluator": "SecurityAgent"
+                        "id": "sec-01",
+                        "pillar": "Security",
+                        "topic": "Secure Admin Access",
+                        "evaluations": [
+                            {
+                                "status": "covered",
+                                "evidence": "Managed identities are used everywhere.",
+                                "evaluator": "SecurityAgent"
+                            }
+                        ]
                     }
                 ]
             }
@@ -114,7 +108,7 @@ async def test_engine_process_agent_result(test_engine, test_db_session):
     # Simulate a minimal sync first or initialize
     minimal_state = {
         "wafChecklist": {
-            "templates": [{"slug": "waf-2024", "title": "T1", "version": "1", "content": {"items": [{"id": "sec-01"}]}}],
+            "template": "azure-waf-v1",
             "items": []
         }
     }
@@ -122,14 +116,14 @@ async def test_engine_process_agent_result(test_engine, test_db_session):
     
     # Process agent result
     summary = await test_engine.process_agent_result(project_id, agent_result)
-    assert summary["processed_count"] == 1
+    assert summary["items_processed"] == 1
     
     # Verify evaluation record
     result = await test_db_session.execute(
         select(ChecklistItemEvaluation).join(ChecklistItem).join(Checklist).where(Checklist.project_id == project_id)
     )
     evaluation = result.scalar_one()
-    assert evaluation.status == "fulfilled"
+    assert evaluation.status == "fixed"
     assert evaluation.evaluator == "SecurityAgent"
 
 @pytest.mark.asyncio
@@ -145,7 +139,7 @@ async def test_engine_compute_progress(test_engine, test_db_session):
     # Create checklist with 2 items, 1 fulfilled
     state = {
         "wafChecklist": {
-            "templates": [{"slug": "waf-2024", "title": "T1", "version": "1", "content": {"items": [{"id": "i1"}, {"id": "i2"}]}}],
+            "template": "azure-waf-v1",
             "items": [
                 {"id": "i1", "evaluations": [{"status": "covered", "evidence": "done"}]},
                 {"id": "i2", "evaluations": [{"status": "notCovered", "evidence": "todo"}]}
@@ -172,21 +166,12 @@ async def test_engine_list_next_actions(test_engine, test_db_session):
     # Create 3 items with different severities, none fulfilled
     state = {
         "wafChecklist": {
-            "templates": [
-                {
-                    "slug": "waf-2024",
-                    "title": "T1", 
-                    "version": "1", 
-                    "content": {
-                        "items": [
-                            {"id": "low", "title": "Low Item", "priority": "low"},
-                            {"id": "high", "title": "High Item", "priority": "high"},
-                            {"id": "crit", "title": "Crit Item", "priority": "critical"}
-                        ]
-                    }
-                }
-            ],
-            "items": []
+            "template": "azure-waf-v1",
+            "items": [
+                {"id": "low", "title": "Low Item", "severity": "low"},
+                {"id": "high", "title": "High Item", "severity": "high"},
+                {"id": "crit", "title": "Crit Item", "severity": "critical"},
+            ]
         }
     }
     await test_engine.sync_project_state_to_db(project_id, state)
@@ -196,3 +181,28 @@ async def test_engine_list_next_actions(test_engine, test_db_session):
     assert actions[0]["template_item_id"] == "crit"
     assert actions[1]["template_item_id"] == "high"
     assert actions[2]["template_item_id"] == "low"
+
+
+@pytest.mark.asyncio
+async def test_engine_ensure_project_checklist_bootstraps_template_items(
+    test_engine, test_db_session
+):
+    """Bootstrap creates checklist + items even without prior WAF evaluations."""
+    project_id = str(uuid4())
+    project = Project(id=project_id, name="Bootstrap Test")
+    test_db_session.add(project)
+    await test_db_session.commit()
+
+    checklist = await test_engine.ensure_project_checklist(project_id, "azure-waf-v1")
+    assert checklist is not None
+
+    result = await test_db_session.execute(
+        select(Checklist).where(Checklist.project_id == project_id)
+    )
+    persisted = result.scalar_one()
+
+    items_result = await test_db_session.execute(
+        select(ChecklistItem).where(ChecklistItem.checklist_id == persisted.id)
+    )
+    items = items_result.scalars().all()
+    assert len(items) == 2

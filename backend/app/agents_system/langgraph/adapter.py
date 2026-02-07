@@ -10,9 +10,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.app_settings import get_settings
 from ..runner import get_agent_runner
-from .graph_factory import build_project_chat_graph
 from .graph_factory_advanced import build_advanced_project_chat_graph
 from .nodes.agent_native import run_stage_aware_agent
 from .state import GraphState
@@ -88,29 +86,18 @@ async def execute_project_chat(
         - error: Error message if failed (str, optional)
     """
     try:
-        settings = get_settings()
-
         # Generate message ID for iteration logging
         response_message_id = str(uuid.uuid4())
 
-        # Choose graph factory based on feature flags
-        enable_stage_routing = getattr(settings, 'aaa_enable_stage_routing', False)
-        enable_multi_agent = getattr(settings, 'aaa_enable_multi_agent', False)
-
-        if enable_stage_routing or enable_multi_agent:
-            logger.info(
-                f"Building advanced graph (stage_routing={enable_stage_routing}, "
-                f"multi_agent={enable_multi_agent})"
-            )
-            graph = build_advanced_project_chat_graph(
-                db,
-                response_message_id,
-                enable_stage_routing=enable_stage_routing,
-                enable_multi_agent=enable_multi_agent,
-            )
-        else:
-            logger.info("Building standard graph (Phase 2/3)")
-            graph = build_project_chat_graph(db, response_message_id)
+        # Unified LangGraph path: always run the advanced workflow with
+        # stage routing enabled and a single agent execution path.
+        logger.info("Building unified LangGraph workflow (stage_routing=True, multi_agent=False)")
+        graph = build_advanced_project_chat_graph(
+            db,
+            response_message_id,
+            enable_stage_routing=True,
+            enable_multi_agent=False,
+        )
 
         # Initialize state
         initial_state: GraphState = {

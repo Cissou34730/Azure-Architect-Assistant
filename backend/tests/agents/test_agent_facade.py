@@ -1,5 +1,5 @@
 import pytest
-from backend.app.agents_system.langchain.agent_facade import AgentFacade
+from app.agents_system.langchain.agent_facade import AgentFacade
 
 
 class DummyAgentArun:

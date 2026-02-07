@@ -1,5 +1,6 @@
 import { useProjectMetaContext } from "../context/useProjectMetaContext";
 import { useCallback, useEffect } from "react";
+import { useSearchParams, type SetURLSearchParams } from "react-router-dom";
 import { usePanelWidth } from "../hooks/usePanelWidth";
 import { useWorkspaceTabs } from "../hooks/useWorkspaceTabs";
 import { useUnifiedProjectPage } from "../hooks/useUnifiedProjectPage";
@@ -10,6 +11,7 @@ import { useProjectContext } from "../context/useProjectContext";
 
 export default function UnifiedProjectPage() {
   useRenderCount("UnifiedProjectPage");
+  const [searchParams, setSearchParams] = useSearchParams();
   const { selectedProject: selectedProjectMeta } = useProjectMetaContext();
   const {
     loading,
@@ -57,6 +59,13 @@ export default function UnifiedProjectPage() {
     currentText: textRequirements,
     setDirty,
   });
+  useRouteIntentHandlers({
+    searchParams,
+    setSearchParams,
+    openLeftPanel,
+    openTab,
+    onGenerateCandidate: handleGenerateDiagramClick,
+  });
 
   const { handleUploadClick, handleAdrClick } = useWorkspaceQuickOpen(openLeftPanel, openTab);
 
@@ -94,14 +103,7 @@ export default function UnifiedProjectPage() {
 }
 
 const DEFAULT_TABS: readonly WorkspaceTab[] = [
-  {
-    id: "input-overview",
-    kind: "input-overview",
-    title: "Inputs",
-    group: "input",
-    pinned: false,
-    dirty: false,
-  },
+  createInputOverviewTab(),
 ];
 
 function useInputDirtyIndicator({
@@ -125,14 +127,7 @@ function useWorkspaceQuickOpen(
 ) {
   const handleUploadClick = useCallback(() => {
     openLeftPanel();
-    openTab({
-      id: "input-overview",
-      kind: "input-overview",
-      title: "Inputs",
-      group: "input",
-      pinned: false,
-      dirty: false,
-    });
+    openTab(createInputOverviewTab());
   }, [openLeftPanel, openTab]);
 
   const handleAdrClick = useCallback(() => {
@@ -147,6 +142,163 @@ function useWorkspaceQuickOpen(
   }, [openTab]);
 
   return { handleUploadClick, handleAdrClick };
+}
+
+function useRouteIntentHandlers({
+  searchParams,
+  setSearchParams,
+  openLeftPanel,
+  openTab,
+  onGenerateCandidate,
+}: {
+  readonly searchParams: URLSearchParams;
+  readonly setSearchParams: SetURLSearchParams;
+  readonly openLeftPanel: () => void;
+  readonly openTab: (tab: WorkspaceTab) => void;
+  readonly onGenerateCandidate: () => void;
+}) {
+  useEffect(() => {
+    const nextParams = new URLSearchParams(searchParams);
+    let shouldUpdateUrl = false;
+
+    const tabIntent = normalizeParam(searchParams.get("tab"));
+    if (tabIntent !== "") {
+      const tab = resolveTabIntent(tabIntent);
+      if (tab !== null) {
+        if (tab.group === "input") {
+          openLeftPanel();
+        }
+        openTab(tab);
+        nextParams.delete("tab");
+        shouldUpdateUrl = true;
+      }
+    }
+
+    const actionIntent = normalizeParam(searchParams.get("action"));
+    const promptIntent = normalizeParam(searchParams.get("prompt"));
+    const runIntent = actionIntent !== "" ? actionIntent : promptIntent;
+    let consumedAction = false;
+    if (runIntent !== "") {
+      if (runIntent === "generate-candidate") {
+        onGenerateCandidate();
+        consumedAction = true;
+        shouldUpdateUrl = true;
+      } else if (runIntent === "create-adr") {
+        openTab(createAdrTab());
+        consumedAction = true;
+        shouldUpdateUrl = true;
+      }
+      if (consumedAction) {
+        nextParams.delete("action");
+        nextParams.delete("prompt");
+      }
+    }
+
+    if (shouldUpdateUrl) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [
+    onGenerateCandidate,
+    openLeftPanel,
+    openTab,
+    searchParams,
+    setSearchParams,
+  ]);
+}
+
+function resolveTabIntent(tabIntent: string): WorkspaceTab | null {
+  switch (tabIntent) {
+    case "overview":
+    case "inputs":
+    case "workspace":
+      return createInputOverviewTab();
+    case "deliverables":
+    case "diagrams":
+      return createDiagramsTab();
+    case "adrs":
+      return createAdrTab();
+    case "iac":
+      return createIacTab();
+    case "costs":
+      return createCostsTab();
+    case "waf":
+      return createWafTab();
+    default:
+      return null;
+  }
+}
+
+function normalizeParam(value: string | null): string {
+  if (value === null) {
+    return "";
+  }
+  return value.trim().toLowerCase();
+}
+
+function createInputOverviewTab(): WorkspaceTab {
+  return {
+    id: "input-overview",
+    kind: "input-overview",
+    title: "Inputs",
+    group: "input",
+    pinned: false,
+    dirty: false,
+  };
+}
+
+function createDiagramsTab(): WorkspaceTab {
+  return {
+    id: "artifact-diagrams",
+    kind: "artifact-diagrams",
+    title: "Diagrams",
+    group: "artifact",
+    pinned: false,
+    dirty: false,
+  };
+}
+
+function createAdrTab(): WorkspaceTab {
+  return {
+    id: "artifact-adrs",
+    kind: "artifact-adrs",
+    title: "ADRs",
+    group: "artifact",
+    pinned: false,
+    dirty: false,
+  };
+}
+
+function createIacTab(): WorkspaceTab {
+  return {
+    id: "artifact-iac",
+    kind: "artifact-iac",
+    title: "Infrastructure as Code",
+    group: "artifact",
+    pinned: false,
+    dirty: false,
+  };
+}
+
+function createCostsTab(): WorkspaceTab {
+  return {
+    id: "artifact-costs",
+    kind: "artifact-costs",
+    title: "Cost Estimates",
+    group: "artifact",
+    pinned: false,
+    dirty: false,
+  };
+}
+
+function createWafTab(): WorkspaceTab {
+  return {
+    id: "artifact-waf",
+    kind: "artifact-waf",
+    title: "WAF Checklist",
+    group: "artifact",
+    pinned: false,
+    dirty: false,
+  };
 }
 
 function ProjectNotFound() {

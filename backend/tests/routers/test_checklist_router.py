@@ -126,3 +126,15 @@ async def test_get_progress(async_client: AsyncClient, sample_project: str, samp
     assert "total_items" in data
     assert "completed_items" in data
     assert data["total_items"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_list_checklists_bootstraps_default_template(
+    async_client: AsyncClient, sample_project: str
+):
+    """If a project has no normalized checklists yet, endpoint bootstraps one."""
+    response = await async_client.get(f"/api/projects/{sample_project}/checklists")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 1
+    assert data[0]["items_count"] >= 1

@@ -6,9 +6,9 @@ from sqlalchemy import select
 
 from app.services.backfill_service import BackfillService
 from app.models.project import Project, ProjectState
-from app.models.checklist import Checklist, ChecklistItem
+from app.models.checklist import Checklist, ChecklistItem, ChecklistTemplate
 from app.agents_system.checklists.engine import ChecklistEngine
-from app.agents_system.checklists.registry import ChecklistRegistry, ChecklistTemplate
+from app.agents_system.checklists.registry import ChecklistRegistry
 
 @pytest.fixture
 async def backfill_service(test_db_session: AsyncSession, test_engine, test_registry):

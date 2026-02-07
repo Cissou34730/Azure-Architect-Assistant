@@ -1,16 +1,12 @@
-"""
-Service for backfilling normalized WAF checklists from legacy ProjectState JSON.
-"""
+"""Backfill service for migrating legacy WAF JSON into normalized checklist tables."""
 
-import random
-from collections.abc import Callable
-from typing import Any
-from uuid import UUID
+from __future__ import annotations
 
 import json
 import logging
+import random
 from collections.abc import Callable
-from typing import Any, AsyncContextManager
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -23,24 +19,16 @@ from app.models.project import Project, ProjectState
 
 logger = logging.getLogger(__name__)
 
-# Verification rate for random sampling
 VERIFICATION_RATE = 0.01
 
-class BackfillService:
-    """
-    Handles bulk backfill of projects from ProjectState to normalized DB.
 
-    Features:
-    - Idempotent chunked processing
-    - Dry-run mode for validation
-    - Progress tracking
-    - Verification sampling
-    """
+class BackfillService:
+    """Bulk backfill/verification operations for normalized WAF checklists."""
 
     def __init__(
         self,
         engine: ChecklistEngine,
-        db_session_factory: Callable[[], AsyncContextManager[AsyncSession]],
+        db_session_factory: Callable[[], AsyncSession],
         batch_size: int = 50,
     ) -> None:
         self.engine = engine
@@ -52,17 +40,7 @@ class BackfillService:
         dry_run: bool = False,
         verify_sample: bool = True,
     ) -> dict[str, Any]:
-        """
-        Backfill all projects with WAF checklists.
-
-        Args:
-            dry_run: If True, validate but don't write
-            verify_sample: If True, validate random 1% sample
-
-        Returns:
-            Summary dict with counts and errors
-        """
-        summary = {
+        summary: dict[str, Any] = {
             "total_projects": 0,
             "processed": 0,
             "skipped": 0,
@@ -71,139 +49,121 @@ class BackfillService:
             "verification_errors": [],
         }
 
-        async with self.db_session_factory() as session:
-            # Get all projects that have a WAF checklist in their state
-            # Since state is a Text column (JSON string), we use a string check
-            stmt = (
-                select(Project.id)
-                .join(ProjectState)
-                .where(ProjectState.state.like('%"wafChecklist"%'))
-            )
-            result = await session.execute(stmt)
-            project_ids = [row[0] for row in result.all()]
-
+        project_ids = await self._find_projects_with_waf()
         summary["total_projects"] = len(project_ids)
-        logger.info(f"Starting backfill: total={len(project_ids)}, dry_run={dry_run}")
+        logger.info("Starting checklist backfill: total=%s dry_run=%s", len(project_ids), dry_run)
 
-        # Process in batches
         for i in range(0, len(project_ids), self.batch_size):
             batch = project_ids[i : i + self.batch_size]
             for project_id in batch:
                 try:
-                    res = await self.backfill_project(project_id, dry_run=dry_run)
-                    if res.get("status") == "success":
+                    result = await self.backfill_project(project_id, dry_run=dry_run)
+                    if result.get("status") == "success":
                         summary["processed"] += 1
-
-                        # Random verification
                         if verify_sample and random.random() < VERIFICATION_RATE:  # noqa: S311
-                            is_consistent, diffs = await self.verify_project_consistency(project_id)
-                            if not is_consistent:
+                            ok, diffs = await self.verify_project_consistency(project_id)
+                            if not ok:
                                 summary["verification_passed"] = False
-                                summary["verification_errors"].append({
-                                    "project_id": str(project_id),
-                                    "diffs": diffs
-                                })
-                                logger.warning(f"Verification failed: project_id={project_id}, diffs={diffs}")
+                                summary["verification_errors"].append(
+                                    {"project_id": str(project_id), "diffs": diffs}
+                                )
                     else:
                         summary["skipped"] += 1
-                except Exception as exc:
-                    logger.exception(f"Backfill error: project_id={project_id}")
+                except Exception as exc:  # noqa: BLE001
+                    logger.exception("Backfill error for project %s", project_id)
                     summary["errors"].append({"project_id": str(project_id), "error": str(exc)})
 
-            logger.info(f"Backfill progress: processed={summary['processed']}, total={summary['total_projects']}")
+            logger.info(
+                "Backfill progress: processed=%s/%s",
+                summary["processed"],
+                summary["total_projects"],
+            )
 
         return summary
 
     async def backfill_project(self, project_id: UUID | str, dry_run: bool = False) -> dict[str, Any]:
-        """Backfill single project."""
-        p_id = str(project_id)
+        """Backfill a single project's WAF checklist payload."""
+        project_id_str = str(project_id)
         async with self.db_session_factory() as session:
-            stmt = select(ProjectState).where(ProjectState.project_id == p_id)
-            result = await session.execute(stmt)
-            project_state = result.scalar_one_or_none()
+            project_state = (
+                await session.execute(
+                    select(ProjectState).where(ProjectState.project_id == project_id_str)
+                )
+            ).scalar_one_or_none()
 
-            if not project_state:
-                return {"status": "skipped", "reason": "No ProjectState found"}
-            
-            # Parse state if it's a string
-            state_dict = project_state.state
-            if isinstance(state_dict, str):
-                try:
-                    state_dict = json.loads(state_dict)
-                except json.JSONDecodeError:
-                    return {"status": "error", "reason": "invalid_json_in_state"}
+            if project_state is None:
+                return {"status": "skipped", "reason": "project_state_not_found"}
 
+            state_dict = self._parse_state(project_state.state)
+            if state_dict is None:
+                return {"status": "error", "reason": "invalid_json_in_state"}
             if "wafChecklist" not in state_dict:
-                return {"status": "skipped", "reason": "No WAF checklist in state"}
+                return {"status": "skipped", "reason": "no_waf_checklist"}
 
-            # Sync to DB
-            if not dry_run:
-                # The engine handles its own session if we use sync_project_state_to_db
-                await self.engine.sync_project_state_to_db(p_id, state_dict)
-                return {"status": "success"}
-            else:
-                # Dry run: just validate
-                return {"status": "success", "dry_run": True}
+        if dry_run:
+            return {"status": "success", "dry_run": True}
+
+        return await self.engine.sync_project_state_to_db(project_id_str, state_dict)
 
     async def verify_project_consistency(self, project_id: UUID | str) -> tuple[bool, list[str]]:
-        """
-        Verify normalized DB matches ProjectState JSON for a project.
-
-        Args:
-            project_id: Project UUID to verify
-
-        Returns:
-            (is_consistent, list_of_differences)
-        """
-        p_id = str(project_id)
+        """Compare legacy state WAF payload with reconstructed payload from normalized DB."""
+        project_id_str = str(project_id)
         async with self.db_session_factory() as session:
-            stmt = select(ProjectState).where(ProjectState.project_id == p_id)
-            result = await session.execute(stmt)
-            project_state = result.scalar_one_or_none()
+            project_state = (
+                await session.execute(
+                    select(ProjectState).where(ProjectState.project_id == project_id_str)
+                )
+            ).scalar_one_or_none()
 
-            if not project_state:
-                return True, []
-            
-            # Parse state if it's a string
-            state_dict = project_state.state
-            if isinstance(state_dict, str):
-                try:
-                    state_dict = json.loads(state_dict)
-                except json.JSONDecodeError:
-                    return False, ["Invalid JSON in project state"]
-
-            if "wafChecklist" not in state_dict:
+            if project_state is None:
                 return True, []
 
-            # Reconstruct JSON from DB
-            reconstructed_state = await self.engine.sync_db_to_project_state(p_id)
+            state_dict = self._parse_state(project_state.state)
+            if state_dict is None:
+                return False, ["invalid_json_in_state"]
 
-            # Compare
-            is_consistent, diffs = validate_normalized_consistency(
-                state_dict.get("wafChecklist", {}),
-                reconstructed_state
-            )
+            raw_waf = state_dict.get("wafChecklist")
+            if not isinstance(raw_waf, dict):
+                return True, []
 
-            return is_consistent, diffs
+        reconstructed = await self.engine.sync_db_to_project_state(project_id_str)
+        return validate_normalized_consistency(raw_waf, reconstructed)
 
     async def get_backfill_progress(self) -> dict[str, Any]:
-        """
-        Get current backfill progress across all projects.
-
-        Returns:
-            Dict with total projects, migrated projects, percentage
-        """
+        """Return high-level migration progress metrics."""
         async with self.db_session_factory() as session:
-            # Count projects needing migration
-            need_stmt = select(func.count(Project.id)).join(ProjectState).where(ProjectState.state.contains({"wafChecklist": {}}))
-            total_needing = (await session.execute(need_stmt)).scalar() or 0
+            total_projects = (
+                await session.execute(
+                    select(func.count(Project.id))
+                    .join(ProjectState, ProjectState.project_id == Project.id)
+                    .where(ProjectState.state.like('%"wafChecklist"%'))
+                )
+            ).scalar() or 0
 
-            # Count already migrated (have a Checklist record)
-            done_stmt = select(func.count(Checklist.id))
-            done_count = (await session.execute(done_stmt)).scalar() or 0
+            migrated_projects = (
+                await session.execute(select(func.count(func.distinct(Checklist.project_id))))
+            ).scalar() or 0
 
-            return {
-                "total_projects": total_needing,
-                "migrated_projects": done_count,
-                "percentage": (done_count / total_needing * 100) if total_needing > 0 else 100.0
-            }
+        percentage = (migrated_projects / total_projects * 100) if total_projects else 100.0
+        return {
+            "total_projects": int(total_projects),
+            "migrated_projects": int(migrated_projects),
+            "percentage": percentage,
+        }
+
+    async def _find_projects_with_waf(self) -> list[str]:
+        async with self.db_session_factory() as session:
+            result = await session.execute(
+                select(Project.id)
+                .join(ProjectState, ProjectState.project_id == Project.id)
+                .where(ProjectState.state.like('%"wafChecklist"%'))
+            )
+            return [str(row[0]) for row in result.all()]
+
+    def _parse_state(self, raw_state: str | dict[str, Any]) -> dict[str, Any] | None:
+        if isinstance(raw_state, dict):
+            return raw_state
+        try:
+            return json.loads(raw_state)
+        except (TypeError, json.JSONDecodeError):
+            return None

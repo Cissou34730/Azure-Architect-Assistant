@@ -4,9 +4,6 @@ import { useProjectDetails } from "../hooks/useProjectDetails";
 import { ErrorBoundary } from "../../../components/common";
 import { ProjectProvider } from "../context/ProjectProvider";
 import { CommandPalette } from "../components/common/CommandPalette";
-// Old tab navigation - disabled in favor of UnifiedProjectPage
-// import { TabNavigation } from "../../../components/common";
-// import { getTabs } from "../tabs";
 
 export default function ProjectDetailPage() {
   const { projectId } = useParams();
@@ -49,11 +46,11 @@ export default function ProjectDetailPage() {
     );
   }
 
-  // New unified layout - no tabs, just render the child route
+  // Unified layout only.
   return (
     <ErrorBoundary>
       <ProjectProvider value={projectDetails}>
-        {/* Outlet renders UnifiedProjectPage or legacy tab pages */}
+        {/* Outlet renders the unified project workspace. */}
         <Outlet />
 
         {/* Command Palette - Available globally */}

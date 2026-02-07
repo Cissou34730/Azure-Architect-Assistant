@@ -2,7 +2,7 @@
 Tests for Phase 6: Multi-agent supervisor and specialists.
 """
 
-from backend.app.agents_system.langgraph.nodes.multi_agent import (
+from app.agents_system.langgraph.nodes.multi_agent import (
     SpecialistType,
     adr_specialist_node,
     iac_specialist_node,
@@ -11,7 +11,7 @@ from backend.app.agents_system.langgraph.nodes.multi_agent import (
     supervisor_node,
     validation_specialist_node,
 )
-from backend.app.agents_system.langgraph.state import GraphState
+from app.agents_system.langgraph.state import GraphState
 
 
 def test_supervisor_selects_adr_specialist():

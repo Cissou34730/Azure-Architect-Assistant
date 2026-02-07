@@ -26,8 +26,6 @@ async def run_agent_node(state: GraphState) -> dict[str, Any]:
         State update with agent output and intermediate steps
     """
     user_message = state["user_message"]
-    context_summary = state.get("context_summary")
-
     try:
         # Get the agent runner for shared OpenAI + MCP clients
         runner = await get_agent_runner()
@@ -50,25 +48,11 @@ async def run_agent_node(state: GraphState) -> dict[str, Any]:
             "error": f"Agent system not initialized: {e!s}",
         }
     except Exception as e:
-        logger.error(f"Native agent execution failed, falling back to legacy: {e}", exc_info=True)
-        try:
-            runner = await get_agent_runner()
-            legacy_result = await runner.execute_query(
-                user_message,
-                project_context=context_summary,
-            )
-            return {
-                "agent_output": legacy_result.get("output", ""),
-                "intermediate_steps": legacy_result.get("intermediate_steps", []),
-                "success": legacy_result.get("success", False),
-                "error": legacy_result.get("error"),
-            }
-        except Exception as fallback_error:
-            logger.error(f"Legacy agent execution also failed: {fallback_error}", exc_info=True)
-            return {
-                "agent_output": "",
-                "intermediate_steps": [],
-                "success": False,
-                "error": f"Agent execution failed: {fallback_error!s}",
-            }
+        logger.error(f"Native agent execution failed: {e}", exc_info=True)
+        return {
+            "agent_output": "",
+            "intermediate_steps": [],
+            "success": False,
+            "error": f"LangGraph native agent execution failed: {e!s}",
+        }
 

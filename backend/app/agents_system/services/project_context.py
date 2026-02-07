@@ -65,13 +65,18 @@ async def read_project_state(
     settings = get_app_settings()
     if settings.aaa_feature_waf_normalized:
         try:
-            from ..checklists.engine import ChecklistEngine
-            from ..checklists.registry import ChecklistRegistry
+            from contextlib import asynccontextmanager
             from pathlib import Path
 
-            # Use the existing session to avoid deadlocks or transaction issues
+            from ..checklists.engine import ChecklistEngine
+            from ..checklists.registry import ChecklistRegistry
+
+            @asynccontextmanager
+            async def session_factory():
+                yield db
+
             registry = ChecklistRegistry(Path(settings.waf_template_cache_dir), settings)
-            engine = ChecklistEngine(lambda: db, registry, settings)
+            engine = ChecklistEngine(session_factory, registry, settings)
             
             # Reconstruct wafChecklist
             reconstructed_waf = await engine.sync_db_to_project_state(project_id)
@@ -211,12 +216,18 @@ async def update_project_state(
     settings = get_app_settings()
     if settings.aaa_feature_waf_normalized:
         try:
+            from contextlib import asynccontextmanager
+            from pathlib import Path
+
             from ..checklists.engine import ChecklistEngine
             from ..checklists.registry import ChecklistRegistry
-            from pathlib import Path
-            
+
+            @asynccontextmanager
+            async def session_factory():
+                yield db
+
             registry = ChecklistRegistry(Path(settings.waf_template_cache_dir), settings)
-            engine = ChecklistEngine(lambda: db, registry, settings)
+            engine = ChecklistEngine(session_factory, registry, settings)
             await engine.sync_project_state_to_db(project_id, updated_state)
             logger.info(f"Sync'd project state to normalized WAF tables for {project_id}")
         except Exception as e:

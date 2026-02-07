@@ -57,7 +57,9 @@ export interface ChecklistSummary {
   readonly id: string;
   readonly projectId: string;
   readonly templateId: string | null;
+  readonly templateSlug?: string | null;
   readonly title: string;
+  readonly version?: string | null;
   readonly status: "open" | "archived";
   readonly itemsCount: number;
   readonly lastSyncedAt: string | null;
@@ -71,11 +73,11 @@ export interface ChecklistItemDetail {
   readonly pillar: string | null;
   readonly severity: "low" | "medium" | "high" | "critical";
   readonly guidance: Record<string, unknown> | null;
-  readonly metadata: Record<string, unknown> | null;
+  readonly itemMetadata: Record<string, unknown> | null;
   readonly latestEvaluation: {
     readonly status: string;
     readonly evaluator: string;
-    readonly timestamp: string;
+    readonly timestamp: string | null;
   } | null;
 }
 
@@ -85,10 +87,12 @@ export interface ChecklistDetail extends ChecklistSummary {
 
 export interface ProgressResponse {
   readonly totalItems: number;
-  readonly evaluatedItems: number;
-  readonly percentage: number;
-  readonly severityCounts: Record<string, number>;
-  readonly statusCounts: Record<string, number>;
+  readonly completedItems: number;
+  readonly percentComplete: number;
+  readonly severityBreakdown: Record<string, { readonly total: number; readonly completed: number }>;
+  readonly statusBreakdown: Record<string, number>;
+  readonly lastUpdated: string;
+  readonly nextActions: readonly Record<string, unknown>[];
 }
 
 export interface IacFile {

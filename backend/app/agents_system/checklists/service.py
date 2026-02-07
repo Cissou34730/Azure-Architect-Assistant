@@ -101,6 +101,15 @@ class ChecklistService:
         """
         return self.registry.list_templates()
 
+    async def ensure_project_checklist(
+        self, project_id: str, template_slug: str = "azure-waf-v1"
+    ) -> bool:
+        """
+        Ensure a project checklist exists and is populated from template items.
+        """
+        checklist = await self.engine.ensure_project_checklist(project_id, template_slug)
+        return checklist is not None
+
 
 async def get_checklist_service(
     db: AsyncSession = Depends(get_db), settings: AppSettings = Depends(get_settings)

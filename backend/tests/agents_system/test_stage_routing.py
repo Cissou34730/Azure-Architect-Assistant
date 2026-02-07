@@ -2,14 +2,15 @@
 Tests for Phase 5: Stage routing and retry logic.
 """
 
-from backend.app.agents_system.langgraph.nodes.stage_routing import (
+from app.agents_system.langgraph.nodes.stage_routing import (
     ProjectStage,
     build_retry_prompt,
     check_for_retry,
     classify_next_stage,
     propose_next_step,
+    should_route_to_architecture_planner,
 )
-from backend.app.agents_system.langgraph.state import GraphState
+from app.agents_system.langgraph.state import GraphState
 
 
 def test_classify_stage_clarify():
@@ -174,4 +175,30 @@ def test_propose_next_step_specific_gaps():
     # Should suggest missing items
     if "final_answer" in result:
         assert "decision" in result["final_answer"].lower() or "validate" in result["final_answer"].lower()
+
+
+def test_architecture_planner_not_selected_for_explicit_waf_request():
+    state: GraphState = {
+        "user_message": "Let's start creating the WAF checklist now",
+        "next_stage": ProjectStage.VALIDATE.value,
+        "context_summary": "Multi-region, high availability, compliance required.",
+        "current_project_state": {},
+    }
+
+    result = should_route_to_architecture_planner(state)
+
+    assert result is False
+
+
+def test_architecture_planner_selected_for_explicit_architecture_request():
+    state: GraphState = {
+        "user_message": "Design the target architecture for this platform",
+        "next_stage": ProjectStage.PROPOSE_CANDIDATE.value,
+        "context_summary": "",
+        "current_project_state": {},
+    }
+
+    result = should_route_to_architecture_planner(state)
+
+    assert result is True
 

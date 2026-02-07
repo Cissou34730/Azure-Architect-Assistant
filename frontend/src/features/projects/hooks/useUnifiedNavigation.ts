@@ -7,19 +7,19 @@ export function useUnifiedNavigation(
 ) {
   const handleNavigateToDiagrams = useCallback(() => {
     if (projectId !== undefined && projectId !== "") {
-      void navigate(`/project/${projectId}/deliverables?tab=diagrams`);
+      void navigate(`/project/${projectId}?tab=diagrams`);
     }
   }, [navigate, projectId]);
 
   const handleNavigateToAdrs = useCallback(() => {
     if (projectId !== undefined && projectId !== "") {
-      void navigate(`/project/${projectId}/deliverables?tab=adrs`);
+      void navigate(`/project/${projectId}?tab=adrs`);
     }
   }, [navigate, projectId]);
 
   const handleNavigateToCosts = useCallback(() => {
     if (projectId !== undefined && projectId !== "") {
-      void navigate(`/project/${projectId}/deliverables?tab=costs`);
+      void navigate(`/project/${projectId}?tab=costs`);
     }
   }, [navigate, projectId]);
 
