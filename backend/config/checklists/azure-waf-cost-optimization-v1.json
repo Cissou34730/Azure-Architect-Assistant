@@ -1,0 +1,239 @@
+{
+  "slug": "azure-waf-cost-optimization-v1",
+  "title": "Azure WAF Cost Optimization Checklist",
+  "description": "Azure Well-Architected Framework checklist for the Cost Optimization pillar.",
+  "version": "2026-02-08",
+  "source": "microsoft-learn",
+  "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/checklist",
+  "source_version": "2026-02-08",
+  "source_license": "Microsoft Learn Terms of Use",
+  "fetched_at": "2026-02-08T21:37:53.002409+00:00",
+  "content": {
+    "items": [
+      {
+        "id": "co-01",
+        "title": "Create a culture of financial responsibility",
+        "description": "Regularly train personnel so technical skills remain sharp. Foster creativity and spending accountability in the work environment. Invest in tooling and implementing automation.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:01",
+          "recommendation": "Create a culture of financial responsibility. Regularly train personnel so technical skills remain sharp. Foster creativity and spending accountability in the work environment. Invest in tooling and implementing automation.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/create-culture-financial-responsibility"
+        },
+        "item_metadata": {
+          "code": "CO:01",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/create-culture-financial-responsibility"
+        }
+      },
+      {
+        "id": "co-02",
+        "title": "Create and maintain a cost model",
+        "description": "A cost model should estimate the initial cost, run rates, and ongoing costs. Negotiate a budget that covers a cost model and has a buffer for unplanned spending.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:02",
+          "recommendation": "Create and maintain a cost model. A cost model should estimate the initial cost, run rates, and ongoing costs. Negotiate a budget that covers a cost model and has a buffer for unplanned spending.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/cost-model"
+        },
+        "item_metadata": {
+          "code": "CO:02",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/cost-model"
+        }
+      },
+      {
+        "id": "co-03",
+        "title": "Collect and review cost data",
+        "description": "Data collection should capture daily costs. In cost reports, include incurred costs (metered), prepaid costs (amortized), trends, and forecasts. Stakeholders should regularly review spending against the budget and cost model. Automate alerts to trigger notifications at key thresholds and detect anomalies to indicate deviations from trend baselines.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:03",
+          "recommendation": "Collect and review cost data. Data collection should capture daily costs. In cost reports, include incurred costs (metered), prepaid costs (amortized), trends, and forecasts. Stakeholders should regularly review spending against the budget and cost model. Automate alerts to trigger notifications at key thresholds and detect anomalies to indicate deviations from trend baselines.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/collect-review-cost-data"
+        },
+        "item_metadata": {
+          "code": "CO:03",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/collect-review-cost-data"
+        }
+      },
+      {
+        "id": "co-04",
+        "title": "Set spending guardrails",
+        "description": "Guardrails should include release gates, governance policies, resource limits, and access controls. Prioritize platform automation over manual processes.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:04",
+          "recommendation": "Set spending guardrails. Guardrails should include release gates, governance policies, resource limits, and access controls. Prioritize platform automation over manual processes.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/set-spending-guardrails"
+        },
+        "item_metadata": {
+          "code": "CO:04",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/set-spending-guardrails"
+        }
+      },
+      {
+        "id": "co-05",
+        "title": "Get the best rates from providers",
+        "description": "You should find and use the best rates for cloud resources and licenses. Regularly review cost savings. Cost reviews should include regional pricing, pricing tiers, pricing models (consumption or commitment-based), license portability, corporate purchasing plans, and price sheets.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:05",
+          "recommendation": "Get the best rates from providers. You should find and use the best rates for cloud resources and licenses. Regularly review cost savings. Cost reviews should include regional pricing, pricing tiers, pricing models (consumption or commitment-based), license portability, corporate purchasing plans, and price sheets.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/get-best-rates"
+        },
+        "item_metadata": {
+          "code": "CO:05",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/get-best-rates"
+        }
+      },
+      {
+        "id": "co-06",
+        "title": "Align usage to billing increments",
+        "description": "You should understand billing increments (meters) and align resource usage to those increments. Modify the service to align with billing increments, or modify resource usage to align with billing increments. Consider using a proof-of-concept to validate billing knowledge and design choices for major cost drivers and to reveal ways to align billing and resource usage.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:06",
+          "recommendation": "Align usage to billing increments. You should understand billing increments (meters) and align resource usage to those increments. Modify the service to align with billing increments, or modify resource usage to align with billing increments. Consider using a proof-of-concept to validate billing knowledge and design choices for major cost drivers and to reveal ways to align billing and resource usage.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/align-usage-to-billing-increments"
+        },
+        "item_metadata": {
+          "code": "CO:06",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/align-usage-to-billing-increments"
+        }
+      },
+      {
+        "id": "co-07",
+        "title": "Optimize component costs",
+        "description": "Regularly remove or optimize legacy, unneeded, and underutilized workload components, including application features, platform features, and resources.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:07",
+          "recommendation": "Optimize component costs. Regularly remove or optimize legacy, unneeded, and underutilized workload components, including application features, platform features, and resources.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-component-costs"
+        },
+        "item_metadata": {
+          "code": "CO:07",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-component-costs"
+        }
+      },
+      {
+        "id": "co-08",
+        "title": "Optimize environment costs",
+        "description": "Align spending to prioritize preproduction, production, operations, and disaster recovery environments. For each environment, consider the required availability, licensing, operating hours and conditions, and security. Nonproduction environments should emulate the production environment. Implement strategic tradeoffs into nonproduction environments.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:08",
+          "recommendation": "Optimize environment costs. Align spending to prioritize preproduction, production, operations, and disaster recovery environments. For each environment, consider the required availability, licensing, operating hours and conditions, and security. Nonproduction environments should emulate the production environment. Implement strategic tradeoffs into nonproduction environments.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-environment-costs"
+        },
+        "item_metadata": {
+          "code": "CO:08",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-environment-costs"
+        }
+      },
+      {
+        "id": "co-09",
+        "title": "Optimize flow costs",
+        "description": "Align the cost of each flow with flow priority. When you prioritize flows, consider the features, functionality, and nonfunctional requirements of each flow. Optimizing flow spend often requires strategic compromises.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:09",
+          "recommendation": "Optimize flow costs. Align the cost of each flow with flow priority. When you prioritize flows, consider the features, functionality, and nonfunctional requirements of each flow. Optimizing flow spend often requires strategic compromises.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-flow-costs"
+        },
+        "item_metadata": {
+          "code": "CO:09",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-flow-costs"
+        }
+      },
+      {
+        "id": "co-10",
+        "title": "Optimize data costs",
+        "description": "Data spending with data priority. Data optimization should include improvements to data management (tiering and retention), volume, replication, backups, file formats, and storage solutions.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:10",
+          "recommendation": "Optimize data costs. Data spending with data priority. Data optimization should include improvements to data management (tiering and retention), volume, replication, backups, file formats, and storage solutions.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-data-costs"
+        },
+        "item_metadata": {
+          "code": "CO:10",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-data-costs"
+        }
+      },
+      {
+        "id": "co-11",
+        "title": "Optimize code costs",
+        "description": "Evaluate and modify code to meet functional and nonfunctional requirements with fewer or cheaper resources.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:11",
+          "recommendation": "Optimize code costs. Evaluate and modify code to meet functional and nonfunctional requirements with fewer or cheaper resources.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-code-costs"
+        },
+        "item_metadata": {
+          "code": "CO:11",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-code-costs"
+        }
+      },
+      {
+        "id": "co-12",
+        "title": "Optimize scaling costs",
+        "description": "Evaluate alternative scaling within your scale units. Consider alternative scaling configurations, and align with the cost model. Considerations should include utilization against the inherit limits of every instance, resource, and scale unit boundary. Use strategies for controlling demand and supply.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:12",
+          "recommendation": "Optimize scaling costs. Evaluate alternative scaling within your scale units. Consider alternative scaling configurations, and align with the cost model. Considerations should include utilization against the inherit limits of every instance, resource, and scale unit boundary. Use strategies for controlling demand and supply.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-scaling-costs"
+        },
+        "item_metadata": {
+          "code": "CO:12",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-scaling-costs"
+        }
+      },
+      {
+        "id": "co-13",
+        "title": "Optimize personnel time",
+        "description": "Align the time personnel spends on tasks with the priority of the task. The goal is to reduce the time spent on tasks without degrading the outcome. Optimization efforts should include minimizing noise, reducing build times, high fidelity debugging, and production mocking.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:13",
+          "recommendation": "Optimize personnel time. Align the time personnel spends on tasks with the priority of the task. The goal is to reduce the time spent on tasks without degrading the outcome. Optimization efforts should include minimizing noise, reducing build times, high fidelity debugging, and production mocking.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-personnel-time"
+        },
+        "item_metadata": {
+          "code": "CO:13",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-personnel-time"
+        }
+      },
+      {
+        "id": "co-14",
+        "title": "Consolidate resources and responsibility",
+        "description": "Look within the workload for ways to consolidate resources and increase density. Outside the workload, use existing centralized resources and services that enable you to consolidate workload responsibilities.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:14",
+          "recommendation": "Consolidate resources and responsibility. Look within the workload for ways to consolidate resources and increase density. Outside the workload, use existing centralized resources and services that enable you to consolidate workload responsibilities.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/consolidation"
+        },
+        "item_metadata": {
+          "code": "CO:14",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/consolidation"
+        }
+      }
+    ]
+  }
+}

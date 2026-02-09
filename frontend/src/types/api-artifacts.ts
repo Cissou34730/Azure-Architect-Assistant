@@ -44,6 +44,11 @@ export interface WafChecklistItem {
   readonly id: string;
   readonly pillar: string;
   readonly topic: string;
+  readonly description?: string;
+  readonly severity?: "low" | "medium" | "high" | "critical";
+  readonly guidance?: readonly string[];
+  readonly checklistTitle?: string;
+  readonly templateSlug?: string;
   readonly evaluations: readonly WafEvaluation[];
 }
 

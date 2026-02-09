@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..runner import get_agent_runner
+from ..services.response_sanitizer import sanitize_agent_output
 from .graph_factory_advanced import build_advanced_project_chat_graph
 from .nodes.agent_native import run_stage_aware_agent
 from .state import GraphState
@@ -44,9 +45,10 @@ async def execute_chat(user_message: str) -> dict[str, Any]:
             mcp_client=getattr(runner, "mcp_client", None),
             openai_settings=getattr(runner, "openai_settings", None),
         )
+        output = sanitize_agent_output(str(result.get("agent_output", "")))
 
         return {
-            "output": result.get("agent_output", ""),
+            "output": output,
             "success": bool(result.get("success", False)),
             "intermediate_steps": result.get("intermediate_steps", []),
             "error": result.get("error"),
@@ -113,7 +115,7 @@ async def execute_project_chat(
         result_state = await graph.ainvoke(initial_state)
 
         # Extract response fields
-        final_answer = result_state.get("final_answer", "")
+        final_answer = str(result_state.get("final_answer", ""))
         success = result_state.get("success", False)
         updated_state = result_state.get("updated_project_state")
         error = result_state.get("error")
@@ -137,8 +139,9 @@ async def execute_project_chat(
             f"LangGraph execution complete: success={success}, steps={len(reasoning_steps)}"
         )
 
+        fallback_output = sanitize_agent_output(str(result_state.get("agent_output", "")))
         return {
-            "answer": final_answer if final_answer else result_state.get("agent_output", ""),
+            "answer": final_answer if final_answer else fallback_output,
             "success": success,
             "project_state": updated_state,
             "reasoning_steps": reasoning_steps,

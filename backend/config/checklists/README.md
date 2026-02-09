@@ -8,8 +8,12 @@ Policy:
 - Any remote fetch must be audited and approved before committing to the repository.
 
 Current templates:
-- microsoft_waf.json — canonical Azure WAF guidance (fetched from Microsoft Learn).
+- azure-waf-reliability-v1.json
+- azure-waf-security-v1.json
+- azure-waf-cost-optimization-v1.json
+- azure-waf-operational-excellence-v1.json
+- azure-waf-performance-efficiency-v1.json
 
 Importing new templates:
-- Use `scripts/import_checklists_microsoft.py` (TBD) to fetch and normalize Microsoft Learn guidance via the MCP server or HTTP. The import script should validate licensing and add `source_license` metadata.
+- Use `backend/scripts/import_waf_templates_from_mcp.py` to fetch and normalize Microsoft Learn guidance via the MCP server. The import script writes the five pillar templates and stamps `source_license` + `fetched_at` metadata.
 - Avoid manual edits to `original_content.fetched_text`; prefer to store canonical source and normalized `items` mapping.

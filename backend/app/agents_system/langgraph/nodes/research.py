@@ -28,6 +28,36 @@ def _mindmap_gaps(mindmap_coverage: dict[str, Any]) -> list[str]:
     return topics[:5]
 
 
+def _waf_snapshot(state: GraphState) -> str:
+    project_state = state.get("current_project_state") or {}
+    waf = project_state.get("wafChecklist")
+    if not isinstance(waf, dict):
+        return "WAF checklist unavailable."
+
+    items_raw = waf.get("items")
+    items = items_raw.values() if isinstance(items_raw, dict) else items_raw
+    if not isinstance(items, list):
+        return "WAF checklist unavailable."
+
+    total = len(items)
+    covered = 0
+    partial = 0
+    not_covered = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        evals = item.get("evaluations")
+        latest = evals[-1] if isinstance(evals, list) and evals else None
+        status = str((latest or {}).get("status", "notCovered")).lower()
+        if status == "covered":
+            covered += 1
+        elif status == "partial":
+            partial += 1
+        else:
+            not_covered += 1
+    return f"WAF status snapshot: total={total}, covered={covered}, partial={partial}, notCovered={not_covered}."
+
+
 async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
     """
     Create a research plan and stage directives for the agent.
@@ -81,6 +111,13 @@ async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
         f"aligned to the research plan, then cite the exact document names/URLs and WAF/ASB topics. "
         f"Never refuse; if data is missing, ask focused clarifications and propose 2-3 options with trade-offs."
     )
+    stage_directives += (
+        "\nChecklist-first rule: Treat WAF checklist as a first-class artifact. "
+        "When the user reports completion/progress/regression for a pillar or topic, persist checklist updates in AAA_STATE_UPDATE "
+        "using aaa_record_validation_results (or deterministic shortcut if available), and include a risk warning when evidence is weak. "
+        "If analysis suggests a legitimate checklist status change, apply it proactively; if evidence is not enough, ask for the missing status/evidence explicitly."
+    )
+    stage_directives += f"\n{_waf_snapshot(state)}"
 
     if stage_value == ProjectStage.VALIDATE.value:
         stage_directives += (

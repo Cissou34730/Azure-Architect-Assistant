@@ -1,25 +1,966 @@
 {
-  "slug": "waf-2024",
-  "title": "Azure WAF 2024",
-  "version": "2024",
+  "description": "Compatibility aggregate checklist spanning all Azure WAF pillars. Prefer pillar-specific templates for bootstrap and UI display.",
+  "version": "2026-02-08",
   "source": "microsoft-learn",
-  "source_url": "https://learn.microsoft.com/en-us/azure/well-architected/checklists",
-  "source_version": "2024-01-01",
+  "source_url": "https://learn.microsoft.com/azure/well-architected/framework",
+  "source_version": "2026-02-08",
+  "source_license": "Microsoft Learn Terms of Use",
+  "fetched_at": "2026-02-08T22:00:19.592006+00:00",
   "content": {
-    "items": []
+    "pillars": [
+      "Cost Optimization",
+      "Operational Excellence",
+      "Performance Efficiency",
+      "Reliability",
+      "Security"
+    ],
+    "items": [
+      {
+        "id": "co-01",
+        "title": "Create a culture of financial responsibility",
+        "description": "Regularly train personnel so technical skills remain sharp. Foster creativity and spending accountability in the work environment. Invest in tooling and implementing automation.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:01",
+          "recommendation": "Create a culture of financial responsibility. Regularly train personnel so technical skills remain sharp. Foster creativity and spending accountability in the work environment. Invest in tooling and implementing automation.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/create-culture-financial-responsibility"
+        },
+        "item_metadata": {
+          "code": "CO:01",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/create-culture-financial-responsibility"
+        }
+      },
+      {
+        "id": "co-02",
+        "title": "Create and maintain a cost model",
+        "description": "A cost model should estimate the initial cost, run rates, and ongoing costs. Negotiate a budget that covers a cost model and has a buffer for unplanned spending.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:02",
+          "recommendation": "Create and maintain a cost model. A cost model should estimate the initial cost, run rates, and ongoing costs. Negotiate a budget that covers a cost model and has a buffer for unplanned spending.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/cost-model"
+        },
+        "item_metadata": {
+          "code": "CO:02",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/cost-model"
+        }
+      },
+      {
+        "id": "co-03",
+        "title": "Collect and review cost data",
+        "description": "Data collection should capture daily costs. In cost reports, include incurred costs (metered), prepaid costs (amortized), trends, and forecasts. Stakeholders should regularly review spending against the budget and cost model. Automate alerts to trigger notifications at key thresholds and detect anomalies to indicate deviations from trend baselines.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:03",
+          "recommendation": "Collect and review cost data. Data collection should capture daily costs. In cost reports, include incurred costs (metered), prepaid costs (amortized), trends, and forecasts. Stakeholders should regularly review spending against the budget and cost model. Automate alerts to trigger notifications at key thresholds and detect anomalies to indicate deviations from trend baselines.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/collect-review-cost-data"
+        },
+        "item_metadata": {
+          "code": "CO:03",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/collect-review-cost-data"
+        }
+      },
+      {
+        "id": "co-04",
+        "title": "Set spending guardrails",
+        "description": "Guardrails should include release gates, governance policies, resource limits, and access controls. Prioritize platform automation over manual processes.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:04",
+          "recommendation": "Set spending guardrails. Guardrails should include release gates, governance policies, resource limits, and access controls. Prioritize platform automation over manual processes.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/set-spending-guardrails"
+        },
+        "item_metadata": {
+          "code": "CO:04",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/set-spending-guardrails"
+        }
+      },
+      {
+        "id": "co-05",
+        "title": "Get the best rates from providers",
+        "description": "You should find and use the best rates for cloud resources and licenses. Regularly review cost savings. Cost reviews should include regional pricing, pricing tiers, pricing models (consumption or commitment-based), license portability, corporate purchasing plans, and price sheets.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:05",
+          "recommendation": "Get the best rates from providers. You should find and use the best rates for cloud resources and licenses. Regularly review cost savings. Cost reviews should include regional pricing, pricing tiers, pricing models (consumption or commitment-based), license portability, corporate purchasing plans, and price sheets.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/get-best-rates"
+        },
+        "item_metadata": {
+          "code": "CO:05",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/get-best-rates"
+        }
+      },
+      {
+        "id": "co-06",
+        "title": "Align usage to billing increments",
+        "description": "You should understand billing increments (meters) and align resource usage to those increments. Modify the service to align with billing increments, or modify resource usage to align with billing increments. Consider using a proof-of-concept to validate billing knowledge and design choices for major cost drivers and to reveal ways to align billing and resource usage.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:06",
+          "recommendation": "Align usage to billing increments. You should understand billing increments (meters) and align resource usage to those increments. Modify the service to align with billing increments, or modify resource usage to align with billing increments. Consider using a proof-of-concept to validate billing knowledge and design choices for major cost drivers and to reveal ways to align billing and resource usage.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/align-usage-to-billing-increments"
+        },
+        "item_metadata": {
+          "code": "CO:06",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/align-usage-to-billing-increments"
+        }
+      },
+      {
+        "id": "co-07",
+        "title": "Optimize component costs",
+        "description": "Regularly remove or optimize legacy, unneeded, and underutilized workload components, including application features, platform features, and resources.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:07",
+          "recommendation": "Optimize component costs. Regularly remove or optimize legacy, unneeded, and underutilized workload components, including application features, platform features, and resources.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-component-costs"
+        },
+        "item_metadata": {
+          "code": "CO:07",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-component-costs"
+        }
+      },
+      {
+        "id": "co-08",
+        "title": "Optimize environment costs",
+        "description": "Align spending to prioritize preproduction, production, operations, and disaster recovery environments. For each environment, consider the required availability, licensing, operating hours and conditions, and security. Nonproduction environments should emulate the production environment. Implement strategic tradeoffs into nonproduction environments.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:08",
+          "recommendation": "Optimize environment costs. Align spending to prioritize preproduction, production, operations, and disaster recovery environments. For each environment, consider the required availability, licensing, operating hours and conditions, and security. Nonproduction environments should emulate the production environment. Implement strategic tradeoffs into nonproduction environments.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-environment-costs"
+        },
+        "item_metadata": {
+          "code": "CO:08",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-environment-costs"
+        }
+      },
+      {
+        "id": "co-09",
+        "title": "Optimize flow costs",
+        "description": "Align the cost of each flow with flow priority. When you prioritize flows, consider the features, functionality, and nonfunctional requirements of each flow. Optimizing flow spend often requires strategic compromises.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:09",
+          "recommendation": "Optimize flow costs. Align the cost of each flow with flow priority. When you prioritize flows, consider the features, functionality, and nonfunctional requirements of each flow. Optimizing flow spend often requires strategic compromises.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-flow-costs"
+        },
+        "item_metadata": {
+          "code": "CO:09",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-flow-costs"
+        }
+      },
+      {
+        "id": "co-10",
+        "title": "Optimize data costs",
+        "description": "Data spending with data priority. Data optimization should include improvements to data management (tiering and retention), volume, replication, backups, file formats, and storage solutions.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:10",
+          "recommendation": "Optimize data costs. Data spending with data priority. Data optimization should include improvements to data management (tiering and retention), volume, replication, backups, file formats, and storage solutions.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-data-costs"
+        },
+        "item_metadata": {
+          "code": "CO:10",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-data-costs"
+        }
+      },
+      {
+        "id": "co-11",
+        "title": "Optimize code costs",
+        "description": "Evaluate and modify code to meet functional and nonfunctional requirements with fewer or cheaper resources.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:11",
+          "recommendation": "Optimize code costs. Evaluate and modify code to meet functional and nonfunctional requirements with fewer or cheaper resources.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-code-costs"
+        },
+        "item_metadata": {
+          "code": "CO:11",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-code-costs"
+        }
+      },
+      {
+        "id": "co-12",
+        "title": "Optimize scaling costs",
+        "description": "Evaluate alternative scaling within your scale units. Consider alternative scaling configurations, and align with the cost model. Considerations should include utilization against the inherit limits of every instance, resource, and scale unit boundary. Use strategies for controlling demand and supply.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:12",
+          "recommendation": "Optimize scaling costs. Evaluate alternative scaling within your scale units. Consider alternative scaling configurations, and align with the cost model. Considerations should include utilization against the inherit limits of every instance, resource, and scale unit boundary. Use strategies for controlling demand and supply.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-scaling-costs"
+        },
+        "item_metadata": {
+          "code": "CO:12",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-scaling-costs"
+        }
+      },
+      {
+        "id": "co-13",
+        "title": "Optimize personnel time",
+        "description": "Align the time personnel spends on tasks with the priority of the task. The goal is to reduce the time spent on tasks without degrading the outcome. Optimization efforts should include minimizing noise, reducing build times, high fidelity debugging, and production mocking.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:13",
+          "recommendation": "Optimize personnel time. Align the time personnel spends on tasks with the priority of the task. The goal is to reduce the time spent on tasks without degrading the outcome. Optimization efforts should include minimizing noise, reducing build times, high fidelity debugging, and production mocking.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-personnel-time"
+        },
+        "item_metadata": {
+          "code": "CO:13",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/optimize-personnel-time"
+        }
+      },
+      {
+        "id": "co-14",
+        "title": "Consolidate resources and responsibility",
+        "description": "Look within the workload for ways to consolidate resources and increase density. Outside the workload, use existing centralized resources and services that enable you to consolidate workload responsibilities.",
+        "pillar": "Cost Optimization",
+        "severity": "medium",
+        "guidance": {
+          "code": "CO:14",
+          "recommendation": "Consolidate resources and responsibility. Look within the workload for ways to consolidate resources and increase density. Outside the workload, use existing centralized resources and services that enable you to consolidate workload responsibilities.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/consolidation"
+        },
+        "item_metadata": {
+          "code": "CO:14",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/cost-optimization/consolidation"
+        }
+      },
+      {
+        "id": "oe-01",
+        "title": "Define your standard practices to develop and operate your workload",
+        "description": "Foster a blameless culture that emphasizes continuous learning and prioritizes continuous improvement and optimization.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:01",
+          "recommendation": "Define your standard practices to develop and operate your workload. Foster a blameless culture that emphasizes continuous learning and prioritizes continuous improvement and optimization.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/devops-culture"
+        },
+        "item_metadata": {
+          "code": "OE:01",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/devops-culture"
+        }
+      },
+      {
+        "id": "oe-02",
+        "title": "Formalize the way you run routine, as needed, and emergency operational tasks",
+        "description": "Increase consistency and predictability by adopting industry-proven practices and approaches.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:02",
+          "recommendation": "Formalize the way you run routine, as needed, and emergency operational tasks. Increase consistency and predictability by adopting industry-proven practices and approaches.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/formalize-operations-tasks"
+        },
+        "item_metadata": {
+          "code": "OE:02",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/formalize-operations-tasks"
+        }
+      },
+      {
+        "id": "oe-03",
+        "title": "Formalize software ideation and planning processes",
+        "description": "Draw from established industry and organizational standards for team communication, requirements and design documentation, and software development processes.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:03",
+          "recommendation": "Formalize software ideation and planning processes. Draw from established industry and organizational standards for team communication, requirements and design documentation, and software development processes.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/formalize-development-practices"
+        },
+        "item_metadata": {
+          "code": "OE:03",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/formalize-development-practices"
+        }
+      },
+      {
+        "id": "oe-04",
+        "title": "Enhance software development and quality assurance",
+        "description": "by implementing industry-standard practices. Ensure clear role definitions and consistent processes by standardizing tools, source control, design patterns, documentation, and style guides.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:04",
+          "recommendation": "Enhance software development and quality assurance by implementing industry-standard practices. Ensure clear role definitions and consistent processes by standardizing tools, source control, design patterns, documentation, and style guides.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/tools-processes"
+        },
+        "item_metadata": {
+          "code": "OE:04",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/tools-processes"
+        }
+      },
+      {
+        "id": "oe-05",
+        "title": "Use a standardized infrastructure as code (IaC) approach to prepare resources and configurations",
+        "description": "Use IaC to ensure consistent styles, modularization, and quality assurance. Prefer declarative over imperative approaches when practical.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:05",
+          "recommendation": "Use a standardized infrastructure as code (IaC) approach to prepare resources and configurations. Use IaC to ensure consistent styles, modularization, and quality assurance. Prefer declarative over imperative approaches when practical.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/infrastructure-as-code-design"
+        },
+        "item_metadata": {
+          "code": "OE:05",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/infrastructure-as-code-design"
+        }
+      },
+      {
+        "id": "oe-06",
+        "title": "Build a workload supply chain that drives changes",
+        "description": "through predictable, automated pipelines. Ensure these pipelines test and promote changes across all environments and quality gates. Incorporate comprehensive testing.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:06",
+          "recommendation": "Build a workload supply chain that drives changes through predictable, automated pipelines. Ensure these pipelines test and promote changes across all environments and quality gates. Incorporate comprehensive testing.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/workload-supply-chain"
+        },
+        "item_metadata": {
+          "code": "OE:06",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/workload-supply-chain"
+        }
+      },
+      {
+        "id": "oe-07",
+        "title": "Design and implement a monitoring system",
+        "description": "to capture and expose telemetry, metrics, and logs from your infrastructure and code. Use this data to validate design choices and guide future design and business decisions.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:07",
+          "recommendation": "Design and implement a monitoring system to capture and expose telemetry, metrics, and logs from your infrastructure and code. Use this data to validate design choices and guide future design and business decisions.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/observability"
+        },
+        "item_metadata": {
+          "code": "OE:07",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/observability"
+        }
+      },
+      {
+        "id": "oe-08",
+        "title": "Establish a structured incident management process",
+        "description": "Create an incident response plan that clearly documents all procedures. Enable design strategies in the architecture that promote rapid detection, troubleshooting, and fixes.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:08",
+          "recommendation": "Establish a structured incident management process. Create an incident response plan that clearly documents all procedures. Enable design strategies in the architecture that promote rapid detection, troubleshooting, and fixes.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/incident-response"
+        },
+        "item_metadata": {
+          "code": "OE:08",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/incident-response"
+        }
+      },
+      {
+        "id": "oe-09",
+        "title": "Automate tasks that are repetitive, procedural, and provide a clear return on investment",
+        "description": "Prefer off-the-shelf automation tools over custom solutions. Apply the Well-Architected Framework pillars to the design and implementation of all automation efforts.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:09",
+          "recommendation": "Automate tasks that are repetitive, procedural, and provide a clear return on investment. Prefer off-the-shelf automation tools over custom solutions. Apply the Well-Architected Framework pillars to the design and implementation of all automation efforts.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/automate-tasks"
+        },
+        "item_metadata": {
+          "code": "OE:09",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/automate-tasks"
+        }
+      },
+      {
+        "id": "oe-10",
+        "title": "Design and implement automation upfront",
+        "description": "for tasks like lifecycle management, bootstrapping, and governance. Avoid retrofitting automation later. Simplify your design by adopting platform-native automation functionality.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:10",
+          "recommendation": "Design and implement automation upfront for tasks like lifecycle management, bootstrapping, and governance. Avoid retrofitting automation later. Simplify your design by adopting platform-native automation functionality.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/enable-automation"
+        },
+        "item_metadata": {
+          "code": "OE:10",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/enable-automation"
+        }
+      },
+      {
+        "id": "oe-11",
+        "title": "Clearly define your workload's safe deployment practices",
+        "description": "Focus on small, incremental releases with quality gates. Use modern deployment patterns and progressive exposure to manage risk. Plan for both routine and emergency deployments.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:11",
+          "recommendation": "Clearly define your workload's safe deployment practices. Focus on small, incremental releases with quality gates. Use modern deployment patterns and progressive exposure to manage risk. Plan for both routine and emergency deployments.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/safe-deployments"
+        },
+        "item_metadata": {
+          "code": "OE:11",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/safe-deployments"
+        }
+      },
+      {
+        "id": "pe-01",
+        "title": "Define performance targets",
+        "description": "Performance targets should be numerical values that are tied to workload requirements. You should implement performance targets for all workload flows.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:01",
+          "recommendation": "Define performance targets. Performance targets should be numerical values that are tied to workload requirements. You should implement performance targets for all workload flows.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/performance-targets"
+        },
+        "item_metadata": {
+          "code": "PE:01",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/performance-targets"
+        }
+      },
+      {
+        "id": "pe-02",
+        "title": "Conduct capacity planning",
+        "description": "Capacity planning should be done before there are predicted changes in usage patterns, such as seasonal variations, product updates, marketing campaigns, special events, or regulatory changes.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:02",
+          "recommendation": "Conduct capacity planning. Capacity planning should be done before there are predicted changes in usage patterns, such as seasonal variations, product updates, marketing campaigns, special events, or regulatory changes.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/capacity-planning"
+        },
+        "item_metadata": {
+          "code": "PE:02",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/capacity-planning"
+        }
+      },
+      {
+        "id": "pe-03",
+        "title": "Select the right services",
+        "description": "The services, infrastructure, and tier selections must support your ability to reach the workload's performance targets and accommodate expected capacity changes. The selections should also weigh the benefits of using platform features or building a custom implementation.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:03",
+          "recommendation": "Select the right services. The services, infrastructure, and tier selections must support your ability to reach the workload's performance targets and accommodate expected capacity changes. The selections should also weigh the benefits of using platform features or building a custom implementation.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/select-services"
+        },
+        "item_metadata": {
+          "code": "PE:03",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/select-services"
+        }
+      },
+      {
+        "id": "pe-04",
+        "title": "Collect performance data",
+        "description": "Workload components and flows should provide automatic, continuous, and meaningful metrics and logs. Collect data at different levels of the workload, such as the application, platform, data, and operating system levels.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:04",
+          "recommendation": "Collect performance data. Workload components and flows should provide automatic, continuous, and meaningful metrics and logs. Collect data at different levels of the workload, such as the application, platform, data, and operating system levels.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/collect-performance-data"
+        },
+        "item_metadata": {
+          "code": "PE:04",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/collect-performance-data"
+        }
+      },
+      {
+        "id": "pe-05",
+        "title": "Optimize scaling and partitioning",
+        "description": "Incorporate reliable and controlled scaling and partitioning. The scale unit design of the workload is the basis of the scaling and partitioning strategy.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:05",
+          "recommendation": "Optimize scaling and partitioning. Incorporate reliable and controlled scaling and partitioning. The scale unit design of the workload is the basis of the scaling and partitioning strategy.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/scale-partition"
+        },
+        "item_metadata": {
+          "code": "PE:05",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/scale-partition"
+        }
+      },
+      {
+        "id": "pe-06",
+        "title": "Test performance",
+        "description": "Perform regular testing in an environment that matches the production environment. Compare results against the performance targets and the performance benchmark.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:06",
+          "recommendation": "Test performance. Perform regular testing in an environment that matches the production environment. Compare results against the performance targets and the performance benchmark.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/performance-test"
+        },
+        "item_metadata": {
+          "code": "PE:06",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/performance-test"
+        }
+      },
+      {
+        "id": "pe-07",
+        "title": "Optimize code and infrastructure",
+        "description": "Use code that's performant, and ensure that it offloads responsibilities to the platform. Use code and infrastructure only for their core purpose and only when necessary.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:07",
+          "recommendation": "Optimize code and infrastructure. Use code that's performant, and ensure that it offloads responsibilities to the platform. Use code and infrastructure only for their core purpose and only when necessary.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-code-infrastructure"
+        },
+        "item_metadata": {
+          "code": "PE:07",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-code-infrastructure"
+        }
+      },
+      {
+        "id": "pe-08",
+        "title": "Optimize data usage",
+        "description": "Optimize data stores, partitions, and indexes for their intended and actual use in the workload.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:08",
+          "recommendation": "Optimize data usage. Optimize data stores, partitions, and indexes for their intended and actual use in the workload.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-data-performance"
+        },
+        "item_metadata": {
+          "code": "PE:08",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-data-performance"
+        }
+      },
+      {
+        "id": "pe-09",
+        "title": "Prioritize the performance of critical flows",
+        "description": "The allocation of workload resources and performance optimization efforts should prioritize the flows that support the most important business processes, users, and operations.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:09",
+          "recommendation": "Prioritize the performance of critical flows. The allocation of workload resources and performance optimization efforts should prioritize the flows that support the most important business processes, users, and operations.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/prioritize-critical-flows"
+        },
+        "item_metadata": {
+          "code": "PE:09",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/prioritize-critical-flows"
+        }
+      },
+      {
+        "id": "pe-10",
+        "title": "Optimize operational tasks",
+        "description": "Monitor and minimize the effects of the software development lifecycle and other routine operations on workload performance. These operations include virus scans, secret rotations, backups, reindexing databases, and deployments.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:10",
+          "recommendation": "Optimize operational tasks. Monitor and minimize the effects of the software development lifecycle and other routine operations on workload performance. These operations include virus scans, secret rotations, backups, reindexing databases, and deployments.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-operational-tasks"
+        },
+        "item_metadata": {
+          "code": "PE:10",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-operational-tasks"
+        }
+      },
+      {
+        "id": "pe-11",
+        "title": "Respond to live performance issues",
+        "description": "Plan how to address performance problems by incorporating clear lines of communication and responsibilities. When a problematic situation occurs, use what you learn to identify preventive measures and incorporate them in your workload. Implement methods to return to normal operations faster when similar situations occur.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:11",
+          "recommendation": "Respond to live performance issues. Plan how to address performance problems by incorporating clear lines of communication and responsibilities. When a problematic situation occurs, use what you learn to identify preventive measures and incorporate them in your workload. Implement methods to return to normal operations faster when similar situations occur.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/respond-live-performance-issues"
+        },
+        "item_metadata": {
+          "code": "PE:11",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/respond-live-performance-issues"
+        }
+      },
+      {
+        "id": "pe-12",
+        "title": "Continuously optimize performance",
+        "description": "Focus on components that show deteriorating performance over time, such as databases and networking features.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:12",
+          "recommendation": "Continuously optimize performance. Focus on components that show deteriorating performance over time, such as databases and networking features.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/continuous-performance-optimize"
+        },
+        "item_metadata": {
+          "code": "PE:12",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/continuous-performance-optimize"
+        }
+      },
+      {
+        "id": "re-01",
+        "title": "Focus your workload design on simplicity and efficiency",
+        "description": "Use a practical approach to avoid unnecessary complexity while meeting your business goals and requirements.",
+        "pillar": "Reliability",
+        "severity": "medium",
+        "guidance": {
+          "code": "RE:01",
+          "recommendation": "Focus your workload design on simplicity and efficiency. Use a practical approach to avoid unnecessary complexity while meeting your business goals and requirements.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/reliability/simplify"
+        },
+        "item_metadata": {
+          "code": "RE:01",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/reliability/simplify"
+        }
+      },
+      {
+        "id": "re-02",
+        "title": "Identify and rate user and system flows",
+        "description": "Use a criticality scale based on your business requirements to prioritize the flows.",
+        "pillar": "Reliability",
+        "severity": "medium",
+        "guidance": {
+          "code": "RE:02",
+          "recommendation": "Identify and rate user and system flows. Use a criticality scale based on your business requirements to prioritize the flows.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/reliability/identify-flows"
+        },
+        "item_metadata": {
+          "code": "RE:02",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/reliability/identify-flows"
+        }
+      },
+      {
+        "id": "re-03",
+        "title": "Use failure mode analysis (FMA) to identify potential failures in your workload",
+        "description": "Identify dependencies and failure points, and develop mitigation strategies for those failures.",
+        "pillar": "Reliability",
+        "severity": "medium",
+        "guidance": {
+          "code": "RE:03",
+          "recommendation": "Use failure mode analysis (FMA) to identify potential failures in your workload. Identify dependencies and failure points, and develop mitigation strategies for those failures.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/reliability/failure-mode-analysis"
+        },
+        "item_metadata": {
+          "code": "RE:03",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/reliability/failure-mode-analysis"
+        }
+      },
+      {
+        "id": "re-04",
+        "title": "Define reliability and recovery targets",
+        "description": "for your workload. Use the targets to inform your design and as the foundation of your health model.",
+        "pillar": "Reliability",
+        "severity": "medium",
+        "guidance": {
+          "code": "RE:04",
+          "recommendation": "Define reliability and recovery targets for your workload. Use the targets to inform your design and as the foundation of your health model.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/reliability/metrics"
+        },
+        "item_metadata": {
+          "code": "RE:04",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/reliability/metrics"
+        }
+      },
+      {
+        "id": "re-05",
+        "title": "Add redundancy at different levels, especially for critical flows",
+        "description": ", to help meet your reliability targets. Consider redundant infrastructure components such as compute and network, and multiple instances of your solution.",
+        "pillar": "Reliability",
+        "severity": "medium",
+        "guidance": {
+          "code": "RE:05",
+          "recommendation": "Add redundancy at different levels, especially for critical flows, to help meet your reliability targets. Consider redundant infrastructure components such as compute and network, and multiple instances of your solution.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/reliability/redundancy"
+        },
+        "item_metadata": {
+          "code": "RE:05",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/reliability/redundancy"
+        }
+      },
+      {
+        "id": "re-06",
+        "title": "Implement a timely and reliable scaling strategy at the application, data, and infrastructure levels",
+        "description": "Base the scaling strategy on actual or predicted usage patterns and minimize manual intervention.",
+        "pillar": "Reliability",
+        "severity": "medium",
+        "guidance": {
+          "code": "RE:06",
+          "recommendation": "Implement a timely and reliable scaling strategy at the application, data, and infrastructure levels. Base the scaling strategy on actual or predicted usage patterns and minimize manual intervention.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/reliability/scaling"
+        },
+        "item_metadata": {
+          "code": "RE:06",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/reliability/scaling"
+        }
+      },
+      {
+        "id": "re-07",
+        "title": "Strengthen the resiliency of your workload by implementing self-preservation and self-healing measures",
+        "description": "Use built-in features and well-established cloud patterns to help your workload remain functional during and recover from incidents.",
+        "pillar": "Reliability",
+        "severity": "medium",
+        "guidance": {
+          "code": "RE:07",
+          "recommendation": "Strengthen the resiliency of your workload by implementing self-preservation and self-healing measures. Use built-in features and well-established cloud patterns to help your workload remain functional during and recover from incidents.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/reliability/self-preservation"
+        },
+        "item_metadata": {
+          "code": "RE:07",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/reliability/self-preservation"
+        }
+      },
+      {
+        "id": "re-08",
+        "title": "Test for resiliency and availability scenarios by applying the principles of chaos engineering",
+        "description": "Ensure that your graceful degradation implementation and scaling strategies are effective by performing active malfunction and simulated load testing.",
+        "pillar": "Reliability",
+        "severity": "medium",
+        "guidance": {
+          "code": "RE:08",
+          "recommendation": "Test for resiliency and availability scenarios by applying the principles of chaos engineering. Ensure that your graceful degradation implementation and scaling strategies are effective by performing active malfunction and simulated load testing.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/reliability/testing-strategy"
+        },
+        "item_metadata": {
+          "code": "RE:08",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/reliability/testing-strategy"
+        }
+      },
+      {
+        "id": "re-09",
+        "title": "Implement structured, tested, and documented disaster recovery (DR) plans",
+        "description": "that align with the recovery targets. Plans must cover all components and the system as a whole.",
+        "pillar": "Reliability",
+        "severity": "medium",
+        "guidance": {
+          "code": "RE:09",
+          "recommendation": "Implement structured, tested, and documented disaster recovery (DR) plans that align with the recovery targets. Plans must cover all components and the system as a whole.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/reliability/disaster-recovery"
+        },
+        "item_metadata": {
+          "code": "RE:09",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/reliability/disaster-recovery"
+        }
+      },
+      {
+        "id": "re-10",
+        "title": "Measure and model the solution's health signals",
+        "description": "Continuously capture uptime and other reliability data from across the workload and also from individual components and key flows.",
+        "pillar": "Reliability",
+        "severity": "medium",
+        "guidance": {
+          "code": "RE:10",
+          "recommendation": "Measure and model the solution's health signals. Continuously capture uptime and other reliability data from across the workload and also from individual components and key flows.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/reliability/monitoring-alerting-strategy"
+        },
+        "item_metadata": {
+          "code": "RE:10",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/reliability/monitoring-alerting-strategy"
+        }
+      },
+      {
+        "id": "se-01",
+        "title": "Establish a security baseline",
+        "description": "that's aligned to compliance requirements, industry standards, and platform recommendations. Regularly measure your workload architecture and operations against the baseline to sustain or improve your security posture over time.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:01",
+          "recommendation": "Establish a security baseline that's aligned to compliance requirements, industry standards, and platform recommendations. Regularly measure your workload architecture and operations against the baseline to sustain or improve your security posture over time.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/establish-baseline"
+        },
+        "item_metadata": {
+          "code": "SE:01",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/establish-baseline"
+        }
+      },
+      {
+        "id": "se-02",
+        "title": "Maintain a secure development lifecycle",
+        "description": "by using a hardened, mostly automated, and auditable software supply chain. Incorporate a secure design by using threat modeling to safeguard against security-defeating implementations.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:02",
+          "recommendation": "Maintain a secure development lifecycle by using a hardened, mostly automated, and auditable software supply chain. Incorporate a secure design by using threat modeling to safeguard against security-defeating implementations.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/secure-development-lifecycle"
+        },
+        "item_metadata": {
+          "code": "SE:02",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/secure-development-lifecycle"
+        }
+      },
+      {
+        "id": "se-03",
+        "title": "Classify and consistently apply sensitivity and information type labels",
+        "description": "on all workload data and systems involved in data processing. Use classification to influence workload design, implementation, and security prioritization.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:03",
+          "recommendation": "Classify and consistently apply sensitivity and information type labels on all workload data and systems involved in data processing. Use classification to influence workload design, implementation, and security prioritization.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/data-classification"
+        },
+        "item_metadata": {
+          "code": "SE:03",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/data-classification"
+        }
+      },
+      {
+        "id": "se-04",
+        "title": "Create intentional segmentation and perimeters",
+        "description": "in your architecture design and in the workload's footprint on the platform. The segmentation strategy must include networks, roles and responsibilities, workload identities, and resource organization.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:04",
+          "recommendation": "Create intentional segmentation and perimeters in your architecture design and in the workload's footprint on the platform. The segmentation strategy must include networks, roles and responsibilities, workload identities, and resource organization.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/segmentation"
+        },
+        "item_metadata": {
+          "code": "SE:04",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/segmentation"
+        }
+      },
+      {
+        "id": "se-05",
+        "title": "Implement strict, conditional, and auditable identity and access management (IAM)",
+        "description": "across all workload users, team members, and system components. Limit access exclusively to *as necessary*. Use modern industry standards for all authentication and authorization implementations. Restrict and rigorously audit access that's not based on identity.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:05",
+          "recommendation": "Implement strict, conditional, and auditable identity and access management (IAM) across all workload users, team members, and system components. Limit access exclusively to *as necessary*. Use modern industry standards for all authentication and authorization implementations. Restrict and rigorously audit access that's not based on identity.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/identity-access"
+        },
+        "item_metadata": {
+          "code": "SE:05",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/identity-access"
+        }
+      },
+      {
+        "id": "se-06",
+        "title": "Isolate, filter, and control network traffic",
+        "description": "across both ingress and egress flows. Apply defense-in-depth principles by using localized network controls at all available network boundaries across both east-west and north-south traffic.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:06",
+          "recommendation": "Isolate, filter, and control network traffic across both ingress and egress flows. Apply defense-in-depth principles by using localized network controls at all available network boundaries across both east-west and north-south traffic.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/networking"
+        },
+        "item_metadata": {
+          "code": "SE:06",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/networking"
+        }
+      },
+      {
+        "id": "se-07",
+        "title": "Encrypt data by using modern, industry-standard methods",
+        "description": "to guard confidentiality and integrity. Align the encryption scope with data classifications, and prioritize native platform encryption methods.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:07",
+          "recommendation": "Encrypt data by using modern, industry-standard methods to guard confidentiality and integrity. Align the encryption scope with data classifications, and prioritize native platform encryption methods.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/encryption"
+        },
+        "item_metadata": {
+          "code": "SE:07",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/encryption"
+        }
+      },
+      {
+        "id": "se-08",
+        "title": "Harden all workload components",
+        "description": "by reducing extraneous surface area and tightening configurations to increase attacker cost.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:08",
+          "recommendation": "Harden all workload components by reducing extraneous surface area and tightening configurations to increase attacker cost.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/harden-resources"
+        },
+        "item_metadata": {
+          "code": "SE:08",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/harden-resources"
+        }
+      },
+      {
+        "id": "se-09",
+        "title": "Protect application secrets",
+        "description": "by hardening their storage and restricting access and manipulation and by auditing those actions. Run a reliable and regular rotation process that can improvise rotations for emergencies.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:09",
+          "recommendation": "Protect application secrets by hardening their storage and restricting access and manipulation and by auditing those actions. Run a reliable and regular rotation process that can improvise rotations for emergencies.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/application-secrets"
+        },
+        "item_metadata": {
+          "code": "SE:09",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/application-secrets"
+        }
+      },
+      {
+        "id": "se-10",
+        "title": "Implement a holistic monitoring strategy",
+        "description": "that relies on modern threat detection mechanisms that can be integrated with the platform. Mechanisms should reliably alert for triage and send signals into existing SecOps processes.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:10",
+          "recommendation": "Implement a holistic monitoring strategy that relies on modern threat detection mechanisms that can be integrated with the platform. Mechanisms should reliably alert for triage and send signals into existing SecOps processes.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/monitor-threats"
+        },
+        "item_metadata": {
+          "code": "SE:10",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/monitor-threats"
+        }
+      },
+      {
+        "id": "se-11",
+        "title": "Establish a comprehensive testing regimen",
+        "description": "that combines approaches to prevent security issues, validate threat prevention implementations, and test threat detection mechanisms.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:11",
+          "recommendation": "Establish a comprehensive testing regimen that combines approaches to prevent security issues, validate threat prevention implementations, and test threat detection mechanisms.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/test"
+        },
+        "item_metadata": {
+          "code": "SE:11",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/test"
+        }
+      },
+      {
+        "id": "se-12",
+        "title": "Define and test effective incident response procedures",
+        "description": "that cover a spectrum of incidents, from localized issues to disaster recovery. Clearly define which team or individual runs a procedure.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:12",
+          "recommendation": "Define and test effective incident response procedures that cover a spectrum of incidents, from localized issues to disaster recovery. Clearly define which team or individual runs a procedure.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/incident-response"
+        },
+        "item_metadata": {
+          "code": "SE:12",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/incident-response"
+        }
+      }
+    ]
   },
-  "items": [
-    {
-      "id": "reliability-1",
-      "title": "Design for high availability",
-      "pillar": "reliability",
-      "severity": "high"
-    },
-    {
-      "id": "security-1",
-      "title": "Use Azure RBAC",
-      "pillar": "security",
-      "severity": "critical"
-    }
-  ]
+  "slug": "waf-2024",
+  "title": "Azure WAF Checklist 2024 (Compatibility)"
 }

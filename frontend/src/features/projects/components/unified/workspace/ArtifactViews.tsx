@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
-import { ListChecks, MessageSquareQuote, ShieldAlert, FileSearch, Layers, Waypoints } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  ListChecks,
+  MessageSquareQuote,
+  MinusCircle,
+  ShieldAlert,
+  FileSearch,
+  Layers,
+  Waypoints,
+} from "lucide-react";
 import type { ProjectState, WafChecklist } from "../../../../../types/api";
 import { checklistApi } from "../../../../../services/checklistService";
 import { RequirementsTab } from "../LeftContextPanel/RequirementsTab";
@@ -63,7 +73,6 @@ const artifactRenderers: Record<ArtifactTab, ArtifactRenderer> = {
 };
 
 export function ArtifactViews(props: ArtifactViewProps) {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- Renderer map is strongly typed via TypeScript.
   return artifactRenderers[props.tabKind](props);
 }
 
@@ -120,6 +129,40 @@ function FindingsList({
 }
 
 function WafChecklistView({ projectState }: { readonly projectState: ProjectState }) {
+  const { checklist, loading } = useWafChecklist(projectState);
+  const checklistVersion = useMemo(() => checklist.version ?? "N/A", [checklist.version]);
+  const progress = useMemo(() => computeWafProgress(checklist.items), [checklist.items]);
+  const groupedItems = useMemo(() => groupChecklistItems(checklist.items), [checklist.items]);
+  const [selectedChecklistKey, setSelectedChecklistKey] = useState<string>("");
+  const activeGroup = useMemo(
+    () => groupedItems.find((group) => group.checklistKey === selectedChecklistKey) ?? groupedItems[0],
+    [groupedItems, selectedChecklistKey],
+  );
+
+  return (
+    <div className="p-6 space-y-4">
+      <WafChecklistHeader checklistVersion={checklistVersion} progress={progress} />
+      {loading ? (
+        <div className="text-sm text-gray-500">Loading checklist...</div>
+      ) : checklist.items.length === 0 ? (
+        <div className="text-sm text-gray-500">
+          No checklist items available yet. Completion baseline is 0%.
+        </div>
+      ) : (
+        <>
+          <ChecklistGroupTabs
+            groupedItems={groupedItems}
+            selectedChecklistKey={activeGroup.checklistKey}
+            onSelect={setSelectedChecklistKey}
+          />
+          <WafChecklistPanel group={activeGroup} />
+        </>
+      )}
+    </div>
+  );
+}
+
+function useWafChecklist(projectState: ProjectState) {
   const fallbackChecklist = useMemo(
     () => normalizeChecklist(projectState.wafChecklist),
     [projectState.wafChecklist],
@@ -135,6 +178,8 @@ function WafChecklistView({ projectState }: { readonly projectState: ProjectStat
         setChecklist(fallbackChecklist);
         return;
       }
+      // Apply latest state-derived checklist immediately; normalized fetch then reconciles.
+      setChecklist(fallbackChecklist);
       setLoading(true);
       try {
         const normalized = await checklistApi.fetchNormalizedChecklist(projectId);
@@ -159,11 +204,18 @@ function WafChecklistView({ projectState }: { readonly projectState: ProjectStat
     };
   }, [fallbackChecklist, projectId]);
 
-  const checklistVersion = useMemo(() => checklist.version ?? "N/A", [checklist.version]);
-  const progress = useMemo(() => computeWafProgress(checklist.items), [checklist.items]);
+  return { checklist, loading };
+}
 
+function WafChecklistHeader({
+  checklistVersion,
+  progress,
+}: {
+  readonly checklistVersion: string;
+  readonly progress: ReturnType<typeof computeWafProgress>;
+}) {
   return (
-    <div className="p-6 space-y-4">
+    <>
       <div className="flex items-center gap-3 justify-between">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -194,27 +246,118 @@ function WafChecklistView({ projectState }: { readonly projectState: ProjectStat
           Not covered: {progress.notCovered}
         </div>
       </div>
-      {loading ? (
-        <div className="text-sm text-gray-500">Loading checklist...</div>
-      ) : checklist.items.length === 0 ? (
-        <div className="text-sm text-gray-500">
-          No checklist items available yet. Completion baseline is 0%.
-        </div>
-      ) : (
-        <div className="grid gap-3">
-          {checklist.items.map((item) => (
-            <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-gray-900">{item.pillar}</div>
-                <WafStatusBadge status={getLatestWafEvaluation(item.evaluations)?.status ?? "notCovered"} />
-              </div>
-              <div className="text-xs text-gray-500">{item.topic}</div>
+    </>
+  );
+}
+
+function ChecklistGroupTabs({
+  groupedItems,
+  selectedChecklistKey,
+  onSelect,
+}: {
+  readonly groupedItems: readonly WafChecklistGroup[];
+  readonly selectedChecklistKey: string;
+  readonly onSelect: (key: string) => void;
+}) {
+  return (
+    <div className="overflow-x-auto pb-1">
+      <div className="flex items-center gap-2 min-w-max">
+        {groupedItems.map((group) => (
+          <button
+            key={group.checklistKey}
+            type="button"
+            onClick={() => {
+              onSelect(group.checklistKey);
+            }}
+            className={
+              group.checklistKey === selectedChecklistKey
+                ? "rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left"
+                : "rounded-lg border border-gray-200 bg-white px-3 py-2 text-left hover:bg-gray-50"
+            }
+          >
+            <div className="text-xs font-semibold text-gray-900 whitespace-nowrap">
+              {group.checklistTitle}
             </div>
-          ))}
-        </div>
-      )}
+            <div className="text-xs text-gray-500 whitespace-nowrap">{group.items.length} checks</div>
+          </button>
+        ))}
+      </div>
     </div>
   );
+}
+
+function WafChecklistPanel({
+  group,
+}: {
+  readonly group: WafChecklistGroup;
+}) {
+  const progress = useMemo(() => computeWafProgress(group.items), [group.items]);
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white">
+      <div className="px-4 py-3 border-b border-gray-100 bg-slate-50 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-gray-900">{group.checklistTitle}</div>
+          <div className="text-xs text-gray-500">{group.items.length} checks</div>
+        </div>
+        <div className="text-xs text-gray-600">
+          Covered {progress.covered}/{progress.total}
+        </div>
+      </div>
+      <div className="max-h-[56vh] overflow-y-auto p-3 space-y-2">
+        {group.items.map((item) => (
+          <WafChecklistRow key={item.id} item={item} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WafChecklistRow({ item }: { readonly item: WafChecklist["items"][number] }) {
+  const latestStatus = getLatestWafEvaluation(item.evaluations)?.status ?? "notCovered";
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-3">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5">
+          <WafChecklistStatusIcon status={latestStatus} />
+        </div>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold text-gray-900">{item.topic}</div>
+            <WafStatusBadge status={latestStatus} />
+          </div>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span>{item.pillar}</span>
+            {item.severity !== undefined && <WafSeverityBadge severity={item.severity} />}
+          </div>
+          {item.description !== undefined && item.description !== "" && (
+            <div className="text-xs text-gray-600">{item.description}</div>
+          )}
+          {item.guidance !== undefined && item.guidance.length > 0 && (
+            <ul className="list-disc pl-4 text-xs text-gray-600 space-y-1">
+              {item.guidance.map((step) => (
+                <li key={`${item.id}-${step}`}>{step}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WafChecklistStatusIcon({
+  status,
+}: {
+  readonly status: "covered" | "partial" | "notCovered";
+}) {
+  if (status === "covered") {
+    return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+  }
+  if (status === "partial") {
+    return <MinusCircle className="h-4 w-4 text-amber-600" />;
+  }
+  return <Circle className="h-4 w-4 text-gray-400" />;
 }
 
 function TraceabilityView({ projectState }: { readonly projectState: ProjectState }) {
@@ -372,6 +515,94 @@ function WafStatusBadge({ status }: { readonly status: "covered" | "partial" | "
       Not covered
     </span>
   );
+}
+
+function WafSeverityBadge({
+  severity,
+}: {
+  readonly severity: "low" | "medium" | "high" | "critical";
+}) {
+  if (severity === "critical") {
+    return (
+      <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs text-red-700">
+        Critical
+      </span>
+    );
+  }
+  if (severity === "high") {
+    return (
+      <span className="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-xs text-orange-700">
+        High
+      </span>
+    );
+  }
+  if (severity === "medium") {
+    return (
+      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+        Medium
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+      Low
+    </span>
+  );
+}
+
+interface WafChecklistGroup {
+  readonly checklistKey: string;
+  readonly checklistTitle: string;
+  readonly items: readonly WafChecklist["items"][number][];
+}
+
+function groupChecklistItems(items: readonly WafChecklist["items"][number][]): readonly WafChecklistGroup[] {
+  const grouped = new Map<string, {
+    checklistKey: string;
+    checklistTitle: string;
+    items: WafChecklist["items"][number][];
+  }>();
+
+  for (const item of items) {
+    const key = item.templateSlug ?? item.checklistTitle ?? "waf";
+    const title = item.checklistTitle ?? item.templateSlug ?? "WAF Checklist";
+    const existing = grouped.get(key);
+    if (existing === undefined) {
+      grouped.set(key, {
+        checklistKey: key,
+        checklistTitle: title,
+        items: [item],
+      });
+      continue;
+    }
+    existing.items.push(item);
+  }
+
+  return Array.from(grouped.values()).sort(
+    (left, right) =>
+      checklistSortRank(left.checklistTitle, left.checklistKey) -
+      checklistSortRank(right.checklistTitle, right.checklistKey),
+  );
+}
+
+function checklistSortRank(title: string, key: string): number {
+  const normalized = `${title} ${key}`.toLowerCase();
+  if (normalized.includes("reliability")) {
+    return 0;
+  }
+  if (normalized.includes("security")) {
+    return 1;
+  }
+  if (normalized.includes("cost")) {
+    return 2;
+  }
+  if (normalized.includes("operational")) {
+    return 3;
+  }
+  if (normalized.includes("performance")) {
+    return 4;
+  }
+  return 5;
 }
 
 function computeWafProgress(items: readonly WafChecklist["items"][number][]) {

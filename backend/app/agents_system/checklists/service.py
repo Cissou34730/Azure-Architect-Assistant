@@ -101,12 +101,26 @@ class ChecklistService:
         """
         return self.registry.list_templates()
 
+    async def ensure_project_checklists(
+        self, project_id: str, template_slugs: list[str] | None = None
+    ) -> int:
+        """
+        Ensure project checklists exist and are populated from template items.
+        """
+        self.registry.refresh_from_cache()
+        checklists = await self.engine.ensure_project_checklists(project_id, template_slugs)
+        return len(checklists)
+
     async def ensure_project_checklist(
-        self, project_id: str, template_slug: str = "azure-waf-v1"
+        self, project_id: str, template_slug: str | None = None
     ) -> bool:
         """
         Ensure a project checklist exists and is populated from template items.
         """
+        self.registry.refresh_from_cache()
+        if template_slug is None:
+            checklists = await self.engine.ensure_project_checklists(project_id, None)
+            return len(checklists) > 0
         checklist = await self.engine.ensure_project_checklist(project_id, template_slug)
         return checklist is not None
 

@@ -78,11 +78,9 @@ async def test_service_list_next_actions(test_checklist_service):
 @pytest.mark.asyncio
 async def test_service_ensure_project_checklist(test_checklist_service):
     project_id = str(uuid4())
-    test_checklist_service.engine.ensure_project_checklist = AsyncMock(return_value=MagicMock())
+    test_checklist_service.engine.ensure_project_checklists = AsyncMock(return_value=[MagicMock()])
 
     result = await test_checklist_service.ensure_project_checklist(project_id)
 
     assert result is True
-    test_checklist_service.engine.ensure_project_checklist.assert_called_once_with(
-        project_id, "azure-waf-v1"
-    )
+    test_checklist_service.engine.ensure_project_checklists.assert_called_once_with(project_id, None)
