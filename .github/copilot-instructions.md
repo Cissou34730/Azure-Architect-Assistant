@@ -6,7 +6,7 @@ Purpose
 - Assist contributors and Copilot in a consistent way for the "Azure Architect Assistant" project: a monorepo with a TypeScript React frontend and a Python backend that together provide: (1) project description authoring, (2) interactive documentation chat, (3) RAG/KB management, and (4) architecture + IaC generation.
 
 High-level rules (always)
-- Make the smallest change that solves the problem; prefer incremental, reviewable diffs and small commits.
+- Make the smallest chgit ange that solves the problem; prefer incremental, reviewable diffs and small commits.
 - Follow Single Responsibility Principle (SRP) and DRY; prefer simple, readable code over cleverness.
 - Use descriptive names (e.g., days_until_expiration); if a comment is needed to explain complex logic, consider refactoring.
 - Validate and sanitize all external input (APIs, user input, files); never assume correctness.
