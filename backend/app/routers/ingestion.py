@@ -19,6 +19,7 @@ from app.ingestion.application.orchestrator import (
     RetryPolicy,
     WorkflowDefinition,
 )
+from app.ingestion.application.shutdown_manager import ShutdownManager
 from app.ingestion.application.status_query_service import (
     KBPersistedStatus,
     StatusQueryService,
@@ -114,6 +115,9 @@ class JobViewResponse(BaseModel):
 # Global repository instance
 repo = create_job_repository()
 
+# Shared shutdown manager for all running ingestion jobs
+shutdown_manager = ShutdownManager()
+
 # Track running orchestrator tasks for graceful shutdown
 _running_tasks: dict[str, asyncio.Task[Any]] = {}  # job_id -> task mapping
 
@@ -133,6 +137,7 @@ async def run_orchestrator_background(
         repo=repo,
         workflow=WorkflowDefinition(),
         retry_policy=RetryPolicy(max_attempts=3),
+        shutdown_manager=shutdown_manager,
     )
 
     try:
@@ -174,9 +179,6 @@ async def start_ingestion(
 
         # Ensure kb_id is in config (loader expects it)
         kb_config["kb_id"] = kb_id
-
-        # Clear any stale shutdown flag
-        IngestionOrchestrator.clear_shutdown_flag()
 
         # Extract source information
         source_type = kb_config.get("source_type", "unknown")
@@ -336,9 +338,6 @@ async def resume_ingestion(
 
         kb_config = kb_manager.get_kb_config(kb_id)
         kb_config["kb_id"] = kb_id
-
-        # Clear any stale shutdown flag before resuming
-        IngestionOrchestrator.clear_shutdown_flag()
 
         # Update status to running
         repo.set_job_status(job_id, status="running")
@@ -732,7 +731,7 @@ async def cleanup_running_tasks() -> None:
 
     tasks_snapshot = list(_running_tasks.items())
     logger.warning("Step 1: Setting shutdown flag on orchestrators...")
-    IngestionOrchestrator.request_shutdown()
+    shutdown_manager.request_shutdown()
 
     await _pause_running_jobs(tasks_snapshot)
 

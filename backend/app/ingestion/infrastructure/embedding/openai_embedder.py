@@ -66,10 +66,11 @@ class OpenAIEmbedder(BaseEmbedder):
         """Run async batch embedding within synchronous context."""
         try:
             return asyncio.run(self.ai_service.embed_batch(texts))
-        except RuntimeError:
-            # Fallback if already in an event loop
-            loop = asyncio.get_event_loop()
-            return loop.run_until_complete(self.ai_service.embed_batch(texts))
+        except RuntimeError as exc:
+            raise RuntimeError(
+                'OpenAIEmbedder.embed_documents() cannot be called from a running event loop. '
+                'Call ai_service.embed_batch(...) from async code instead.'
+            ) from exc
 
     def embed_documents(
         self,

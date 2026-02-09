@@ -5,7 +5,6 @@ import signal
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from app.ingestion.application.orchestrator import IngestionOrchestrator
     from app.routers import ingestion
 
 logger = logging.getLogger(__name__)
@@ -55,12 +54,11 @@ def _handle_ingestion_shutdown(  # noqa: PLR0913
     frame: Any,
     loop: asyncio.AbstractEventLoop | None,
     ingestion_router: "ingestion",
-    orchestrator_cls: type["IngestionOrchestrator"],
     prev_handlers: dict[int, Any],
 ) -> None:
     """Internal signal handler logic."""
     logger.warning(f"Signal {sig} received - requesting ingestion shutdown")
-    orchestrator_cls.request_shutdown()
+    ingestion_router.shutdown_manager.request_shutdown()
 
     # Mark jobs paused and cancel running tasks promptly
     try:
@@ -77,14 +75,13 @@ def install_ingestion_signal_handlers():
     Ensure SIGINT/SIGTERM immediately request ingestion shutdown so CTRL-C
     pauses jobs instead of continuing to run embeds/indexing.
     """
-    from app.ingestion.application.orchestrator import IngestionOrchestrator  # noqa: PLC0415
     from app.routers import ingestion  # noqa: PLC0415
 
     loop = _get_loop()
     prev_handlers = {}
 
     def _handler(sig, frame):
-        _handle_ingestion_shutdown(sig, frame, loop, ingestion, IngestionOrchestrator, prev_handlers)
+        _handle_ingestion_shutdown(sig, frame, loop, ingestion, prev_handlers)
 
     signals_to_install = [signal.SIGINT]
     if hasattr(signal, "SIGTERM"):

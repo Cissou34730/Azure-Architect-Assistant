@@ -59,3 +59,38 @@ class PersistenceError(IngestionError):
         self.kb_id = kb_id
         self.reason = reason
         super().__init__(f'Persistence failed for KB {kb_id}: {reason}')
+
+
+class PhaseNotFoundError(IngestionError):
+    """Raised when a phase status row is expected but missing."""
+
+    def __init__(self, job_id: str, phase_name: str):
+        self.job_id = job_id
+        self.phase_name = phase_name
+        super().__init__(f'Phase not found: job_id={job_id}, phase_name={phase_name}')
+
+
+class PhaseRepositoryError(IngestionError):
+    """Raised when phase repository operations fail."""
+
+    def __init__(self, job_id: str, phase_name: str, operation: str, reason: str):
+        self.job_id = job_id
+        self.phase_name = phase_name
+        self.operation = operation
+        self.reason = reason
+        super().__init__(
+            f'Phase repository error: op={operation}, job_id={job_id}, phase={phase_name}, reason={reason}'
+        )
+
+
+class NonCriticalPhaseError(IngestionError):
+    """Raised for phase tracking failures that should not fail the ingestion job."""
+
+    def __init__(self, job_id: str, phase_name: str, operation: str, reason: str):
+        self.job_id = job_id
+        self.phase_name = phase_name
+        self.operation = operation
+        self.reason = reason
+        super().__init__(
+            f'Non-critical phase tracking failure: op={operation}, job_id={job_id}, phase={phase_name}, reason={reason}'
+        )

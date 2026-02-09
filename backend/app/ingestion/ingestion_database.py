@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import os
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from pydantic import ValidationError
+from pydantic_settings import SettingsError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -18,10 +21,16 @@ BACKEND_ROOT = Path(__file__).parent.parent.parent
 DATA_ROOT = BACKEND_ROOT / 'data'
 DATA_ROOT.mkdir(exist_ok=True)
 
+logger = logging.getLogger(__name__)
+
 app_settings = None
 try:
     app_settings = get_app_settings()
-except Exception:  # noqa: BLE001
+except (ValidationError, SettingsError, FileNotFoundError) as exc:
+    logger.warning(
+        'App settings could not be loaded; falling back to INGESTION_DATABASE/data/ingestion.db',
+        exc_info=exc,
+    )
     app_settings = None
 
 if app_settings and app_settings.ingestion_database:
@@ -60,7 +69,8 @@ def get_session() -> Iterator[Session]:
     try:
         yield session
         session.commit()
-    except Exception:
+    except Exception as exc:
+        logger.exception('Ingestion DB transaction failed; rolling back', exc_info=exc)
         session.rollback()
         raise
     finally:

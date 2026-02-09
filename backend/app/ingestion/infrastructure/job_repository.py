@@ -40,6 +40,32 @@ class JobView:
 class JobRepository:
     """SQLAlchemy-based repository for job persistence."""
 
+    @staticmethod
+    def _map_status_to_db(status: str) -> str:
+        status_map: dict[str, str] = {
+            'not_started': DBJobStatus.NOT_STARTED.value,
+            'running': DBJobStatus.RUNNING.value,
+            'paused': DBJobStatus.PAUSED.value,
+            'completed': DBJobStatus.COMPLETED.value,
+            'failed': DBJobStatus.FAILED.value,
+            'canceled': DBJobStatus.CANCELED.value,
+        }
+        if status not in status_map:
+            raise ValueError(f'Invalid status: {status}')
+        return status_map[status]
+
+    @staticmethod
+    def _map_status_from_db(db_status: str) -> str:
+        reverse_map: dict[str, str] = {
+            DBJobStatus.NOT_STARTED.value: 'not_started',
+            DBJobStatus.RUNNING.value: 'running',
+            DBJobStatus.PAUSED.value: 'paused',
+            DBJobStatus.COMPLETED.value: 'completed',
+            DBJobStatus.FAILED.value: 'failed',
+            DBJobStatus.CANCELED.value: 'canceled',
+        }
+        return reverse_map.get(db_status, db_status)
+
     def create_job(
         self,
         kb_id: str,
@@ -109,15 +135,7 @@ class JobRepository:
 
     def update_job_status(self, job_id: str, status: str) -> None:
         """Update job status and timestamp (expects canonical job statuses)."""
-        status_map = {
-            'not_started': DBJobStatus.NOT_STARTED.value,
-            'running': DBJobStatus.RUNNING.value,
-            'paused': DBJobStatus.PAUSED.value,
-            'completed': DBJobStatus.COMPLETED.value,
-            'failed': DBJobStatus.FAILED.value,
-            'canceled': DBJobStatus.CANCELED.value,
-        }
-        db_status = status_map.get(status, DBJobStatus.NOT_STARTED.value)
+        db_status = self._map_status_to_db(status)
 
         with get_session() as session:
             session.execute(
@@ -157,15 +175,7 @@ class JobRepository:
         last_error: str | None = None,
     ) -> None:
         """Set job status and optional completion info."""
-        status_map = {
-            'not_started': DBJobStatus.NOT_STARTED.value,
-            'running': DBJobStatus.RUNNING.value,
-            'paused': DBJobStatus.PAUSED.value,
-            'completed': DBJobStatus.COMPLETED.value,
-            'failed': DBJobStatus.FAILED.value,
-            'canceled': DBJobStatus.CANCELED.value,
-        }
-        db_status = status_map.get(status, status)  # Fallback to raw if not in map
+        db_status = self._map_status_to_db(status)
 
         with get_session() as session:
             job = session.get(IngestionJob, job_id)
