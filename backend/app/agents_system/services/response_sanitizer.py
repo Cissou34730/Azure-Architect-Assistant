@@ -15,6 +15,19 @@ _AAA_MACHINE_BLOCK_PATTERNS = (
     ),
 )
 
+_REACT_TRACE_PATTERNS = (
+    # Fenced ReAct trace leak such as ```Thought: ... Action: ...```
+    re.compile(
+        r"(?:^|\n)\s*```(?:[a-zA-Z0-9_-]+)?\s*(?:Thought:|Action:|Observation:).*?```(?:\n|$)",
+        re.DOTALL | re.IGNORECASE,
+    ),
+    # Unfenced ReAct scratchpad blocks (without Final Answer)
+    re.compile(
+        r"(?:^|\n)\s*Thought:\s.*?\n\s*Action:\s.*?\n\s*Action Input:\s.*?(?=(?:\n\s*Final Answer:|\Z))",
+        re.DOTALL | re.IGNORECASE,
+    ),
+)
+
 
 def sanitize_agent_output(text: str) -> str:
     """Remove machine-readable payload blocks from user-facing assistant content."""
@@ -24,6 +37,11 @@ def sanitize_agent_output(text: str) -> str:
     cleaned = text
     for pattern in _AAA_MACHINE_BLOCK_PATTERNS:
         cleaned = pattern.sub("\n", cleaned)
+    for pattern in _REACT_TRACE_PATTERNS:
+        cleaned = pattern.sub("\n", cleaned)
+
+    # Remove parser artifacts sometimes left before leaked traces.
+    cleaned = re.sub(r"^\s*\{\s*\}\s*$", "", cleaned, flags=re.MULTILINE)
 
     # Normalize excess blank lines after block removal.
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)

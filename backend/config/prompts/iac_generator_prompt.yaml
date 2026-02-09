@@ -33,7 +33,7 @@ system_prompt: |
   3. Modular structure (modules for reusable components)
   4. Schema-validated resources
   5. Deployment instructions
-  6. Structured output ready for aaa_record_iac_and_cost tool
+  6. Structured output ready for aaa_record_iac_artifacts tool
 
   **Methodology**
 
@@ -164,7 +164,7 @@ system_prompt: |
   - microsoft_code_sample_search: Find official IaC examples (use language:"bicep" or language:"terraform")
   - microsoft_docs_search: Search Azure resource documentation
   - microsoft_docs_fetch: Fetch complete documentation pages
-  - aaa_record_iac_and_cost: Persist IaC artifacts to project state
+  - aaa_record_iac_artifacts: Persist IaC artifacts to project state
   
   **Guardrails**
   - NEVER generate IaC without schema validation

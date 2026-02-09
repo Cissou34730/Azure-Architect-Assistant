@@ -9,6 +9,7 @@ from app.agents_system.langgraph.nodes.stage_routing import (
     classify_next_stage,
     propose_next_step,
     should_route_to_architecture_planner,
+    should_route_to_cost_estimator,
 )
 from app.agents_system.langgraph.state import GraphState
 
@@ -199,6 +200,30 @@ def test_architecture_planner_selected_for_explicit_architecture_request():
     }
 
     result = should_route_to_architecture_planner(state)
+
+    assert result is True
+
+
+def test_cost_estimator_routing_allows_explicit_cost_without_candidate_architecture():
+    state: GraphState = {
+        "user_message": "estimate the cost using SWA, Azure Function, and Table Storage",
+        "current_project_state": {},
+        "next_stage": ProjectStage.PRICING.value,
+    }
+
+    result = should_route_to_cost_estimator(state)
+
+    assert result is True
+
+
+def test_cost_estimator_routing_by_pricing_stage_even_without_cost_keywords():
+    state: GraphState = {
+        "user_message": "let us continue",
+        "current_project_state": {},
+        "next_stage": ProjectStage.PRICING.value,
+    }
+
+    result = should_route_to_cost_estimator(state)
 
     assert result is True
 

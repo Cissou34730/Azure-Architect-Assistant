@@ -910,29 +910,62 @@ def should_route_to_cost_estimator(state: GraphState) -> bool:
     ]
 
     explicit_cost = any(keyword in user_message for keyword in cost_keywords)
+    next_stage = state.get("next_stage")
 
     if explicit_cost:
-        # Only route if architecture exists
+        # Prefer existing architecture when available.
         project_state = state.get("current_project_state") or {}
         has_architecture = bool(project_state.get("candidateArchitectures"))
 
         if has_architecture:
             logger.info("💰 Routing to Cost Estimator: explicit cost request + architecture exists")
             return True
-        else:
-            logger.warning(
-                "Cost request detected but no architecture finalized. "
-                "Will not route to Cost Estimator."
-            )
-            return False
+
+        # Service-based pricing requests can be estimated without a finalized
+        # candidate architecture by asking assumptions/quantities first.
+        if _has_service_pricing_signals(user_message):
+            logger.info("💰 Routing to Cost Estimator: explicit cost request + service signals")
+            return True
+
+        # Route anyway for clarification-first pricing instead of falling back
+        # to generic agent loops.
+        logger.info(
+            "💰 Routing to Cost Estimator: explicit cost request without finalized architecture"
+        )
+        return True
 
     # Check project stage
-    next_stage = state.get("next_stage")
     if next_stage == ProjectStage.PRICING.value:
         logger.info("💰 Routing to Cost Estimator: project stage is 'pricing'")
         return True
 
     return False
+
+
+def _has_service_pricing_signals(user_message: str) -> bool:
+    """Detect service hints in user text for pricing-first workflows."""
+    service_tokens = [
+        "swa",
+        "static web app",
+        "static web apps",
+        "azure function",
+        "function app",
+        "table storage",
+        "storage account",
+        "blob storage",
+        "sql database",
+        "cosmos db",
+        "app service",
+        "aks",
+        "api management",
+        "service bus",
+        "event hub",
+        "front door",
+        "application gateway",
+        "redis",
+        "key vault",
+    ]
+    return any(token in user_message for token in service_tokens)
 
 
 def prepare_cost_estimator_handoff(state: GraphState) -> dict[str, Any]:

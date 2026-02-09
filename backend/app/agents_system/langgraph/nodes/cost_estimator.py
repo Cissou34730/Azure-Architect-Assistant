@@ -9,9 +9,8 @@ import logging
 import re
 from typing import Any
 
-from app.agents_system.agents.mcp_react_agent import MCPReActAgent
-from app.agents_system.config.prompt_loader import PromptLoader
-from app.agents_system.tools.aaa_candidate_tool import create_aaa_tools
+from app.agents_system.services.state_update_parser import extract_state_updates
+from app.agents_system.tools.aaa_cost_tool import AAAGenerateCostTool
 
 from ..state import GraphState
 
@@ -44,102 +43,84 @@ async def cost_estimator_node(state: GraphState) -> dict[str, Any]:
     logger.info("💰 Cost Estimator Agent activated")
 
     try:
-        # Load cost estimator prompt
-        prompt_loader = PromptLoader()
-        cost_prompt = prompt_loader.load_prompt("cost_estimator_prompt.yaml")
-
         # Prepare handoff context for cost estimator
         handoff_context = state.get("agent_handoff_context", {})
-        project_context = handoff_context.get("project_context", "")
         architecture = handoff_context.get("architecture", "")
         resource_list = handoff_context.get("resource_list", [])
         region = handoff_context.get("region", "eastus")
         environment = handoff_context.get("environment", "production")
-        constraints = handoff_context.get("constraints", {})
 
         # Get user's original request
         user_message = state.get("user_message", "")
+        combined_text = _combined_pricing_text(user_message, resource_list)
+        baseline_requested = _is_baseline_assumptions_requested(user_message)
+        minimum_inputs_available = _minimum_pricing_inputs_available(user_message)
+        has_supported_services = _has_supported_pricing_services(user_message, resource_list)
 
-        # Construct comprehensive input for cost estimator
-        cost_estimator_input = f"""
-{user_message}
+        if _needs_pricing_clarification(
+            architecture=architecture,
+            resource_list=resource_list,
+            baseline_requested=baseline_requested,
+            minimum_inputs_available=minimum_inputs_available,
+            has_supported_services=has_supported_services,
+        ):
+            clarification = _build_cost_clarification_message(
+                region=region,
+                environment=environment,
+            )
+            logger.info("Cost Estimator returning clarification-first response")
+            return {
+                "agent_output": clarification,
+                "intermediate_steps": state.get("intermediate_steps", []),
+                "current_agent": "cost_estimator",
+                "sub_agent_output": clarification,
+                "cost_estimate": None,
+                "success": True,
+                "error": None,
+            }
 
-**Context from Main Agent:**
-
-**Project Context:**
-{project_context}
-
-**Architecture to Cost:**
-{architecture if architecture else "No architecture provided. Unable to estimate costs without architecture details."}
-
-**Azure Services Identified:**
-{_format_resource_list(resource_list)}
-
-**Target Region:**
-{region}
-
-**Environment:**
-{environment}
-
-**Constraints:**
-{_format_constraints(constraints)}
-
----
-
-**Task:** Calculate a comprehensive Azure cost estimate for this architecture. Include:
-
-1. **Total Cost Summary** (monthly, annual, 3-year TCO)
-2. **Cost Breakdown by Service** (table with service, SKU, quantity, monthly/annual costs)
-3. **Regional Pricing** (if multi-region architecture)
-4. **Cost Optimization Opportunities** with specific savings estimates:
-   - Reserved Instances (1-year, 3-year savings percentages)
-   - Right-Sizing recommendations
-   - Azure Hybrid Benefit
-   - Dev/Test pricing
-   - Auto-scaling strategies
-5. **Alternative SKU Suggestions** with trade-offs
-6. **Pricing Lines for aaa_record_iac_and_cost** tool
-
-Use the Azure Retail Prices API to get accurate, up-to-date pricing. Do not guess prices.
-
-**Important:** If architecture details are insufficient, request clarification from the user about:
-- Specific Azure services to use
-- SKU/tier for each service
-- Number of instances/quantity
-- Expected usage patterns
-"""
-
-        # Create cost estimator agent with specialized prompt
-        cost_agent = MCPReActAgent(
-            system_prompt=cost_prompt["system_prompt"],
-            react_template=cost_prompt.get("react_template", ""),
-            tools=create_aaa_tools(state),  # Reuse AAA tools
-            model_name="gpt-4o",  # Use GPT-4 for complex cost reasoning
-            temperature=0.1,  # Low temperature for consistency
+        should_run_deterministic = has_supported_services
+        heuristic_lines = (
+            _build_heuristic_pricing_lines(
+                combined_text=combined_text,
+                region=region,
+                environment=environment,
+            )
+            if should_run_deterministic
+            else []
         )
+        validated_lines = _validate_pricing_lines_for_execution(heuristic_lines)
+        if validated_lines:
+            logger.info(
+                "Cost Estimator using deterministic pricing tool path (lines=%d)",
+                len(validated_lines),
+            )
+            deterministic_output = await _run_deterministic_cost_estimate(
+                pricing_lines=validated_lines,
+                region=region,
+                environment=environment,
+            )
+            if deterministic_output is not None:
+                if has_supported_services and not minimum_inputs_available and not baseline_requested:
+                    return _append_refinement_questions(
+                        deterministic_output=deterministic_output,
+                        region=region,
+                        environment=environment,
+                    )
+                return deterministic_output
 
-        logger.info("Cost Estimator agent initialized, invoking...")
-
-        # Invoke cost estimator agent
-        result = await cost_agent.ainvoke({
-            "input": cost_estimator_input,
-            "context": project_context,
-        })
-
-        cost_estimate = result.get("output", "")
-        intermediate_steps = result.get("intermediate_steps", [])
-
-        logger.info(f"✅ Cost Estimator completed with {len(intermediate_steps)} tool calls")
-
-        # Extract cost summary from estimate
-        cost_summary = _extract_cost_summary(cost_estimate)
-
+        unsupported_message = _build_pricing_unavailable_message(
+            user_message=user_message,
+            region=region,
+            environment=environment,
+        )
+        logger.info("Cost Estimator returning deterministic-unavailable clarification")
         return {
-            "agent_output": cost_estimate,
-            "intermediate_steps": state.get("intermediate_steps", []) + intermediate_steps,
+            "agent_output": unsupported_message,
+            "intermediate_steps": state.get("intermediate_steps", []),
             "current_agent": "cost_estimator",
-            "sub_agent_output": cost_estimate,
-            "cost_estimate": cost_summary,
+            "sub_agent_output": unsupported_message,
+            "cost_estimate": None,
             "success": True,
             "error": None,
         }
@@ -270,3 +251,358 @@ def _parse_cost_value(value: str) -> float | None:
         return float(value.replace(",", ""))
     except ValueError:
         return None
+
+
+def _needs_pricing_clarification(
+    *,
+    architecture: Any,
+    resource_list: list[str],
+    baseline_requested: bool,
+    minimum_inputs_available: bool,
+    has_supported_services: bool,
+) -> bool:
+    """Return True when the cost estimator lacks enough sizing inputs."""
+    architecture_missing = _is_architecture_missing(architecture)
+    resources_missing = _is_resource_list_missing(resource_list)
+
+    # If services are recognizable, produce a baseline estimate immediately and
+    # then request sizing details for refinement.
+    if has_supported_services:
+        return False
+
+    # If both architecture and service sizing are weak, clarify first.
+    if (
+        architecture_missing
+        and resources_missing
+        and not minimum_inputs_available
+        and not baseline_requested
+    ):
+        return True
+
+    # If there is no architecture and no sizing hints, avoid tool loops.
+    if (
+        architecture_missing
+        and not minimum_inputs_available
+        and not baseline_requested
+    ):
+        return True
+
+    return False
+
+
+def _is_architecture_missing(architecture: Any) -> bool:
+    if not architecture:
+        return True
+    if isinstance(architecture, dict):
+        meaningful_keys = ("description", "components", "diagram", "title", "summary")
+        return not any(bool(architecture.get(key)) for key in meaningful_keys)
+    return False
+
+
+def _is_resource_list_missing(resource_list: list[str]) -> bool:
+    if not resource_list:
+        return True
+    if len(resource_list) != 1:
+        return False
+    only_item = resource_list[0].strip().lower()
+    return (
+        "extract from architecture description" in only_item
+        or "no resources identified" in only_item
+    )
+
+
+def _has_sizing_or_usage_hints(user_message: str) -> bool:
+    text = (user_message or "").lower()
+    patterns = [
+        r"\b\d+\s*(instance|instances|apps|functions|gb|tb|rps|requests?/s|users?)\b",
+        r"\b(sku|tier|plan|consumption|premium|standard|basic|s\d|p\d|ep\d)\b",
+        r"\b(monthly|annual|per month|24/7|always on|on-demand)\b",
+    ]
+    return any(re.search(pattern, text) for pattern in patterns)
+
+
+def _build_cost_clarification_message(
+    *,
+    region: str,
+    environment: str,
+) -> str:
+    return (
+        "I can estimate this, but I need a few pricing inputs first to avoid inaccurate numbers.\n\n"
+        "Please confirm:\n"
+        "1. Region (current default: " + region + ")\n"
+        "2. Environment (current default: " + environment + ")\n"
+        "3. Static Web Apps tier and expected monthly bandwidth\n"
+        "4. Azure Functions plan (Consumption/Premium), monthly executions, and average execution duration\n"
+        "5. Table Storage estimated data volume (GB) and monthly read/write operations\n\n"
+        "If you prefer, reply with: `use baseline assumptions` and I will run a provisional estimate now."
+    )
+
+
+def _combined_pricing_text(user_message: str, resource_list: list[str]) -> str:
+    resource_text = " ".join(resource_list) if resource_list else ""
+    return f"{user_message} {resource_text}".lower()
+
+
+def _has_supported_pricing_services(user_message: str, resource_list: list[str]) -> bool:
+    combined_text = _combined_pricing_text(user_message, resource_list)
+    service_markers = [
+        "swa",
+        "static web app",
+        "static web apps",
+        "azure function",
+        "function app",
+        "functions",
+        "table storage",
+        "cosmos db",
+        "azure cosmos db",
+    ]
+    return any(marker in combined_text for marker in service_markers)
+
+
+def _is_baseline_assumptions_requested(user_message: str) -> bool:
+    text = (user_message or "").lower()
+    triggers = [
+        "use baseline assumptions",
+        "baseline assumptions",
+        "use assumptions",
+        "proceed with assumptions",
+        "use default assumptions",
+    ]
+    return any(trigger in text for trigger in triggers)
+
+
+def _minimum_pricing_inputs_available(user_message: str) -> bool:
+    """Minimum viable input gate before executing pricing calls."""
+    return _has_sizing_or_usage_hints(user_message)
+
+
+def _build_heuristic_pricing_lines(
+    *,
+    combined_text: str,
+    region: str,
+    environment: str,
+) -> list[dict[str, Any]]:
+    """Build baseline pricing lines from common service mentions."""
+    lines: list[dict[str, Any]] = []
+    instance_count = _extract_first_int(combined_text, r"(\d+)\s*(?:instance|instances)") or 1
+    storage_gb = _extract_first_int(combined_text, r"(\d+)\s*gb") or 100
+    monthly_exec = _extract_first_int(
+        combined_text, r"(\d[\d,]*)\s*(?:executions|execution|requests)"
+    ) or 1_000_000
+
+    if "swa" in combined_text or "static web app" in combined_text:
+        tier_hint = _extract_tier_hint(combined_text)
+        lines.append(
+            {
+                "name": "Static Web Apps baseline",
+                "serviceName": "Static Web Apps",
+                "armRegionName": region,
+                "productNameContains": tier_hint,
+                "meterNameContains": tier_hint,
+                "monthlyQuantity": float(max(instance_count, 1) * 730),
+            }
+        )
+
+    if (
+        "azure function" in combined_text
+        or "function app" in combined_text
+        or "functions" in combined_text
+    ):
+        if "premium" in combined_text:
+            lines.append(
+                {
+                    "name": "Azure Functions Premium baseline",
+                    "serviceName": "Functions",
+                    "armRegionName": region,
+                    "productNameContains": "Functions",
+                    "meterNameContains": "Premium",
+                    "monthlyQuantity": float(max(instance_count, 1) * 730),
+                }
+            )
+        else:
+            lines.append(
+                {
+                    "name": "Azure Functions executions baseline",
+                    "serviceName": "Functions",
+                    "armRegionName": region,
+                    "productNameContains": "Functions",
+                    "meterNameContains": "Execution",
+                    "monthlyQuantity": float(max(monthly_exec, 1)),
+                }
+            )
+
+    if "table storage" in combined_text:
+        lines.append(
+            {
+                "name": "Table Storage capacity baseline",
+                "serviceName": "Storage",
+                "armRegionName": region,
+                "productNameContains": "Table",
+                "meterNameContains": "Data Stored",
+                "monthlyQuantity": float(max(storage_gb, 1)),
+            }
+        )
+
+    if "cosmos db" in combined_text or "azure cosmos db" in combined_text:
+        lines.append(
+            {
+                "name": "Azure Cosmos DB autoscale baseline",
+                "serviceName": "Azure Cosmos DB",
+                "armRegionName": region,
+                "productNameContains": "Azure Cosmos DB autoscale",
+                "meterNameContains": "100 RUs",
+                "monthlyQuantity": float(max(instance_count, 1) * 730),
+            }
+        )
+
+    # For development, use reduced baseline quantity for always-on compute.
+    if environment.lower().startswith("dev"):
+        for line in lines:
+            if "monthlyQuantity" in line and "baseline" in str(line.get("name", "")).lower():
+                line["monthlyQuantity"] = float(line["monthlyQuantity"]) * 0.4
+
+    return lines
+
+
+def _validate_pricing_lines_for_execution(
+    pricing_lines: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Executor-side guardrail before calling pricing APIs."""
+    valid: list[dict[str, Any]] = []
+    required_keys = ("name", "serviceName", "armRegionName", "monthlyQuantity")
+    for line in pricing_lines:
+        if not isinstance(line, dict):
+            continue
+        if any(key not in line for key in required_keys):
+            continue
+        qty = line.get("monthlyQuantity")
+        if not isinstance(qty, (int, float)) or qty <= 0:
+            continue
+        valid.append(line)
+    return valid
+
+
+def _extract_first_int(text: str, pattern: str) -> int | None:
+    match = re.search(pattern, text)
+    if not match:
+        return None
+    raw = match.group(1).replace(",", "")
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _extract_tier_hint(text: str) -> str | None:
+    lowered = (text or "").lower()
+    known_tiers = [
+        "free",
+        "standard",
+        "premium",
+        "basic",
+        "consumption",
+        "serverless",
+    ]
+    for tier in known_tiers:
+        if tier in lowered:
+            return tier.title()
+    return None
+
+
+async def _run_deterministic_cost_estimate(
+    *,
+    pricing_lines: list[dict[str, Any]],
+    region: str,
+    environment: str,
+) -> dict[str, Any] | None:
+    tool = AAAGenerateCostTool()
+    tool_response = await tool._arun(payload={"pricingLines": pricing_lines})
+    if not tool_response or tool_response.startswith("ERROR:"):
+        logger.warning("Deterministic cost tool call failed: %s", tool_response[:200])
+        return None
+
+    updates = extract_state_updates(tool_response, user_message="", current_state={}) or {}
+    cost_estimates = updates.get("costEstimates")
+    estimate = cost_estimates[0] if isinstance(cost_estimates, list) and cost_estimates else {}
+    total_monthly = estimate.get("totalMonthlyCost")
+    currency = estimate.get("currencyCode", "USD")
+    annual = float(total_monthly) * 12 if isinstance(total_monthly, (int, float)) else None
+    line_items = estimate.get("lineItems", []) if isinstance(estimate, dict) else []
+    gaps = estimate.get("pricingGaps", []) if isinstance(estimate, dict) else []
+
+    if (not line_items) and isinstance(gaps, list) and gaps:
+        logger.warning(
+            "Deterministic pricing returned no matched line items (gaps=%d)",
+            len(gaps),
+        )
+        return None
+
+    summary_lines = [
+        "## Baseline Cost Estimate (deterministic pricing API path)",
+        f"- Region: `{region}`",
+        f"- Environment: `{environment}`",
+    ]
+    if isinstance(total_monthly, (int, float)):
+        summary_lines.append(f"- Estimated Monthly Total: `{currency} {total_monthly:,.2f}`")
+    if isinstance(annual, float):
+        summary_lines.append(f"- Estimated Annual Total: `{currency} {annual:,.2f}`")
+    if isinstance(gaps, list) and gaps:
+        summary_lines.append(
+            f"- Pricing gaps: `{len(gaps)}` lines could not be matched exactly and were excluded."
+        )
+    summary_lines.append(
+        "- Assumptions: baseline quantities were inferred from your message; provide exact SKUs/usage for a tighter estimate."
+    )
+
+    return {
+        "agent_output": "\n".join(summary_lines) + "\n\n" + tool_response,
+        "intermediate_steps": [],
+        "current_agent": "cost_estimator",
+        "sub_agent_output": "\n".join(summary_lines),
+        "cost_estimate": estimate if isinstance(estimate, dict) else None,
+        "success": True,
+        "error": None,
+    }
+
+
+def _append_refinement_questions(
+    *,
+    deterministic_output: dict[str, Any],
+    region: str,
+    environment: str,
+) -> dict[str, Any]:
+    """Append clarification prompts after emitting a baseline estimate."""
+    follow_up = (
+        "\n\nTo refine this estimate, please confirm:\n"
+        f"1. Region (current default: {region})\n"
+        f"2. Environment (current default: {environment})\n"
+        "3. Static Web Apps tier and expected monthly bandwidth\n"
+        "4. Azure Functions plan and monthly executions/runtime profile\n"
+        "5. Table/Cosmos storage and throughput assumptions"
+    )
+    output = str(deterministic_output.get("agent_output", "")) + follow_up
+    deterministic_output["agent_output"] = output
+    deterministic_output["sub_agent_output"] = str(
+        deterministic_output.get("sub_agent_output", "")
+    ) + follow_up
+    return deterministic_output
+
+
+def _build_pricing_unavailable_message(
+    *,
+    user_message: str,
+    region: str,
+    environment: str,
+) -> str:
+    requested = user_message.strip() or "your requested services"
+    return (
+        "I could not build a reliable pricing-line mapping for all requested services yet.\n\n"
+        f"Request: {requested}\n"
+        f"Region: {region}\n"
+        f"Environment: {environment}\n\n"
+        "Please provide one of these to proceed:\n"
+        "1. Exact `serviceName` and SKU/meter per service (from Azure Retail Prices API), or\n"
+        "2. Reply with `use baseline assumptions` and list services + quantities (instances, GB, executions), or\n"
+        "3. Provide the final architecture artifact so I can derive pricing lines from persisted components.\n\n"
+        "Supported baseline mappings currently include: Azure Functions, Azure Cosmos DB, and Table Storage."
+    )

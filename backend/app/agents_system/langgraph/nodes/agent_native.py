@@ -153,13 +153,14 @@ async def run_stage_aware_agent(
     system_directives = _build_system_directives(state)
     tools = await _build_tools(mcp_client)
 
-    llm = ChatOpenAI(
+    base_llm = ChatOpenAI(
         model=openai_settings.model,
         temperature=0.1,
         openai_api_key=openai_settings.api_key,
-    ).bind_tools(tools)
+    )
+    llm = base_llm.bind_tools(tools)
 
-    agent_graph = _compile_agent_graph(llm, tools)
+    agent_graph = _compile_agent_graph(llm, tools, base_llm)
 
     agent_initial_state: AgentState = {
         "messages": [
@@ -175,18 +176,24 @@ async def run_stage_aware_agent(
     return _parse_agent_results(result_state)
 
 
-def _compile_agent_graph(llm: Any, tools: list[BaseTool]) -> Any:
+def _compile_agent_graph(llm: Any, tools: list[BaseTool], final_llm: Any) -> Any:
     """Helper to build and compile the internal agent graph."""
     tool_node = ToolNode(tools)
+    final_directive = (
+        "Tool iteration budget reached. Provide the best possible final answer now "
+        "using the information already in the conversation and tool outputs. "
+        "Do NOT call any tools. If key information is missing, ask up to 5 focused "
+        "clarifying questions and propose the next concrete step."
+    )
 
-    def should_continue(agent_state: AgentState) -> Literal["tools", "end"]:
+    def should_continue(agent_state: AgentState) -> Literal["tools", "final", "end"]:
         messages = agent_state["messages"]
         last_message = messages[-1]
         iterations = agent_state.get("iterations", 0)
 
         if iterations >= MAX_AGENT_ITERATIONS:
             logger.warning("Reached max iterations in native agent loop")
-            return "end"
+            return "final"
 
         if hasattr(last_message, "tool_calls") and last_message.tool_calls:
             return "tools"
@@ -198,19 +205,29 @@ def _compile_agent_graph(llm: Any, tools: list[BaseTool]) -> Any:
         response = await llm.ainvoke(messages)
         return {"messages": [response], "iterations": iterations + 1}
 
+    async def call_final(agent_state: AgentState) -> dict[str, Any]:
+        messages = agent_state["messages"]
+        iterations = agent_state.get("iterations", 0)
+        final_messages = [*messages, SystemMessage(content=final_directive)]
+        response = await final_llm.ainvoke(final_messages)
+        return {"messages": [response], "iterations": iterations + 1}
+
     workflow = StateGraph(AgentState)
     workflow.add_node("agent", call_model)
     workflow.add_node("tools", tool_node)
+    workflow.add_node("final", call_final)
     workflow.set_entry_point("agent")
     workflow.add_conditional_edges(
         "agent",
         should_continue,
         {
             "tools": "tools",
+            "final": "final",
             "end": END,
         },
     )
     workflow.add_edge("tools", "agent")
+    workflow.add_edge("final", END)
     return workflow.compile()
 
 

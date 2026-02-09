@@ -188,3 +188,160 @@ async def test_run_agent_node_bulk_override_falls_back_when_no_matching_items(mo
     result = await agent_node.run_agent_node(state)
     assert result["success"] is True
     assert result["agent_output"] == "fallback path"
+
+
+@pytest.mark.asyncio
+async def test_run_agent_node_single_item_uncheck_updates_not_covered(monkeypatch):
+    monkeypatch.setattr(
+        agent_node,
+        "get_agent_runner",
+        AsyncMock(side_effect=AssertionError("Runner should not be called")),
+    )
+
+    state = {
+        "user_message": (
+            "uncheck the focus your workload design on simplicity and efficiency "
+            "in the Reliability checklist"
+        ),
+        "current_project_state": {
+            "wafChecklist": {
+                "items": [
+                    {
+                        "id": "rel-01",
+                        "pillar": "Reliability",
+                        "topic": "Focus your workload design on simplicity and efficiency",
+                    },
+                    {
+                        "id": "rel-02",
+                        "pillar": "Reliability",
+                        "topic": "Design for business requirements",
+                    },
+                ]
+            }
+        },
+    }
+
+    result = await agent_node.run_agent_node(state)
+    assert result["success"] is True
+    updates = extract_state_updates(result["agent_output"], state["user_message"], {})
+    assert updates is not None
+    items = updates["wafChecklist"]["items"]
+    assert len(items) == 1
+    assert items[0]["id"] == "rel-01"
+    assert items[0]["evaluations"][0]["status"] == "notCovered"
+
+
+@pytest.mark.asyncio
+async def test_run_agent_node_single_item_update_falls_back_when_no_match(monkeypatch):
+    runner = SimpleNamespace(
+        mcp_client=object(),
+        openai_settings=object(),
+    )
+    monkeypatch.setattr(agent_node, "get_agent_runner", AsyncMock(return_value=runner))
+    monkeypatch.setattr(
+        agent_node,
+        "run_stage_aware_agent",
+        AsyncMock(
+            return_value={
+                "agent_output": "fallback path",
+                "intermediate_steps": [],
+                "success": True,
+                "error": None,
+            }
+        ),
+    )
+
+    state = {
+        "user_message": "uncheck this reliability checklist item",
+        "current_project_state": {
+            "wafChecklist": {
+                "items": [
+                    {
+                        "id": "rel-01",
+                        "pillar": "Reliability",
+                        "topic": "Focus your workload design on simplicity and efficiency",
+                    }
+                ]
+            }
+        },
+    }
+
+    result = await agent_node.run_agent_node(state)
+    assert result["success"] is True
+    assert result["agent_output"] == "fallback path"
+
+
+@pytest.mark.asyncio
+async def test_run_agent_node_recovers_from_over_refusal_for_in_scope_message(monkeypatch):
+    runner = SimpleNamespace(
+        mcp_client=object(),
+        openai_settings=object(),
+    )
+    monkeypatch.setattr(agent_node, "get_agent_runner", AsyncMock(return_value=runner))
+    stage_aware = AsyncMock(
+        side_effect=[
+            {
+                "agent_output": (
+                    "I cannot assist with this topic. My scope is restricted to Azure architectural "
+                    "analysis and management of this project's requirements and decisions."
+                ),
+                "intermediate_steps": [],
+                "success": True,
+                "error": None,
+            },
+            {
+                "agent_output": "Updated checklist item as requested.",
+                "intermediate_steps": [],
+                "success": True,
+                "error": None,
+            },
+        ]
+    )
+    monkeypatch.setattr(agent_node, "run_stage_aware_agent", stage_aware)
+
+    result = await agent_node.run_agent_node(
+        {
+            "user_message": "update the reliability checklist status for the project",
+            "current_project_state": {},
+        }
+    )
+
+    assert result["success"] is True
+    assert result["agent_output"] == "Updated checklist item as requested."
+    assert stage_aware.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_run_agent_node_does_not_retry_refusal_for_off_topic_message(monkeypatch):
+    """Off-topic messages are now intercepted by the pre-filter before hitting
+    the agent.  The agent should never be called and the response should be
+    the standard redirect message."""
+    runner = SimpleNamespace(
+        mcp_client=object(),
+        openai_settings=object(),
+    )
+    monkeypatch.setattr(agent_node, "get_agent_runner", AsyncMock(return_value=runner))
+    stage_aware = AsyncMock(
+        return_value={
+            "agent_output": (
+                "I cannot assist with this topic. My scope is restricted to Azure architectural "
+                "analysis and management of this project's requirements and decisions."
+            ),
+            "intermediate_steps": [],
+            "success": True,
+            "error": None,
+        }
+    )
+    monkeypatch.setattr(agent_node, "run_stage_aware_agent", stage_aware)
+
+    result = await agent_node.run_agent_node(
+        {
+            "user_message": "tell me a joke about cats",
+            "current_project_state": {},
+        }
+    )
+
+    assert result["success"] is True
+    # Pre-filter now intercepts before the agent runs
+    assert "azure architect assistant" in result["agent_output"].lower()
+    assert stage_aware.await_count == 0

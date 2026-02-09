@@ -5,12 +5,14 @@ Builds graphs with stage routing, retry logic, and multi-agent support.
 """
 
 import logging
+from typing import Literal
 
 from langgraph.graph import END, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .nodes.agent import run_agent_node
 from .nodes.context import build_context_summary_node, load_project_state_node
+from .nodes.cost_estimator import cost_estimator_node
 from .nodes.multi_agent import (
     adr_specialist_node,
     iac_specialist_node,
@@ -26,7 +28,9 @@ from .nodes.stage_routing import (
     build_retry_prompt,
     check_for_retry,
     classify_next_stage,
+    prepare_cost_estimator_handoff,
     propose_next_step,
+    should_route_to_cost_estimator,
 )
 from .state import GraphState
 
@@ -47,6 +51,8 @@ def build_advanced_project_chat_graph(
     workflow.add_node("build_summary", _wrap_build_summary(db))
     workflow.add_node("classify_stage", classify_next_stage)
     workflow.add_node("build_research", build_research_plan_node)
+    workflow.add_node("prepare_cost_handoff", prepare_cost_estimator_handoff)
+    workflow.add_node("cost_estimator", cost_estimator_node)
     workflow.add_node("run_agent", run_agent_node)
     workflow.add_node("persist_messages", _wrap_persist_messages(db))
     workflow.add_node("postprocess", _wrap_postprocess(response_message_id))
@@ -107,13 +113,29 @@ def _add_optional_nodes(workflow: StateGraph, enable_stage_routing: bool, enable
 
 def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enable_multi_agent: bool):
     """Define edges and conditional paths for the graph."""
+    def route_after_research(
+        state: GraphState,
+    ) -> Literal["cost_estimator", "supervisor", "run_agent"]:
+        if should_route_to_cost_estimator(state):
+            return "cost_estimator"
+        return "supervisor" if enable_multi_agent else "run_agent"
+
     workflow.set_entry_point("load_state")
     workflow.add_edge("load_state", "build_summary")
     workflow.add_edge("build_summary", "classify_stage")
     workflow.add_edge("classify_stage", "build_research")
+    research_routes = {
+        "cost_estimator": "prepare_cost_handoff",
+        "run_agent": "run_agent",
+    }
+    if enable_multi_agent:
+        research_routes["supervisor"] = "supervisor"
+
+    workflow.add_conditional_edges("build_research", route_after_research, research_routes)
+    workflow.add_edge("prepare_cost_handoff", "cost_estimator")
+    workflow.add_edge("cost_estimator", "persist_messages")
 
     if enable_multi_agent:
-        workflow.add_edge("build_research", "supervisor")
         workflow.add_conditional_edges(
             "supervisor",
             route_to_specialist,
@@ -127,8 +149,6 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
         )
         for node in ["adr_specialist", "validation_specialist", "pricing_specialist", "iac_specialist"]:
             workflow.add_edge(node, "run_agent")
-    else:
-        workflow.add_edge("build_research", "run_agent")
 
     workflow.add_edge("run_agent", "persist_messages")
     workflow.add_edge("persist_messages", "postprocess")

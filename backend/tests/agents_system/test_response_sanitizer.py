@@ -40,3 +40,20 @@ def test_sanitize_agent_output_keeps_regular_mermaid_and_text() -> None:
     )
 
     assert sanitize_agent_output(text) == text
+
+
+def test_sanitize_agent_output_removes_react_trace_leak() -> None:
+    text = (
+        "{}\n"
+        "```Thought: Need pricing details.\n"
+        "Action: aaa_record_cost_estimate\n"
+        "Action Input: {\"payload\": {\"pricingLines\": []}}\n"
+        "```\n"
+        "I can proceed once assumptions are confirmed."
+    )
+
+    sanitized = sanitize_agent_output(text)
+    assert "Thought:" not in sanitized
+    assert "Action Input:" not in sanitized
+    assert "{}" not in sanitized
+    assert sanitized == "I can proceed once assumptions are confirmed."

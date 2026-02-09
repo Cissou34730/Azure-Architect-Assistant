@@ -131,13 +131,17 @@ export async function handleSendMessage({
   setLoadingMessage("Processing your question...");
 
   try {
-    return await sendMessageRequest({
+    const response = await sendMessageRequest({
       projectId: validProjectId,
       message,
       optimisticId,
       onStateUpdate,
       fetchMessages,
     });
+
+    // Clear stale failed banners once we have a successful round-trip.
+    setFailedMessages([]);
+    return response;
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Failed to send";

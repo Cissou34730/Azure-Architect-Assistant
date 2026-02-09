@@ -1,6 +1,7 @@
 import pytest
 
 from app.agents_system.config.prompt_loader import PromptLoader
+from app.agents_system.langchain.prompt_builder import build_prompt_template
 
 
 def test_load_prompt_from_specialized_file(tmp_path):
@@ -61,3 +62,12 @@ def test_load_prompt_raises_when_missing(tmp_path):
     with pytest.raises(FileNotFoundError) as exc:
         loader.load_prompt("missing_prompt.yaml")
     assert "missing_prompt.yaml" in str(exc.value)
+
+
+def test_cost_estimator_prompt_renders_without_unexpected_variables():
+    loader = PromptLoader()
+    prompt_cfg = loader.load_prompt("cost_estimator_prompt.yaml")
+
+    template = build_prompt_template(prompt_cfg["system_prompt"], tools=[])
+
+    assert sorted(template.input_variables) == ["agent_scratchpad", "input"]

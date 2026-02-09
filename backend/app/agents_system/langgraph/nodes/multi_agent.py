@@ -130,7 +130,7 @@ def pricing_specialist_node(state: GraphState) -> dict[str, Any]:
     logger.info("Pricing specialist processing request")
 
     # In full implementation, this would:
-    # 1. Use pricing-only portion of aaa_record_iac_and_cost tool
+    # 1. Use aaa_record_cost_estimate tool
     # 2. Have specialized prompt for cost analysis
     # 3. Focus on TCO and cost optimization
 
@@ -155,7 +155,7 @@ def iac_specialist_node(state: GraphState) -> dict[str, Any]:
     logger.info("IaC specialist processing request")
 
     # In full implementation, this would:
-    # 1. Use IaC-only portion of aaa_record_iac_and_cost tool
+    # 1. Use aaa_record_iac_artifacts tool for IaC artifacts
     # 2. Have specialized prompt for Terraform/Bicep generation
     # 3. Focus on IaC best practices and validation
 

@@ -3,6 +3,7 @@ import pytest
 from app.agents_system.services.aaa_state_models import AAAProjectState
 from app.agents_system.services.state_update_parser import extract_state_updates
 from app.agents_system.tools.aaa_iac_tool import AAAGenerateIacTool
+from app.agents_system.tools.aaa_cost_tool import AAAGenerateCostTool
 
 
 def test_iac_tool_emits_state_update_with_iac_artifact() -> None:
@@ -24,8 +25,8 @@ def test_iac_tool_emits_state_update_with_iac_artifact() -> None:
     assert updates["iacArtifacts"][0]["files"][0]["path"] == "infra/main.bicep"
 
 
-def test_iac_tool_computes_cost_from_catalog_without_network() -> None:
-    tool = AAAGenerateIacTool()
+def test_cost_tool_computes_cost_from_catalog_without_network() -> None:
+    tool = AAAGenerateCostTool()
 
     pricing_catalog = [
         {
@@ -41,8 +42,6 @@ def test_iac_tool_computes_cost_from_catalog_without_network() -> None:
     ]
 
     response = tool._run(
-        iacFiles=[],
-        validationResults=[],
         pricingLines=[
             {
                 "name": "VM compute",
@@ -101,4 +100,34 @@ def test_project_state_validates_iac_and_cost_artifacts() -> None:
     validated = AAAProjectState.model_validate(payload)
     assert validated.iac_artifacts[0].files[0].format == "terraform"
     assert validated.cost_estimates[0].total_monthly_cost == pytest.approx(12.34)
+
+
+def test_iac_tool_rejects_cost_fields() -> None:
+    tool = AAAGenerateIacTool()
+    response = tool._run(
+        pricingLines=[
+            {
+                "name": "not allowed",
+                "serviceName": "Storage",
+                "armRegionName": "eastus",
+                "monthlyQuantity": 1,
+            }
+        ]
+    )
+    assert response.startswith("ERROR:")
+
+
+def test_cost_tool_rejects_iac_fields() -> None:
+    tool = AAAGenerateCostTool()
+    response = tool._run(
+        iacFiles=[
+            {
+                "path": "infra/main.bicep",
+                "format": "bicep",
+                "content": "targetScope='resourceGroup'",
+            }
+        ],
+        pricingCatalog=[],
+    )
+    assert response.startswith("ERROR:")
 
