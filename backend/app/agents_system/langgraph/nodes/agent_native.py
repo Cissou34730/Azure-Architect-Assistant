@@ -79,6 +79,8 @@ def _build_system_directives(state: GraphState) -> str:
         "- Always call MCP tools for at least one search and one fetch before final answer.\n"
         "- Cite Azure/WAF/ASB sources with names and URLs; include mind map node ids when adding artifacts.\n"
         "- Challenge assumptions: If a user choice contradicts Azure WAF best practices or NFRs, you MUST explain the risk and offer alternatives.\n"
+        "- Treat WAF checklist as first-class: when analysis supports a status change, proactively persist checklist updates (covered/partial/notCovered) without waiting for explicit user wording.\n"
+        "- If evidence is insufficient for a status change, ask a focused status/evidence clarification and propose the next checklist completion step.\n"
         "- Persist decisions: Whenever a design choice is made, use the appropriate AAA tool and include the 'AAA_STATE_UPDATE' block in your response to confirm it reached the system.\n"
         "- Proactive driving: Drive the project forward. If requirements are clear, propose the architecture; if architecture is clear, move to ADRs."
     )

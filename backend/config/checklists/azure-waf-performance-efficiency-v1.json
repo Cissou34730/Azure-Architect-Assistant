@@ -1,0 +1,207 @@
+{
+  "slug": "azure-waf-performance-efficiency-v1",
+  "title": "Azure WAF Performance Efficiency Checklist",
+  "description": "Azure Well-Architected Framework checklist for the Performance Efficiency pillar.",
+  "version": "2026-02-08",
+  "source": "microsoft-learn",
+  "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/checklist",
+  "source_version": "2026-02-08",
+  "source_license": "Microsoft Learn Terms of Use",
+  "fetched_at": "2026-02-08T21:37:53.566364+00:00",
+  "content": {
+    "items": [
+      {
+        "id": "pe-01",
+        "title": "Define performance targets",
+        "description": "Performance targets should be numerical values that are tied to workload requirements. You should implement performance targets for all workload flows.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:01",
+          "recommendation": "Define performance targets. Performance targets should be numerical values that are tied to workload requirements. You should implement performance targets for all workload flows.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/performance-targets"
+        },
+        "item_metadata": {
+          "code": "PE:01",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/performance-targets"
+        }
+      },
+      {
+        "id": "pe-02",
+        "title": "Conduct capacity planning",
+        "description": "Capacity planning should be done before there are predicted changes in usage patterns, such as seasonal variations, product updates, marketing campaigns, special events, or regulatory changes.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:02",
+          "recommendation": "Conduct capacity planning. Capacity planning should be done before there are predicted changes in usage patterns, such as seasonal variations, product updates, marketing campaigns, special events, or regulatory changes.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/capacity-planning"
+        },
+        "item_metadata": {
+          "code": "PE:02",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/capacity-planning"
+        }
+      },
+      {
+        "id": "pe-03",
+        "title": "Select the right services",
+        "description": "The services, infrastructure, and tier selections must support your ability to reach the workload's performance targets and accommodate expected capacity changes. The selections should also weigh the benefits of using platform features or building a custom implementation.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:03",
+          "recommendation": "Select the right services. The services, infrastructure, and tier selections must support your ability to reach the workload's performance targets and accommodate expected capacity changes. The selections should also weigh the benefits of using platform features or building a custom implementation.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/select-services"
+        },
+        "item_metadata": {
+          "code": "PE:03",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/select-services"
+        }
+      },
+      {
+        "id": "pe-04",
+        "title": "Collect performance data",
+        "description": "Workload components and flows should provide automatic, continuous, and meaningful metrics and logs. Collect data at different levels of the workload, such as the application, platform, data, and operating system levels.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:04",
+          "recommendation": "Collect performance data. Workload components and flows should provide automatic, continuous, and meaningful metrics and logs. Collect data at different levels of the workload, such as the application, platform, data, and operating system levels.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/collect-performance-data"
+        },
+        "item_metadata": {
+          "code": "PE:04",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/collect-performance-data"
+        }
+      },
+      {
+        "id": "pe-05",
+        "title": "Optimize scaling and partitioning",
+        "description": "Incorporate reliable and controlled scaling and partitioning. The scale unit design of the workload is the basis of the scaling and partitioning strategy.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:05",
+          "recommendation": "Optimize scaling and partitioning. Incorporate reliable and controlled scaling and partitioning. The scale unit design of the workload is the basis of the scaling and partitioning strategy.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/scale-partition"
+        },
+        "item_metadata": {
+          "code": "PE:05",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/scale-partition"
+        }
+      },
+      {
+        "id": "pe-06",
+        "title": "Test performance",
+        "description": "Perform regular testing in an environment that matches the production environment. Compare results against the performance targets and the performance benchmark.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:06",
+          "recommendation": "Test performance. Perform regular testing in an environment that matches the production environment. Compare results against the performance targets and the performance benchmark.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/performance-test"
+        },
+        "item_metadata": {
+          "code": "PE:06",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/performance-test"
+        }
+      },
+      {
+        "id": "pe-07",
+        "title": "Optimize code and infrastructure",
+        "description": "Use code that's performant, and ensure that it offloads responsibilities to the platform. Use code and infrastructure only for their core purpose and only when necessary.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:07",
+          "recommendation": "Optimize code and infrastructure. Use code that's performant, and ensure that it offloads responsibilities to the platform. Use code and infrastructure only for their core purpose and only when necessary.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-code-infrastructure"
+        },
+        "item_metadata": {
+          "code": "PE:07",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-code-infrastructure"
+        }
+      },
+      {
+        "id": "pe-08",
+        "title": "Optimize data usage",
+        "description": "Optimize data stores, partitions, and indexes for their intended and actual use in the workload.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:08",
+          "recommendation": "Optimize data usage. Optimize data stores, partitions, and indexes for their intended and actual use in the workload.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-data-performance"
+        },
+        "item_metadata": {
+          "code": "PE:08",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-data-performance"
+        }
+      },
+      {
+        "id": "pe-09",
+        "title": "Prioritize the performance of critical flows",
+        "description": "The allocation of workload resources and performance optimization efforts should prioritize the flows that support the most important business processes, users, and operations.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:09",
+          "recommendation": "Prioritize the performance of critical flows. The allocation of workload resources and performance optimization efforts should prioritize the flows that support the most important business processes, users, and operations.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/prioritize-critical-flows"
+        },
+        "item_metadata": {
+          "code": "PE:09",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/prioritize-critical-flows"
+        }
+      },
+      {
+        "id": "pe-10",
+        "title": "Optimize operational tasks",
+        "description": "Monitor and minimize the effects of the software development lifecycle and other routine operations on workload performance. These operations include virus scans, secret rotations, backups, reindexing databases, and deployments.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:10",
+          "recommendation": "Optimize operational tasks. Monitor and minimize the effects of the software development lifecycle and other routine operations on workload performance. These operations include virus scans, secret rotations, backups, reindexing databases, and deployments.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-operational-tasks"
+        },
+        "item_metadata": {
+          "code": "PE:10",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/optimize-operational-tasks"
+        }
+      },
+      {
+        "id": "pe-11",
+        "title": "Respond to live performance issues",
+        "description": "Plan how to address performance problems by incorporating clear lines of communication and responsibilities. When a problematic situation occurs, use what you learn to identify preventive measures and incorporate them in your workload. Implement methods to return to normal operations faster when similar situations occur.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:11",
+          "recommendation": "Respond to live performance issues. Plan how to address performance problems by incorporating clear lines of communication and responsibilities. When a problematic situation occurs, use what you learn to identify preventive measures and incorporate them in your workload. Implement methods to return to normal operations faster when similar situations occur.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/respond-live-performance-issues"
+        },
+        "item_metadata": {
+          "code": "PE:11",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/respond-live-performance-issues"
+        }
+      },
+      {
+        "id": "pe-12",
+        "title": "Continuously optimize performance",
+        "description": "Focus on components that show deteriorating performance over time, such as databases and networking features.",
+        "pillar": "Performance Efficiency",
+        "severity": "medium",
+        "guidance": {
+          "code": "PE:12",
+          "recommendation": "Continuously optimize performance. Focus on components that show deteriorating performance over time, such as databases and networking features.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/continuous-performance-optimize"
+        },
+        "item_metadata": {
+          "code": "PE:12",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/performance-efficiency/continuous-performance-optimize"
+        }
+      }
+    ]
+  }
+}

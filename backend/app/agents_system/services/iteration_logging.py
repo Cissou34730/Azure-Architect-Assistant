@@ -173,9 +173,9 @@ def derive_uncovered_topic_questions(state: dict[str, Any]) -> list[str]:
     questions: list[str] = []
 
     _check_requirements_gaps(state, questions)
+    _check_validation_gaps(state, questions)
     _check_architecture_gaps(state, questions)
     _check_diagram_gaps(state, questions)
-    _check_validation_gaps(state, questions)
     _check_iac_cost_gaps(state, questions)
 
     return questions[:3]
@@ -220,11 +220,63 @@ def _check_diagram_gaps(state: dict[str, Any], questions: list[str]) -> None:
 
 def _check_validation_gaps(state: dict[str, Any], questions: list[str]) -> None:
     """Check for missing WAF validation."""
-    waf_ok = isinstance(state.get("wafChecklist"), dict) and bool(state.get("wafChecklist"))
-    if not waf_ok:
+    waf = state.get("wafChecklist")
+    if not isinstance(waf, dict) or not waf:
         questions.append(
             "Topic WAF (cross-cutting): are there any must-pass WAF pillar requirements (security, reliability, cost, operational excellence, performance)?"
         )
+        return
+
+    items_raw = waf.get("items")
+    items = items_raw.values() if isinstance(items_raw, dict) else items_raw
+    if not isinstance(items, list) or len(items) == 0:
+        questions.append(
+            "Topic WAF: checklist exists but has no item statuses yet. Should I start by marking top-risk controls as notCovered/partial with evidence?"
+        )
+        return
+
+    covered = 0
+    partial = 0
+    not_covered = 0
+    per_pillar_open: dict[str, int] = {}
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        status = _latest_waf_status(item)
+        if status == "covered":
+            covered += 1
+            continue
+        if status == "partial":
+            partial += 1
+        else:
+            not_covered += 1
+        pillar = str(item.get("pillar", "General")).strip() or "General"
+        per_pillar_open[pillar] = per_pillar_open.get(pillar, 0) + 1
+
+    remaining = partial + not_covered
+    if remaining <= 0:
+        return
+
+    top_pillar = sorted(per_pillar_open.items(), key=lambda p: p[1], reverse=True)[0][0]
+    questions.append(
+        f"Topic WAF: {remaining} checklist items are still partial/notCovered (top gap: {top_pillar}). "
+        "Should I update these statuses now with explicit evidence and remediation owners?"
+    )
+
+
+def _latest_waf_status(item: dict[str, Any]) -> str:
+    """Return latest legacy checklist status for an item."""
+    evals = item.get("evaluations")
+    if not isinstance(evals, list) or not evals:
+        return "notCovered"
+    latest = evals[-1]
+    if not isinstance(latest, dict):
+        return "notCovered"
+    status = str(latest.get("status", "notCovered")).strip().lower()
+    if status not in {"covered", "partial", "notcovered"}:
+        return "notCovered"
+    return "notCovered" if status == "notcovered" else status
 
 
 def _check_iac_cost_gaps(state: dict[str, Any], questions: list[str]) -> None:

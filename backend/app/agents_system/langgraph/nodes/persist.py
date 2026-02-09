@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ....models.project import ConversationMessage
 from ...services.iteration_logging import derive_uncovered_topic_questions
 from ...services.project_context import update_project_state
+from ...services.response_sanitizer import sanitize_agent_output
 from ..state import GraphState
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ async def persist_messages_node(
     project_id = state["project_id"]
     user_message = state["user_message"]
     agent_output = state.get("agent_output", "")
+    sanitized_agent_output = sanitize_agent_output(str(agent_output))
 
     try:
         # Save user message
@@ -52,7 +54,7 @@ async def persist_messages_node(
             id=str(uuid.uuid4()),
             project_id=project_id,
             role="assistant",
-            content=agent_output,
+            content=sanitized_agent_output,
             timestamp=datetime.now(timezone.utc).isoformat(),
         )
         db.add(agent_msg)
@@ -90,7 +92,7 @@ async def apply_state_updates_node(
         logger.info(f"No state updates to apply for project {project_id}")
         return {
             "updated_project_state": state.get("current_project_state"),
-            "final_answer": agent_output,
+            "final_answer": sanitize_agent_output(str(agent_output)),
         }
 
     try:
@@ -115,7 +117,7 @@ async def apply_state_updates_node(
             logger.error(f"Failed to sync project {project_id} to normalized DB: {e}")
 
         # Build final answer with additional guidance
-        final_answer = agent_output
+        final_answer = sanitize_agent_output(str(agent_output))
         final_answer = await _handle_uncovered_topics(
             project_id, updated_state, final_answer, architect_choice_required, db
         )
@@ -133,7 +135,7 @@ async def apply_state_updates_node(
         logger.error(f"Failed to apply state updates: {e}", exc_info=True)
         return {
             "updated_project_state": state.get("current_project_state"),
-            "final_answer": agent_output,
+            "final_answer": sanitize_agent_output(str(agent_output)),
             "error": f"Failed to apply state updates: {e!s}",
             "success": False,
         }

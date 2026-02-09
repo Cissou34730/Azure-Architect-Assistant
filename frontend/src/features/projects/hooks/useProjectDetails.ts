@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useProjectState } from "./useProjectState";
 import { useChat } from "./useChat";
 import { useProposal } from "./useProposal";
 import { useProjectData } from "./useProjectData";
 import { useChatHandlers } from "./useChatHandlers";
 import { useProjectOperations } from "./useProjectOperations";
+import type { ProjectState } from "../../../types/api";
 
 import { useProjectLoading } from "./useProjectLoading";
 
@@ -16,6 +17,15 @@ export function useProjectDetails(projectId: string | undefined) {
   const stateHook = useProjectState(selectedProject?.id ?? null);
   const chatHook = useChat(selectedProject?.id ?? null);
   const { generateProposal, ...proposalHook } = useProposal();
+  const sendMessage = useCallback(
+    async (message: string, onStateUpdate?: (state: ProjectState) => void) => {
+      return chatHook.sendMessage(message, (nextState) => {
+        stateHook.setProjectState(nextState);
+        onStateUpdate?.(nextState);
+      });
+    },
+    [chatHook.sendMessage, stateHook.setProjectState],
+  );
 
   const operations = useProjectOperations({
     selectedProject,
@@ -30,7 +40,7 @@ export function useProjectDetails(projectId: string | undefined) {
 
   const { handleSendChatMessage } = useChatHandlers({
     chatInput: chatHook.chatInput,
-    sendMessage: chatHook.sendMessage,
+    sendMessage,
   });
 
   const loading = useProjectLoading({
@@ -49,7 +59,7 @@ export function useProjectDetails(projectId: string | undefined) {
       messages: chatHook.messages,
       chatInput: chatHook.chatInput,
       setChatInput: chatHook.setChatInput,
-      sendMessage: chatHook.sendMessage,
+      sendMessage,
       fetchOlderMessages: chatHook.fetchOlderMessages,
       failedMessages: chatHook.failedMessages,
       retrySendMessage: chatHook.retrySendMessage,
@@ -69,7 +79,7 @@ export function useProjectDetails(projectId: string | undefined) {
       chatHook.messages,
       chatHook.chatInput,
       chatHook.setChatInput,
-      chatHook.sendMessage,
+      sendMessage,
       chatHook.refreshMessages,
       chatHook.fetchOlderMessages,
       chatHook.failedMessages,

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.agents_system.checklists.registry import ChecklistRegistry
+from app.agents_system.checklists.default_templates import resolve_bootstrap_template_slugs
 from app.core.app_settings import AppSettings
 from app.models.checklist import (
     Checklist,
@@ -166,24 +167,37 @@ class ChecklistEngine:
             checklists = result.scalars().all()
 
             if not checklists:
-                template_slug = "azure-waf-v1"
-                template_info = self.registry.get_template(template_slug)
-                if template_info is None:
-                    return {}
+                templates = self.registry.list_templates()
+                selected_slugs = resolve_bootstrap_template_slugs(
+                    getattr(template, "slug", "") for template in templates
+                )
+                if not selected_slugs and templates:
+                    selected_slugs = [getattr(templates[0], "slug", "")]
 
-                known_pillars = self._extract_known_pillars(template_info)
-                return {
-                    template_slug: reconstruct_legacy_waf_json(
-                        template_slug=template_slug,
+                reconstructed_empty: dict[str, Any] = {}
+                for slug in selected_slugs:
+                    if not slug:
+                        continue
+                    template_info = self.registry.get_template(slug)
+                    if template_info is None:
+                        continue
+
+                    known_pillars = self._extract_known_pillars(template_info)
+                    reconstructed_empty[slug] = reconstruct_legacy_waf_json(
+                        template_slug=slug,
                         version=getattr(template_info, "version", "1"),
                         items_with_evals=[],
                         known_pillars=known_pillars,
                     )
-                }
+                if reconstructed_empty:
+                    return reconstructed_empty
+                if not templates:
+                    return {}
+                return {}
 
             reconstructed: dict[str, Any] = {}
             for checklist in checklists:
-                template_slug = checklist.template_slug or "azure-waf-v1"
+                template_slug = checklist.template_slug or self.default_template_slug()
                 template_info = self.registry.get_template(template_slug)
                 known_pillars = self._extract_known_pillars(template_info) if template_info else None
                 reconstructed[template_slug] = reconstruct_legacy_waf_json(
@@ -305,39 +319,50 @@ class ChecklistEngine:
         This is used to guarantee UX visibility for existing projects even before
         any WAF evaluations are recorded.
         """
-        template_info = self.registry.get_template(template_slug)
-        if template_info is None:
-            templates = self.registry.list_templates()
-            template_info = templates[0] if templates else None
-        if template_info is None:
-            logger.warning("Cannot bootstrap checklist for %s: no templates available", project_id)
-            return None
+        checklists = await self.ensure_project_checklists(project_id, [template_slug])
+        return checklists[0] if checklists else None
 
+    async def ensure_project_checklists(
+        self, project_id: str, template_slugs: list[str] | None = None
+    ) -> list[Checklist]:
+        """Ensure one checklist exists per requested template slug."""
+        selected_slugs = self._select_bootstrap_template_slugs(template_slugs)
+        if not selected_slugs:
+            logger.warning("Cannot bootstrap checklists for %s: no templates available", project_id)
+            return []
+
+        created: list[Checklist] = []
         async with self.db_session_factory() as session:
             try:
-                template_record = await self._get_or_create_template_record(session, template_info)
-                checklist = await self._get_or_create_checklist(session, project_id, template_record)
-
-                for template_item in self._collect_template_items(template_info):
-                    template_item_id = str(
-                        template_item.get("id") or template_item.get("slug") or ""
-                    ).strip()
-                    if not template_item_id:
+                for slug in selected_slugs:
+                    template_info = self.registry.get_template(slug)
+                    if template_info is None:
                         continue
-                    await self._get_or_create_item(
-                        session=session,
-                        checklist=checklist,
-                        template_item_id=template_item_id,
-                        template_info=template_info,
-                        legacy_item=template_item,
-                    )
+
+                    template_record = await self._get_or_create_template_record(session, template_info)
+                    checklist = await self._get_or_create_checklist(session, project_id, template_record)
+
+                    for template_item in self._collect_template_items(template_info):
+                        template_item_id = str(
+                            template_item.get("id") or template_item.get("slug") or ""
+                        ).strip()
+                        if not template_item_id:
+                            continue
+                        await self._get_or_create_item(
+                            session=session,
+                            checklist=checklist,
+                            template_item_id=template_item_id,
+                            template_info=template_info,
+                            legacy_item=template_item,
+                        )
+                    created.append(checklist)
 
                 await session.commit()
-                return checklist
+                return created
             except Exception as exc:  # noqa: BLE001
                 await session.rollback()
                 logger.error(
-                    "Failed to bootstrap checklist for project %s: %s",
+                    "Failed to bootstrap checklists for project %s: %s",
                     project_id,
                     exc,
                     exc_info=True,
@@ -548,7 +573,7 @@ class ChecklistEngine:
                     slug = template.get("slug")
                     if isinstance(slug, str) and slug.strip():
                         return slug.strip()
-        return "azure-waf-v1"
+        return self.default_template_slug()
 
     def _resolve_template(self, template_slug: str, payload: dict[str, Any]) -> Any | None:
         template = self.registry.get_template(template_slug)
@@ -565,10 +590,27 @@ class ChecklistEngine:
                     temp = self.registry.get_template(slug)
                     if temp:
                         return temp
-        fallback = self.registry.get_template("azure-waf-v1")
+        fallback = self.registry.get_template(self.default_template_slug())
         if fallback is None:
             logger.warning("No checklist template found for '%s' and no fallback template available", template_slug)
         return fallback
+
+    def default_template_slug(self) -> str:
+        """Resolve the best default template slug from available registry templates."""
+        available = [template.slug for template in self.registry.list_templates()]
+        selected = resolve_bootstrap_template_slugs(available)
+        if selected:
+            return selected[0]
+        return available[0] if available else "azure-waf-v1"
+
+    def _select_bootstrap_template_slugs(self, requested: list[str] | None) -> list[str]:
+        available = [template.slug for template in self.registry.list_templates()]
+        if requested:
+            available_set = set(available)
+            selected = [slug for slug in requested if slug in available_set]
+            if selected:
+                return selected
+        return resolve_bootstrap_template_slugs(available)
 
     def _normalize_items_container(self, legacy_items: Any) -> list[dict[str, Any]]:
         if isinstance(legacy_items, list):

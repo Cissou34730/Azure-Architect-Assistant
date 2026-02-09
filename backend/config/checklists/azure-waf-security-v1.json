@@ -1,0 +1,207 @@
+{
+  "slug": "azure-waf-security-v1",
+  "title": "Azure WAF Security Checklist",
+  "description": "Azure Well-Architected Framework checklist for the Security pillar.",
+  "version": "2026-02-08",
+  "source": "microsoft-learn",
+  "source_url": "https://learn.microsoft.com/azure/well-architected/security/checklist",
+  "source_version": "2026-02-08",
+  "source_license": "Microsoft Learn Terms of Use",
+  "fetched_at": "2026-02-08T21:37:52.753609+00:00",
+  "content": {
+    "items": [
+      {
+        "id": "se-01",
+        "title": "Establish a security baseline",
+        "description": "that's aligned to compliance requirements, industry standards, and platform recommendations. Regularly measure your workload architecture and operations against the baseline to sustain or improve your security posture over time.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:01",
+          "recommendation": "Establish a security baseline that's aligned to compliance requirements, industry standards, and platform recommendations. Regularly measure your workload architecture and operations against the baseline to sustain or improve your security posture over time.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/establish-baseline"
+        },
+        "item_metadata": {
+          "code": "SE:01",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/establish-baseline"
+        }
+      },
+      {
+        "id": "se-02",
+        "title": "Maintain a secure development lifecycle",
+        "description": "by using a hardened, mostly automated, and auditable software supply chain. Incorporate a secure design by using threat modeling to safeguard against security-defeating implementations.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:02",
+          "recommendation": "Maintain a secure development lifecycle by using a hardened, mostly automated, and auditable software supply chain. Incorporate a secure design by using threat modeling to safeguard against security-defeating implementations.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/secure-development-lifecycle"
+        },
+        "item_metadata": {
+          "code": "SE:02",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/secure-development-lifecycle"
+        }
+      },
+      {
+        "id": "se-03",
+        "title": "Classify and consistently apply sensitivity and information type labels",
+        "description": "on all workload data and systems involved in data processing. Use classification to influence workload design, implementation, and security prioritization.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:03",
+          "recommendation": "Classify and consistently apply sensitivity and information type labels on all workload data and systems involved in data processing. Use classification to influence workload design, implementation, and security prioritization.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/data-classification"
+        },
+        "item_metadata": {
+          "code": "SE:03",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/data-classification"
+        }
+      },
+      {
+        "id": "se-04",
+        "title": "Create intentional segmentation and perimeters",
+        "description": "in your architecture design and in the workload's footprint on the platform. The segmentation strategy must include networks, roles and responsibilities, workload identities, and resource organization.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:04",
+          "recommendation": "Create intentional segmentation and perimeters in your architecture design and in the workload's footprint on the platform. The segmentation strategy must include networks, roles and responsibilities, workload identities, and resource organization.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/segmentation"
+        },
+        "item_metadata": {
+          "code": "SE:04",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/segmentation"
+        }
+      },
+      {
+        "id": "se-05",
+        "title": "Implement strict, conditional, and auditable identity and access management (IAM)",
+        "description": "across all workload users, team members, and system components. Limit access exclusively to *as necessary*. Use modern industry standards for all authentication and authorization implementations. Restrict and rigorously audit access that's not based on identity.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:05",
+          "recommendation": "Implement strict, conditional, and auditable identity and access management (IAM) across all workload users, team members, and system components. Limit access exclusively to *as necessary*. Use modern industry standards for all authentication and authorization implementations. Restrict and rigorously audit access that's not based on identity.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/identity-access"
+        },
+        "item_metadata": {
+          "code": "SE:05",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/identity-access"
+        }
+      },
+      {
+        "id": "se-06",
+        "title": "Isolate, filter, and control network traffic",
+        "description": "across both ingress and egress flows. Apply defense-in-depth principles by using localized network controls at all available network boundaries across both east-west and north-south traffic.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:06",
+          "recommendation": "Isolate, filter, and control network traffic across both ingress and egress flows. Apply defense-in-depth principles by using localized network controls at all available network boundaries across both east-west and north-south traffic.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/networking"
+        },
+        "item_metadata": {
+          "code": "SE:06",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/networking"
+        }
+      },
+      {
+        "id": "se-07",
+        "title": "Encrypt data by using modern, industry-standard methods",
+        "description": "to guard confidentiality and integrity. Align the encryption scope with data classifications, and prioritize native platform encryption methods.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:07",
+          "recommendation": "Encrypt data by using modern, industry-standard methods to guard confidentiality and integrity. Align the encryption scope with data classifications, and prioritize native platform encryption methods.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/encryption"
+        },
+        "item_metadata": {
+          "code": "SE:07",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/encryption"
+        }
+      },
+      {
+        "id": "se-08",
+        "title": "Harden all workload components",
+        "description": "by reducing extraneous surface area and tightening configurations to increase attacker cost.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:08",
+          "recommendation": "Harden all workload components by reducing extraneous surface area and tightening configurations to increase attacker cost.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/harden-resources"
+        },
+        "item_metadata": {
+          "code": "SE:08",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/harden-resources"
+        }
+      },
+      {
+        "id": "se-09",
+        "title": "Protect application secrets",
+        "description": "by hardening their storage and restricting access and manipulation and by auditing those actions. Run a reliable and regular rotation process that can improvise rotations for emergencies.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:09",
+          "recommendation": "Protect application secrets by hardening their storage and restricting access and manipulation and by auditing those actions. Run a reliable and regular rotation process that can improvise rotations for emergencies.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/application-secrets"
+        },
+        "item_metadata": {
+          "code": "SE:09",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/application-secrets"
+        }
+      },
+      {
+        "id": "se-10",
+        "title": "Implement a holistic monitoring strategy",
+        "description": "that relies on modern threat detection mechanisms that can be integrated with the platform. Mechanisms should reliably alert for triage and send signals into existing SecOps processes.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:10",
+          "recommendation": "Implement a holistic monitoring strategy that relies on modern threat detection mechanisms that can be integrated with the platform. Mechanisms should reliably alert for triage and send signals into existing SecOps processes.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/monitor-threats"
+        },
+        "item_metadata": {
+          "code": "SE:10",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/monitor-threats"
+        }
+      },
+      {
+        "id": "se-11",
+        "title": "Establish a comprehensive testing regimen",
+        "description": "that combines approaches to prevent security issues, validate threat prevention implementations, and test threat detection mechanisms.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:11",
+          "recommendation": "Establish a comprehensive testing regimen that combines approaches to prevent security issues, validate threat prevention implementations, and test threat detection mechanisms.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/test"
+        },
+        "item_metadata": {
+          "code": "SE:11",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/test"
+        }
+      },
+      {
+        "id": "se-12",
+        "title": "Define and test effective incident response procedures",
+        "description": "that cover a spectrum of incidents, from localized issues to disaster recovery. Clearly define which team or individual runs a procedure.",
+        "pillar": "Security",
+        "severity": "medium",
+        "guidance": {
+          "code": "SE:12",
+          "recommendation": "Define and test effective incident response procedures that cover a spectrum of incidents, from localized issues to disaster recovery. Clearly define which team or individual runs a procedure.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/security/incident-response"
+        },
+        "item_metadata": {
+          "code": "SE:12",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/security/incident-response"
+        }
+      }
+    ]
+  }
+}

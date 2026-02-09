@@ -84,7 +84,7 @@ class WafResultProcessor:
         if not items:
             return
 
-        template_slug = waf_update.get("slug", "waf-2024") # Fallback to default
+        template_slug = waf_update.get("slug", self.engine.default_template_slug())
 
         # Ensure checklist is instantiated
         await self.engine.instantiate_checklist(project_id, template_slug)

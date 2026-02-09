@@ -1,0 +1,191 @@
+{
+  "slug": "azure-waf-operational-excellence-v1",
+  "title": "Azure WAF Operational Excellence Checklist",
+  "description": "Azure Well-Architected Framework checklist for the Operational Excellence pillar.",
+  "version": "2026-02-08",
+  "source": "microsoft-learn",
+  "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/checklist",
+  "source_version": "2026-02-08",
+  "source_license": "Microsoft Learn Terms of Use",
+  "fetched_at": "2026-02-08T21:37:53.245083+00:00",
+  "content": {
+    "items": [
+      {
+        "id": "oe-01",
+        "title": "Define your standard practices to develop and operate your workload",
+        "description": "Foster a blameless culture that emphasizes continuous learning and prioritizes continuous improvement and optimization.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:01",
+          "recommendation": "Define your standard practices to develop and operate your workload. Foster a blameless culture that emphasizes continuous learning and prioritizes continuous improvement and optimization.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/devops-culture"
+        },
+        "item_metadata": {
+          "code": "OE:01",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/devops-culture"
+        }
+      },
+      {
+        "id": "oe-02",
+        "title": "Formalize the way you run routine, as needed, and emergency operational tasks",
+        "description": "Increase consistency and predictability by adopting industry-proven practices and approaches.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:02",
+          "recommendation": "Formalize the way you run routine, as needed, and emergency operational tasks. Increase consistency and predictability by adopting industry-proven practices and approaches.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/formalize-operations-tasks"
+        },
+        "item_metadata": {
+          "code": "OE:02",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/formalize-operations-tasks"
+        }
+      },
+      {
+        "id": "oe-03",
+        "title": "Formalize software ideation and planning processes",
+        "description": "Draw from established industry and organizational standards for team communication, requirements and design documentation, and software development processes.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:03",
+          "recommendation": "Formalize software ideation and planning processes. Draw from established industry and organizational standards for team communication, requirements and design documentation, and software development processes.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/formalize-development-practices"
+        },
+        "item_metadata": {
+          "code": "OE:03",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/formalize-development-practices"
+        }
+      },
+      {
+        "id": "oe-04",
+        "title": "Enhance software development and quality assurance",
+        "description": "by implementing industry-standard practices. Ensure clear role definitions and consistent processes by standardizing tools, source control, design patterns, documentation, and style guides.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:04",
+          "recommendation": "Enhance software development and quality assurance by implementing industry-standard practices. Ensure clear role definitions and consistent processes by standardizing tools, source control, design patterns, documentation, and style guides.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/tools-processes"
+        },
+        "item_metadata": {
+          "code": "OE:04",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/tools-processes"
+        }
+      },
+      {
+        "id": "oe-05",
+        "title": "Use a standardized infrastructure as code (IaC) approach to prepare resources and configurations",
+        "description": "Use IaC to ensure consistent styles, modularization, and quality assurance. Prefer declarative over imperative approaches when practical.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:05",
+          "recommendation": "Use a standardized infrastructure as code (IaC) approach to prepare resources and configurations. Use IaC to ensure consistent styles, modularization, and quality assurance. Prefer declarative over imperative approaches when practical.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/infrastructure-as-code-design"
+        },
+        "item_metadata": {
+          "code": "OE:05",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/infrastructure-as-code-design"
+        }
+      },
+      {
+        "id": "oe-06",
+        "title": "Build a workload supply chain that drives changes",
+        "description": "through predictable, automated pipelines. Ensure these pipelines test and promote changes across all environments and quality gates. Incorporate comprehensive testing.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:06",
+          "recommendation": "Build a workload supply chain that drives changes through predictable, automated pipelines. Ensure these pipelines test and promote changes across all environments and quality gates. Incorporate comprehensive testing.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/workload-supply-chain"
+        },
+        "item_metadata": {
+          "code": "OE:06",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/workload-supply-chain"
+        }
+      },
+      {
+        "id": "oe-07",
+        "title": "Design and implement a monitoring system",
+        "description": "to capture and expose telemetry, metrics, and logs from your infrastructure and code. Use this data to validate design choices and guide future design and business decisions.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:07",
+          "recommendation": "Design and implement a monitoring system to capture and expose telemetry, metrics, and logs from your infrastructure and code. Use this data to validate design choices and guide future design and business decisions.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/observability"
+        },
+        "item_metadata": {
+          "code": "OE:07",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/observability"
+        }
+      },
+      {
+        "id": "oe-08",
+        "title": "Establish a structured incident management process",
+        "description": "Create an incident response plan that clearly documents all procedures. Enable design strategies in the architecture that promote rapid detection, troubleshooting, and fixes.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:08",
+          "recommendation": "Establish a structured incident management process. Create an incident response plan that clearly documents all procedures. Enable design strategies in the architecture that promote rapid detection, troubleshooting, and fixes.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/incident-response"
+        },
+        "item_metadata": {
+          "code": "OE:08",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/incident-response"
+        }
+      },
+      {
+        "id": "oe-09",
+        "title": "Automate tasks that are repetitive, procedural, and provide a clear return on investment",
+        "description": "Prefer off-the-shelf automation tools over custom solutions. Apply the Well-Architected Framework pillars to the design and implementation of all automation efforts.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:09",
+          "recommendation": "Automate tasks that are repetitive, procedural, and provide a clear return on investment. Prefer off-the-shelf automation tools over custom solutions. Apply the Well-Architected Framework pillars to the design and implementation of all automation efforts.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/automate-tasks"
+        },
+        "item_metadata": {
+          "code": "OE:09",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/automate-tasks"
+        }
+      },
+      {
+        "id": "oe-10",
+        "title": "Design and implement automation upfront",
+        "description": "for tasks like lifecycle management, bootstrapping, and governance. Avoid retrofitting automation later. Simplify your design by adopting platform-native automation functionality.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:10",
+          "recommendation": "Design and implement automation upfront for tasks like lifecycle management, bootstrapping, and governance. Avoid retrofitting automation later. Simplify your design by adopting platform-native automation functionality.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/enable-automation"
+        },
+        "item_metadata": {
+          "code": "OE:10",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/enable-automation"
+        }
+      },
+      {
+        "id": "oe-11",
+        "title": "Clearly define your workload's safe deployment practices",
+        "description": "Focus on small, incremental releases with quality gates. Use modern deployment patterns and progressive exposure to manage risk. Plan for both routine and emergency deployments.",
+        "pillar": "Operational Excellence",
+        "severity": "medium",
+        "guidance": {
+          "code": "OE:11",
+          "recommendation": "Clearly define your workload's safe deployment practices. Focus on small, incremental releases with quality gates. Use modern deployment patterns and progressive exposure to manage risk. Plan for both routine and emergency deployments.",
+          "learn_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/safe-deployments"
+        },
+        "item_metadata": {
+          "code": "OE:11",
+          "source_url": "https://learn.microsoft.com/azure/well-architected/operational-excellence/safe-deployments"
+        }
+      }
+    ]
+  }
+}

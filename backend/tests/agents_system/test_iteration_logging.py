@@ -45,3 +45,61 @@ def test_derive_uncovered_topic_questions_limits_to_three() -> None:
     assert len(questions) <= 3
     assert all(isinstance(q, str) and q for q in questions)
 
+
+def test_derive_uncovered_topic_questions_prioritizes_waf_gaps() -> None:
+    questions = derive_uncovered_topic_questions(
+        {
+            "requirements": [{"id": "r1"}],
+            "candidateArchitectures": [{"id": "c1"}],
+            "diagrams": [{"id": "d1"}],
+            "wafChecklist": {
+                "items": [
+                    {
+                        "id": "re-01",
+                        "pillar": "Reliability",
+                        "topic": "RTO/RPO",
+                        "evaluations": [{"status": "partial"}],
+                    },
+                    {
+                        "id": "se-01",
+                        "pillar": "Security",
+                        "topic": "IAM",
+                        "evaluations": [{"status": "notCovered"}],
+                    },
+                ]
+            },
+            "iacArtifacts": [{"id": "i1"}],
+            "costEstimates": [{"id": "ce1"}],
+        }
+    )
+    assert any("Topic WAF" in q for q in questions)
+
+
+def test_derive_uncovered_topic_questions_no_waf_prompt_when_all_covered() -> None:
+    questions = derive_uncovered_topic_questions(
+        {
+            "requirements": [{"id": "r1"}],
+            "candidateArchitectures": [{"id": "c1"}],
+            "diagrams": [{"id": "d1"}],
+            "wafChecklist": {
+                "items": [
+                    {
+                        "id": "re-01",
+                        "pillar": "Reliability",
+                        "topic": "RTO/RPO",
+                        "evaluations": [{"status": "covered"}],
+                    },
+                    {
+                        "id": "se-01",
+                        "pillar": "Security",
+                        "topic": "IAM",
+                        "evaluations": [{"status": "covered"}],
+                    },
+                ]
+            },
+            "iacArtifacts": [{"id": "i1"}],
+            "costEstimates": [{"id": "ce1"}],
+        }
+    )
+    assert all("Topic WAF" not in q for q in questions)
+

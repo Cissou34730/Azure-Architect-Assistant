@@ -38,6 +38,10 @@ async def list_checklists(
     service: ChecklistService = Depends(get_checklist_service),
 ) -> list[ChecklistSummary]:
     """List normalized checklists for a project."""
+    # Always run idempotent checklist bootstrap so template expansions are
+    # reflected for both new and existing projects.
+    await service.ensure_project_checklists(project_id)
+
     async def _fetch_checklists() -> list[Checklist]:
         result = await db.execute(
             select(Checklist)
@@ -47,11 +51,6 @@ async def list_checklists(
         return list(result.scalars().all())
 
     checklists = await _fetch_checklists()
-    if not checklists:
-        # Bootstrap from template so existing projects immediately expose
-        # checklist items and 0% completion baseline in the UI.
-        await service.ensure_project_checklist(project_id)
-        checklists = await _fetch_checklists()
 
     return [
         ChecklistSummary(
