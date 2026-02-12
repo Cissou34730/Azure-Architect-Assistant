@@ -15,17 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class KBManagementService:
-    """Service layer for KB management operations"""
-
-    _instance: "KBManagementService | None" = None
-
-    def __new__(cls) -> "KBManagementService":
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    """Stateless service layer for KB management operations."""
 
     def __init__(self) -> None:
-        # Singleton already initialized via __new__
+        """Initialize the service."""
         pass
 
     def create_knowledge_base(
