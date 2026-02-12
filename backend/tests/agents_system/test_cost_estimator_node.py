@@ -176,4 +176,43 @@ async def test_cost_estimator_returns_unavailable_message_when_deterministic_fai
     assert result["success"] is True
     assert result["error"] is None
     assert "could not build a reliable pricing-line mapping" in result["agent_output"].lower()
-    assert "serviceName" in result["agent_output"]
+    assert "auto-derive services" in result["agent_output"].lower()
+
+
+@pytest.mark.asyncio
+async def test_cost_estimator_uses_architecture_context_for_service_inference(monkeypatch):
+    captured: dict[str, Any] = {}
+
+    async def _fake_det_pricing(**kwargs: Any):
+        captured["kwargs"] = kwargs
+        return {
+            "agent_output": "## Baseline Cost Estimate (deterministic pricing API path)\n- Estimated Monthly Total: `USD 12.00`",
+            "intermediate_steps": [],
+            "current_agent": "cost_estimator",
+            "sub_agent_output": "deterministic",
+            "cost_estimate": {"totalMonthlyCost": 12.0, "currencyCode": "USD"},
+            "success": True,
+            "error": None,
+        }
+
+    monkeypatch.setattr(cost_node, "_run_deterministic_cost_estimate", _fake_det_pricing)
+
+    state = {
+        "user_message": "can you provide a price estimate taking assumptions you need",
+        "agent_handoff_context": {
+            "project_context": "Architecture includes App Service, API Management, Redis Cache",
+            "architecture": {"description": "Web app on App Service with API Management and Redis"},
+            "resource_list": ["web-api (App Service)", "api-gateway (API Management)", "cache (Redis Cache)"],
+            "region": "eastus",
+            "environment": "development",
+            "constraints": {},
+        },
+        "intermediate_steps": [],
+    }
+
+    result = await cost_node.cost_estimator_node(state)
+
+    assert result["success"] is True
+    assert "pricing_lines" in captured["kwargs"]
+    assert len(captured["kwargs"]["pricing_lines"]) >= 1
+    assert "deterministic pricing API path" in result["agent_output"]

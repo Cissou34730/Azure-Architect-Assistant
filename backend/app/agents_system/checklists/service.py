@@ -3,8 +3,11 @@ Service layer for WAF checklist management.
 Provides FastAPI dependencies and orchestrates Registry and Engine.
 """
 
+from __future__ import annotations
+
 import logging
 from contextlib import asynccontextmanager
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -20,21 +23,22 @@ from app.projects_database import get_db
 
 logger = logging.getLogger(__name__)
 
-# Singleton registry instance across the application
-_REGISTRY_INSTANCE: ChecklistRegistry | None = None
+
+@lru_cache(maxsize=1)
+def _build_registry(cache_dir: str, waf_namespace_uuid: str) -> ChecklistRegistry:
+    """Build the singleton ChecklistRegistry (keyed by settings so lru_cache works)."""
+    # waf_namespace_uuid is accepted only so the cache key changes if settings change.
+    return ChecklistRegistry(Path(cache_dir), get_settings())
 
 
 def get_checklist_registry(
     settings: AppSettings = Depends(get_settings),
 ) -> ChecklistRegistry:
-    """
-    Dependency to get the ChecklistRegistry singleton.
-    """
-    global _REGISTRY_INSTANCE  # noqa: PLW0603
-    if _REGISTRY_INSTANCE is None:
-        cache_dir = Path(settings.waf_template_cache_dir)
-        _REGISTRY_INSTANCE = ChecklistRegistry(cache_dir, settings)
-    return _REGISTRY_INSTANCE
+    """FastAPI dependency to get the ChecklistRegistry singleton."""
+    return _build_registry(
+        cache_dir=str(settings.waf_template_cache_dir),
+        waf_namespace_uuid=str(settings.waf_namespace_uuid),
+    )
 
 
 class ChecklistService:
@@ -55,36 +59,30 @@ class ChecklistService:
         self.engine = engine
         self.registry = registry
 
-    async def process_agent_result(self, project_id: str, agent_result: dict) -> dict:
-        """
-        Process agent result containing AAA_STATE_UPDATE.
-        """
+    async def process_agent_result(
+        self, project_id: str, agent_result: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Process agent result containing AAA_STATE_UPDATE."""
         return await self.engine.process_agent_result(project_id, agent_result)
 
     async def sync_project(
-        self, project_id: str, project_state: dict, chunk_size: int | None = None
-    ) -> dict:
-        """
-        Sync project state to normalized database rows.
-        """
+        self, project_id: str, project_state: dict[str, Any], chunk_size: int | None = None
+    ) -> dict[str, Any]:
+        """Sync project state to normalized database rows."""
         return await self.engine.sync_project_state_to_db(
             project_id, project_state, chunk_size
         )
 
     async def get_progress(
         self, project_id: str, checklist_id: UUID | None = None
-    ) -> dict:
-        """
-        Get completion metrics for project or checklist.
-        """
+    ) -> dict[str, Any]:
+        """Get completion metrics for project or checklist."""
         return await self.engine.compute_progress(project_id, checklist_id)
 
     async def list_next_actions(
         self, project_id: str, limit: int = 20, severity: str | None = None
-    ) -> list[dict]:
-        """
-        List prioritized next actions for the project.
-        """
+    ) -> list[dict[str, Any]]:
+        """List prioritized next actions for the project."""
         return await self.engine.list_next_actions(project_id, limit, severity)
 
     async def evaluate_item(
@@ -96,9 +94,7 @@ class ChecklistService:
         return await self.engine.evaluate_item(project_id, item_id, evaluation_payload)
 
     async def get_templates(self) -> list[Any]:
-        """
-        List all available templates.
-        """
+        """List all available templates."""
         return self.registry.list_templates()
 
     async def ensure_project_checklists(

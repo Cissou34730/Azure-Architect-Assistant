@@ -42,7 +42,9 @@ class AppSettings(BaseSettings):
     )
 
     env: str = Field("development")
-    backend_port: int = Field(8000)
+    app_version: str = "4.0.0"
+    backend_host: str = Field("0.0.0.0")
+    backend_port: int = Field(8000, ge=1, le=65535)
     cors_allow_origins: list[str] = Field(default_factory=lambda: ["*"])
     log_level: str = Field("INFO")
 

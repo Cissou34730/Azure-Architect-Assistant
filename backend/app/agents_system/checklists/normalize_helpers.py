@@ -6,17 +6,12 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from app.models.checklist import ChecklistItemEvaluation
+from app.agents_system.checklists.default_templates import WAF_PILLAR_TEMPLATES
+from app.models.checklist import ChecklistItemEvaluation, EvaluationStatus
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_PILLARS = [
-    "Cost Optimization",
-    "Operational Excellence",
-    "Performance Efficiency",
-    "Reliability",
-    "Security",
-]
+_DEFAULT_PILLARS = [t.pillar for t in WAF_PILLAR_TEMPLATES]
 
 # Legacy status -> normalized evaluation status (DB enum values)
 LEGACY_STATUS_MAP = {
@@ -45,9 +40,9 @@ def map_legacy_status(legacy_status: str) -> str:
     return LEGACY_STATUS_MAP.get(normalized, "open")
 
 
-def map_normalized_status(normalized_status: str | Any) -> str:
+def map_normalized_status(normalized_status: str | EvaluationStatus) -> str:
     """Map normalized checklist evaluation status back to legacy WAF coverage status."""
-    value = normalized_status.value if hasattr(normalized_status, "value") else normalized_status
+    value = normalized_status.value if isinstance(normalized_status, EvaluationStatus) else normalized_status
     normalized = str(value).strip().lower().replace("-", "_")
     return NORMALIZED_STATUS_MAP.get(normalized, "notCovered")
 
@@ -181,20 +176,20 @@ def validate_normalized_consistency(orig_waf: dict[str, Any], recon_waf: dict[st
 
         orig_ids: set[str] = set()
         if isinstance(orig_items, dict):
-            orig_ids = {str(k) for k in orig_items.keys()}
+            orig_ids = {str(k) for k in orig_items}
         elif isinstance(orig_items, list):
             orig_ids = {
-                str((i.get("id") or i.get("slug")))
+                str(i.get("id") or i.get("slug"))
                 for i in orig_items
                 if isinstance(i, dict) and (i.get("id") or i.get("slug"))
             }
 
         recon_ids: set[str] = set()
         if isinstance(recon_items, dict):
-            recon_ids = {str(k) for k in recon_items.keys()}
+            recon_ids = {str(k) for k in recon_items}
         elif isinstance(recon_items, list):
             recon_ids = {
-                str((i.get("id") or i.get("slug")))
+                str(i.get("id") or i.get("slug"))
                 for i in recon_items
                 if isinstance(i, dict) and (i.get("id") or i.get("slug"))
             }

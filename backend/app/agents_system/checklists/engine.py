@@ -4,16 +4,22 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Protocol
 from uuid import UUID
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.agents_system.checklists.registry import ChecklistRegistry
 from app.agents_system.checklists.default_templates import resolve_bootstrap_template_slugs
+from app.agents_system.checklists.normalize_helpers import (
+    map_legacy_status,
+    reconstruct_legacy_waf_json,
+)
+from app.agents_system.checklists.registry import ChecklistRegistry
 from app.core.app_settings import AppSettings
 from app.models.checklist import (
     Checklist,
@@ -23,9 +29,15 @@ from app.models.checklist import (
     EvaluationStatus,
     SeverityLevel,
 )
-from .normalize_helpers import map_legacy_status, reconstruct_legacy_waf_json
 
 logger = logging.getLogger(__name__)
+
+
+class _SessionFactory(Protocol):
+    """Callable that returns an async context manager yielding an AsyncSession."""
+
+    @asynccontextmanager
+    async def __call__(self) -> AsyncIterator[AsyncSession]: ...  # pragma: no cover
 
 
 _FINAL_STATUSES = {EvaluationStatus.FIXED.value, EvaluationStatus.FALSE_POSITIVE.value}
@@ -42,7 +54,7 @@ class ChecklistEngine:
 
     def __init__(
         self,
-        db_session_factory: Any,
+        db_session_factory: _SessionFactory,
         registry: ChecklistRegistry,
         settings: AppSettings,
     ) -> None:
@@ -91,13 +103,9 @@ class ChecklistEngine:
         chunk_size: int | None = None,
     ) -> dict[str, Any]:
         """Idempotently sync legacy ``wafChecklist`` JSON into normalized rows."""
-        if isinstance(project_state, str):
-            try:
-                parsed_state = json.loads(project_state)
-            except json.JSONDecodeError:
-                return {"status": "error", "reason": "invalid_json"}
-        else:
-            parsed_state = project_state
+        parsed_state = self._parse_project_state(project_state)
+        if parsed_state is None:
+            return {"status": "error", "reason": "invalid_json"}
 
         waf_data = parsed_state.get("wafChecklist")
         if not isinstance(waf_data, dict):
@@ -107,7 +115,31 @@ class ChecklistEngine:
         if not checklists_to_process:
             return {"status": "skipped", "reason": "no_checklist_items_found"}
 
-        effective_chunk_size = int(chunk_size or self.chunk_size)
+        return await self._sync_checklists(
+            project_id, checklists_to_process, int(chunk_size or self.chunk_size)
+        )
+
+    # ------------------------------------------------------------------
+    # Sync helpers (extracted to reduce complexity of public methods)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_project_state(project_state: dict[str, Any] | str) -> dict[str, Any] | None:
+        """Parse project state from a dict or JSON string. Returns ``None`` on decode error."""
+        if isinstance(project_state, str):
+            try:
+                return json.loads(project_state)  # type: ignore[no-any-return]
+            except json.JSONDecodeError:
+                return None
+        return project_state
+
+    async def _sync_checklists(
+        self,
+        project_id: str,
+        checklists_to_process: list[tuple[str, dict[str, Any]]],
+        effective_chunk_size: int,
+    ) -> dict[str, Any]:
+        """Inner loop for ``sync_project_state_to_db``."""
         items_synced = 0
         evaluations_synced = 0
         checklist_ids: list[str] = []
@@ -116,12 +148,12 @@ class ChecklistEngine:
         async with self.db_session_factory() as session:
             try:
                 for template_slug, checklist_payload in checklists_to_process:
-                    template_info = self._resolve_template(template_slug, checklist_payload)
-                    if template_info is None:
+                    resolved_template = self._resolve_template(template_slug, checklist_payload)
+                    if resolved_template is None:
                         errors.append(f"template_not_found:{template_slug}")
                         continue
 
-                    template_record = await self._get_or_create_template_record(session, template_info)
+                    template_record = await self._get_or_create_template_record(session, resolved_template)
                     checklist = await self._get_or_create_checklist(session, project_id, template_record)
                     checklist_ids.append(str(checklist.id))
 
@@ -136,14 +168,14 @@ class ChecklistEngine:
                                 session=session,
                                 checklist=checklist,
                                 legacy_item=legacy_item,
-                                template_info=template_info,
+                                template=resolved_template,
                                 project_id=project_id,
                             )
                             items_synced += 1
                             evaluations_synced += evaluations_added
 
                 await session.commit()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 await session.rollback()
                 logger.error("Failed to sync project state for %s: %s", project_id, exc, exc_info=True)
                 return {"status": "error", "errors": [str(exc)]}
@@ -185,7 +217,7 @@ class ChecklistEngine:
                     known_pillars = self._extract_known_pillars(template_info)
                     reconstructed_empty[slug] = reconstruct_legacy_waf_json(
                         template_slug=slug,
-                        version=getattr(template_info, "version", "1"),
+                        version=template_info.version or "1",
                         items_with_evals=[],
                         known_pillars=known_pillars,
                     )
@@ -198,8 +230,8 @@ class ChecklistEngine:
             reconstructed: dict[str, Any] = {}
             for checklist in checklists:
                 template_slug = checklist.template_slug or self.default_template_slug()
-                template_info = self.registry.get_template(template_slug)
-                known_pillars = self._extract_known_pillars(template_info) if template_info else None
+                tpl = self.registry.get_template(template_slug)
+                known_pillars = self._extract_known_pillars(tpl) if tpl else None
                 reconstructed[template_slug] = reconstruct_legacy_waf_json(
                     template_slug=template_slug,
                     version=checklist.version,
@@ -335,14 +367,14 @@ class ChecklistEngine:
         async with self.db_session_factory() as session:
             try:
                 for slug in selected_slugs:
-                    template_info = self.registry.get_template(slug)
-                    if template_info is None:
+                    tpl = self.registry.get_template(slug)
+                    if tpl is None:
                         continue
 
-                    template_record = await self._get_or_create_template_record(session, template_info)
+                    template_record = await self._get_or_create_template_record(session, tpl)
                     checklist = await self._get_or_create_checklist(session, project_id, template_record)
 
-                    for template_item in self._collect_template_items(template_info):
+                    for template_item in self._collect_template_items(tpl):
                         template_item_id = str(
                             template_item.get("id") or template_item.get("slug") or ""
                         ).strip()
@@ -352,14 +384,14 @@ class ChecklistEngine:
                             session=session,
                             checklist=checklist,
                             template_item_id=template_item_id,
-                            template_info=template_info,
+                            template=tpl,
                             legacy_item=template_item,
                         )
                     created.append(checklist)
 
                 await session.commit()
                 return created
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 await session.rollback()
                 logger.error(
                     "Failed to bootstrap checklists for project %s: %s",
@@ -369,22 +401,24 @@ class ChecklistEngine:
                 )
                 raise
 
-    async def _get_or_create_template_record(self, session: AsyncSession, info: Any) -> ChecklistTemplate:
+    async def _get_or_create_template_record(
+        self, session: AsyncSession, template: ChecklistTemplate
+    ) -> ChecklistTemplate:
         existing = (
-            await session.execute(select(ChecklistTemplate).where(ChecklistTemplate.slug == info.slug))
+            await session.execute(select(ChecklistTemplate).where(ChecklistTemplate.slug == template.slug))
         ).scalar_one_or_none()
         if existing:
             return existing
 
         record = ChecklistTemplate(
-            slug=info.slug,
-            title=info.title,
-            description=getattr(info, "description", None),
-            version=info.version,
-            source=getattr(info, "source", "microsoft-learn"),
-            source_url=getattr(info, "source_url", ""),
-            source_version=getattr(info, "source_version", info.version),
-            content=getattr(info, "content", {}) or {},
+            slug=template.slug,
+            title=template.title,
+            description=getattr(template, "description", None),
+            version=template.version,
+            source=getattr(template, "source", "microsoft-learn"),
+            source_url=getattr(template, "source_url", ""),
+            source_version=getattr(template, "source_version", template.version),
+            content=getattr(template, "content", {}) or {},
         )
         session.add(record)
         await session.flush()
@@ -419,7 +453,7 @@ class ChecklistEngine:
         session: AsyncSession,
         checklist: Checklist,
         template_item_id: str,
-        template_info: Any,
+        template: ChecklistTemplate,
         legacy_item: dict[str, Any] | None = None,
     ) -> ChecklistItem:
         deterministic_id = ChecklistItem.compute_deterministic_id(
@@ -432,7 +466,7 @@ class ChecklistEngine:
         if item:
             return item
 
-        metadata = self._resolve_template_item_metadata(template_info, template_item_id)
+        metadata = self._resolve_template_item_metadata(template, template_item_id)
         title = str(metadata.get("title") or (legacy_item or {}).get("topic") or (legacy_item or {}).get("title") or template_item_id)
         pillar = str(metadata.get("pillar") or (legacy_item or {}).get("pillar") or "General")
         description = str(metadata.get("description") or "")
@@ -460,7 +494,7 @@ class ChecklistEngine:
         session: AsyncSession,
         checklist: Checklist,
         legacy_item: dict[str, Any],
-        template_info: Any,
+        template: ChecklistTemplate,
         project_id: str,
     ) -> int:
         item_slug = str(legacy_item.get("id") or legacy_item.get("slug") or "").strip()
@@ -471,7 +505,7 @@ class ChecklistEngine:
             session=session,
             checklist=checklist,
             template_item_id=item_slug,
-            template_info=template_info,
+            template=template,
             legacy_item=legacy_item,
         )
 
@@ -500,10 +534,7 @@ class ChecklistEngine:
             if await self._evaluation_exists(
                 session=session,
                 item_id=item.id,
-                source_type="legacy-migration",
-                source_id=source_id_str,
-                status=normalized_status,
-                evidence=evidence_value,
+                eval_fingerprint=("legacy-migration", source_id_str, normalized_status, evidence_value),
             ):
                 continue
 
@@ -525,11 +556,13 @@ class ChecklistEngine:
         self,
         session: AsyncSession,
         item_id: UUID,
-        source_type: str,
-        source_id: str | None,
-        status: str,
-        evidence: Any,
+        eval_fingerprint: tuple[str, str | None, str, Any],
     ) -> bool:
+        """Check whether an evaluation with the given fingerprint already exists.
+
+        *eval_fingerprint* is ``(source_type, source_id, status, evidence)``.
+        """
+        source_type, source_id, status, evidence = eval_fingerprint
         stmt = select(ChecklistItemEvaluation).where(
             ChecklistItemEvaluation.item_id == item_id,
             ChecklistItemEvaluation.source_type == source_type,
@@ -575,7 +608,9 @@ class ChecklistEngine:
                         return slug.strip()
         return self.default_template_slug()
 
-    def _resolve_template(self, template_slug: str, payload: dict[str, Any]) -> Any | None:
+    def _resolve_template(
+        self, template_slug: str, payload: dict[str, Any]
+    ) -> ChecklistTemplate | None:
         template = self.registry.get_template(template_slug)
         if template:
             return template
@@ -626,15 +661,17 @@ class ChecklistEngine:
             return items
         return []
 
-    def _resolve_template_item_metadata(self, template_info: Any, template_item_id: str) -> dict[str, Any]:
-        candidates = []
-        content = getattr(template_info, "content", None)
+    def _resolve_template_item_metadata(
+        self, template: ChecklistTemplate, template_item_id: str
+    ) -> dict[str, Any]:
+        candidates: list[dict[str, Any]] = []
+        content = getattr(template, "content", None)
         if isinstance(content, dict):
             content_items = content.get("items")
             if isinstance(content_items, list):
                 candidates.extend(item for item in content_items if isinstance(item, dict))
 
-        raw_items = getattr(template_info, "items", None)
+        raw_items = getattr(template, "items", None)
         if isinstance(raw_items, list):
             candidates.extend(item for item in raw_items if isinstance(item, dict))
 
@@ -644,16 +681,16 @@ class ChecklistEngine:
                 return candidate
         return {}
 
-    def _collect_template_items(self, template_info: Any) -> list[dict[str, Any]]:
+    def _collect_template_items(self, template: ChecklistTemplate) -> list[dict[str, Any]]:
         """Collect unique template item definitions from known template shapes."""
         raw_items: list[dict[str, Any]] = []
-        content = getattr(template_info, "content", None)
+        content = getattr(template, "content", None)
         if isinstance(content, dict):
             content_items = content.get("items")
             if isinstance(content_items, list):
                 raw_items.extend(i for i in content_items if isinstance(i, dict))
 
-        template_items = getattr(template_info, "items", None)
+        template_items = getattr(template, "items", None)
         if isinstance(template_items, list):
             raw_items.extend(i for i in template_items if isinstance(i, dict))
 
@@ -667,10 +704,10 @@ class ChecklistEngine:
             deduped.append(item)
         return deduped
 
-    def _extract_known_pillars(self, template_info: Any | None) -> list[str]:
-        if template_info is None:
+    def _extract_known_pillars(self, template: ChecklistTemplate | None) -> list[str]:
+        if template is None:
             return []
-        content = getattr(template_info, "content", None)
+        content = getattr(template, "content", None)
         if not isinstance(content, dict):
             return []
         items = content.get("items")

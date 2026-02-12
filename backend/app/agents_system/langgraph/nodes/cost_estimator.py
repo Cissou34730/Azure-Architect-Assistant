@@ -45,6 +45,7 @@ async def cost_estimator_node(state: GraphState) -> dict[str, Any]:
     try:
         # Prepare handoff context for cost estimator
         handoff_context = state.get("agent_handoff_context", {})
+        project_context = handoff_context.get("project_context", "")
         architecture = handoff_context.get("architecture", "")
         resource_list = handoff_context.get("resource_list", [])
         region = handoff_context.get("region", "eastus")
@@ -52,10 +53,15 @@ async def cost_estimator_node(state: GraphState) -> dict[str, Any]:
 
         # Get user's original request
         user_message = state.get("user_message", "")
-        combined_text = _combined_pricing_text(user_message, resource_list)
+        combined_text = _combined_pricing_text(
+            user_message=user_message,
+            resource_list=resource_list,
+            architecture=architecture,
+            project_context=project_context,
+        )
         baseline_requested = _is_baseline_assumptions_requested(user_message)
         minimum_inputs_available = _minimum_pricing_inputs_available(user_message)
-        has_supported_services = _has_supported_pricing_services(user_message, resource_list)
+        has_supported_services = _has_supported_pricing_services(combined_text)
 
         if _needs_pricing_clarification(
             architecture=architecture,
@@ -79,10 +85,15 @@ async def cost_estimator_node(state: GraphState) -> dict[str, Any]:
                 "error": None,
             }
 
-        should_run_deterministic = has_supported_services
+        should_run_deterministic = (
+            has_supported_services
+            or not _is_resource_list_missing(resource_list)
+            or not _is_architecture_missing(architecture)
+        )
         heuristic_lines = (
             _build_heuristic_pricing_lines(
                 combined_text=combined_text,
+                resource_list=resource_list,
                 region=region,
                 environment=environment,
             )
@@ -331,20 +342,33 @@ def _build_cost_clarification_message(
         "Please confirm:\n"
         "1. Region (current default: " + region + ")\n"
         "2. Environment (current default: " + environment + ")\n"
-        "3. Static Web Apps tier and expected monthly bandwidth\n"
-        "4. Azure Functions plan (Consumption/Premium), monthly executions, and average execution duration\n"
-        "5. Table Storage estimated data volume (GB) and monthly read/write operations\n\n"
+        "3. Core Azure services in scope (if not already finalized)\n"
+        "4. Expected compute usage (instances/hours or executions)\n"
+        "5. Expected data/storage usage (GB and operations)\n\n"
         "If you prefer, reply with: `use baseline assumptions` and I will run a provisional estimate now."
     )
 
 
-def _combined_pricing_text(user_message: str, resource_list: list[str]) -> str:
+def _combined_pricing_text(
+    *,
+    user_message: str,
+    resource_list: list[str],
+    architecture: Any,
+    project_context: str,
+) -> str:
     resource_text = " ".join(resource_list) if resource_list else ""
-    return f"{user_message} {resource_text}".lower()
+    architecture_text = ""
+    if isinstance(architecture, dict):
+        architecture_text = " ".join(
+            str(architecture.get(key, ""))
+            for key in ("title", "summary", "description", "diagram")
+        )
+    elif architecture:
+        architecture_text = str(architecture)
+    return f"{user_message} {resource_text} {architecture_text} {project_context}".lower()
 
 
-def _has_supported_pricing_services(user_message: str, resource_list: list[str]) -> bool:
-    combined_text = _combined_pricing_text(user_message, resource_list)
+def _has_supported_pricing_services(combined_text: str) -> bool:
     service_markers = [
         "swa",
         "static web app",
@@ -352,6 +376,23 @@ def _has_supported_pricing_services(user_message: str, resource_list: list[str])
         "azure function",
         "function app",
         "functions",
+        "app service",
+        "storage account",
+        "blob storage",
+        "sql database",
+        "database for postgresql",
+        "database for mysql",
+        "key vault",
+        "application insights",
+        "api management",
+        "service bus",
+        "event hub",
+        "event grid",
+        "front door",
+        "application gateway",
+        "redis",
+        "virtual machine",
+        "aks",
         "table storage",
         "cosmos db",
         "azure cosmos db",
@@ -379,6 +420,7 @@ def _minimum_pricing_inputs_available(user_message: str) -> bool:
 def _build_heuristic_pricing_lines(
     *,
     combined_text: str,
+    resource_list: list[str],
     region: str,
     environment: str,
 ) -> list[dict[str, Any]]:
@@ -455,6 +497,18 @@ def _build_heuristic_pricing_lines(
             }
         )
 
+    lines.extend(
+        _build_resource_driven_pricing_lines(
+            combined_text=combined_text,
+            resource_list=resource_list,
+            region=region,
+            instance_count=instance_count,
+            storage_gb=storage_gb,
+            monthly_exec=monthly_exec,
+        )
+    )
+    lines = _dedupe_pricing_lines(lines)
+
     # For development, use reduced baseline quantity for always-on compute.
     if environment.lower().startswith("dev"):
         for line in lines:
@@ -507,6 +561,107 @@ def _extract_tier_hint(text: str) -> str | None:
         if tier in lowered:
             return tier.title()
     return None
+
+
+def _build_resource_driven_pricing_lines(
+    *,
+    combined_text: str,
+    resource_list: list[str],
+    region: str,
+    instance_count: int,
+    storage_gb: int,
+    monthly_exec: int,
+) -> list[dict[str, Any]]:
+    lines: list[dict[str, Any]] = []
+    text = f"{combined_text} {' '.join(resource_list).lower() if resource_list else ''}"
+
+    # Generic resource-to-pricing hints. No hardcoded SKU proxy replacement.
+    mappings = [
+        ("app service", "Azure App Service", "App Service baseline", "Standard", float(max(instance_count, 1) * 730)),
+        ("storage account", "Storage", "Storage Account baseline", "Data Stored", float(max(storage_gb, 1))),
+        ("blob storage", "Storage", "Blob Storage baseline", "Data Stored", float(max(storage_gb, 1))),
+        ("sql database", "SQL Database", "SQL Database baseline", "General Purpose", float(max(instance_count, 1) * 730)),
+        ("postgresql", "Azure Database for PostgreSQL", "PostgreSQL baseline", "General Purpose", float(max(instance_count, 1) * 730)),
+        ("mysql", "Azure Database for MySQL", "MySQL baseline", "General Purpose", float(max(instance_count, 1) * 730)),
+        ("key vault", "Key Vault", "Key Vault operations baseline", "Operations", float(max(monthly_exec, 100_000))),
+        ("application insights", "Application Insights", "Application Insights baseline", "Data Ingestion", float(max(storage_gb, 10))),
+        ("api management", "API Management", "API Management baseline", "Consumption", float(max(monthly_exec, 1_000_000))),
+        ("service bus", "Service Bus", "Service Bus operations baseline", "Operations", float(max(monthly_exec, 1_000_000))),
+        ("event hub", "Event Hubs", "Event Hubs throughput baseline", "Throughput", float(max(instance_count, 1) * 730)),
+        ("event grid", "Event Grid", "Event Grid operations baseline", "Operations", float(max(monthly_exec, 1_000_000))),
+        ("front door", "Azure Front Door", "Front Door baseline", "Requests", float(max(monthly_exec, 1_000_000))),
+        ("application gateway", "Application Gateway", "Application Gateway baseline", "Gateway", float(max(instance_count, 1) * 730)),
+        ("redis", "Azure Cache for Redis", "Redis baseline", "Cache", float(max(instance_count, 1) * 730)),
+        ("virtual machine", "Virtual Machines", "Virtual Machines baseline", "Compute", float(max(instance_count, 1) * 730)),
+        ("aks", "Virtual Machines", "AKS node compute baseline", "Compute", float(max(instance_count, 3) * 730)),
+    ]
+
+    for token, service_name, name, meter_name, monthly_quantity in mappings:
+        if token not in text:
+            continue
+        lines.append(
+            {
+                "name": name,
+                "serviceName": service_name,
+                "armRegionName": region,
+                "productNameContains": service_name,
+                "meterNameContains": meter_name,
+                "monthlyQuantity": monthly_quantity,
+            }
+        )
+
+    # Generic fallback: keep discovery open even for services not in mappings.
+    for resource in resource_list:
+        resource_name = _normalize_resource_name(resource)
+        if not resource_name:
+            continue
+        lines.append(
+            {
+                "name": f"{resource_name} baseline",
+                "serviceName": resource_name,
+                "armRegionName": region,
+                "productNameContains": resource_name,
+                "meterNameContains": None,
+                "monthlyQuantity": float(max(instance_count, 1) * 730),
+            }
+        )
+
+    return lines
+
+
+def _dedupe_pricing_lines(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[tuple[Any, ...]] = set()
+    deduped: list[dict[str, Any]] = []
+    for line in lines:
+        key = (
+            line.get("name"),
+            line.get("serviceName"),
+            line.get("armRegionName"),
+            line.get("productNameContains"),
+            line.get("meterNameContains"),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(line)
+    return deduped
+
+
+def _normalize_resource_name(resource: str) -> str:
+    text = (resource or "").strip()
+    if not text:
+        return ""
+    lowered = text.lower()
+    if "extract from architecture description" in lowered or "no resources identified" in lowered:
+        return ""
+    if "(" in text and ")" in text:
+        start = text.find("(")
+        end = text.find(")", start + 1)
+        if end > start:
+            candidate = text[start + 1:end].strip()
+            if candidate:
+                return candidate
+    return text
 
 
 async def _run_deterministic_cost_estimate(
@@ -576,9 +731,9 @@ def _append_refinement_questions(
         "\n\nTo refine this estimate, please confirm:\n"
         f"1. Region (current default: {region})\n"
         f"2. Environment (current default: {environment})\n"
-        "3. Static Web Apps tier and expected monthly bandwidth\n"
-        "4. Azure Functions plan and monthly executions/runtime profile\n"
-        "5. Table/Cosmos storage and throughput assumptions"
+        "3. Target tiers/plans for core services\n"
+        "4. Compute usage profile (hours/instances or executions)\n"
+        "5. Data/storage usage profile (GB and operations)"
     )
     output = str(deterministic_output.get("agent_output", "")) + follow_up
     deterministic_output["agent_output"] = output
@@ -596,13 +751,13 @@ def _build_pricing_unavailable_message(
 ) -> str:
     requested = user_message.strip() or "your requested services"
     return (
-        "I could not build a reliable pricing-line mapping for all requested services yet.\n\n"
+        "I could not build a reliable pricing-line mapping from the current project context.\n\n"
         f"Request: {requested}\n"
         f"Region: {region}\n"
         f"Environment: {environment}\n\n"
         "Please provide one of these to proceed:\n"
-        "1. Exact `serviceName` and SKU/meter per service (from Azure Retail Prices API), or\n"
-        "2. Reply with `use baseline assumptions` and list services + quantities (instances, GB, executions), or\n"
-        "3. Provide the final architecture artifact so I can derive pricing lines from persisted components.\n\n"
-        "Supported baseline mappings currently include: Azure Functions, Azure Cosmos DB, and Table Storage."
+        "1. A short list of core services in your solution (no SKU needed), or\n"
+        "2. Approx usage assumptions (instances, GB, requests/executions), or\n"
+        "3. A finalized architecture artifact so I can auto-derive services and discover matching SKUs.\n\n"
+        "I will infer serviceName/SKU/meter automatically from available architecture context and pricing catalog."
     )

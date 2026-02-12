@@ -38,7 +38,7 @@ class ChecklistRegistry:
         Scan cache_dir for JSON files and populate the registry.
         """
         if not self.cache_dir.exists():
-            logger.warning(f"Cache directory {self.cache_dir} does not exist. Creating it.")
+            logger.warning("Cache directory %s does not exist. Creating it.", self.cache_dir)
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             return
 
@@ -50,9 +50,9 @@ class ChecklistRegistry:
 
                 # Basic validation
                 required = ["slug", "title", "version", "content"]
-                missing = [f for f in required if f not in data]
+                missing = [field for field in required if field not in data]
                 if missing:
-                    logger.error(f"Template {json_file} is missing required fields: {missing}")
+                    logger.error("Template %s is missing required fields: %s", json_file, missing)
                     continue
 
                 template = ChecklistTemplate(
@@ -67,10 +67,10 @@ class ChecklistRegistry:
                 )
                 self._templates[template.slug] = template
                 loaded_count += 1
-            except Exception as e:
-                logger.error(f"Failed to load template {json_file}: {e}")
+            except Exception:
+                logger.exception("Failed to load template %s", json_file)
 
-        logger.info(f"Loaded {loaded_count} WAF templates from cache.")
+        logger.info("Loaded %d WAF templates from cache.", loaded_count)
 
     def get_template(self, slug: str) -> ChecklistTemplate | None:
         """
@@ -84,7 +84,7 @@ class ChecklistRegistry:
         """
         template = self._templates.get(slug)
         if not template:
-            logger.warning(f"WAF Template not found in registry: {slug}")
+            logger.warning("WAF Template not found in registry: %s", slug)
         return template
 
     def list_templates(self) -> list[ChecklistTemplate]:
@@ -120,9 +120,9 @@ class ChecklistRegistry:
             }
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(template_data, f, indent=2)
-            logger.info(f"Template {template.slug} registered and saved to {file_path}.")
-        except Exception as e:
-            logger.error(f"Failed to persist template {template.slug} to disk: {e}")
+            logger.info("Template %s registered and saved to %s.", template.slug, file_path)
+        except Exception:
+            logger.exception("Failed to persist template %s to disk", template.slug)
 
     def refresh_from_cache(self) -> int:
         """
