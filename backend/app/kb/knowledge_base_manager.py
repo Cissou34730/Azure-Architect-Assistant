@@ -263,7 +263,7 @@ class KBManager:
         Preload indices for all active knowledge bases at startup.
         
         This loads all vector indices into memory to avoid lazy-loading delays
-        on first queries. Indices are cached globally via KBService._INDEX_CACHE.
+        on first queries. Indices are cached globally via KnowledgeBaseService._INDEX_CACHE.
         
         Returns:
             Dict mapping KB ID to load time in seconds
@@ -271,7 +271,7 @@ class KBManager:
         Raises:
             Exception: If any index fails to load (will log error but continue)
         """
-        from app.kb.service import KBService
+        from app.kb.service import KnowledgeBaseService
         
         timing: dict[str, float] = {}
         active_kbs = self.get_active_kbs()
@@ -285,7 +285,7 @@ class KBManager:
         for kb_config in active_kbs:
             try:
                 start = time.perf_counter()
-                service = KBService(kb_config)
+                service = KnowledgeBaseService(kb_config)
                 service.get_index()  # Trigger index load and cache
                 elapsed = time.perf_counter() - start
                 timing[kb_config.id] = elapsed
