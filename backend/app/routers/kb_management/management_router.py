@@ -8,15 +8,12 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.dependencies import get_kb_manager
 from app.ingestion.application.status_query_service import StatusQueryService
 from app.ingestion.infrastructure import create_job_repository, create_queue_repository
 from app.kb import KBManager
 from app.kb.service import clear_index_cache
-from app.service_registry import (
-    get_kb_manager,
-    get_multi_query_service,
-    invalidate_kb_manager,
-)
+from app.service_registry import invalidate_kb_manager
 from app.services.kb import MultiKBQueryService
 
 from .management_models import (
@@ -37,21 +34,18 @@ router = APIRouter(prefix="/api/kb", tags=["knowledge-bases"])
 
 # ============================================================================
 # Dependency Injection
+# Note: Using centralized dependencies from app.dependencies for consistency
 # ============================================================================
 
 
-def get_kb_manager_dep() -> KBManager:
-    """Dependency for KB Manager - allows mocking in tests"""
-    return get_kb_manager()
-
-
 def get_multi_query_service_dep() -> MultiKBQueryService:
-    """Dependency for Multi Query Service - allows mocking in tests"""
+    """Dependency for Multi Query Service."""
+    from app.service_registry import get_multi_query_service
     return get_multi_query_service()
 
 
 def get_management_service_dep() -> KBManagementService:
-    """Dependency for Management Service - allows mocking in tests"""
+    """Dependency for Management Service."""
     return get_management_service()
 
 
@@ -63,7 +57,7 @@ def get_management_service_dep() -> KBManagementService:
 @router.post("/create", response_model=CreateKBResponse)
 async def create_kb(
     request: CreateKBRequest,
-    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    kb_manager: KBManager = Depends(get_kb_manager),
     operations: KBManagementService = Depends(get_management_service_dep),
 ) -> CreateKBResponse:
     """Create a new knowledge base"""
@@ -86,7 +80,7 @@ async def create_kb(
 @router.delete("/{kb_id}")
 async def delete_kb(
     kb_id: str,
-    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    kb_manager: KBManager = Depends(get_kb_manager),
 ) -> dict[str, str]:
     """
     Delete a knowledge base and all its data.
@@ -150,7 +144,7 @@ async def delete_kb(
 
 @router.get("/list", response_model=KBListResponse)
 async def list_knowledge_bases(
-    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    kb_manager: KBManager = Depends(get_kb_manager),
     operations: KBManagementService = Depends(get_management_service_dep),
 ) -> KBListResponse:
     """
@@ -182,7 +176,7 @@ async def list_knowledge_bases(
 
 @router.get("/health", response_model=KBHealthResponse)
 async def check_kb_health(
-    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    kb_manager: KBManager = Depends(get_kb_manager),
     operations: KBManagementService = Depends(get_management_service_dep),
 ) -> KBHealthResponse:
     """
@@ -213,7 +207,7 @@ async def check_kb_health(
 @router.get("/{kb_id}/status", response_model=KBStatusResponse)
 async def get_kb_status(
     kb_id: str,
-    kb_manager: KBManager = Depends(get_kb_manager_dep),
+    kb_manager: KBManager = Depends(get_kb_manager),
 ) -> KBStatusResponse:
     """Persisted-only KB status derived from phase rows; no runtime calls."""
     try:

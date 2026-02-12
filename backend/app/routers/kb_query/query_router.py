@@ -7,8 +7,9 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.dependencies import get_kb_manager
+from app.kb import KBManager
 from app.kb.service import KnowledgeBaseService
-from app.service_registry import get_kb_manager, get_multi_query_service
 from app.services.kb import MultiKBQueryService, QueryProfile
 
 from .query_models import (
@@ -27,16 +28,18 @@ router = APIRouter(prefix="/api/query", tags=["query"])
 
 # ============================================================================
 # Dependency Injection
+# Note: Using centralized dependencies from app.dependencies for consistency
 # ============================================================================
 
 
 def get_multi_query_service_dep() -> MultiKBQueryService:
-    """Dependency for Multi Query Service - allows mocking in tests"""
+    """Dependency for Multi Query Service."""
+    from app.service_registry import get_multi_query_service
     return get_multi_query_service()
 
 
 def get_query_service_dep() -> KBQueryService:
-    """Dependency for Query Service - allows mocking in tests"""
+    """Dependency for Query Service."""
     return get_query_service()
 
 
@@ -90,6 +93,7 @@ async def query_chat(
     request: ProfileQueryRequest,
     multi_query_service: MultiKBQueryService = Depends(get_multi_query_service_dep),
     operations: KBQueryService = Depends(get_query_service_dep),
+    kb_manager: KBManager = Depends(get_kb_manager),
 ) -> QueryResponse:
     """
     Query knowledge bases using CHAT profile (fast, targeted responses).
@@ -99,7 +103,7 @@ async def query_chat(
         # Filter to ready KBs only
         ready_kbs = [
             kb
-            for kb in get_kb_manager().get_kbs_for_profile(QueryProfile.CHAT.value)
+            for kb in kb_manager.get_kbs_for_profile(QueryProfile.CHAT.value)
             if KnowledgeBaseService(kb).is_index_ready()
         ]
         if not ready_kbs:
@@ -148,6 +152,7 @@ async def query_proposal(
     request: ProfileQueryRequest,
     multi_query_service: MultiKBQueryService = Depends(get_multi_query_service_dep),
     operations: KBQueryService = Depends(get_query_service_dep),
+    kb_manager: KBManager = Depends(get_kb_manager),
 ) -> QueryResponse:
     """
     Query knowledge bases using PROPOSAL profile (comprehensive, detailed responses).
@@ -156,7 +161,7 @@ async def query_proposal(
     try:
         ready_kbs = [
             kb
-            for kb in get_kb_manager().get_kbs_for_profile(QueryProfile.PROPOSAL.value)
+            for kb in kb_manager.get_kbs_for_profile(QueryProfile.PROPOSAL.value)
             if KnowledgeBaseService(kb).is_index_ready()
         ]
         if not ready_kbs:
@@ -205,6 +210,7 @@ async def query_kb_manual(
     request: KBQueryRequest,
     multi_query_service: MultiKBQueryService = Depends(get_multi_query_service_dep),
     operations: KBQueryService = Depends(get_query_service_dep),
+    kb_manager: KBManager = Depends(get_kb_manager),
 ) -> QueryResponse:
     """
     Query specific knowledge bases manually selected by user.
@@ -212,7 +218,6 @@ async def query_kb_manual(
     """
     try:
         # Filter input kb_ids to those with ready indexes
-        kb_manager = get_kb_manager()
         kb_ids: list[str] = []
         for kb_id in request.kb_ids:
             kb_config = kb_manager.get_kb(kb_id)

@@ -113,3 +113,118 @@ def test_engine(test_db_session, test_registry, mock_settings):
 def test_checklist_service(test_engine, test_registry):
     """Provide a ChecklistService."""
     return ChecklistService(engine=test_engine, registry=test_registry)
+
+
+# ============================================================================
+# Singleton Mock Fixtures for Dependency Injection Testing
+# ============================================================================
+
+
+@pytest.fixture
+def mock_agent_runner():
+    """
+    Mock AgentRunner for testing.
+    
+    Usage:
+        def test_my_route(client, mock_agent_runner):
+            from app.dependencies import get_agent_runner
+            app.dependency_overrides[get_agent_runner] = lambda: mock_agent_runner
+            # ... test code ...
+            app.dependency_overrides.clear()
+    """
+    from unittest.mock import Mock, AsyncMock
+    from app.agents_system.runner import AgentRunner
+    
+    runner = Mock(spec=AgentRunner)
+    runner.execute_query = AsyncMock(return_value={"result": "test"})
+    runner.initialize = AsyncMock()
+    runner.shutdown = AsyncMock()
+    return runner
+
+
+@pytest.fixture
+def mock_kb_manager():
+    """
+    Mock KBManager for testing.
+    
+    Usage:
+        def test_my_route(client, mock_kb_manager):
+            from app.dependencies import get_kb_manager
+            app.dependency_overrides[get_kb_manager] = lambda: mock_kb_manager
+            # ... test code ...
+            app.dependency_overrides.clear()
+    """
+    from unittest.mock import Mock, AsyncMock
+    from app.kb import KBManager
+    
+    manager = Mock(spec=KBManager)
+    manager.list_kbs = Mock(return_value=["test-kb"])
+    manager.get_kb = Mock(return_value=None)
+    manager.kb_exists = Mock(return_value=False)
+    manager.query = AsyncMock(return_value={"results": []})
+    manager.create_kb = AsyncMock()
+    return manager
+
+
+@pytest.fixture
+def mock_llm_service():
+    """
+    Mock LLMService for testing.
+    
+    Usage:
+        def test_my_route(client, mock_llm_service):
+            from app.dependencies import get_llm_service_dependency
+            app.dependency_overrides[get_llm_service_dependency] = lambda: mock_llm_service
+            # ... test code ...
+            app.dependency_overrides.clear()
+    """
+    from unittest.mock import Mock, AsyncMock
+    from app.services.llm_service import LLMService
+    
+    service = Mock(spec=LLMService)
+    service.generate_text = AsyncMock(return_value="Generated text")
+    service.analyze_document = AsyncMock(return_value={"analysis": "test"})
+    service.process_chat_message = AsyncMock(return_value={"response": "test"})
+    return service
+
+
+@pytest.fixture
+def mock_ai_service():
+    """
+    Mock AIService for testing.
+    
+    Usage:
+        def test_my_route(client, mock_ai_service):
+            from app.dependencies import get_ai_service_dependency
+            app.dependency_overrides[get_ai_service_dependency] = lambda: mock_ai_service
+            # ... test code ...
+            app.dependency_overrides.clear()
+    """
+    from unittest.mock import Mock, AsyncMock
+    from app.services.ai import AIService
+    
+    service = Mock(spec=AIService)
+    service.chat = AsyncMock(return_value="AI response")
+    service.get_embedding = AsyncMock(return_value=[0.1] * 1536)
+    return service
+
+
+@pytest.fixture
+def mock_prompt_loader():
+    """
+    Mock PromptLoader for testing.
+    
+    Usage:
+        def test_my_route(client, mock_prompt_loader):
+            from app.dependencies import get_prompt_loader
+            app.dependency_overrides[get_prompt_loader] = lambda: mock_prompt_loader
+            # ... test code ...
+            app.dependency_overrides.clear()
+    """
+    from unittest.mock import Mock
+    from app.agents_system.config.prompt_loader import PromptLoader
+    
+    loader = Mock(spec=PromptLoader)
+    loader.get_prompt = Mock(return_value="Test prompt")
+    loader.reload = Mock()
+    return loader
