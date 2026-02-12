@@ -47,7 +47,8 @@ class ServiceRegistry:
     - See tests/conftest.py for mock fixtures
     
     Caching Strategy:
-    - KBs loaded lazily on first request (not at startup)
+    - KBs preloaded eagerly at application startup via lifecycle.py
+    - All active KB indices loaded into memory during startup
     - Configuration changes trigger invalidation via invalidate_kb_manager()
     - Indices kept in memory until process restart or invalidation
     """

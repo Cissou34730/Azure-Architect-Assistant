@@ -258,8 +258,47 @@ class KBManager:
 
         logger.info(f"Deleted KB: {kb_id}")
 
-        # Reload config
-        self._load_config()
-
-        logger.info(f"Deleted KB: {kb_id}")
+    def preload_all_indices(self) -> dict[str, float]:
+        """
+        Preload indices for all active knowledge bases at startup.
+        
+        This loads all vector indices into memory to avoid lazy-loading delays
+        on first queries. Indices are cached globally via KBService._INDEX_CACHE.
+        
+        Returns:
+            Dict mapping KB ID to load time in seconds
+            
+        Raises:
+            Exception: If any index fails to load (will log error but continue)
+        """
+        from app.kb.service import KBService
+        
+        timing: dict[str, float] = {}
+        active_kbs = self.get_active_kbs()
+        
+        if not active_kbs:
+            logger.info("No active KBs to preload")
+            return timing
+            
+        logger.info(f"Preloading {len(active_kbs)} active KB indices...")
+        
+        for kb_config in active_kbs:
+            try:
+                start = time.perf_counter()
+                service = KBService(kb_config)
+                service.get_index()  # Trigger index load and cache
+                elapsed = time.perf_counter() - start
+                timing[kb_config.id] = elapsed
+                logger.info(f"  ✓ [{kb_config.id}] Loaded in {elapsed:.2f}s")
+            except Exception as e:  # noqa: BLE001
+                logger.error(f"  ✗ [{kb_config.id}] Failed to load: {e}")
+                timing[kb_config.id] = -1.0  # Mark as failed
+                
+        total_time = sum(t for t in timing.values() if t > 0)
+        success_count = sum(1 for t in timing.values() if t > 0)
+        logger.info(
+            f"Preloaded {success_count}/{len(active_kbs)} indices in {total_time:.2f}s total"
+        )
+        
+        return timing
 

@@ -93,7 +93,7 @@ The backend uses singletons for expensive, shared resources with lifecycle manag
 | Service | Location | Justification | Performance Impact |
 |---------|----------|---------------|-------------------|
 | **AgentRunner** | `app/agents_system/runner.py` | Lifecycle coordination, task tracking, graceful shutdown | Startup: 2-3s (MCP + LLM init) |
-| **KBManager** | `app/service_registry.py` | Vector index caching (150MB in memory) | 3.2s load time per KB, shared across requests |
+| **KBManager** | `app/service_registry.py` | Vector index caching (150MB in memory), preloaded at startup | 3.2s load time per KB, indices cached in memory |
 | **LLMService** | `app/services/llm_service.py` | Connection pooling to OpenAI/Azure | HTTP client reuse, rate limiting |
 | **AIService** | `app/services/ai/ai_service.py` | Provider abstraction (OpenAI, Azure, Anthropic) | Model caching, connection pooling |
 | **PromptLoader** | `app/agents_system/config/prompt_loader.py` | File I/O caching for YAML prompts | Avoids repeated disk reads |

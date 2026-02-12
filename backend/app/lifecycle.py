@@ -55,11 +55,19 @@ async def startup():
         await init_diagram_database()
         logger.info("Diagram database ready")
 
-        # Load KB manager (configs only, no index preload)
+        # Load KB manager and preload all indices for performance
         logger.info("Loading KB Manager...")
         kb_mgr = get_kb_manager()
         logger.info(f"KB Manager ready ({len(kb_mgr.list_kbs())} knowledge bases)")
-        logger.info("  Note: KB indices will be loaded lazily on first query")
+        
+        # Preload all active KB indices at startup
+        logger.info("Preloading KB indices...")
+        timing = kb_mgr.preload_all_indices()
+        if timing:
+            total_time = sum(t for t in timing.values() if t > 0)
+            logger.info(f"  All indices preloaded in {total_time:.2f}s")
+        else:
+            logger.info("  No active KBs to preload")
 
         # Initialize agent system with MCP client
         try:
