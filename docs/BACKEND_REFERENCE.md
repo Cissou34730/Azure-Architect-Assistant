@@ -84,6 +84,66 @@
 - `backend/config/mcp/mcp_config.json` configures MCP servers.
 - `backend/config/prompts/agent_prompts.yaml` defines agent prompts.
 
+## Singleton Pattern Usage
+
+The backend uses singletons for expensive, shared resources with lifecycle management needs.
+
+### Current Singletons
+
+| Service | Location | Justification | Performance Impact |
+|---------|----------|---------------|-------------------|
+| **AgentRunner** | `app/agents_system/runner.py` | Lifecycle coordination, task tracking, graceful shutdown | Startup: 2-3s (MCP + LLM init) |
+| **KBManager** | `app/service_registry.py` | Vector index caching (150MB in memory) | 3.2s load time per KB, shared across requests |
+| **LLMService** | `app/services/llm_service.py` | Connection pooling to OpenAI/Azure | HTTP client reuse, rate limiting |
+| **AIService** | `app/services/ai/ai_service.py` | Provider abstraction (OpenAI, Azure, Anthropic) | Model caching, connection pooling |
+| **PromptLoader** | `app/agents_system/config/prompt_loader.py` | File I/O caching for YAML prompts | Avoids repeated disk reads |
+
+### Accessing Singletons
+
+**✅ Recommended**: Use FastAPI dependency injection for testability:
+
+```python
+from fastapi import Depends
+from app.dependencies import get_kb_manager
+
+@router.get("/kbs")
+async def list_kbs(kb_manager: KBManager = Depends(get_kb_manager)):
+    return kb_manager.list_kbs()
+```
+
+**❌ Avoid**: Direct singleton access (harder to test):
+
+```python
+# Don't do this in routes
+kb_manager = ServiceRegistry.get_kb_manager()
+```
+
+### Testing with Singletons
+
+All singletons support dependency override for testing:
+
+```python
+from app.dependencies import get_kb_manager
+
+def test_my_route(client, mock_kb_manager):
+    app.dependency_overrides[get_kb_manager] = lambda: mock_kb_manager
+    # ... test code ...
+    app.dependency_overrides.clear()
+```
+
+See [Testing Guide](backend/TESTING_DEPENDENCY_INJECTION.md) for comprehensive examples.
+
+### Design Rationale
+
+See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for detailed architectural rationale and alternatives considered.
+
+**Key Benefits**:
+- **Performance**: 150MB indices loaded once, not per-request (100 req/min = 320s CPU without singleton)
+- **Lifecycle**: Coordinated startup/shutdown prevents resource leaks
+- **Consistency**: All requests see same state (KB updates, agent orchestrator)
+- **Testability**: FastAPI dependency injection enables easy mocking
+
+
 ## Adding a new backend feature
 
 1. Decide the feature area (projects, KB, ingestion, agent, diagrams) and create a router module under `backend/app/routers/`.
