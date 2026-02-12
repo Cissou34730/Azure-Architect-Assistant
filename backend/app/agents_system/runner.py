@@ -18,6 +18,24 @@ logger = logging.getLogger(__name__)
 class AgentRunner:
     """
     Runner for the Azure Architect Assistant agent system.
+    
+    SINGLETON RATIONALE:
+    - Lifecycle management: Coordinates agent startup/shutdown in FastAPI lifespan
+    - Task tracking: Monitors active agent tasks for graceful shutdown
+    - Resource coordination: Single orchestrator prevents conflicting agent states
+    - Performance: MCP + LLM initialization takes 2-3 seconds at startup
+    - Consistent state: All requests use same agent orchestrator instance
+    
+    Initialization Dependencies:
+        OpenAI Client → MCP Client → Agent Runner → Orchestrator → Agents
+    
+    Shutdown (reverse order):
+        Agents cleanup → Orchestrator cleanup → Runner cleanup → MCP closure
+    
+    Testability:
+    - Override via FastAPI dependency injection (see app.dependencies.get_agent_runner)
+    - Use set_instance() to inject mock in unit tests
+    - See tests/conftest.py for mock_agent_runner fixture
     """
 
     _instance: "AgentRunner | None" = None
@@ -34,7 +52,7 @@ class AgentRunner:
 
     @classmethod
     def set_instance(cls, instance: "AgentRunner | None") -> None:
-        """Set or clear the global agent runner instance."""
+        """Set or clear the global agent runner instance (for testing/lifecycle)."""
         cls._instance = instance
 
     def __init__(

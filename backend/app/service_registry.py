@@ -22,6 +22,34 @@ class ServiceRegistry:
     """
     Central registry for application services.
     Uses class-level variables to implement the singleton pattern.
+    
+    SINGLETON RATIONALE:
+    
+    KBManager Singleton:
+    - Performance: Vector indices are 150MB+ and take 3.2s to load from disk
+    - Memory efficiency: Single shared copy vs per-request duplication
+    - Consistency: All requests see same KB state (creates/updates reflected immediately)
+    - Metrics: 100 req/min without singleton = 320s CPU time (impossible!)
+    - Alternative (per-request): 10x performance degradation + memory explosion
+    
+    MultiKBQueryService Singleton:
+    - Shares KBManager instance for consistent query results
+    - Aggregates multi-KB queries efficiently
+    
+    MCP Client Singleton:
+    - External connection to Microsoft Learn MCP server
+    - Expensive to create (network handshake)
+    - Shared across all agent requests
+    
+    Testability:
+    - Override via FastAPI dependency injection (see app.dependencies)
+    - Use invalidate_kb_manager() to reset state between tests
+    - See tests/conftest.py for mock fixtures
+    
+    Caching Strategy:
+    - KBs loaded lazily on first request (not at startup)
+    - Configuration changes trigger invalidation via invalidate_kb_manager()
+    - Indices kept in memory until process restart or invalidation
     """
 
     _kb_manager: KBManager | None = None

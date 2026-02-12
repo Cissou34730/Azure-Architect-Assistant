@@ -207,7 +207,20 @@ class AIService:
 
 
 class AIServiceManager:
-    """Manages the AIService singleton instance."""
+    """
+    Manages the AIService singleton instance.
+    
+    SINGLETON RATIONALE:
+    - Provider abstraction: Manages OpenAI, Azure OpenAI, Anthropic clients
+    - Connection pooling: Shared HTTP clients across requests
+    - Model caching: Embedding models loaded once and reused
+    - Configuration consistency: All requests use same AI provider settings
+    
+    Testability:
+    - Override via FastAPI dependency injection (see app.dependencies.get_ai_service_dependency)
+    - Use set_instance() to inject mock in unit tests
+    - See tests/conftest.py for mock_ai_service fixture
+    """
 
     _instance: "AIService | None" = None
 
@@ -217,6 +230,11 @@ class AIServiceManager:
         if cls._instance is None:
             cls._instance = AIService(config)
         return cls._instance
+    
+    @classmethod
+    def set_instance(cls, instance: "AIService | None") -> None:
+        """Set or clear singleton instance (for testing/lifecycle)."""
+        cls._instance = instance
 
 
 @lru_cache(maxsize=1)

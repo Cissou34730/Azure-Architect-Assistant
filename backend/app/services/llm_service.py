@@ -333,7 +333,20 @@ Always be helpful, professional, and technically accurate."""
 
 # Singleton instance
 class LLMServiceSingleton:
-    """Manages a singleton instance of LLMService."""
+    """
+    Manages a singleton instance of LLMService.
+    
+    SINGLETON RATIONALE:
+    - Connection pooling: HTTP clients to OpenAI/Azure OpenAI benefit from persistence
+    - Rate limiting: Shared state prevents per-request quota issues
+    - Initialization cost: Client setup has network overhead
+    - Consistent configuration: All requests use same LLM settings
+    
+    Testability:
+    - Override via FastAPI dependency injection (see app.dependencies.get_llm_service_dependency)
+    - Use set_instance() to inject mock in unit tests
+    - See tests/conftest.py for mock_llm_service fixture
+    """
     _instance: LLMService | None = None
 
     @classmethod
@@ -342,6 +355,11 @@ class LLMServiceSingleton:
         if cls._instance is None:
             cls._instance = LLMService()
         return cls._instance
+    
+    @classmethod
+    def set_instance(cls, instance: LLMService | None) -> None:
+        """Set or clear singleton instance (for testing/lifecycle)."""
+        cls._instance = instance
 
 def get_llm_service() -> LLMService:
     """Get or create LLM service instance."""

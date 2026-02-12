@@ -16,6 +16,17 @@ class PromptLoader:
     """
     Load and cache agent prompts from external YAML files.
     Supports hot-reload for dynamic prompt updates.
+    
+    SINGLETON RATIONALE:
+    - File I/O caching: YAML prompt files are loaded once and cached in memory
+    - Hot-reload capability: Single instance can detect file changes and reload
+    - Shared cache: Prompt templates are reused across all agent requests
+    - Performance: Avoids repeated file system reads on every agent invocation
+    
+    Testability:
+    - Override via FastAPI dependency injection (see app.dependencies.get_prompt_loader)
+    - Use set_instance() to inject mock in unit tests
+    - See tests/conftest.py for mock_prompt_loader fixture
     """
 
     _instance: "PromptLoader | None" = None
@@ -26,6 +37,11 @@ class PromptLoader:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+    
+    @classmethod
+    def set_instance(cls, instance: "PromptLoader | None") -> None:
+        """Set or clear singleton instance (for testing/lifecycle)."""
+        cls._instance = instance
 
     def __init__(self, prompts_dir: Path | str | None = None):
         """

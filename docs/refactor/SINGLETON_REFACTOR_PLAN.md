@@ -460,7 +460,7 @@ def test_agent_initialization_failure(app_with_mock_dependencies, mock_agent_run
 **Effort**: 3-4 hours  
 **Risk**: Low (internal refactoring)
 
-### Task 3.1: Standardize on Classmethod Pattern
+### Task 3.1: Standardize on Classmethod Pattern ✅ COMPLETE
 
 **Target Pattern** (apply to all singletons):
 ```python
@@ -501,7 +501,7 @@ class MySingleton:
 
 **Files to Standardize**:
 
-#### 3.1.1. LLMServiceSingleton
+#### 3.1.1. LLMServiceSingleton ✅ COMPLETE
 **File**: `backend/app/services/llm_service.py`
 
 **Current**: Wrapper class pattern
@@ -564,11 +564,11 @@ class LLMService:
         # Existing initialization
 ```
 
-**Recommendation**: Option A (less disruptive)
+**Recommendation**: Option A (less disruptive) ✅ IMPLEMENTED
 
 ---
 
-#### 3.1.2. AIServiceManager
+#### 3.1.2. AIServiceManager ✅ COMPLETE
 **File**: `backend/app/services/ai/ai_service.py`
 
 **Current**: Uses `@lru_cache` + manager class
@@ -609,25 +609,25 @@ def get_ai_service(config: AIConfig | None = None) -> AIService:
 
 ---
 
-#### 3.1.3. AgentRunner (already good, add `set_instance` if missing)
+#### 3.1.3. AgentRunner ✅ COMPLETE (already good, documentation added)
 **File**: `backend/app/agents_system/runner.py`
 
 **Current**: Already uses classmethod pattern ✅
 
-**Action**: Verify `set_instance` exists (it does) and add rationale docs
+**Action**: Verify `set_instance` exists (it does) and add rationale docs ✅
 
 ---
 
-#### 3.1.4. PromptLoader (already good)
+#### 3.1.4. PromptLoader ✅ COMPLETE (set_instance added, documentation added)
 **File**: `backend/app/agents_system/config/prompt_loader.py`
 
 **Current**: Already uses classmethod pattern ✅
 
-**Action**: Add `set_instance` method and rationale docs
+**Action**: Add `set_instance` method and rationale docs ✅
 
 ---
 
-### Task 3.2: Add Singleton Rationale Documentation
+### Task 3.2: Add Singleton Rationale Documentation ✅ COMPLETE
 
 **Template for each singleton**:
 ```python
@@ -646,20 +646,20 @@ Testability:
 ```
 
 **Files to Document**:
-- [ ] `backend/app/service_registry.py` - Add rationale for KBManager
-- [ ] `backend/app/services/llm_service.py` - Add rationale
-- [ ] `backend/app/services/ai/ai_service.py` - Add rationale
-- [ ] `backend/app/agents_system/runner.py` - Add rationale
-- [ ] `backend/app/agents_system/config/prompt_loader.py` - Add rationale
+- [x] `backend/app/service_registry.py` - Add rationale for KBManager
+- [x] `backend/app/services/llm_service.py` - Add rationale
+- [x] `backend/app/services/ai/ai_service.py` - Add rationale
+- [x] `backend/app/agents_system/runner.py` - Add rationale
+- [x] `backend/app/agents_system/config/prompt_loader.py` - Add rationale
 
 ---
 
-### Phase 3 Acceptance Criteria
-- [ ] All singletons use consistent classmethod pattern
-- [ ] All singletons have `get_instance()` method
-- [ ] All singletons have `set_instance()` method (for testing)
-- [ ] All singletons documented with SINGLETON RATIONALE
-- [ ] Code is more maintainable and consistent
+### Phase 3 Acceptance Criteria ✅ COMPLETE
+- [x] All singletons use consistent classmethod pattern
+- [x] All singletons have `get_instance()` method
+- [x] All singletons have `set_instance()` method (for testing)
+- [x] All singletons documented with SINGLETON RATIONALE
+- [x] Code is more maintainable and consistent
 
 ---
 
