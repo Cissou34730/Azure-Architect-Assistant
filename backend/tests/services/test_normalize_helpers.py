@@ -1,20 +1,21 @@
-import pytest
 import uuid
+from datetime import datetime
+
 from app.agents_system.checklists.normalize_helpers import (
-    map_legacy_status, 
-    map_normalized_status, 
     extract_waf_evaluations,
-    reconstruct_legacy_waf_json
+    map_legacy_status,
+    map_normalized_status,
+    reconstruct_legacy_waf_json,
 )
 from app.models.checklist import ChecklistItem, ChecklistItemEvaluation, SeverityLevel
-from datetime import datetime
+
 
 def test_status_mapping():
     assert map_legacy_status("covered") == "fixed"
     assert map_legacy_status("partial") == "in_progress"
     assert map_legacy_status("notCovered") == "open"
     assert map_legacy_status("unknown") == "open"
-    
+
     assert map_normalized_status("fixed") == "covered"
     assert map_normalized_status("in_progress") == "partial"
     assert map_normalized_status("open") == "notCovered"
@@ -33,7 +34,7 @@ def test_extract_waf_evaluations():
             ]
         }
     }
-    
+
     evals = extract_waf_evaluations(legacy_state)
     assert len(evals) == 1
     assert evals[0]["item_id"] == "waf-item-1"
@@ -61,9 +62,9 @@ def test_reconstruct_legacy_waf_json():
         created_at=datetime(2024, 1, 1)
     )
     item.evaluations = [evaluation]
-    
+
     legacy_json = reconstruct_legacy_waf_json("waf-2024", "1.0", [item])
-    
+
     assert legacy_json["version"] == "1.0"
     assert "Security" in legacy_json["pillars"]
     assert len(legacy_json["items"]) == 1

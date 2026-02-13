@@ -4,7 +4,10 @@ import asyncio
 import logging
 from typing import Any, cast
 
-from app.ingestion.application.phase_tracking import start_phase_noncritical, update_progress_noncritical
+from app.ingestion.application.phase_tracking import (
+    start_phase_noncritical,
+    update_progress_noncritical,
+)
 from app.ingestion.application.pipeline_stage import PipelineContext, PipelineStage
 from app.ingestion.domain.chunking.adapter import chunk_documents_to_chunks
 from app.ingestion.infrastructure.phase_repository import PhaseRepository

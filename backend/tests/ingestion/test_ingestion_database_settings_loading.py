@@ -1,13 +1,14 @@
 import importlib
 
-import app.core.app_settings as app_settings_module
 import pytest
 from pydantic import ValidationError
 from pydantic_settings import SettingsError
 
+import app.core.app_settings as app_settings_module
+
 
 def _reload_ingestion_database():
-    import backend.app.ingestion.ingestion_database as ingestion_database
+    from backend.app.ingestion import ingestion_database
 
     return importlib.reload(ingestion_database)
 

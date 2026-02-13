@@ -46,5 +46,5 @@ class JobGate:
                 last_error='Canceled by user',
             )
             self._repo.update_job(job_id, checkpoint=None, counters=None)
-        except Exception as exc:  # noqa: BLE001
+        except Exception:
             logger.error('Cleanup failed for canceled job', extra={'job_id': job_id}, exc_info=True)

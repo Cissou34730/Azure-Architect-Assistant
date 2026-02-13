@@ -31,7 +31,7 @@ class ChunkProcessor:
                 embedding = await self._embedder.embed(chunk)
                 await asyncio.to_thread(self._indexer.index, task.kb_id, embedding)
                 return {'success': True, 'skipped': False}
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 if self._retry_policy.should_retry(attempt, exc):
                     delay = self._retry_policy.get_backoff_delay(attempt)
                     logger.warning(

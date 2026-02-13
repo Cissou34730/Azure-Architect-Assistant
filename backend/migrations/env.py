@@ -23,6 +23,7 @@ from app.models.project import Base as ProjectBase  # noqa: E402
 config = context.config
 
 from app.core.app_settings import get_app_settings
+
 settings = get_app_settings()
 db_path = settings.projects_database
 if db_path:
@@ -30,7 +31,7 @@ if db_path:
     if not db_path.is_absolute():
         repo_root = Path(__file__).resolve().parents[2]
         db_path = (repo_root / db_path).resolve()
-    
+
     db_url = f"sqlite+aiosqlite:///{db_path}"
     config.set_main_option("sqlalchemy.url", db_url)
 
@@ -41,6 +42,7 @@ if config.config_file_name is not None:
 # Add your model's MetaData object here for 'autogenerate' support
 # We combine metadata from both diagram and project bases
 from sqlalchemy import MetaData
+
 target_metadata = MetaData()
 for base in [DiagramBase, ProjectBase]:
     for table in base.metadata.tables.values():

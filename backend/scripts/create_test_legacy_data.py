@@ -1,20 +1,21 @@
 
 import asyncio
-import uuid
 import json
 import sys
+import uuid
 from pathlib import Path
 
 # Add backend to path
 backend_path = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(backend_path))
 
-from app.projects_database import AsyncSessionLocal
 from app.models.project import Project, ProjectState
+from app.projects_database import AsyncSessionLocal
+
 
 async def create_data():
     session_factory = AsyncSessionLocal
-    
+
     async with session_factory() as session:
         # 1. Create a project
         project_id = str(uuid.uuid4())
@@ -24,7 +25,7 @@ async def create_data():
             text_requirements="Testing backfill"
         )
         session.add(project)
-        
+
         # 2. Create legacy ProjectState
         legacy_state = {
             "wafChecklist": {
@@ -45,13 +46,13 @@ async def create_data():
                 ]
             }
         }
-        
+
         state = ProjectState(
             project_id=project_id,
             state=json.dumps(legacy_state)
         )
         session.add(state)
-        
+
         await session.commit()
         print(f"Created legacy project {project_id}")
 

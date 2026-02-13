@@ -1,9 +1,9 @@
-import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from app.agents_system.checklists.processor import WafResultProcessor, find_json_blocks
-from app.agents_system.checklists.engine import ChecklistEngine
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from app.agents_system.checklists.engine import ChecklistEngine
+from app.agents_system.checklists.processor import WafResultProcessor, find_json_blocks
 
 # ---------------------------------------------------------------------------
 # Unit tests for find_json_blocks utility

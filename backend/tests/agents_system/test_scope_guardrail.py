@@ -13,7 +13,6 @@ from app.agents_system.langgraph.nodes.agent import (
     _is_scope_refusal,
 )
 
-
 # ── In-scope: domain keywords ────────────────────────────────────────────────
 
 

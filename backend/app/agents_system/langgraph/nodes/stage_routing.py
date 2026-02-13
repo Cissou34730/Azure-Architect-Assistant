@@ -359,10 +359,10 @@ def prepare_architecture_planner_handoff(state: GraphState) -> dict[str, Any]:
 
     # Extract requirements (handle legacy dict or modern artifact list)
     requirements = project_state.get("requirements") or {}
-    
+
     # Normalize for parameter extraction
     req_params = requirements if isinstance(requirements, dict) else {}
-    
+
     requirements_text = _format_requirements(requirements)
 
     # Extract NFR summary (handles both types)
@@ -416,7 +416,7 @@ def _format_requirements(requirements: Any) -> str:
                 desc = req.get("description") or ""
                 items.append(f"- {title}: {desc}" if desc else f"- {title}")
             else:
-                items.append(f"- {str(req)}")
+                items.append(f"- {req!s}")
         return "\n".join(items) if items else "No explicit requirements provided."
 
     formatted = []
@@ -445,7 +445,7 @@ def _extract_nfr_summary(requirements: Any, context: str) -> str:
 def _build_nfr_sections(requirements: Any) -> list[str]:
     """Build formatted NFR sections from requirements."""
     nfr_parts = []
-    
+
     # Normalize for parameter extraction
     req_params = requirements if isinstance(requirements, dict) else {}
 
@@ -476,7 +476,7 @@ def _format_keyed_values(requirements: Any, labels: list[tuple[str, str]]) -> st
     """Format a list of requirement keys as labeled values."""
     if not isinstance(requirements, dict):
         return None
-        
+
     parts = []
     for label, key in labels:
         value = requirements.get(key)
@@ -562,10 +562,10 @@ def prepare_iac_generator_handoff(state: GraphState) -> dict[str, Any]:
 
     # Extract constraints
     requirements = project_state.get("requirements") or {}
-    
+
     # Handle list requirements by normalizing for parameter extraction
     req_params = requirements if isinstance(requirements, dict) else {}
-    
+
     constraints = {
         "regions": req_params.get("allowedRegions", []),
         "naming_convention": req_params.get("namingConvention"),

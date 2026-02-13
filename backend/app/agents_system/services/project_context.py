@@ -77,10 +77,10 @@ async def read_project_state(
 
             registry = ChecklistRegistry(Path(settings.waf_template_cache_dir), settings)
             engine = ChecklistEngine(session_factory, registry, settings)
-            
+
             # Reconstruct wafChecklist
             reconstructed_waf = await engine.sync_db_to_project_state(project_id)
-            
+
             # If DB only has a skeleton but JSON has real items, trigger a sync
             has_db_items = any(c.get("items") for c in reconstructed_waf.values())
             raw_waf = raw_state.get("wafChecklist", {})
@@ -98,11 +98,11 @@ async def read_project_state(
 
             if reconstructed_waf:
                 state_data["wafChecklist"] = _merge_reconstructed_waf_payloads(reconstructed_waf)
-                
+
                 # Also reconstruct findings if they are empty in the JSON but we have risks in DB
                 if not state_data.get("findings"):
                     findings = []
-                    # We might want a separate engine method for this, 
+                    # We might want a separate engine method for this,
                     # but for now let's derive them from the reconstructed checklist
                     items = state_data["wafChecklist"].get("items", [])
                     # Handle both list and dict formats for items (depending on engine fix)
@@ -110,17 +110,17 @@ async def read_project_state(
                         item_values = items.values()
                     else:
                         item_values = items
-                        
+
                     for it in item_values:
                         # The reconstructed item has an evaluations list in the legacy format.
                         # We need to find the latest evaluation status.
                         evals = it.get("evaluations", [])
                         if not evals:
                             continue
-                        
+
                         latest_eval = evals[0] # normalize_helpers.py puts latest first
                         status = latest_eval.get("status")
-                        
+
                         # Legacy statuses that indicate a finding/issue
                         if status in ["partial", "notCovered", "at_risk", "failed"]:
                             findings.append({

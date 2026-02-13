@@ -2,8 +2,8 @@ import pytest
 
 from app.agents_system.services.aaa_state_models import AAAProjectState
 from app.agents_system.services.state_update_parser import extract_state_updates
-from app.agents_system.tools.aaa_iac_tool import AAAGenerateIacTool
 from app.agents_system.tools.aaa_cost_tool import AAAGenerateCostTool
+from app.agents_system.tools.aaa_iac_tool import AAAGenerateIacTool
 
 
 def test_iac_tool_emits_state_update_with_iac_artifact() -> None:

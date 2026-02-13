@@ -1,17 +1,17 @@
+import json
 import logging
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-import json
 from pathlib import Path
 from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents_system.checklists.default_templates import resolve_bootstrap_template_slugs
 from app.agents_system.checklists.engine import ChecklistEngine
 from app.agents_system.checklists.registry import ChecklistRegistry
-from app.agents_system.checklists.default_templates import resolve_bootstrap_template_slugs
 from app.agents_system.services.aaa_state_models import ensure_aaa_defaults
 from app.core.app_settings import get_app_settings
 from app.models import Project
@@ -144,7 +144,7 @@ class ProjectService:
             state_record.updated_at = datetime.now(timezone.utc).isoformat()
             await db.commit()
             logger.info("Bootstrapped WAF checklist for project %s at creation time.", project_id)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             await db.rollback()
             logger.error(
                 "Failed to bootstrap WAF checklist for project %s: %s",

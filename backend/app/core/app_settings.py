@@ -94,7 +94,7 @@ class AppSettings(BaseSettings):
         / "data"
         / "diagrams.db",
     )
-    
+
     # WAF Checklist Normalization Settings
     aaa_feature_waf_normalized: bool = Field(
         default=False,
@@ -122,7 +122,7 @@ class AppSettings(BaseSettings):
         default=500,
         description="Number of items to process per database transaction during sync"
     )
-    
+
     plantuml_jar_path: Path = Field(
         default_factory=lambda: Path(__file__).resolve().parents[2]
         / "lib"

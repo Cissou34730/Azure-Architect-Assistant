@@ -230,7 +230,7 @@ class AIServiceManager:
         if cls._instance is None:
             cls._instance = AIService(config)
         return cls._instance
-    
+
     @classmethod
     def set_instance(cls, instance: "AIService | None") -> None:
         """Set or clear singleton instance (for testing/lifecycle)."""

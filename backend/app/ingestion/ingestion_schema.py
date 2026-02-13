@@ -6,8 +6,8 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy.engine import Engine
 from sqlalchemy import inspect
+from sqlalchemy.engine import Engine
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _ALEMBIC_CFG_PATH = _BACKEND_ROOT / 'alembic_ingestion.ini'
