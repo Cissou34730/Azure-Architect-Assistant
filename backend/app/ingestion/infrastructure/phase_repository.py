@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.ingestion.domain.errors import PhaseNotFoundError, PhaseRepositoryError
 from app.ingestion.domain.enums import PhaseStatus
+from app.ingestion.domain.errors import PhaseNotFoundError, PhaseRepositoryError
 from app.ingestion.domain.models import PhaseState
 from app.ingestion.ingestion_database import get_session
 from app.ingestion.models import IngestionPhaseStatus, PhaseStatusDB

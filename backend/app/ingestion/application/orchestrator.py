@@ -12,7 +12,7 @@ from typing import Any
 from app.ingestion.application.job_gate import JobGate
 from app.ingestion.application.pipeline_components import create_pipeline_components
 from app.ingestion.application.pipeline_coordinator import PipelineCoordinator
-from app.ingestion.application.policies import RetryPolicy, StepName, WorkflowDefinition
+from app.ingestion.application.policies import RetryPolicy, WorkflowDefinition
 from app.ingestion.application.shutdown_manager import ShutdownManager
 from app.ingestion.domain.errors import PhaseNotFoundError, PhaseRepositoryError
 from app.ingestion.infrastructure.job_repository import JobRepository, create_job_repository
@@ -21,6 +21,8 @@ from app.ingestion.infrastructure.phase_repository import create_phase_repositor
 try:  # pragma: no cover
     from backend.app.ingestion.domain.errors import (
         PhaseNotFoundError as BackendPhaseNotFoundError,
+    )
+    from backend.app.ingestion.domain.errors import (
         PhaseRepositoryError as BackendPhaseRepositoryError,
     )
 except Exception:  # noqa: BLE001
@@ -82,7 +84,7 @@ class IngestionOrchestrator:
                 },
                 exc_info=True,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error(
                 'Unexpected error during phase repository operation',
                 extra={
@@ -148,7 +150,7 @@ class IngestionOrchestrator:
             # 2. Initialize components
             try:
                 components = create_pipeline_components(kb_id, kb_config, checkpoint)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 self.repo.set_job_status(
                     job_id,
                     status='failed',
@@ -175,7 +177,7 @@ class IngestionOrchestrator:
                     checkpoint=checkpoint,
                     counters=counters,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.exception(f'Ingestion failed: job_id={job_id}')
                 self.repo.set_job_status(
                     job_id,

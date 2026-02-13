@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
 from collections.abc import Callable
+from datetime import datetime, timezone
 from typing import Any
 
 from app.ingestion.application.job_gate import JobGate
@@ -124,7 +124,7 @@ class PipelineCoordinator:
         if indexer:
             try:
                 await asyncio.to_thread(indexer.persist)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.error('Failed to persist index on job completion', extra={'job_id': job_id}, exc_info=True)
 
         docs_seen = int(counters.get('docs_seen', 0) or 0)

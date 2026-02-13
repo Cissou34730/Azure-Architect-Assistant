@@ -146,7 +146,7 @@ async def evaluate_checklist_item(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("Failed to evaluate checklist item %s: %s", item_id, exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to create checklist evaluation") from exc
     return EvaluateItemResponse(status="success", evaluation_id=str(evaluation.id))

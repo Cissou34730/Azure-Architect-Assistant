@@ -272,16 +272,16 @@ class KBManager:
             Exception: If any index fails to load (will log error but continue)
         """
         from app.kb.service import KnowledgeBaseService
-        
+
         timing: dict[str, float] = {}
         active_kbs = self.get_active_kbs()
-        
+
         if not active_kbs:
             logger.info("No active KBs to preload")
             return timing
-            
+
         logger.info(f"Preloading {len(active_kbs)} active KB indices...")
-        
+
         for kb_config in active_kbs:
             try:
                 start = time.perf_counter()
@@ -293,12 +293,12 @@ class KBManager:
             except Exception as e:  # noqa: BLE001
                 logger.error(f"  ✗ [{kb_config.id}] Failed to load: {e}")
                 timing[kb_config.id] = -1.0  # Mark as failed
-                
+
         total_time = sum(t for t in timing.values() if t > 0)
         success_count = sum(1 for t in timing.values() if t > 0)
         logger.info(
             f"Preloaded {success_count}/{len(active_kbs)} indices in {total_time:.2f}s total"
         )
-        
+
         return timing
 

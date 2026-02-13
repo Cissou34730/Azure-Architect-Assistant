@@ -6,8 +6,7 @@ Phase 1: Verify basic graph structure can be created and compiled.
 
 import asyncio
 
-from app.agents_system.langgraph.graph_factory import _agent_router_node
-from app.agents_system.langgraph.graph_factory import build_project_chat_graph
+from app.agents_system.langgraph.graph_factory import _agent_router_node, build_project_chat_graph
 from app.agents_system.langgraph.state import GraphState
 
 

@@ -470,7 +470,7 @@ async def _handle_legacy_route(
         # Execute Agent
         runner = await get_agent_runner()
         result = await runner.execute_query(
-            user_message_text, 
+            user_message_text,
             project_context=context_summary,
             project_id=project_id,
             session=db

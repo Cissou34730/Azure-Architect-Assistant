@@ -98,7 +98,7 @@ class LinkExtractor:
     def _normalize_url(self, url: str) -> str:
         """Normalize URL by removing fragments and trailing slashes."""
         try:
-            url = url.split('#')[0].rstrip('/')
+            url = url.split('#', maxsplit=1)[0].rstrip('/')
             return url if url.startswith(('http://', 'https://')) else ''
         except (ValueError, AttributeError):
             return ''

@@ -101,8 +101,8 @@ class AgentRunner:
         logger.info("Agent system initialization complete")
 
     async def execute_query(
-        self, 
-        user_query: str, 
+        self,
+        user_query: str,
         project_context: str | None = None,
         project_id: str | None = None,
         session: Any = None
@@ -134,20 +134,21 @@ class AgentRunner:
         if settings.aaa_feature_waf_normalized and project_id and session:
             try:
                 from contextlib import asynccontextmanager
+
                 from app.agents_system.checklists.engine import ChecklistEngine
                 from app.agents_system.checklists.service import get_checklist_registry
-                
+
                 @asynccontextmanager
                 async def session_factory():
                     yield session
 
                 registry = get_checklist_registry(settings)
                 engine = ChecklistEngine(
-                    db_session_factory=session_factory, 
-                    registry=registry, 
+                    db_session_factory=session_factory,
+                    registry=registry,
                     settings=settings
                 )
-                
+
                 # engine.process_agent_result handles extraction from result dict
                 await engine.process_agent_result(project_id, result)
             except Exception as e:
