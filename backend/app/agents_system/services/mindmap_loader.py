@@ -30,6 +30,8 @@ REQUIRED_TOP_LEVEL_TOPIC_KEYS: tuple[str, ...] = (
     "13_learning_and_practice",
 )
 
+ADDRESS_CONFIDENCE_THRESHOLD = 0.75
+
 
 class MindMapValidationError(ValueError):
     """Raised when the mind map file is missing or invalid."""
@@ -130,28 +132,78 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _gather_artifact_signals(state: dict[str, Any]) -> dict[str, list[bool]]:
-    """Gather boolean presence signals for various artifact categories."""
+def _waf_signal_strength(state: dict[str, Any]) -> float:
+    """Compute checklist maturity signal in [0, 1]."""
+    waf = state.get("wafChecklist")
+    if not isinstance(waf, dict):
+        return 0.0
+
+    items_raw = waf.get("items")
+    items = items_raw.values() if isinstance(items_raw, dict) else items_raw
+    if not isinstance(items, list) or not items:
+        return 0.0
+
+    covered = 0
+    partial = 0
+    total = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        total += 1
+        evals = item.get("evaluations")
+        latest = evals[-1] if isinstance(evals, list) and evals else None
+        status = str((latest or {}).get("status", "notCovered")).strip().lower()
+        if status == "covered":
+            covered += 1
+        elif status == "partial":
+            partial += 1
+
+    if total <= 0:
+        return 0.0
+
+    score = (covered + 0.5 * partial) / total
+    return round(max(0.0, min(score, 1.0)), 2)
+
+
+def _findings_signal_strength(state: dict[str, Any]) -> float:
+    """Estimate findings quality in [0, 1] using citation presence."""
+    findings = state.get("findings")
+    if not isinstance(findings, list) or not findings:
+        return 0.0
+
+    cited = 0
+    total = 0
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        total += 1
+        citations = finding.get("sourceCitations")
+        if isinstance(citations, list) and citations:
+            cited += 1
+
+    if total <= 0:
+        return 0.0
+    if cited == 0:
+        return 0.5
+    return round(max(0.0, min(cited / total, 1.0)), 2)
+
+
+def _gather_artifact_signals(state: dict[str, Any]) -> dict[str, list[float]]:
+    """Gather weighted artifact signals for various top-level domains."""
 
     def _is_populated(key: str) -> bool:
         val = state.get(key)
         return bool(val) if isinstance(val, (list, dict)) else False
 
-    waf = state.get("wafChecklist", {})
-    has_waf_items = (
-        isinstance(waf, dict)
-        and isinstance(waf.get("items"), list)
-        and bool(waf.get("items"))
-    )
-
-    h_req = _is_populated("requirements")
-    h_cand = _is_populated("candidateArchitectures")
-    h_diag = _is_populated("diagrams")
-    h_adr = _is_populated("adrs")
-    h_find = _is_populated("findings")
-    h_iac = _is_populated("iacArtifacts")
-    h_trace = _is_populated("traceabilityLinks")
-    h_waf = _is_populated("wafChecklist")
+    h_req = 1.0 if _is_populated("requirements") else 0.0
+    h_cand = 1.0 if _is_populated("candidateArchitectures") else 0.0
+    h_diag = 1.0 if _is_populated("diagrams") else 0.0
+    h_adr = 1.0 if _is_populated("adrs") else 0.0
+    h_iac = 1.0 if _is_populated("iacArtifacts") else 0.0
+    h_trace = 1.0 if _is_populated("traceabilityLinks") else 0.0
+    h_waf = _waf_signal_strength(state)
+    has_waf_items = 1.0 if h_waf > 0 else 0.0
+    h_find = _findings_signal_strength(state)
 
     return {
         "1_foundations": [h_diag, h_trace],
@@ -170,17 +222,24 @@ def _gather_artifact_signals(state: dict[str, Any]) -> dict[str, list[bool]]:
     }
 
 
-def _derive_topic_status(checks: list[bool]) -> str:
-    """Derive status string from a list of boolean check results."""
+def _derive_topic_status(checks: list[float]) -> str:
+    """Derive status string from weighted checks."""
     if not checks:
         return "not-addressed"
 
-    true_count = sum(1 for c in checks if c)
-    if true_count == 0:
+    score = sum(float(c) for c in checks) / len(checks)
+    if score <= 0:
         return "not-addressed"
-    if true_count == len(checks):
+    if score >= ADDRESS_CONFIDENCE_THRESHOLD:
         return "addressed"
     return "partial"
+
+
+def _derive_topic_confidence(checks: list[float]) -> float:
+    if not checks:
+        return 0.0
+    score = sum(float(c) for c in checks) / len(checks)
+    return round(max(0.0, min(score, 1.0)), 2)
 
 
 def compute_top_level_coverage(state: dict[str, Any]) -> dict[str, Any]:
@@ -200,7 +259,11 @@ def compute_top_level_coverage(state: dict[str, Any]) -> dict[str, Any]:
     signals = _gather_artifact_signals(state)
 
     for key in topic_keys:
-        topics[key] = {"status": _derive_topic_status(signals.get(key, []))}
+        checks = signals.get(key, [])
+        topics[key] = {
+            "status": _derive_topic_status(checks),
+            "confidence": _derive_topic_confidence(checks),
+        }
 
     return {
         "version": "1",

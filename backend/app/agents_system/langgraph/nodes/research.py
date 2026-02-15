@@ -13,6 +13,12 @@ from .stage_routing import ProjectStage
 
 logger = logging.getLogger(__name__)
 
+DISCOVERY_STAGES = {
+    ProjectStage.CLARIFY.value,
+    ProjectStage.PROPOSE_CANDIDATE.value,
+}
+MINDMAP_PROMPT_BUDGET = 2
+
 
 def _mindmap_gaps(mindmap_coverage: dict[str, Any]) -> list[str]:
     topics = []
@@ -56,6 +62,35 @@ def _waf_snapshot(state: GraphState) -> str:
         else:
             not_covered += 1
     return f"WAF status snapshot: total={total}, covered={covered}, partial={partial}, notCovered={not_covered}."
+
+
+def _build_mindmap_guidance(
+    stage_value: str,
+    mindmap_coverage: dict[str, Any],
+) -> dict[str, Any] | None:
+    gaps = _mindmap_gaps(mindmap_coverage)
+    if not gaps:
+        return None
+
+    is_discovery = stage_value in DISCOVERY_STAGES
+    prompts = []
+    for topic in gaps[:MINDMAP_PROMPT_BUDGET]:
+        if is_discovery:
+            prompts.append(
+                f"To de-risk the architecture early, should we confirm the '{topic}' domain next?"
+            )
+        else:
+            prompts.append(
+                f"Optional architecture follow-up: would you like to review '{topic}' after this step?"
+            )
+
+    return {
+        "mode": "advisory",
+        "non_blocking": True,
+        "priority": "high" if is_discovery else "balanced",
+        "focus_topics": gaps,
+        "suggested_prompts": prompts,
+    }
 
 
 async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
@@ -106,6 +141,8 @@ async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
     if gaps:
         plan.append(f"Mind map gaps to cover: {', '.join(gaps)}")
 
+    mindmap_guidance = _build_mindmap_guidance(stage_value, mindmap_cov)
+
     stage_directives = (
         f"Stage: {stage_value}. Always execute at least one MCP search and one MCP fetch "
         f"aligned to the research plan, then cite the exact document names/URLs and WAF/ASB topics. "
@@ -118,6 +155,10 @@ async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
         "If analysis suggests a legitimate checklist status change, apply it proactively; if evidence is not enough, ask for the missing status/evidence explicitly."
     )
     stage_directives += f"\n{_waf_snapshot(state)}"
+    stage_directives += (
+        "\nGuidance policy: mindmap prompts are advisory only and must never block the workflow. "
+        "When validation or checklist execution is active, checklist persistence and evidence handling take priority."
+    )
 
     if stage_value == ProjectStage.VALIDATE.value:
         stage_directives += (
@@ -146,5 +187,6 @@ async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
     return {
         "research_plan": plan,
         "stage_directives": stage_directives,
+        "mindmap_guidance": mindmap_guidance,
     }
 

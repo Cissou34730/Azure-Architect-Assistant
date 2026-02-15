@@ -33,6 +33,9 @@ from ..state import MAX_AGENT_ITERATIONS, GraphState
 
 logger = logging.getLogger(__name__)
 
+DISCOVERY_STAGES = {"clarify", "propose_candidate"}
+VALIDATION_STAGES = {"validate"}
+
 
 class AgentState(TypedDict):
     """State for graph-native agent loop."""
@@ -51,18 +54,65 @@ def _format_mindmap_gaps(coverage: Any) -> str:
     return ", ".join(topics[:5]) if topics else ""
 
 
+def _mindmap_guidance_section(mindmap_guidance: Any) -> str:
+    if not isinstance(mindmap_guidance, dict):
+        return ""
+
+    prompts = mindmap_guidance.get("suggested_prompts")
+    focus_topics = mindmap_guidance.get("focus_topics")
+
+    lines: list[str] = []
+    if isinstance(focus_topics, list) and focus_topics:
+        topics = ", ".join(str(topic) for topic in focus_topics[:5])
+        lines.append(f"Focus topics: {topics}")
+
+    if isinstance(prompts, list) and prompts:
+        lines.extend(f"- {prompt!s}" for prompt in prompts[:2])
+
+    if not lines:
+        return ""
+
+    return "### Mind map advisory guidance\n" + "\n".join(lines)
+
+
+def _stage_policy_notes(stage_value: str) -> str:
+    if stage_value in VALIDATION_STAGES:
+        return (
+            "Validation stage policy: WAF checklist persistence and evidence capture take precedence over mind map exploration. "
+            "Mind map prompts remain advisory."
+        )
+    if stage_value in DISCOVERY_STAGES:
+        return (
+            "Discovery stage policy: prioritize mind map prompts to uncover weak spots, while keeping all guidance non-blocking."
+        )
+    return (
+        "Balanced stage policy: keep WAF and mind map guidance aligned without blocking the conversation flow."
+    )
+
+
 def _build_system_directives(state: GraphState) -> str:
     directives = [SYSTEM_PROMPT]
+    stage_value = str(state.get("next_stage") or "clarify")
 
     specialist = state.get("selected_specialist") or state.get("specialist_used")
     if specialist:
         directives.append(f"### Specialist focus\nOperate as {specialist.replace('_', ' ')} and keep the scope tight.")
 
     stage_text = state.get("stage_directives")
-    if stage_text:
-        directives.append(f"### Stage directives\n{stage_text}")
-
     research_plan = state.get("research_plan") or []
+    mindmap_guidance_text = _mindmap_guidance_section(state.get("mindmap_guidance"))
+
+    if stage_value in DISCOVERY_STAGES:
+        if mindmap_guidance_text:
+            directives.append(mindmap_guidance_text)
+        if stage_text:
+            directives.append(f"### Stage directives\n{stage_text}")
+    else:
+        if stage_text:
+            directives.append(f"### Stage directives\n{stage_text}")
+        if mindmap_guidance_text:
+            directives.append(mindmap_guidance_text)
+
     if research_plan:
         directives.append(
             "### Research plan (run MCP searches/fetches for these)\n"
@@ -74,10 +124,14 @@ def _build_system_directives(state: GraphState) -> str:
     if gaps:
         directives.append(f"### Mind map gaps to cover\n{gaps}")
 
+    directives.append(f"### Guidance precedence\n{_stage_policy_notes(stage_value)}")
+
     directives.append(
         "### Behavioral guardrails\n"
         "- Always call MCP tools for at least one search and one fetch before final answer.\n"
         "- Cite Azure/WAF/ASB sources with names and URLs; include mind map node ids when adding artifacts.\n"
+        "- Mind map guidance is advisory-only and must not enforce a rigid workflow.\n"
+        "- In validation turns, checklist status updates and persistence rules take priority over exploratory prompts.\n"
         "- Challenge assumptions: If a user choice contradicts Azure WAF best practices or NFRs, you MUST explain the risk and offer alternatives.\n"
         "- Treat WAF checklist as first-class: when analysis supports a status change, proactively persist checklist updates (covered/partial/notCovered) without waiting for explicit user wording.\n"
         "- If evidence is insufficient for a status change, ask a focused status/evidence clarification and propose the next checklist completion step.\n"

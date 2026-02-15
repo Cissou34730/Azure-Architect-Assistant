@@ -51,6 +51,7 @@ def build_advanced_project_chat_graph(
     workflow.add_node("build_summary", _wrap_build_summary(db))
     workflow.add_node("classify_stage", classify_next_stage)
     workflow.add_node("build_research", build_research_plan_node)
+    workflow.add_node("build_mindmap_guidance", _pass_through_mindmap_guidance)
     workflow.add_node("prepare_cost_handoff", prepare_cost_estimator_handoff)
     workflow.add_node("cost_estimator", cost_estimator_node)
     workflow.add_node("run_agent", run_agent_node)
@@ -97,6 +98,13 @@ def _wrap_apply_updates(db: AsyncSession):
     return apply_updates
 
 
+def _pass_through_mindmap_guidance(state: GraphState) -> dict:
+    """Dedicated step to make mindmap guidance explicit in graph flow."""
+    return {
+        "mindmap_guidance": state.get("mindmap_guidance"),
+    }
+
+
 def _add_optional_nodes(workflow: StateGraph, enable_stage_routing: bool, enable_multi_agent: bool):
     """Add Phase 5/6 nodes to the graph if enabled."""
     if enable_stage_routing:
@@ -131,7 +139,8 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
     if enable_multi_agent:
         research_routes["supervisor"] = "supervisor"
 
-    workflow.add_conditional_edges("build_research", route_after_research, research_routes)
+    workflow.add_edge("build_research", "build_mindmap_guidance")
+    workflow.add_conditional_edges("build_mindmap_guidance", route_after_research, research_routes)
     workflow.add_edge("prepare_cost_handoff", "cost_estimator")
     workflow.add_edge("cost_estimator", "persist_messages")
 
