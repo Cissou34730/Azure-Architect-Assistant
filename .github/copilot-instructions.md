@@ -7,6 +7,19 @@ Tech stack & tooling
 - Linting/formatting: ESLint (TS/React) + Prettier for frontend, Ruff for Python.
 - Tests: unit tests required for logic changes; run the test suite before submitting PRs.
 
+TailwindCSS 4.1 policy (IMPORTANT)
+- This repository uses Tailwind 4.1 in CSS-first mode.
+- The authoritative Tailwind configuration lives in the global CSS entrypoint using:
+  - `@import "tailwindcss";`
+  - `@theme` for design tokens
+  - `@custom-variant` for custom states/themes
+  - `@utility` for custom utilities
+- Do not introduce or rely on `tailwind.config.js` / `tailwind.config.ts` for normal work in this repo.
+- Prefer semantic token utilities (for example `bg-surface`, `text-foreground`, `border-border`, `text-brand`) over palette utilities.
+- Prefer token-driven values over arbitrary values in class strings. Arbitrary values are allowed only for true one-off layout constraints.
+- Do not introduce Tailwind plugin-based patterns when a native v4.1 directive or utility can solve the same problem.
+- Theme switching must be token-driven (`@theme` + `data-theme`/custom variant), not component-by-component color forks.
+
 
 High-level rules (always)
 - Make the smallest changes that solves the problem; prefer incremental, reviewable diffs and small commits.
