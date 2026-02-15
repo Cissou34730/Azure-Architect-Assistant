@@ -8,11 +8,11 @@ design requests with NFR analysis and diagram generation.
 import logging
 from typing import Any
 
-from app.agents_system.agents.mcp_react_agent import MCPReActAgent
+from app.agents_system.runner import get_agent_runner
 from app.agents_system.config.prompt_loader import PromptLoader
-from app.agents_system.tools.aaa_candidate_tool import create_aaa_tools
 
 from ..state import GraphState
+from .agent_native import run_stage_aware_agent
 
 logger = logging.getLogger(__name__)
 
@@ -92,25 +92,20 @@ async def architecture_planner_node(state: GraphState) -> dict[str, Any]:
 Ensure all diagrams use valid Mermaid syntax and include comprehensive NFR analysis.
 """
 
-        # Create architecture planner agent with specialized prompt
-        # Note: We use GPT-4 for complex architectural reasoning
-        arch_agent = MCPReActAgent(
-            system_prompt=arch_planner_prompt["system_prompt"],
-            react_template=arch_planner_prompt["react_template"],
-            tools=create_aaa_tools(state),  # Reuse AAA tools
-            model_name="gpt-4o",  # More capable model for complex reasoning
-            temperature=0.1,  # Low temperature for consistency
+        logger.info("Architecture Planner invoking LangGraph-native agent...")
+
+        runner = await get_agent_runner()
+        planner_state: GraphState = dict(state)
+        planner_state["user_message"] = arch_planner_input
+        planner_state["stage_directives"] = str(arch_planner_prompt.get("system_prompt", ""))
+
+        result = await run_stage_aware_agent(
+            planner_state,
+            mcp_client=getattr(runner, "mcp_client", None),
+            openai_settings=getattr(runner, "openai_settings", None),
         )
 
-        logger.info("Architecture Planner agent initialized, invoking...")
-
-        # Invoke architecture planner agent
-        result = await arch_agent.ainvoke({
-            "input": arch_planner_input,
-            "context": project_context,
-        })
-
-        arch_proposal = result.get("output", "")
+        arch_proposal = str(result.get("agent_output", ""))
         intermediate_steps = result.get("intermediate_steps", [])
 
         logger.info(f"✅ Architecture Planner completed with {len(intermediate_steps)} tool calls")
@@ -120,8 +115,8 @@ Ensure all diagrams use valid Mermaid syntax and include comprehensive NFR analy
             "intermediate_steps": state.get("intermediate_steps", []) + intermediate_steps,
             "current_agent": "architecture_planner",
             "sub_agent_output": arch_proposal,
-            "success": True,
-            "error": None,
+            "success": bool(result.get("success", True)),
+            "error": result.get("error"),
         }
 
     except Exception as exc:

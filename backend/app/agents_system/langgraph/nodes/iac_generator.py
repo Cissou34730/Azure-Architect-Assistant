@@ -8,11 +8,11 @@ Bicep and Terraform code with schema validation.
 import logging
 from typing import Any
 
-from app.agents_system.agents.mcp_react_agent import MCPReActAgent
+from app.agents_system.runner import get_agent_runner
 from app.agents_system.config.prompt_loader import PromptLoader
-from app.agents_system.tools.aaa_candidate_tool import create_aaa_tools
 
 from ..state import GraphState
+from .agent_native import run_stage_aware_agent
 
 logger = logging.getLogger(__name__)
 
@@ -92,25 +92,20 @@ async def iac_generator_node(state: GraphState) -> dict[str, Any]:
 Ensure all code is production-ready and validated.
 """
 
-        # Create IaC generator agent with specialized prompt
-        # Note: We use GPT-4 for complex IaC reasoning
-        iac_agent = MCPReActAgent(
-            system_prompt=iac_generator_prompt["system_prompt"],
-            react_template=iac_generator_prompt["react_template"],
-            tools=create_aaa_tools(state),  # Reuse AAA tools (includes Bicep MCP tools)
-            model_name="gpt-4o",  # More capable model for complex IaC generation
-            temperature=0.1,  # Low temperature for consistency
+        logger.info(f"IaC Generator invoking LangGraph-native agent for {iac_format}...")
+
+        runner = await get_agent_runner()
+        iac_state: GraphState = dict(state)
+        iac_state["user_message"] = iac_generator_input
+        iac_state["stage_directives"] = str(iac_generator_prompt.get("system_prompt", ""))
+
+        result = await run_stage_aware_agent(
+            iac_state,
+            mcp_client=getattr(runner, "mcp_client", None),
+            openai_settings=getattr(runner, "openai_settings", None),
         )
 
-        logger.info(f"IaC Generator agent initialized for {iac_format}, invoking...")
-
-        # Invoke IaC generator agent
-        result = await iac_agent.ainvoke({
-            "input": iac_generator_input,
-            "context": project_context,
-        })
-
-        iac_code = result.get("output", "")
+        iac_code = str(result.get("agent_output", ""))
         intermediate_steps = result.get("intermediate_steps", [])
 
         logger.info(
@@ -123,8 +118,8 @@ Ensure all code is production-ready and validated.
             "intermediate_steps": state.get("intermediate_steps", []) + intermediate_steps,
             "current_agent": "iac_generator",
             "sub_agent_output": iac_code,
-            "success": True,
-            "error": None,
+            "success": bool(result.get("success", True)),
+            "error": result.get("error"),
         }
 
     except Exception as exc:

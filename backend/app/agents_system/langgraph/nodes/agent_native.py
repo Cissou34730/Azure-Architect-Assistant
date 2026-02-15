@@ -8,7 +8,6 @@ cite sources, and avoid pushback.
 import logging
 from typing import Annotated, Any, Literal, TypedDict, cast
 
-from langchain.tools import Tool as LcTool
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -16,7 +15,7 @@ from langchain_core.messages import (
     SystemMessage,
     ToolMessage,
 )
-from langchain_core.tools import BaseTool
+from langchain_core.tools import BaseTool, Tool
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph, add_messages
 from langgraph.prebuilt import ToolNode
@@ -25,10 +24,10 @@ from config.settings import OpenAISettings
 
 from ....services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from ...config.react_prompts import SYSTEM_PROMPT
-from ...langchain.facade_utils import make_single_input_wrapper
 from ...tools.aaa_candidate_tool import create_aaa_tools
 from ...tools.kb_tool import create_kb_tools
 from ...tools.mcp_tool import create_mcp_tools
+from ...tools.tool_wrappers import make_single_input_wrapper
 from ..state import MAX_AGENT_ITERATIONS, GraphState
 
 logger = logging.getLogger(__name__)
@@ -168,7 +167,7 @@ def _normalize_tool(tool: Any) -> BaseTool | None:
     sync_wrapped, async_wrapped = make_single_input_wrapper(
         name, sync_fn or async_fn, async_fn
     )
-    return LcTool(
+    return Tool(
         name=name,
         func=sync_wrapped,
         coroutine=async_wrapped,

@@ -78,11 +78,12 @@
 ## Configuration and settings
 
 - `.env` (repo root) provides ports, API keys, and storage paths.
-- App settings live in `backend/app/core/config.py` (extra env keys must be added there).
+- App settings live in `backend/app/core/app_settings.py` (extra env keys must be added there).
 - `backend/config/ingestion.config.json` controls ingest queue behavior.
 - `backend/config/kb_defaults.json` provides chunking and embedding defaults.
 - `backend/config/mcp/mcp_config.json` configures MCP servers.
 - `backend/config/prompts/agent_prompts.yaml` defines agent prompts.
+- Agent runtime is LangGraph-only (legacy LangChain ReAct backend paths were removed).
 
 ## Singleton Pattern Usage
 
@@ -92,7 +93,7 @@ The backend uses singletons for expensive, shared resources with lifecycle manag
 
 | Service | Location | Justification | Performance Impact |
 |---------|----------|---------------|-------------------|
-| **AgentRunner** | `app/agents_system/runner.py` | Lifecycle coordination, task tracking, graceful shutdown | Startup: 2-3s (MCP + LLM init) |
+| **AgentRunner** | `app/agents_system/runner.py` | Lifecycle coordination for shared MCP/OpenAI runtime context used by LangGraph nodes | Startup: 2-3s (MCP + LLM init) |
 | **KBManager** | `app/service_registry.py` | Vector index caching (150MB in memory), preloaded at startup | 3.2s load time per KB, indices cached in memory |
 | **LLMService** | `app/services/llm_service.py` | Connection pooling to OpenAI/Azure | HTTP client reuse, rate limiting |
 | **AIService** | `app/services/ai/ai_service.py` | Provider abstraction (OpenAI, Azure, Anthropic) | Model caching, connection pooling |
@@ -140,7 +141,7 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 **Key Benefits**:
 - **Performance**: 150MB indices loaded once, not per-request (100 req/min = 320s CPU without singleton)
 - **Lifecycle**: Coordinated startup/shutdown prevents resource leaks
-- **Consistency**: All requests see same state (KB updates, agent orchestrator)
+- **Consistency**: All requests see same runtime context (KB updates, agent runtime state)
 - **Testability**: FastAPI dependency injection enables easy mocking
 
 

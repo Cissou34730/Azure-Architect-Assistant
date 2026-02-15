@@ -8,11 +8,11 @@ architecture requests with tenant isolation, B2B/B2C patterns, and scaling strat
 import logging
 from typing import Any
 
-from app.agents_system.agents.mcp_react_agent import MCPReActAgent
+from app.agents_system.runner import get_agent_runner
 from app.agents_system.config.prompt_loader import PromptLoader
-from app.agents_system.tools.aaa_candidate_tool import create_aaa_tools
 
 from ..state import GraphState
+from .agent_native import run_stage_aware_agent
 
 logger = logging.getLogger(__name__)
 
@@ -95,24 +95,20 @@ async def saas_advisor_node(state: GraphState) -> dict[str, Any]:
 Ensure the proposal addresses all SaaS-specific concerns and provides clear implementation guidance.
 """
 
-        # Create SaaS advisor agent with specialized prompt
-        saas_agent = MCPReActAgent(
-            system_prompt=saas_prompt["system_prompt"],
-            react_template=saas_prompt.get("react_template", ""),
-            tools=create_aaa_tools(state),  # Reuse AAA tools
-            model_name="gpt-4o",  # Use GPT-4 for complex SaaS reasoning
-            temperature=0.1,  # Low temperature for consistency
+        logger.info("SaaS Advisor invoking LangGraph-native agent...")
+
+        runner = await get_agent_runner()
+        saas_state: GraphState = dict(state)
+        saas_state["user_message"] = saas_advisor_input
+        saas_state["stage_directives"] = str(saas_prompt.get("system_prompt", ""))
+
+        result = await run_stage_aware_agent(
+            saas_state,
+            mcp_client=getattr(runner, "mcp_client", None),
+            openai_settings=getattr(runner, "openai_settings", None),
         )
 
-        logger.info("SaaS Advisor agent initialized, invoking...")
-
-        # Invoke SaaS advisor agent
-        result = await saas_agent.ainvoke({
-            "input": saas_advisor_input,
-            "context": project_context,
-        })
-
-        saas_proposal = result.get("output", "")
+        saas_proposal = str(result.get("agent_output", ""))
         intermediate_steps = result.get("intermediate_steps", [])
 
         logger.info(f"✅ SaaS Advisor completed with {len(intermediate_steps)} tool calls")
@@ -127,8 +123,8 @@ Ensure the proposal addresses all SaaS-specific concerns and provides clear impl
                 "customer_type": tenant_requirements.get("customer_type", "unknown"),
                 "activation_reason": "explicit_saas_request",
             },
-            "success": True,
-            "error": None,
+            "success": bool(result.get("success", True)),
+            "error": result.get("error"),
         }
 
     except Exception as exc:

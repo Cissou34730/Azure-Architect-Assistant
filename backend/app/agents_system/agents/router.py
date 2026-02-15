@@ -14,11 +14,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.app_settings import get_settings
 from ...models.project import ConversationMessage
 from ...projects_database import get_db
 from ..langgraph.adapter import execute_chat, execute_project_chat
-from ..runner import get_agent_runner
 from ..services.iteration_logging import (
     build_iteration_event_update,
     derive_mcp_query_updates_from_steps,
@@ -201,12 +199,7 @@ async def chat_with_agent(request: AgentChatRequest) -> AgentChatResponse:
     try:
         logger.info(f"Received chat request: {request.message[:100]}...")
 
-        settings = get_settings()
-        if getattr(settings, "aaa_agent_engine", "langchain") == "langgraph":
-            result = await execute_chat(request.message)
-        else:
-            runner = await get_agent_runner()
-            result = await runner.execute_query(request.message)
+        result = await execute_chat(request.message)
 
         # Format intermediate steps for response
         reasoning_steps = []
@@ -284,22 +277,7 @@ async def chat_with_project_context(
     request: ProjectAgentChatRequest,
     db: AsyncSession = Depends(get_db),
 ) -> ProjectAgentChatResponse:
-    """
-    Chat with the agent in the context of a specific architecture project.
-    Routes to either LangGraph or Legacy execution path based on settings.
-    """
-    settings = get_settings()
-
-    # LangGraph-only: legacy execution is intentionally disabled.
-    if getattr(settings, "aaa_agent_engine", "langchain") != "langgraph":
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=(
-                "Agent engine is not configured for LangGraph. Set AAA_AGENT_ENGINE=langgraph "
-                "(or AAA_USE_LANGGRAPH=true)."
-            ),
-        )
-
+    """Chat with the agent in the context of a specific architecture project."""
     return await _handle_langgraph_route(project_id, request.message, db)
 
 
@@ -358,161 +336,6 @@ def _extract_reasoning_steps(intermediate_steps: list[Any]) -> list[AgentStep]:
         )
         for action, observation in intermediate_steps
     ]
-
-
-class LegacyUpdateParams(BaseModel):
-    """Container for legacy update parameters to satisfy PLR0913."""
-    project_id: str
-    user_message_text: str
-    answer: str
-    choice_req: str | None
-    project_state: dict[str, Any]
-    intermediate_steps: list[Any]
-    agent_msg_id: str
-
-
-async def _apply_legacy_updates(
-    project_id: str,
-    combined: dict[str, Any],
-    answer: str,
-    choice_req: str | None,
-    db: AsyncSession,
-) -> tuple[dict[str, Any], str]:
-    """Apply project state updates and derive follow-up questions."""
-    try:
-        updated_state = await update_project_state(project_id, combined, db)
-
-        # NEW: Sync to normalized DB if feature enabled
-        try:
-            from app.agents_system.checklists.service import get_checklist_service
-            from app.core.app_settings import get_settings
-
-            settings = get_settings()
-            if settings.aaa_feature_waf_normalized:
-                service = await get_checklist_service(db=db, settings=settings)
-                sync_result = await service.sync_project(
-                    project_id=project_id, project_state=updated_state
-                )
-                logger.info(
-                    f"Synced project {project_id} to normalized DB: {sync_result}"
-                )
-        except Exception as e:
-            logger.error(f"Failed to sync project {project_id} to normalized DB: {e}")
-
-        answer = _apply_heuristic_feedback(answer, choice_req, updated_state, combined)
-        if not choice_req:
-            uncovered = derive_uncovered_topic_questions(updated_state)
-            if uncovered:
-                await update_project_state(project_id, {"openQuestions": uncovered}, db)
-        return updated_state, answer
-    except Exception as update_error:  # noqa: BLE001
-        logger.error(f"Project {project_id}: State update failed: {update_error}")
-        return {}, answer
-
-
-async def _process_legacy_updates(
-    params: LegacyUpdateParams,
-    db: AsyncSession,
-) -> tuple[dict[str, Any], str]:
-    """Extracted update processing logic to reduce complexity."""
-    derived = derive_mcp_query_updates_from_steps(
-        intermediate_steps=params.intermediate_steps, user_message=params.user_message_text
-    )
-    state_upd = (
-        extract_state_updates(params.answer, params.user_message_text, params.project_state)
-        if not params.choice_req
-        else None
-    )
-    combined = _merge_updates(state_upd, derived)
-
-    if params.choice_req:
-        q_list = cast(list[str], combined.setdefault("openQuestions", []))
-        q_list.append(params.choice_req)
-
-    # Event and Persistence
-    mcp_ids = [
-        str(q.get("id"))
-        for q in combined.get("mcpQueries", [])
-        if isinstance(q, dict) and q.get("id")
-    ]
-    kind = "challenge" if "validate" in params.user_message_text.lower() else "propose"
-    iter_upd = build_iteration_event_update(
-        kind=kind,
-        text=params.answer.strip()[:800],
-        mcp_query_ids=mcp_ids,
-        architect_response_message_id=params.agent_msg_id,
-    )
-    combined = _merge_updates(combined, iter_upd)
-
-    if not combined:
-        return params.project_state, params.answer
-
-    return await _apply_legacy_updates(
-        params.project_id, combined, params.answer, params.choice_req, db
-    )
-
-
-async def _handle_legacy_route(
-    project_id: str, user_message_text: str, db: AsyncSession
-) -> ProjectAgentChatResponse:
-    """Legacy execution path using LangChain ReAct agent."""
-    logger.info(f"Project {project_id}: Using legacy execution path")
-    try:
-        # Load and Prepare Context
-        project_state = await read_project_state(project_id, db)
-        if not project_state:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Project state not found for {project_id}.",
-            )
-        context_summary = await get_project_context_summary(project_id, db)
-
-        # Execute Agent
-        runner = await get_agent_runner()
-        result = await runner.execute_query(
-            user_message_text,
-            project_context=context_summary,
-            project_id=project_id,
-            session=db
-        )
-        intermediate_steps = result.get("intermediate_steps", [])
-        answer = str(result.get("output", ""))
-
-        # Parse Choice requirement
-        choice_req = _extract_architect_choice_required_section(answer)
-        if choice_req:
-            logger.warning("Project %s: Architect choice required detected.", project_id)
-
-        # Save History
-        agent_msg = _save_conversation(project_id, user_message_text, answer, db)
-
-        # Process Updates
-        params = LegacyUpdateParams(
-            project_id=project_id,
-            user_message_text=user_message_text,
-            answer=answer,
-            choice_req=choice_req,
-            project_state=project_state,
-            intermediate_steps=intermediate_steps,
-            agent_msg_id=agent_msg.id,
-        )
-        updated_state, answer = await _process_legacy_updates(params, db)
-
-        return ProjectAgentChatResponse(
-            answer=answer,
-            success=bool(result.get("success")),
-            project_state=updated_state,
-            reasoning_steps=_extract_reasoning_steps(intermediate_steps),
-            error=result.get("error"),
-        )
-    except Exception as e:
-        logger.error(f"Legacy chat failed: {e}", exc_info=True)
-        if isinstance(e, (HTTPException, RuntimeError)):
-            raise
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process chat: {e!s}",
-        ) from e
 
 
 @router.get("/projects/{project_id}/history")
