@@ -1,10 +1,10 @@
-# LangGraph Migration - Implementation Guide
+# LangGraph Runtime - Backend Guide
 
-This document describes the LangGraph migration from LangChain ReAct to LangGraph state-based orchestration.
+This document describes the current LangGraph state-based orchestration runtime used by backend agent chat endpoints.
 
 ## Overview
 
-The LangGraph migration replaces the legacy LangChain `AgentExecutor` with LangGraph's state-based workflow system, providing:
+The backend agent runtime is LangGraph-only and provides:
 - Explicit, testable workflow control
 - Clear branching rules for architect choices and retries
 - Foundation for multi-agent orchestration
@@ -12,31 +12,30 @@ The LangGraph migration replaces the legacy LangChain `AgentExecutor` with LangG
 
 ## Architecture
 
-### Phase 1-3: Foundation (Completed)
-**Basic LangGraph integration with feature flag**
+### Foundation
+**Core LangGraph integration**
 
 - Package structure: `backend/app/agents_system/langgraph/`
 - GraphState TypedDict for workflow state
-- Node-based orchestration wrapping existing agent
-- Feature flag for safe rollout: `AAA_USE_LANGGRAPH`
+- Node-based orchestration for project chat workflows
 
 **Nodes:**
 - `nodes/context.py` - Load project state and build context
-- `nodes/agent.py` - Execute agent (wraps legacy runner)
+- `nodes/agent.py` - Execute stage-aware agent node
 - `nodes/postprocess.py` - Extract updates, derive MCP logs
 - `nodes/persist.py` - Save messages and apply state updates
 
 **Flow:** load_state → build_summary → run_agent → persist_messages → postprocess → apply_updates
 
-### Phase 4: Graph-Native Tool Loop (Completed)
-**Replace LangChain AgentExecutor with LangGraph ToolNode**
+### Graph-Native Tool Loop
+**ToolNode-based execution**
 
 - `nodes/agent_native.py` - LangGraph-native agent execution
 - Uses `ChatOpenAI.bind_tools()` + `ToolNode` for tool loop
 - Message-based trace (AIMessage, ToolMessage)
 - Respects iteration limits and timeouts
 
-### Phase 5: Stage Routing + Retry (Completed)
+### Stage Routing + Retry
 **Explicit stage transitions and error handling**
 
 - `nodes/stage_routing.py` - Stage classification and retry logic
@@ -45,7 +44,7 @@ The LangGraph migration replaces the legacy LangChain `AgentExecutor` with LangG
 - Always propose next steps if no artifacts persisted
 - Feature flag: `AAA_ENABLE_STAGE_ROUTING`
 
-### Phase 6: Multi-Agent Specialists (Completed)
+### Multi-Agent Specialists
 **Supervisor routes to specialized agents**
 
 - `nodes/multi_agent.py` - Supervisor and specialist nodes
@@ -65,41 +64,32 @@ The LangGraph migration replaces the legacy LangChain `AgentExecutor` with LangG
 ### Environment Variables
 
 ```bash
-# Enable LangGraph (Phase 3+)
-AAA_USE_LANGGRAPH=false  # Set to true to use LangGraph instead of legacy
-
-# Enable Stage Routing (Phase 5)
+# Enable Stage Routing
 AAA_ENABLE_STAGE_ROUTING=false  # Set to true for explicit stage transitions
 
-# Enable Multi-Agent (Phase 6)
+# Enable Multi-Agent
 AAA_ENABLE_MULTI_AGENT=false  # Set to true for specialist routing
 ```
 
 ### Feature Flag Combinations
 
-| AAA_USE_LANGGRAPH | AAA_ENABLE_STAGE_ROUTING | AAA_ENABLE_MULTI_AGENT | Behavior |
-|-------------------|--------------------------|------------------------|----------|
-| false | * | * | Legacy LangChain path |
-| true | false | false | Phase 2/3: Basic LangGraph |
-| true | true | false | Phase 5: With stage routing |
-| true | false | true | Phase 6: With specialists |
-| true | true | true | Full: Stage routing + specialists |
+| AAA_ENABLE_STAGE_ROUTING | AAA_ENABLE_MULTI_AGENT | Behavior |
+|--------------------------|------------------------|----------|
+| false | false | Core LangGraph workflow |
+| true | false | LangGraph with stage routing |
+| false | true | LangGraph with specialists |
+| true | true | LangGraph with stage routing + specialists |
 
 ## Usage
 
-### Basic Usage (Phase 3)
+### Basic Usage
 ```python
-# Enable LangGraph in .env
-AAA_USE_LANGGRAPH=true
-
 # Make API request to /api/agent/projects/{project_id}/chat
-# Router automatically uses LangGraph adapter
+# Router uses LangGraph adapter by default
 ```
 
-### With Stage Routing (Phase 5)
+### With Stage Routing
 ```python
-# Enable LangGraph + Stage Routing
-AAA_USE_LANGGRAPH=true
 AAA_ENABLE_STAGE_ROUTING=true
 
 # System will:
@@ -108,10 +98,8 @@ AAA_ENABLE_STAGE_ROUTING=true
 # - Propose next steps if no artifacts persisted
 ```
 
-### With Multi-Agent (Phase 6)
+### With Multi-Agent
 ```python
-# Enable LangGraph + Multi-Agent
-AAA_USE_LANGGRAPH=true
 AAA_ENABLE_MULTI_AGENT=true
 
 # System will:
@@ -122,19 +110,19 @@ AAA_ENABLE_MULTI_AGENT=true
 
 ## Graph Workflows
 
-### Standard Workflow (Phase 2/3)
+### Standard Workflow
 ```
 Entry → Load State → Build Summary → Run Agent → Persist Messages → Postprocess → Apply Updates → End
 ```
 
-### With Stage Routing (Phase 5)
+### With Stage Routing
 ```
 ... → Postprocess → Classify Stage → [Check Retry]
                                      ├─ retry → Retry Prompt → End (user clarifies)
                                      └─ continue → Apply Updates → Propose Next Step → End
 ```
 
-### With Multi-Agent (Phase 6)
+### With Multi-Agent
 ```
 ... → Build Summary → Supervisor → [Route to Specialist]
                                   ├─ ADR → ADR Specialist ─┐
@@ -152,16 +140,16 @@ backend/app/agents_system/langgraph/
 ├── __init__.py
 ├── state.py                    # GraphState TypedDict
 ├── adapter.py                  # execute_project_chat() interface
-├── graph_factory.py            # Basic graph (Phase 2/3)
-├── graph_factory_advanced.py   # Advanced graph (Phase 4-6)
+├── graph_factory.py            # Basic graph
+├── graph_factory_advanced.py   # Advanced graph
 └── nodes/
     ├── context.py              # Load state, build summary
-    ├── agent.py                # Legacy agent wrapper (Phase 2/3)
-    ├── agent_native.py         # Graph-native agent (Phase 4)
+  ├── agent.py                # Agent execution node
+  ├── agent_native.py         # Graph-native agent loop
     ├── postprocess.py          # Extract updates, derive logs
     ├── persist.py              # Save messages, apply updates
-    ├── stage_routing.py        # Stage classification, retry (Phase 5)
-    └── multi_agent.py          # Supervisor, specialists (Phase 6)
+  ├── stage_routing.py        # Stage classification, retry
+  └── multi_agent.py          # Supervisor, specialists
 ```
 
 ## Testing
@@ -186,18 +174,12 @@ curl -X POST http://localhost:8000/api/agent/projects/{project_id}/chat \
   -d '{"message": "We need 99.9% availability"}'
 ```
 
-## Migration Path
+## Rollout
 
-### Recommended Rollout
-1. **Phase 3**: Enable `AAA_USE_LANGGRAPH=true` for single project
-2. **Validate**: Compare responses with legacy path
-3. **Phase 5**: Add `AAA_ENABLE_STAGE_ROUTING=true` for better stage transitions
-4. **Phase 6**: Add `AAA_ENABLE_MULTI_AGENT=true` for specialist routing
-5. **Production**: Roll out to all projects
-6. **Deprecate**: Remove legacy LangChain path
-
-### Rollback
-If issues arise, simply set `AAA_USE_LANGGRAPH=false` to revert to legacy behavior.
+Recommended enablement order:
+1. Start with core LangGraph workflow (both flags `false`)
+2. Enable `AAA_ENABLE_STAGE_ROUTING=true` when stage transitions need stricter control
+3. Enable `AAA_ENABLE_MULTI_AGENT=true` when specialist routing is required
 
 ## Performance Considerations
 
@@ -235,5 +217,5 @@ If issues arise, simply set `AAA_USE_LANGGRAPH=false` to revert to legacy behavi
 ## References
 
 - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
-- [Migration Plan](../../docs/LANGGRAPH_MIGRATION_PLAN.md)
-- [System Architecture](../../docs/SYSTEM_ARCHITECTURE.md)
+- [Migration Plan](../../../../docs/LANGGRAPH_MIGRATION_PLAN.md)
+- [System Architecture](../../../../docs/SYSTEM_ARCHITECTURE.md)

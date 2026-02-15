@@ -1,5 +1,7 @@
 # LangGraph Migration - Implementation Complete
 
+> Update (2026-02-15): Backend runtime is now LangGraph-only. Legacy LangChain ReAct modules, orchestrator glue, and direct `langchain` dependency were removed as part of backend cleanup.
+
 ## Overview
 Successfully implemented all 6 phases of the LangGraph migration plan, transitioning the Azure Architecture Assistant from LangChain ReAct to LangGraph state-based orchestration.
 

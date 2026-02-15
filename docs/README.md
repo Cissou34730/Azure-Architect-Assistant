@@ -31,7 +31,7 @@ This folder contains all project documentation organized by topic area.
   - [Start here →](./waf_normalization_implementation/README.md)
 
 #### Completed Implementations
-- **[LANGGRAPH_MIGRATION_COMPLETE.md](./LANGGRAPH_MIGRATION_COMPLETE.md)** - LangGraph migration completion report
+- **[LANGGRAPH_MIGRATION_COMPLETE.md](./LANGGRAPH_MIGRATION_COMPLETE.md)** - LangGraph migration + LangGraph-only backend cleanup report
 - **[P0_IMPLEMENTATION_COMPLETE.md](./P0_IMPLEMENTATION_COMPLETE.md)** - Phase 0 completion summary
 - **[P1_IMPLEMENTATION_COMPLETE.md](./P1_IMPLEMENTATION_COMPLETE.md)** - Phase 1 completion summary
 - **[PHASE5_COMPLETION_SUMMARY.md](./PHASE5_COMPLETION_SUMMARY.md)** - Phase 5 (Deployment) completion summary

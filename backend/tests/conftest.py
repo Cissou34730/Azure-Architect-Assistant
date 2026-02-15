@@ -136,7 +136,6 @@ def mock_agent_runner():
     from app.agents_system.runner import AgentRunner
 
     runner = Mock(spec=AgentRunner)
-    runner.execute_query = AsyncMock(return_value={"result": "test"})
     runner.initialize = AsyncMock()
     runner.shutdown = AsyncMock()
     return runner

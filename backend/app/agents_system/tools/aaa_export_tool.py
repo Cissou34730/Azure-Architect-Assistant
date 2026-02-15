@@ -15,7 +15,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from langchain.tools import BaseTool
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from pydantic.alias_generators import to_camel
 
