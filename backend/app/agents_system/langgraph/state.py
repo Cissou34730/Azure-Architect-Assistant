@@ -30,6 +30,7 @@ class GraphState(TypedDict, total=False):
     intermediate_steps: list[Any]  # Tool call traces
     stage_directives: str | None
     research_plan: list[str]
+    mindmap_guidance: dict[str, Any] | None
 
     # Post-processing
     architect_choice_required_section: str | None

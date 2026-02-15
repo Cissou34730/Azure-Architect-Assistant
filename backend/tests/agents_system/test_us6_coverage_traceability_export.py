@@ -98,6 +98,24 @@ def test_update_mindmap_coverage_includes_all_required_topics() -> None:
         assert key in topics
 
     assert topics["2_requirements_and_quality_attributes"]["status"] == "partial"
+    assert topics["2_requirements_and_quality_attributes"]["confidence"] == 0.5
+
+
+def test_update_mindmap_coverage_uses_waf_maturity_signal() -> None:
+    state = {
+        "wafChecklist": {
+            "items": [
+                {"id": "1", "evaluations": [{"status": "covered"}]},
+                {"id": "2", "evaluations": [{"status": "partial"}]},
+            ]
+        }
+    }
+
+    updated = update_mindmap_coverage(state)
+    topics = updated["mindMapCoverage"]["topics"]
+
+    assert topics["8_security_and_compliance"]["status"] == "partial"
+    assert topics["8_security_and_compliance"]["confidence"] == 0.5
 
 
 def test_export_tool_returns_aaa_export_json_payload() -> None:
