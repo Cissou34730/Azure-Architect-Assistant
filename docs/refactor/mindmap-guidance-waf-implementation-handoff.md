@@ -1,7 +1,7 @@
 # Mindmap Guidance + WAF-Safe Orchestration — Implementation Handoff
 
 ## Goal
-Implement non-blocking mindmap-guided architecture coaching (from `docs/arch_mindmap.json`) while preserving WAF checklist follow-up reliability.
+Implement non-blocking mindmap-guided architecture coaching (from `docs/architecture/arch_mindmap.json`) while preserving WAF checklist follow-up reliability.
 
 ## Scope
 - Included: advisory mindmap guidance, top-level coverage tracking, deterministic directive merge, WAF non-regression safeguards, tests.

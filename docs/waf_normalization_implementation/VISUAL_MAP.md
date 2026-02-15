@@ -409,7 +409,7 @@
     🔗 EXTERNAL
     • Original Plan: ../plan-normalizeWafChecklistToDb.prompt.prompt.md
     • Backend Reference: ../BACKEND_REFERENCE.md
-    • System Architecture: ../SYSTEM_ARCHITECTURE.md
+    • System Architecture: ../architecture/system-architecture.md
 
 
 ╔═══════════════════════════════════════════════════════════════════════════════╗

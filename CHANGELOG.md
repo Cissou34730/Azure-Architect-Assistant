@@ -33,6 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added implementation handoff document:
   - `docs/refactor/mindmap-guidance-waf-implementation-handoff.md`
 
+- **Documentation governance and IA reorganization**
+  - Established dual-lane documentation policy (agent-focused + human-focused) and governance artifacts.
+  - Added agent documentation lane under `docs/agents/` with compact architecture summaries and authoring template.
+  - Reorganized human documentation into domain folders: `docs/architecture/`, `docs/backend/`, `docs/frontend/`, `docs/operations/`.
+  - Introduced tracked historical buckets under `docs/operations/history/` for implementation history, plans/phases, reviews, and analysis artifacts.
+  - Added migration tracker and compatibility-pointer strategy to preserve legacy links while transitioning to canonical paths.
+  - Updated cross-document links to canonical domain/history locations and reduced pointer exposure in `docs/README.md`.
+
 ## [1.3.0] - 2026-01-24
 
 ### Added - Optional Specialized Agents (Phase 3)
