@@ -5,9 +5,9 @@ Tests: content_hash, idempotency, RetryPolicy, WorkflowDefinition
 
 from app.ingestion.application.orchestrator import (
     RetryPolicy,
-    StepName,
     WorkflowDefinition,
 )
+from app.ingestion.application.policies import StepName
 from app.ingestion.domain.chunking.adapter import compute_content_hash
 
 
