@@ -49,7 +49,7 @@ def _chain_signal_handler(sig, frame, prev_handlers, current_handler) -> None:
         logger.debug("Previous signal handler raised; continuing shutdown", exc_info=True)
 
 
-def _handle_ingestion_shutdown(  # noqa: PLR0913
+def _handle_ingestion_shutdown(
     sig: int,
     frame: Any,
     loop: asyncio.AbstractEventLoop | None,

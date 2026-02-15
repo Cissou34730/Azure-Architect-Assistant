@@ -65,7 +65,7 @@ def _assign_ids_and_update(crawl_data: dict, path: Path) -> tuple[dict, int]:
 
 def _get_page_name(url: str) -> str:
     """Extract a clean page name from URL."""
-    page_name = url.split("/")[-1] or "index"
+    page_name = url.rsplit("/", maxsplit=1)[-1] or "index"
     page_name = re.sub(r"\.(html?|php|asp)$", "", page_name)
     page_name = re.sub(r"[^a-zA-Z0-9_-]", "_", page_name)
     if len(page_name) > MAX_FILENAME_LEN:

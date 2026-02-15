@@ -3,22 +3,21 @@ Tests for WAF checklist models.
 """
 
 import uuid
-from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models.project import Base, Project
 from app.models.checklist import (
-    ChecklistTemplate,
     Checklist,
     ChecklistItem,
     ChecklistItemEvaluation,
     ChecklistStatus,
-    SeverityLevel,
+    ChecklistTemplate,
     EvaluationStatus,
+    SeverityLevel,
 )
+from app.models.project import Base, Project
 
 
 @pytest.fixture
@@ -87,9 +86,9 @@ def test_checklist_item_deterministic_id():
 
     id1 = ChecklistItem.compute_deterministic_id(project_id, template_slug, item_id, namespace)
     id2 = ChecklistItem.compute_deterministic_id(project_id, template_slug, item_id, namespace)
-    
+
     assert id1 == id2
-    
+
     # Change project_id, should change result
     id3 = ChecklistItem.compute_deterministic_id(str(uuid.uuid4()), template_slug, item_id, namespace)
     assert id1 != id3
@@ -108,7 +107,7 @@ def test_checklist_item_creation(db_session):
     item_id = ChecklistItem.compute_deterministic_id(
         project.id, "waf", "item-1", uuid.uuid4()
     )
-    
+
     item = ChecklistItem(
         id=item_id,
         checklist_id=checklist.id,
@@ -130,7 +129,7 @@ def test_checklist_item_evaluation(db_session):
     """Test creating an evaluation for an item."""
     project = Project(id=str(uuid.uuid4()), name="Test")
     db_session.add(project)
-    
+
     checklist = Checklist(project_id=project.id, title="Test")
     db_session.add(checklist)
     db_session.commit()
@@ -163,7 +162,7 @@ def test_cascade_delete(db_session):
     """Test that deleting a checklist deletes its items."""
     project = Project(id=str(uuid.uuid4()), name="Test")
     db_session.add(project)
-    
+
     checklist = Checklist(project_id=project.id, title="Test")
     db_session.add(checklist)
     db_session.commit()

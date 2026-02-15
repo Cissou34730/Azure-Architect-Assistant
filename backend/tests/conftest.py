@@ -3,20 +3,19 @@ Global pytest fixtures for backend tests.
 """
 
 import asyncio
-from typing import AsyncGenerator
-from unittest.mock import MagicMock
+from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.models.project import Base
-from app.core.app_settings import get_settings
-from app.agents_system.checklists.registry import ChecklistRegistry
 from app.agents_system.checklists.engine import ChecklistEngine
+from app.agents_system.checklists.registry import ChecklistRegistry
 from app.agents_system.checklists.service import ChecklistService
+from app.core.app_settings import get_settings
 from app.models.checklist import ChecklistTemplate
+from app.models.project import Base
 
 
 @pytest.fixture(scope="session")
@@ -35,17 +34,17 @@ async def test_db_session() -> AsyncGenerator[AsyncSession, None]:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
+
     session_factory = async_sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )
-    
+
     async with session_factory() as session:
         yield session
-        
+
     await engine.dispose()
 
 
@@ -97,11 +96,11 @@ def test_registry(mock_settings, tmp_path):
 def test_engine(test_db_session, test_registry, mock_settings):
     """Provide a ChecklistEngine with the test database."""
     from contextlib import asynccontextmanager
-    
+
     @asynccontextmanager
     async def session_factory():
         yield test_db_session
-        
+
     return ChecklistEngine(
         db_session_factory=session_factory,
         registry=test_registry,
@@ -132,11 +131,11 @@ def mock_agent_runner():
             # ... test code ...
             app.dependency_overrides.clear()
     """
-    from unittest.mock import Mock, AsyncMock
+    from unittest.mock import AsyncMock, Mock
+
     from app.agents_system.runner import AgentRunner
-    
+
     runner = Mock(spec=AgentRunner)
-    runner.execute_query = AsyncMock(return_value={"result": "test"})
     runner.initialize = AsyncMock()
     runner.shutdown = AsyncMock()
     return runner
@@ -154,9 +153,10 @@ def mock_kb_manager():
             # ... test code ...
             app.dependency_overrides.clear()
     """
-    from unittest.mock import Mock, AsyncMock
+    from unittest.mock import AsyncMock, Mock
+
     from app.kb import KBManager
-    
+
     manager = Mock(spec=KBManager)
     manager.list_kbs = Mock(return_value=["test-kb"])
     manager.get_kb = Mock(return_value=None)
@@ -178,9 +178,10 @@ def mock_llm_service():
             # ... test code ...
             app.dependency_overrides.clear()
     """
-    from unittest.mock import Mock, AsyncMock
+    from unittest.mock import AsyncMock, Mock
+
     from app.services.llm_service import LLMService
-    
+
     service = Mock(spec=LLMService)
     service.generate_text = AsyncMock(return_value="Generated text")
     service.analyze_document = AsyncMock(return_value={"analysis": "test"})
@@ -200,9 +201,10 @@ def mock_ai_service():
             # ... test code ...
             app.dependency_overrides.clear()
     """
-    from unittest.mock import Mock, AsyncMock
+    from unittest.mock import AsyncMock, Mock
+
     from app.services.ai import AIService
-    
+
     service = Mock(spec=AIService)
     service.chat = AsyncMock(return_value="AI response")
     service.get_embedding = AsyncMock(return_value=[0.1] * 1536)
@@ -222,8 +224,9 @@ def mock_prompt_loader():
             app.dependency_overrides.clear()
     """
     from unittest.mock import Mock
+
     from app.agents_system.config.prompt_loader import PromptLoader
-    
+
     loader = Mock(spec=PromptLoader)
     loader.get_prompt = Mock(return_value="Test prompt")
     loader.reload = Mock()

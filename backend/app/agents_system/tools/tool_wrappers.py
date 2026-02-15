@@ -2,20 +2,13 @@ import asyncio
 import contextlib
 import inspect
 import json
-import logging
 import threading
 from concurrent.futures import Future
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 
 def make_single_input_wrapper(name: str, func: Any, async_func: Any | None = None):
-    """
-    Wraps a tool function to handle various input formats (JSON string, dict, or raw value)
-    and ensure it can be called correctly by LangChain agents.
-    Returns a (sync_wrapper, async_wrapper) tuple.
-    """
+    """Wrap a tool function to handle JSON string/dict/raw single-input payloads."""
 
     async def _async_runner(single_input):
         payload = _parse_tool_input(single_input)
@@ -24,7 +17,6 @@ def make_single_input_wrapper(name: str, func: Any, async_func: Any | None = Non
         try:
             return await _call_function(target_fn, payload)
         except Exception:  # noqa: BLE001
-            # Fallback for complex argument mismatches
             return await _call_function_fallback(target_fn, payload)
 
     def _sync_wrapper(single_input):
@@ -43,7 +35,6 @@ def make_single_input_wrapper(name: str, func: Any, async_func: Any | None = Non
 
 
 def _parse_tool_input(single_input: Any) -> Any:
-    """Normalize input into a payload (dict or string)."""
     if isinstance(single_input, str):
         try:
             clean_input = single_input.strip()
@@ -59,7 +50,6 @@ def _parse_tool_input(single_input: Any) -> Any:
 
 
 async def _call_function(target_fn: Any, payload: Any) -> Any:
-    """Execute target function with appropriate argument passing."""
     try:
         maybe = target_fn(payload)
         if inspect.isawaitable(maybe):
@@ -73,7 +63,6 @@ async def _call_function(target_fn: Any, payload: Any) -> Any:
 
 
 async def _call_function_fallback(target_fn: Any, payload: Any) -> Any:
-    """Last resort fallback for function calls."""
     maybe = target_fn(payload)
     if inspect.isawaitable(maybe):
         return await maybe
@@ -81,8 +70,6 @@ async def _call_function_fallback(target_fn: Any, payload: Any) -> Any:
 
 
 def _run_async_in_new_thread(coro: Any) -> Any:
-    """Run an async coroutine in a new thread with its own event loop."""
-
     def _thread_worker(fut, coro):
         try:
             new_loop = asyncio.new_event_loop()
@@ -98,19 +85,3 @@ def _run_async_in_new_thread(coro: Any) -> Any:
     t = threading.Thread(target=_thread_worker, args=(fut, coro))
     t.start()
     return fut.result()
-
-
-def normalize_agent_result(raw: Any) -> dict[str, Any]:
-    """
-    Normalizes different agent return shapes to a consistent dict format.
-    Ensures 'output' and 'intermediate_steps' keys are present.
-    """
-    if isinstance(raw, dict):
-        return {
-            "output": raw.get("output") or raw.get("result") or str(raw),
-            "intermediate_steps": raw.get("intermediate_steps", [])
-        }
-    if isinstance(raw, str):
-        return {"output": raw, "intermediate_steps": []}
-    return {"output": str(raw), "intermediate_steps": []}
-

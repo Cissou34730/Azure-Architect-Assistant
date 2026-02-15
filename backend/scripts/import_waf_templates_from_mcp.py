@@ -30,7 +30,6 @@ from app.core.app_settings import get_settings  # noqa: E402
 from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient  # noqa: E402
 from app.services.mcp.operations.learn_operations import fetch_documentation  # noqa: E402
 
-
 _CHECKLIST_ROW_PREFIX = "|"
 _CODE_LINK_RE = re.compile(r"\[([A-Z]{2}:\d{2})\]\(([^)]+)\)")
 _BOLD_RE = re.compile(r"\*\*([^*]+)\*\*")

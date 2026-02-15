@@ -1,7 +1,8 @@
 """
-Compatibility shim: re-export MCPReActAgent from the extracted module.
+Legacy compatibility shim.
 
-Note: This file remains to avoid breaking imports; use
-`agents.mcp_react_agent` for implementation details.
+LangGraph-native execution is implemented under `app.agents_system.langgraph`.
+This module is intentionally kept as a placeholder to avoid import-time breaks
+from stale references outside the active runtime path.
 """
 

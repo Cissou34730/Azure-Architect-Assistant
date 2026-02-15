@@ -6,7 +6,7 @@ Provides agents with access to MCP operations and external tool execution.
 import json
 from typing import Any
 
-from langchain.tools import BaseTool
+from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
 
 from ...services.mcp.exceptions import MCPError

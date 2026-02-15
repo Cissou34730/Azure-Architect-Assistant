@@ -5,6 +5,42 @@ All notable changes to the Azure Architect Assistant project will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Mindmap-Guided Advisory Conversation Flow (non-blocking)**
+  - Introduced explicit `mindmap_guidance` payload in LangGraph state for top-level architecture gap coaching.
+  - Added dedicated advanced-graph step to carry mindmap guidance before agent execution.
+  - Added stage-aware directive precedence policy:
+    - Discovery-focused stages (`clarify`, `propose_candidate`) foreground mindmap coaching.
+    - Validation stage keeps checklist execution priority and mindmap prompts advisory.
+
+- **Follow-up Smoothness + Guardrails**
+  - Added uncovered-topic prompt budget and dedup logic to reduce repetitive follow-up messages.
+  - Added validation-stage WAF follow-up guardrail when checklist updates are missing and open items remain.
+
+- **Tests for Guidance Policy and Persistence Safeguards**
+  - Added focused tests for stage precedence, non-blocking guidance behavior, prompt dedup/budget logic, and validation-stage WAF follow-up safeguards.
+
+### Changed
+
+- **Top-level mindmap coverage scoring refinement**
+  - Coverage now includes confidence values and weighted maturity heuristics (WAF status + findings evidence) to reduce noisy uncovered-topic prompts.
+
+### Documentation
+
+- Added implementation handoff document:
+  - `docs/refactor/mindmap-guidance-waf-implementation-handoff.md`
+
+- **Documentation governance and IA reorganization**
+  - Established dual-lane documentation policy (agent-focused + human-focused) and governance artifacts.
+  - Added agent documentation lane under `docs/agents/` with compact architecture summaries and authoring template.
+  - Reorganized human documentation into domain folders: `docs/architecture/`, `docs/backend/`, `docs/frontend/`, `docs/operations/`.
+  - Introduced tracked historical buckets under `docs/operations/history/` for implementation history, plans/phases, reviews, and analysis artifacts.
+  - Added migration tracker and compatibility-pointer strategy to preserve legacy links while transitioning to canonical paths.
+  - Updated cross-document links to canonical domain/history locations and reduced pointer exposure in `docs/README.md`.
+
 ## [1.3.0] - 2026-01-24
 
 ### Added - Optional Specialized Agents (Phase 3)

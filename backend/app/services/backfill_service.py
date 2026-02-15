@@ -69,7 +69,7 @@ class BackfillService:
                                 )
                     else:
                         summary["skipped"] += 1
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     logger.exception("Backfill error for project %s", project_id)
                     summary["errors"].append({"project_id": str(project_id), "error": str(exc)})
 

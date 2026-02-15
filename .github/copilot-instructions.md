@@ -36,11 +36,14 @@ High-level rules (always)
 - mypy.ini at the root of the project for type checking configuration
 
 Documentation policy (NEW / IMPORTANT)
-- All project documentation must reside under the single top-level docs directory: /docs at the repository root.
-- Only one high-level global overview document (for example: /docs/README.md or /docs/HIGH_LEVEL_OVERVIEW.md) is allowed directly inside the /docs root. All other documentation must live in subfolders under /docs (for example: /docs/frontend, /docs/backend, /docs/architecture, /docs/iac, /docs/operational, /docs/specs).
-- Do NOT create package-level docs outside /docs (avoid frontend/docs or backend/docs); prefer /docs/frontend and /docs/backend so documentation discovery is centralized.
-- Maintain a top-level table of contents at /docs/README.md that links to subfolders and major documents.
-- Documentation must be updated for any significant change (API/behavior changes, feature additions, infra/IaC changes, public docs). 
+- Canonical project documentation lives under /docs at the repository root.
+- Documentation is split into two mandatory lanes:
+	- Agent lane: concise, low-token docs under /docs/agents.
+	- Human lane: comprehensive docs under domain folders (for example /docs/backend, /docs/frontend, /docs/architecture, /docs/operations).
+- Agents should use /docs/agents as primary context and should not rely on human-comprehensive docs by default.
+- Technical code-near README.md files outside /docs are allowed as exceptions when they improve maintainability; each exception must be discoverable from /docs/README.md.
+- Maintain a top-level table of contents at /docs/README.md that links to active domains, agent docs, and migration/archive indexes.
+- Documentation must be updated for any significant change (API/behavior changes, feature additions, infra/IaC changes, public docs), including both agent and human lanes where applicable.
 
 
 

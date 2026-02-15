@@ -59,7 +59,7 @@ async def startup():
         logger.info("Loading KB Manager...")
         kb_mgr = get_kb_manager()
         logger.info(f"KB Manager ready ({len(kb_mgr.list_kbs())} knowledge bases)")
-        
+
         # Preload all active KB indices at startup
         logger.info("Preloading KB indices...")
         timing = kb_mgr.preload_all_indices()

@@ -7,9 +7,9 @@ Falls back to the legacy orchestrator if native execution fails.
 
 import json
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
-import re
 from typing import Any
 
 from ...runner import get_agent_runner

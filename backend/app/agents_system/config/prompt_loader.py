@@ -37,7 +37,7 @@ class PromptLoader:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
-    
+
     @classmethod
     def set_instance(cls, instance: "PromptLoader | None") -> None:
         """Set or clear singleton instance (for testing/lifecycle)."""

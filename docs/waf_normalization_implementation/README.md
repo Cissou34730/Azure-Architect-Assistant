@@ -164,7 +164,7 @@ This folder contains comprehensive documentation for migrating WAF (Well-Archite
 ### In This Repository
 - [Backend Reference](../BACKEND_REFERENCE.md) - Backend architecture and patterns
 - [Frontend Reference](../FRONTEND_REFERENCE.md) - Frontend architecture and conventions
-- [System Architecture](../SYSTEM_ARCHITECTURE.md) - Overall system design
+- [System Architecture](../architecture/system-architecture.md) - Overall system design
 - [UX IDE Workflow](../UX_IDE_WORKFLOW.md) - Will be updated with checklist lifecycle
 
 ### External References

@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from langchain.tools import BaseTool, Tool
+from langchain_core.tools import BaseTool, Tool
 from pydantic import PrivateAttr
 
 from app.core.app_settings import get_kb_storage_root

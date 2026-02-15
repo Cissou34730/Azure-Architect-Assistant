@@ -36,7 +36,7 @@ This plan implements the recommendations from [AGENT_REVIEW_AND_RECOMMENDATIONS.
 **Objective:** Reduce redundancy and improve clarity in existing 357-line prompt before adding new content.
 
 **Results:**
-- ✅ Analysis complete: [PHASE1_PROMPT_ANALYSIS.md](./PHASE1_PROMPT_ANALYSIS.md)
+- ✅ Analysis complete: [PHASE1_PROMPT_ANALYSIS.md](../operations/history/plans-and-phases/PHASE1_PROMPT_ANALYSIS.md)
 - ✅ Refactoring implemented: 378 lines → 261 lines (**31% reduction**)
 - ✅ YAML syntax validated
 - ✅ E2E test passed (scenario-behavior: OK)

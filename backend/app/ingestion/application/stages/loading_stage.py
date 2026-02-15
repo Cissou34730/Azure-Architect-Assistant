@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
 from app.ingestion.application.phase_tracking import update_progress_noncritical
 from app.ingestion.application.pipeline_stage import PipelineContext, PipelineStage

@@ -311,4 +311,4 @@ All tests should pass with 100% success rate.
 
 ---
 
-For technical implementation details, see [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md).
+For technical implementation details, see [System Architecture](../architecture/system-architecture.md).

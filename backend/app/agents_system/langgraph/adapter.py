@@ -22,8 +22,7 @@ logger = logging.getLogger(__name__)
 async def execute_chat(user_message: str) -> dict[str, Any]:
     """Execute a non-project chat using the LangGraph-native tool loop.
 
-    This is used to support the plain `/api/agent/chat` endpoint when
-    `aaa_agent_engine=langgraph`.
+    This supports the plain `/api/agent/chat` endpoint.
 
     Returns a dict compatible with AgentRunner.execute_query:
     - output

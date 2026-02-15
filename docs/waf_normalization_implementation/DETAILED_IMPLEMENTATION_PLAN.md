@@ -2692,7 +2692,7 @@ See individual phase verification checklists above.
 - [Original Plan Document](../plan-normalizeWafChecklistToDb.prompt.prompt.md)
 - [Backend Reference](../BACKEND_REFERENCE.md)
 - [Frontend Reference](../FRONTEND_REFERENCE.md)
-- [System Architecture](../SYSTEM_ARCHITECTURE.md)
+- [System Architecture](../architecture/system-architecture.md)
 
 ### File Mapping
 

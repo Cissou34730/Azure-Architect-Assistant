@@ -1,13 +1,15 @@
-import pytest
 import uuid
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import AsyncSession
+
+import pytest
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
-from app.projects_database import get_db
 from app.models.checklist import Checklist, ChecklistItem
 from app.models.project import Project, ProjectState
+from app.projects_database import get_db
+
 
 @pytest.fixture
 async def async_client(test_db_session: AsyncSession):
@@ -18,11 +20,11 @@ async def async_client(test_db_session: AsyncSession):
         yield test_db_session
 
     app.dependency_overrides[get_db] = override_get_db
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
-    
+
     app.dependency_overrides.clear()
 
 @pytest.fixture
@@ -35,14 +37,14 @@ async def sample_project(test_db_session: AsyncSession):
         name="Test Project"
     )
     test_db_session.add(project)
-    
+
     # Create ProjectState
     project_state = ProjectState(
         project_id=project_id,
         state='{"wafChecklist": {}}'
     )
     test_db_session.add(project_state)
-    
+
     await test_db_session.commit()
     return project_id
 
@@ -57,7 +59,7 @@ async def sample_checklist(test_db_session: AsyncSession, sample_project: str):
         status="open"
     )
     test_db_session.add(checklist)
-    
+
     item = ChecklistItem(
         id=uuid.uuid4(),
         checklist_id=checklist_id,
@@ -66,7 +68,7 @@ async def sample_checklist(test_db_session: AsyncSession, sample_project: str):
         severity="medium"
     )
     test_db_session.add(item)
-    
+
     await test_db_session.commit()
     return checklist_id
 
@@ -94,7 +96,7 @@ async def test_evaluate_checklist_item(async_client: AsyncClient, sample_project
     # Get the item ID first
     get_resp = await async_client.get(f"/api/projects/{sample_project}/checklists/{sample_checklist}")
     item_id = get_resp.json()["items"][0]["id"]
-    
+
     # Evaluate it
     eval_resp = await async_client.post(
         f"/api/projects/{sample_project}/checklists/items/{item_id}/evaluate",
@@ -102,9 +104,8 @@ async def test_evaluate_checklist_item(async_client: AsyncClient, sample_project
     )
     assert eval_resp.status_code == 200
     assert eval_resp.json()["status"] == "success"
-    
+
     # Verify in DB
-    from sqlalchemy import select
     from app.models.checklist import ChecklistItemEvaluation
     # Clear session to ensure we read fresh from DB
     test_db_session.expire_all()

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+
 from app.ingestion.application.chunk_processor import ChunkProcessor
-from app.ingestion.application.phase_tracking import start_phase_noncritical, update_progress_noncritical
-from app.ingestion.application.policies import RetryPolicy, StepName
+from app.ingestion.application.phase_tracking import (
+    start_phase_noncritical,
+    update_progress_noncritical,
+)
 from app.ingestion.application.pipeline_control import pause_job_at_batch_chunk, stop_job_at_gate
 from app.ingestion.application.pipeline_stage import PipelineContext, PipelineStage
+from app.ingestion.application.policies import RetryPolicy, StepName
 from app.ingestion.application.tasks import ProcessingTask
 from app.ingestion.domain.embedding import Embedder
 from app.ingestion.domain.indexing import Indexer

@@ -342,7 +342,7 @@ This implementation package demonstrates best practices for complex migrations:
 ### In Repository
 - [Original Plan](../plan-normalizeWafChecklistToDb.prompt.prompt.md) - Context and rationale
 - [Backend Reference](../BACKEND_REFERENCE.md) - Code patterns
-- [System Architecture](../SYSTEM_ARCHITECTURE.md) - Overall design
+- [System Architecture](../architecture/system-architecture.md) - Overall design
 - [Development Guide](../DEVELOPMENT_GUIDE.md) - Setup instructions
 
 ### External
