@@ -49,16 +49,16 @@ function RightDeliverablesPanel({
     return (
       <button
         onClick={onToggle}
-        className="fixed right-0 top-1/2 -translate-y-1/2 bg-white border-l border-y border-gray-200 rounded-l-lg p-2 shadow-lg hover:bg-gray-50 transition-colors z-20"
+        className="fixed right-0 top-1/2 -translate-y-1/2 bg-card border-l border-y border-border rounded-l-lg p-2 shadow-lg hover:bg-surface transition-colors z-20"
         title="Show deliverables panel"
       >
-        <ChevronLeft className="h-5 w-5 text-gray-600" />
+        <ChevronLeft className="h-5 w-5 text-secondary" />
       </button>
     );
   }
 
   return (
-    <div className="w-80 flex flex-col h-full bg-white border-l border-gray-200 shadow-sm animate-in slide-in-from-right duration-300">
+    <div className="w-80 flex flex-col h-full bg-card border-l border-border shadow-sm animate-in slide-in-from-right duration-300">
       <PanelHeader 
         onToggle={onToggle}
         adrCount={adrs.length}
@@ -97,16 +97,16 @@ function RightDeliverablesPanel({
         />
       </div>
 
-      <div className="p-3 bg-gray-50 border-t border-gray-100">
-        <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-blue-100 shadow-sm">
-          <div className="h-7 w-7 rounded-md bg-blue-600 flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-white" />
+      <div className="p-3 bg-surface border-t border-border">
+        <div className="flex items-center gap-2 p-3 bg-card rounded-lg border border-brand-line shadow-sm">
+          <div className="h-7 w-7 rounded-md bg-brand flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-inverse" />
           </div>
           <div className="flex-1">
-            <p className="text-[10px] font-medium text-blue-800 uppercase tracking-wider">Copilot Recommendation</p>
-            <p className="text-[11px] text-gray-600 font-medium">Ready for cost optimization?</p>
+            <p className="text-[10px] font-medium text-brand-strong uppercase tracking-wider">Copilot Recommendation</p>
+            <p className="text-[11px] text-secondary font-medium">Ready for cost optimization?</p>
           </div>
-          <button className="text-[11px] font-bold text-blue-600 hover:text-blue-700">
+          <button className="text-[11px] font-bold text-brand hover:text-brand-strong">
             Fix
           </button>
         </div>
@@ -117,3 +117,6 @@ function RightDeliverablesPanel({
 
 const rightDeliverablesPanel = memo(RightDeliverablesPanel);
 export { rightDeliverablesPanel as RightDeliverablesPanel };
+
+
+

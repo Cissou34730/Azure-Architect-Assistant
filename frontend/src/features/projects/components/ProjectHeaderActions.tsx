@@ -1,4 +1,5 @@
 import { Upload, Zap, FileText, Download } from "lucide-react";
+import { Button } from "../../../components/common/Button";
 
 interface ProjectHeaderActionsProps {
   onUploadClick?: () => void;
@@ -16,51 +17,55 @@ export function ProjectHeaderActions({
   exportDisabled = false,
 }: ProjectHeaderActionsProps) {
   return (
-    <>
+    <div className="ui-header-actions">
       {onUploadClick !== undefined && (
-        <button
+        <Button
           onClick={onUploadClick}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+          variant="secondary"
+          size="sm"
           title="Upload documents (⌘U)"
         >
           <Upload className="h-4 w-4" />
-          <span className="hidden sm:inline">Upload</span>
-        </button>
+          <span className="label">Upload</span>
+        </Button>
       )}
 
       {onGenerateClick !== undefined && (
-        <button
+        <Button
           onClick={onGenerateClick}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          variant="primary"
+          size="sm"
           title="Generate analysis (⌘G)"
         >
           <Zap className="h-4 w-4" />
-          <span className="hidden sm:inline">Generate Analysis</span>
-        </button>
+          <span className="label">Generate Analysis</span>
+        </Button>
       )}
 
       {onAdrClick !== undefined && (
-        <button
+        <Button
           onClick={onAdrClick}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+          variant="secondary"
+          size="sm"
           title="Create ADR"
         >
           <FileText className="h-4 w-4" />
-          <span className="hidden sm:inline">ADR</span>
-        </button>
+          <span className="label">ADR</span>
+        </Button>
       )}
 
       {onExportClick !== undefined && (
-        <button
+        <Button
           onClick={onExportClick}
           disabled={exportDisabled}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          variant="secondary"
+          size="sm"
           title={exportDisabled ? "Export (coming soon)" : "Export"}
         >
           <Download className="h-4 w-4" />
-          <span className="hidden sm:inline">Export</span>
-        </button>
+          <span className="label">Export</span>
+        </Button>
       )}
-    </>
+    </div>
   );
 }

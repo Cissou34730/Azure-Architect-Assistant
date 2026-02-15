@@ -1,7 +1,7 @@
 export function KBListEmptyState() {
   return (
     <div className="text-center py-12">
-      <div className="text-gray-400 mb-4">
+      <div className="text-dim mb-4">
         <svg
           className="mx-auto h-12 w-12"
           fill="none"
@@ -16,12 +16,13 @@ export function KBListEmptyState() {
           />
         </svg>
       </div>
-      <h3 className="text-lg font-medium text-gray-900 mb-2">
+      <h3 className="text-lg font-medium text-foreground mb-2">
         No Knowledge Bases
       </h3>
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-dim">
         Create your first knowledge base to get started.
       </p>
     </div>
   );
 }
+

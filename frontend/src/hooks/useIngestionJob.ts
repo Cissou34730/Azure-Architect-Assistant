@@ -75,7 +75,7 @@ export function useIngestionJob(
   const { pollInterval = DEFAULT_ACTIVE_POLL_MS, enabled = true } = options;
   const { job, loading, error, fetchStatus, setLoading } =
     useIngestionJobSource(kbId, options);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const scheduleNext = async () => {

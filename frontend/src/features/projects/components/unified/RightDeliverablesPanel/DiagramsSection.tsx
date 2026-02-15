@@ -24,7 +24,7 @@ export function DiagramsSection({ diagrams, expanded, onToggle, onNavigate }: Di
       <div className="h-64">
         {diagrams.length === 0 ? (
           <EmptyState 
-            icon={<LayoutGrid className="h-8 w-8 text-gray-200" />}
+            icon={<LayoutGrid className="h-8 w-8 text-border" />}
             message="No diagrams generated"
             actionLabel="Generate Diagram"
             onClick={onNavigate ?? (() => { /* No-op */ })}
@@ -48,3 +48,4 @@ export function DiagramsSection({ diagrams, expanded, onToggle, onNavigate }: Di
     </Section>
   );
 }
+

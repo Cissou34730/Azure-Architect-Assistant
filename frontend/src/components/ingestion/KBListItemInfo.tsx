@@ -10,7 +10,7 @@ interface KBListItemInfoProps {
 export function KBListItemInfo({ kb, job }: KBListItemInfoProps) {
   const renderMetadata = () => {
     return (
-      <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+      <div className="mt-2 flex items-center gap-4 text-xs text-dim">
         <span>ID: {kb.id}</span>
         {kb.sourceType !== undefined && (
           <span>Source: {kb.sourceType.replace("_", " ")}</span>
@@ -24,7 +24,7 @@ export function KBListItemInfo({ kb, job }: KBListItemInfoProps) {
   return (
     <div className="flex-1">
       <div className="flex items-center gap-3">
-        <h3 className="text-lg font-semibold text-gray-900">{kb.name}</h3>
+        <h3 className="text-lg font-semibold text-foreground">{kb.name}</h3>
         <StatusBadge variant={kb.status === "active" ? "active" : "inactive"}>
           {kb.status}
         </StatusBadge>
@@ -34,13 +34,13 @@ export function KBListItemInfo({ kb, job }: KBListItemInfoProps) {
       </div>
 
       {kb.description !== undefined && kb.description !== "" && (
-        <p className="mt-1 text-sm text-gray-600">{kb.description}</p>
+        <p className="mt-1 text-sm text-secondary">{kb.description}</p>
       )}
 
       {renderMetadata()}
 
       {kb.lastIndexedAt !== undefined && (
-        <div className="mt-1 text-xs text-gray-500">
+        <div className="mt-1 text-xs text-dim">
           Last indexed: {new Date(kb.lastIndexedAt).toLocaleString()}
         </div>
       )}
@@ -49,3 +49,4 @@ export function KBListItemInfo({ kb, job }: KBListItemInfoProps) {
     </div>
   );
 }
+

@@ -17,7 +17,7 @@ function extractJobStatus(results: { id: string; job: IngestionJob }[]) {
 export function useKBJobs(kbs: readonly KnowledgeBase[]) {
   const [jobs, setJobs] = useState<Map<string, IngestionJob>>(new Map());
   const [loading, setLoading] = useState(true);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
 
   const fetchJobs = useCallback(async () => {

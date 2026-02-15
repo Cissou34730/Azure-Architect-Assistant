@@ -1,6 +1,9 @@
 import { NavLink } from "react-router-dom";
+import { useTheme, type ThemePreference } from "../../hooks/useTheme";
 
 export function Navigation() {
+  const { preference, setPreference } = useTheme();
+
   const navItems = [
     {
       to: "/project",
@@ -19,9 +22,15 @@ export function Navigation() {
     },
   ];
 
+  const themeOptions: { value: ThemePreference; label: string }[] = [
+    { value: "system", label: "System" },
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" },
+  ];
+
   return (
     <nav
-      className="sticky top-0 bg-white shadow-sm border-b border-gray-200 z-40"
+      className="sticky top-0 bg-card shadow-sm border-b border-border z-40"
       role="navigation"
       aria-label="Main navigation"
     >
@@ -36,8 +45,8 @@ export function Navigation() {
                 className={({ isActive }: { isActive: boolean }) =>
                   `px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
-                      ? "text-blue-600 border-b-2 border-blue-600"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "text-brand border-b-2 border-brand"
+                      : "text-secondary hover:text-foreground"
                   }`
                 }
               >
@@ -45,11 +54,30 @@ export function Navigation() {
               </NavLink>
             ))}
           </div>
-          <div className="text-sm text-gray-600">
-            Azure Architect Assistant
+          <div className="flex items-center gap-3">
+            <label htmlFor="theme-select" className="sr-only">
+              Select theme
+            </label>
+            <select
+              id="theme-select"
+              value={preference}
+              onChange={(event) => setPreference(event.target.value as ThemePreference)}
+              className="rounded-md border border-border-stronger bg-card px-2 py-1 text-xs text-secondary focus:outline-none focus:ring-2 focus:ring-brand"
+              aria-label="Theme"
+            >
+              {themeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <div className="text-sm text-secondary">
+              Azure Architect Assistant
+            </div>
           </div>
         </div>
       </div>
     </nav>
   );
 }
+

@@ -32,8 +32,8 @@ export function DeliverableCard({ artifact, onClick }: DeliverableCardProps) {
             </Badge>
             {artifact.wafPillar !== undefined && artifact.wafPillar !== "" && (
               <>
-                <span className="text-[10px] text-gray-400">•</span>
-                <span className="text-[10px] bg-gray-100 text-gray-600 px-1 rounded">{artifact.wafPillar}</span>
+                <span className="text-[10px] text-dim">•</span>
+                <span className="text-[10px] bg-muted text-secondary px-1 rounded">{artifact.wafPillar}</span>
               </>
             )}
           </>
@@ -43,11 +43,12 @@ export function DeliverableCard({ artifact, onClick }: DeliverableCardProps) {
               <FileText className="h-3 w-3 mr-1" />
               ADR
             </Badge>
-            <span className="text-[10px] text-gray-400">•</span>
-            <span className="text-[10px] bg-gray-100 text-gray-600 px-1 rounded uppercase">{artifact.status}</span>
+            <span className="text-[10px] text-dim">•</span>
+            <span className="text-[10px] bg-muted text-secondary px-1 rounded uppercase">{artifact.status}</span>
           </>
         )}
       </div>
     </BaseCard>
   );
 }
+

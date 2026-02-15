@@ -18,7 +18,7 @@ interface TabHeaderProps {
 
 export function TabHeader({ tabs, activeTab, onTabChange }: TabHeaderProps) {
   return (
-    <div className="flex border-b border-gray-200 bg-white shrink-0">
+    <div className="flex border-b border-border bg-card shrink-0">
       {tabs.map((tab) => (
         <TabButton
           key={tab.id}
@@ -45,8 +45,8 @@ function TabButton({ tab, isActive, onClick }: TabButtonProps) {
       title={tab.tooltip}
       className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 text-xs font-medium transition-colors border-b-2 ${
         isActive
-          ? "text-blue-600 border-blue-600 bg-blue-50"
-          : "text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-50"
+          ? "text-brand border-brand bg-brand-soft"
+          : "text-secondary border-transparent hover:text-foreground hover:bg-surface"
       }`}
       type="button"
     >
@@ -62,4 +62,5 @@ function TabButton({ tab, isActive, onClick }: TabButtonProps) {
     </button>
   );
 }
+
 

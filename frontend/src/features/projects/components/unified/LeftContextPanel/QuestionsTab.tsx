@@ -9,7 +9,7 @@ interface QuestionsTabProps {
 export function QuestionsTab({ questions }: QuestionsTabProps) {
   if (questions.length === 0) {
     return (
-      <div className="p-4 text-center text-sm text-gray-500">
+      <div className="p-4 text-center text-sm text-dim">
         No clarification questions at the moment.
       </div>
     );
@@ -17,10 +17,10 @@ export function QuestionsTab({ questions }: QuestionsTabProps) {
 
   const getPriorityColor = (priority: number): string => {
     switch (priority) {
-      case 1: return "bg-red-100 text-red-700";
-      case 2: return "bg-amber-100 text-amber-700";
-      case 3: return "bg-blue-100 text-blue-700";
-      default: return "bg-gray-100 text-gray-700";
+      case 1: return "bg-danger-soft text-danger-strong";
+      case 2: return "bg-warning-soft text-warning";
+      case 3: return "bg-brand-soft text-brand-strong";
+      default: return "bg-muted text-secondary";
     }
   };
 
@@ -32,12 +32,12 @@ export function QuestionsTab({ questions }: QuestionsTabProps) {
         itemContent={(_index, question) => (
           <div className="px-4 py-1">
             <div
-              className="p-3 bg-white rounded-lg border border-gray-200"
+              className="p-3 bg-card rounded-lg border border-border"
             >
               <div className="flex items-start gap-2">
-                <HelpCircle className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                <HelpCircle className="h-4 w-4 text-brand shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <div className="text-sm text-gray-700 mb-2">{question.question}</div>
+                  <div className="text-sm text-secondary mb-2">{question.question}</div>
                   <div className="flex items-center gap-2">
                     {question.priority !== undefined && (
                       <span
@@ -47,7 +47,7 @@ export function QuestionsTab({ questions }: QuestionsTabProps) {
                       </span>
                     )}
                     {question.status !== "" && (
-                      <span className="text-xs text-gray-500">{question.status}</span>
+                      <span className="text-xs text-dim">{question.status}</span>
                     )}
                   </div>
                 </div>
@@ -60,3 +60,6 @@ export function QuestionsTab({ questions }: QuestionsTabProps) {
     </div>
   );
 }
+
+
+

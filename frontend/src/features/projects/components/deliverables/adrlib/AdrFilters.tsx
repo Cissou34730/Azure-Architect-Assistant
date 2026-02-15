@@ -44,8 +44,8 @@ export function AdrFilters({
             }}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
               statusFilter === status
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                ? "bg-brand text-inverse"
+                : "bg-muted text-secondary hover:bg-border"
             }`}
           >
             {status}
@@ -55,7 +55,7 @@ export function AdrFilters({
 
       <div className="flex gap-2 w-full sm:w-auto">
         <div className="relative flex-1 sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-dim" />
           <input
             type="text"
             value={searchQuery}
@@ -63,18 +63,18 @@ export function AdrFilters({
               onSearchQueryChange(event.target.value);
             }}
             placeholder="Search ADRs..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            className="w-full pl-10 pr-4 py-2 border border-border-stronger rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent text-sm"
           />
         </div>
 
-        <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+        <div className="flex border border-border-stronger rounded-lg overflow-hidden">
           <button
             type="button"
             onClick={() => {
               onViewModeChange("grid");
             }}
             className={`px-3 py-2 text-sm ${
-              viewMode === "grid" ? "bg-gray-100" : "hover:bg-gray-50"
+              viewMode === "grid" ? "bg-muted" : "hover:bg-surface"
             }`}
           >
             Grid
@@ -84,8 +84,8 @@ export function AdrFilters({
             onClick={() => {
               onViewModeChange("table");
             }}
-            className={`px-3 py-2 text-sm border-l border-gray-300 ${
-              viewMode === "table" ? "bg-gray-100" : "hover:bg-gray-50"
+            className={`px-3 py-2 text-sm border-l border-border-stronger ${
+              viewMode === "table" ? "bg-muted" : "hover:bg-surface"
             }`}
           >
             Table
@@ -95,3 +95,5 @@ export function AdrFilters({
     </div>
   );
 }
+
+

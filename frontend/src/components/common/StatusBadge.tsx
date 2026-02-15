@@ -20,12 +20,12 @@ interface StatusBadgeProps {
 }
 
 const variantClasses: Record<StatusVariant, string> = {
-  running: "bg-status-running text-white",
-  paused: "bg-yellow-500 text-white",
-  completed: "bg-status-completed text-white",
-  failed: "bg-status-failed text-white",
-  active: "bg-accent-success text-white",
-  inactive: "bg-gray-100 text-gray-800",
+  running: "ui-status-running",
+  paused: "ui-status-paused",
+  completed: "ui-status-completed",
+  failed: "ui-status-failed",
+  active: "ui-status-active",
+  inactive: "ui-status-inactive",
 };
 
 export function StatusBadge({

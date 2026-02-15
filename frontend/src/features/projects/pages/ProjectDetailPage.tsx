@@ -28,7 +28,7 @@ export default function ProjectDetailPage() {
   if (selectedProject === null && loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand" />
       </div>
     );
   }
@@ -36,10 +36,10 @@ export default function ProjectDetailPage() {
   if (selectedProject === null) {
     return (
       <div className="container mx-auto p-6 text-center">
-        <h2 className="text-xl font-semibold text-gray-800">
+        <h2 className="text-xl font-semibold text-foreground">
           Project not found
         </h2>
-        <p className="text-gray-600 mt-2">
+        <p className="text-secondary mt-2">
           The requested project could not be found.
         </p>
       </div>
@@ -62,3 +62,4 @@ export default function ProjectDetailPage() {
     </ErrorBoundary>
   );
 }
+

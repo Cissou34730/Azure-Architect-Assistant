@@ -41,9 +41,9 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg max-w-3xl mx-auto">
+    <div className="bg-card rounded-lg shadow-lg max-w-3xl mx-auto">
       <div className="px-6 py-4 border-b">
-        <h2 className="text-2xl font-bold text-gray-900">
+        <h2 className="text-2xl font-bold text-foreground">
           Create Knowledge Base
         </h2>
         <div className="mt-4">
@@ -53,8 +53,8 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
 
       <div className="px-6 py-6 min-h-100">
         {error !== null && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-            <div className="text-sm text-red-600">{error}</div>
+          <div className="mb-4 p-3 bg-danger-soft border border-danger-line rounded-md">
+            <div className="text-sm text-danger">{error}</div>
           </div>
         )}
         <WizardContent form={form} />
@@ -72,3 +72,5 @@ export function CreateKBWizard({ onSuccess, onCancel }: CreateKBWizardProps) {
     </div>
   );
 }
+
+

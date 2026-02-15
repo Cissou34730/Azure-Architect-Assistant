@@ -12,13 +12,13 @@ export function IngestionWorkspaceHeader({
   onBackToList,
 }: IngestionWorkspaceHeaderProps) {
   return (
-    <div className="bg-white border-b border-gray-200 px-6 py-4">
+    <div className="bg-card border-b border-border px-6 py-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-foreground">
             Knowledge Base Management
           </h1>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-1 text-sm text-secondary">
             Create and manage knowledge bases for RAG queries
           </p>
         </div>
@@ -74,3 +74,4 @@ export function IngestionWorkspaceHeader({
     </div>
   );
 }
+

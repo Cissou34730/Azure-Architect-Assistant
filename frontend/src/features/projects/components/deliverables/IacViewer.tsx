@@ -23,7 +23,7 @@ export function IacViewer({ iacArtifacts }: IacViewerProps) {
         action={
           <button
             type="button"
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            className="bg-brand text-inverse px-4 py-2 rounded-lg hover:bg-brand-strong transition-colors text-sm"
           >
             Go to Workspace
           </button>
@@ -53,3 +53,5 @@ export function IacViewer({ iacArtifacts }: IacViewerProps) {
     </div>
   );
 }
+
+

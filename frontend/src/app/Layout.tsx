@@ -12,7 +12,7 @@ export function Layout() {
   const { toasts, close } = useToast();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface">
       <Banner />
       <Navigation />
 
@@ -26,3 +26,4 @@ export function Layout() {
     </div>
   );
 }
+

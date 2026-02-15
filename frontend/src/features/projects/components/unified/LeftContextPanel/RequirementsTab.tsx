@@ -18,10 +18,10 @@ interface GroupConfig extends GroupTitle {
 }
 
 const colorClassesMap: Record<GroupColor, string> = {
-  blue: "text-blue-700 bg-blue-50 border-blue-200",
-  green: "text-green-700 bg-green-50 border-green-200",
-  purple: "text-purple-700 bg-purple-50 border-purple-200",
-  gray: "text-gray-700 bg-gray-50 border-gray-200",
+  blue: "text-brand-strong bg-brand-soft border-brand-line",
+  green: "text-success bg-success-soft border-success-line",
+  purple: "text-accent-strong bg-accent-soft border-accent-line",
+  gray: "text-secondary bg-surface border-border",
 };
 
 export function RequirementsTab({ requirements }: RequirementsTabProps) {
@@ -34,7 +34,7 @@ export function RequirementsTab({ requirements }: RequirementsTabProps) {
 
   const { groupedItems, groupCounts, groupTitles } = useMemo((): {
     groupedItems: readonly Requirement[];
-    groupCounts: readonly number[];
+    groupCounts: number[];
     groupTitles: readonly GroupTitle[];
   } => {
     const business = sortedRequirements.filter(
@@ -51,17 +51,19 @@ export function RequirementsTab({ requirements }: RequirementsTabProps) {
       return cat !== "business" && cat !== "functional" && cat !== "nfr";
     });
 
-    const groups: readonly GroupConfig[] = [
+    const groups = [
       { title: "Business", items: business, color: "blue" },
       { title: "Functional", items: functional, color: "green" },
       { title: "Non-Functional", items: nfr, color: "purple" },
       { title: "Other", items: other, color: "gray" },
-    ].filter((group) => group.items.length > 0);
+    ] as const satisfies readonly GroupConfig[];
+
+    const nonEmptyGroups = groups.filter((group) => group.items.length > 0);
 
     return {
-      groupedItems: groups.flatMap((group) => group.items),
-      groupCounts: groups.map((group) => group.items.length),
-      groupTitles: groups.map((group) => ({
+      groupedItems: nonEmptyGroups.flatMap((group) => group.items),
+      groupCounts: nonEmptyGroups.map((group) => group.items.length),
+      groupTitles: nonEmptyGroups.map((group) => ({
         title: group.title,
         color: group.color,
       })),
@@ -70,7 +72,7 @@ export function RequirementsTab({ requirements }: RequirementsTabProps) {
 
   if (requirements.length === 0) {
     return (
-      <div className="p-4 text-center text-sm text-gray-500">
+      <div className="p-4 text-center text-sm text-dim">
         No requirements yet. Start chatting to identify requirements.
       </div>
     );
@@ -84,8 +86,8 @@ export function RequirementsTab({ requirements }: RequirementsTabProps) {
         groupContent={(index) => {
           const { title } = groupTitles[index];
           return (
-            <div className="bg-white px-4 py-2">
-              <h3 className="text-xs font-semibold text-gray-900 uppercase tracking-wide">
+            <div className="bg-card px-4 py-2">
+              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">
                 {title} ({groupCounts[index]})
               </h3>
             </div>
@@ -123,4 +125,6 @@ export function RequirementsTab({ requirements }: RequirementsTabProps) {
     </div>
   );
 }
+
+
 

@@ -38,9 +38,10 @@ export function CoverageProgress({ percentage }: CoverageProgressProps) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-bold text-gray-900">{percentage}%</span>
-        <span className="text-xs text-gray-600">Complete</span>
+        <span className="text-3xl font-bold text-foreground">{percentage}%</span>
+        <span className="text-xs text-secondary">Complete</span>
       </div>
     </div>
   );
 }
+

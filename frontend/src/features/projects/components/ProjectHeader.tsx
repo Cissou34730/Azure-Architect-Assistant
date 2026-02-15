@@ -58,7 +58,7 @@ function ProjectHeader({
 
   return (
     <>
-      <div className="sticky top-14 bg-linear-to-r from-blue-50 to-indigo-50 border-b border-gray-200 z-30 shadow-sm">
+      <div className="sticky top-14 bg-linear-to-r from-brand-soft to-accent-soft border-b border-border z-30 shadow-sm">
         <div className="max-w-screen-2xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="shrink-0">
@@ -85,7 +85,7 @@ function ProjectHeader({
 
               <button
                 onClick={handleToggleShortcuts}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-white rounded-lg transition-colors"
+                className="p-2 text-secondary hover:text-foreground hover:bg-card rounded-lg transition-colors"
                 title="Keyboard shortcuts (⌘K)"
               >
                 <Command className="h-5 w-5" />
@@ -113,3 +113,5 @@ function ProjectHeader({
 
 const projectHeader = memo(ProjectHeader);
 export { projectHeader as ProjectHeader };
+
+

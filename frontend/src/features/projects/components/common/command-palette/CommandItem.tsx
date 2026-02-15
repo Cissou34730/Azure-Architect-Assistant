@@ -19,15 +19,15 @@ export function CommandItem({
       onClick={onAction}
       onMouseEnter={onSelect}
       className={`w-full flex items-center px-4 py-3 text-left transition-colors ${
-        isSelected ? "bg-blue-50" : "hover:bg-gray-50"
+        isSelected ? "bg-brand-soft" : "hover:bg-surface"
       }`}
     >
-      <div className={`mr-3 ${isSelected ? "text-blue-600" : "text-gray-400"}`}>
+      <div className={`mr-3 ${isSelected ? "text-brand" : "text-dim"}`}>
         {cmd.icon}
       </div>
       <span
         className={`text-sm ${
-          isSelected ? "text-blue-900 font-medium" : "text-gray-900"
+          isSelected ? "text-brand-strong font-medium" : "text-foreground"
         }`}
       >
         {cmd.label}
@@ -35,3 +35,5 @@ export function CommandItem({
     </button>
   );
 }
+
+

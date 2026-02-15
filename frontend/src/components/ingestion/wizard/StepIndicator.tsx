@@ -22,10 +22,10 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
           <div
             className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
               currentStep === step.id
-                ? "border-blue-600 bg-blue-600 text-white"
+                ? "border-brand bg-brand text-inverse"
                 : currentIndex > i
-                  ? "border-green-600 bg-green-600 text-white"
-                  : "border-gray-300 text-gray-400"
+                  ? "border-success bg-success text-inverse"
+                  : "border-border-stronger text-dim"
             }`}
           >
             {i + 1}
@@ -33,7 +33,7 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
           {i < steps.length - 1 && (
             <div
               className={`flex-1 h-0.5 mx-2 ${
-                currentIndex > i ? "bg-green-600" : "bg-gray-300"
+                currentIndex > i ? "bg-success" : "bg-border-stronger"
               }`}
             />
           )}
@@ -42,3 +42,7 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
     </div>
   );
 }
+
+
+
+

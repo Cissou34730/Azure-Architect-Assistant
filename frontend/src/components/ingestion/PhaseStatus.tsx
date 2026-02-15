@@ -12,12 +12,12 @@ const phaseOrder: IngestionPhase[] = [
 ];
 
 const statusColor: Record<string, string> = {
-  ["not_started"]: "bg-gray-300",
-  pending: "bg-gray-300",
-  running: "bg-blue-500",
-  paused: "bg-yellow-500",
-  completed: "bg-green-500",
-  failed: "bg-red-500",
+  ["not_started"]: "bg-border-stronger",
+  pending: "bg-border-stronger",
+  running: "bg-brand",
+  paused: "bg-warning-soft0",
+  completed: "bg-success",
+  failed: "bg-danger-soft0",
 };
 
 function PhaseStatus({ phases }: Props) {
@@ -30,14 +30,14 @@ function PhaseStatus({ phases }: Props) {
         const ph = map.get(name);
         const status = ph?.status ?? "not_started";
         const progress = ph?.progress ?? 0;
-        const bar = statusColor[status] ?? "bg-gray-300";
+        const bar = statusColor[status] ?? "bg-border-stronger";
         return (
           <div key={name} className="flex flex-col">
             <div className="flex justify-between text-sm">
               <span className="font-medium capitalize">{name}</span>
               <span className="capitalize">{status}</span>
             </div>
-            <div className="h-2 bg-gray-200 rounded">
+            <div className="h-2 bg-border rounded">
               { }
               <div
                 className={`h-2 ${bar} rounded`}
@@ -52,3 +52,7 @@ function PhaseStatus({ phases }: Props) {
 }
 
 export default PhaseStatus;
+
+
+
+

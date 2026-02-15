@@ -103,7 +103,7 @@ function FindingsList({
   }
   if (findings.length === 0) {
     return (
-      <div className="p-6 text-sm text-gray-500">
+      <div className="p-6 text-sm text-dim">
         No findings available for this project.
       </div>
     );
@@ -111,15 +111,15 @@ function FindingsList({
   return (
     <div className="p-6 space-y-4">
       {findings.map((finding) => (
-        <div key={finding.id} className="rounded-lg border border-gray-200 bg-white p-4">
+        <div key={finding.id} className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-start gap-3">
-            <div className="h-8 w-8 rounded-md bg-amber-50 flex items-center justify-center">
-              <ShieldAlert className="h-4 w-4 text-amber-600" />
+            <div className="h-8 w-8 rounded-md bg-warning-soft flex items-center justify-center">
+              <ShieldAlert className="h-4 w-4 text-warning" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-gray-900">{finding.title}</div>
-              <div className="text-xs text-gray-500">{finding.description}</div>
-              <div className="mt-2 text-xs text-gray-600">{finding.remediation}</div>
+              <div className="text-sm font-semibold text-foreground">{finding.title}</div>
+              <div className="text-xs text-dim">{finding.description}</div>
+              <div className="mt-2 text-xs text-secondary">{finding.remediation}</div>
             </div>
           </div>
         </div>
@@ -143,9 +143,9 @@ function WafChecklistView({ projectState }: { readonly projectState: ProjectStat
     <div className="p-6 space-y-4">
       <WafChecklistHeader checklistVersion={checklistVersion} progress={progress} />
       {loading ? (
-        <div className="text-sm text-gray-500">Loading checklist...</div>
+        <div className="text-sm text-dim">Loading checklist...</div>
       ) : checklist.items.length === 0 ? (
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-dim">
           No checklist items available yet. Completion baseline is 0%.
         </div>
       ) : (
@@ -218,31 +218,31 @@ function WafChecklistHeader({
     <>
       <div className="flex items-center gap-3 justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center">
-            <ListChecks className="h-4 w-4 text-blue-600" />
+          <div className="h-9 w-9 rounded-lg bg-brand-soft flex items-center justify-center">
+            <ListChecks className="h-4 w-4 text-brand" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900">WAF Checklist</p>
-            <p className="text-xs text-gray-500">Version {checklistVersion}</p>
+            <p className="text-sm font-semibold text-foreground">WAF Checklist</p>
+            <p className="text-xs text-dim">Version {checklistVersion}</p>
           </div>
         </div>
-        <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5">
+        <div className="rounded-lg border border-brand-line bg-brand-soft px-3 py-1.5">
           <div className="text-right">
-            <p className="text-sm font-semibold text-gray-900">{progress.percentComplete}%</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-sm font-semibold text-foreground">{progress.percentComplete}%</p>
+            <p className="text-xs text-dim">
               {progress.covered}/{progress.total} covered
             </p>
           </div>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-2 text-xs">
-        <div className="rounded-md border border-green-200 bg-green-50 px-2 py-1 text-green-700">
+        <div className="rounded-md border border-success-line bg-success-soft px-2 py-1 text-success">
           Covered: {progress.covered}
         </div>
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700">
+        <div className="rounded-md border border-warning-line bg-warning-soft px-2 py-1 text-warning">
           Partial: {progress.partial}
         </div>
-        <div className="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-gray-700">
+        <div className="rounded-md border border-border bg-surface px-2 py-1 text-secondary">
           Not covered: {progress.notCovered}
         </div>
       </div>
@@ -271,14 +271,14 @@ function ChecklistGroupTabs({
             }}
             className={
               group.checklistKey === selectedChecklistKey
-                ? "rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left"
-                : "rounded-lg border border-gray-200 bg-white px-3 py-2 text-left hover:bg-gray-50"
+                ? "rounded-lg border border-brand-line bg-brand-soft px-3 py-2 text-left"
+                : "rounded-lg border border-border bg-card px-3 py-2 text-left hover:bg-surface"
             }
           >
-            <div className="text-xs font-semibold text-gray-900 whitespace-nowrap">
+            <div className="text-xs font-semibold text-foreground whitespace-nowrap">
               {group.checklistTitle}
             </div>
-            <div className="text-xs text-gray-500 whitespace-nowrap">{group.items.length} checks</div>
+            <div className="text-xs text-dim whitespace-nowrap">{group.items.length} checks</div>
           </button>
         ))}
       </div>
@@ -294,13 +294,13 @@ function WafChecklistPanel({
   const progress = useMemo(() => computeWafProgress(group.items), [group.items]);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white">
-      <div className="px-4 py-3 border-b border-gray-100 bg-slate-50 flex items-center justify-between gap-3">
+    <div className="rounded-xl border border-border bg-card">
+      <div className="px-4 py-3 border-b border-border bg-muted flex items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-gray-900">{group.checklistTitle}</div>
-          <div className="text-xs text-gray-500">{group.items.length} checks</div>
+          <div className="text-sm font-semibold text-foreground">{group.checklistTitle}</div>
+          <div className="text-xs text-dim">{group.items.length} checks</div>
         </div>
-        <div className="text-xs text-gray-600">
+        <div className="text-xs text-secondary">
           Covered {progress.covered}/{progress.total}
         </div>
       </div>
@@ -316,25 +316,25 @@ function WafChecklistPanel({
 function WafChecklistRow({ item }: { readonly item: WafChecklist["items"][number] }) {
   const latestStatus = getLatestWafEvaluation(item.evaluations)?.status ?? "notCovered";
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3">
+    <div className="rounded-lg border border-border bg-card p-3">
       <div className="flex items-start gap-3">
         <div className="mt-0.5">
           <WafChecklistStatusIcon status={latestStatus} />
         </div>
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-semibold text-gray-900">{item.topic}</div>
+            <div className="text-sm font-semibold text-foreground">{item.topic}</div>
             <WafStatusBadge status={latestStatus} />
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex items-center gap-2 text-xs text-dim">
             <span>{item.pillar}</span>
             {item.severity !== undefined && <WafSeverityBadge severity={item.severity} />}
           </div>
           {item.description !== undefined && item.description !== "" && (
-            <div className="text-xs text-gray-600">{item.description}</div>
+            <div className="text-xs text-secondary">{item.description}</div>
           )}
           {item.guidance !== undefined && item.guidance.length > 0 && (
-            <ul className="list-disc pl-4 text-xs text-gray-600 space-y-1">
+            <ul className="list-disc pl-4 text-xs text-secondary space-y-1">
               {item.guidance.map((step) => (
                 <li key={`${item.id}-${step}`}>{step}</li>
               ))}
@@ -352,12 +352,12 @@ function WafChecklistStatusIcon({
   readonly status: "covered" | "partial" | "notCovered";
 }) {
   if (status === "covered") {
-    return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+    return <CheckCircle2 className="h-4 w-4 text-success" />;
   }
   if (status === "partial") {
-    return <MinusCircle className="h-4 w-4 text-amber-600" />;
+    return <MinusCircle className="h-4 w-4 text-warning" />;
   }
-  return <Circle className="h-4 w-4 text-gray-400" />;
+  return <Circle className="h-4 w-4 text-dim" />;
 }
 
 function TraceabilityView({ projectState }: { readonly projectState: ProjectState }) {
@@ -366,12 +366,12 @@ function TraceabilityView({ projectState }: { readonly projectState: ProjectStat
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center gap-3">
-        <div className="h-9 w-9 rounded-lg bg-cyan-50 flex items-center justify-center">
-          <Waypoints className="h-4 w-4 text-cyan-600" />
+        <div className="h-9 w-9 rounded-lg bg-info-soft flex items-center justify-center">
+          <Waypoints className="h-4 w-4 text-info" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-gray-900">Traceability</p>
-          <p className="text-xs text-gray-500">
+          <p className="text-sm font-semibold text-foreground">Traceability</p>
+          <p className="text-xs text-dim">
             {linkCount} links, {issueCount} issues
           </p>
         </div>
@@ -384,7 +384,7 @@ function CandidateArchitectureView({ projectState }: { readonly projectState: Pr
   const candidates = safeArray(projectState.candidateArchitectures);
   if (candidates.length === 0) {
     return (
-      <div className="p-6 text-sm text-gray-500">
+      <div className="p-6 text-sm text-dim">
         No candidate architectures generated yet.
       </div>
     );
@@ -392,16 +392,16 @@ function CandidateArchitectureView({ projectState }: { readonly projectState: Pr
   return (
     <div className="p-6 space-y-4">
       {candidates.map((candidate, index) => (
-        <div key={candidate.id ?? candidate.title ?? `candidate-${index}`} className="rounded-lg border border-gray-200 bg-white p-4">
+        <div key={candidate.id ?? candidate.title ?? `candidate-${index}`} className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-start gap-3">
-            <div className="h-8 w-8 rounded-md bg-indigo-50 flex items-center justify-center">
-              <Layers className="h-4 w-4 text-indigo-600" />
+            <div className="h-8 w-8 rounded-md bg-accent-soft flex items-center justify-center">
+              <Layers className="h-4 w-4 text-accent" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-gray-900">
+              <div className="text-sm font-semibold text-foreground">
                 {candidate.title ?? "Untitled candidate"}
               </div>
-              <div className="text-xs text-gray-500">{candidate.summary ?? ""}</div>
+              <div className="text-xs text-dim">{candidate.summary ?? ""}</div>
             </div>
           </div>
         </div>
@@ -413,19 +413,19 @@ function CandidateArchitectureView({ projectState }: { readonly projectState: Pr
 function IterationEventsView({ projectState }: { readonly projectState: ProjectState }) {
   const events = safeArray(projectState.iterationEvents);
   if (events.length === 0) {
-    return <div className="p-6 text-sm text-gray-500">No iteration events yet.</div>;
+    return <div className="p-6 text-sm text-dim">No iteration events yet.</div>;
   }
   return (
     <div className="p-6 space-y-4">
       {events.map((eventItem) => (
-        <div key={eventItem.id} className="rounded-lg border border-gray-200 bg-white p-4">
+        <div key={eventItem.id} className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-start gap-3">
-            <div className="h-8 w-8 rounded-md bg-violet-50 flex items-center justify-center">
-              <MessageSquareQuote className="h-4 w-4 text-violet-600" />
+            <div className="h-8 w-8 rounded-md bg-accent-soft flex items-center justify-center">
+              <MessageSquareQuote className="h-4 w-4 text-accent" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-gray-900 capitalize">{eventItem.kind}</div>
-              <div className="text-xs text-gray-500">{eventItem.text}</div>
+              <div className="text-sm font-semibold text-foreground capitalize">{eventItem.kind}</div>
+              <div className="text-xs text-dim">{eventItem.text}</div>
             </div>
           </div>
         </div>
@@ -437,19 +437,19 @@ function IterationEventsView({ projectState }: { readonly projectState: ProjectS
 function McpQueriesView({ projectState }: { readonly projectState: ProjectState }) {
   const queries = safeArray(projectState.mcpQueries);
   if (queries.length === 0) {
-    return <div className="p-6 text-sm text-gray-500">No MCP queries recorded yet.</div>;
+    return <div className="p-6 text-sm text-dim">No MCP queries recorded yet.</div>;
   }
   return (
     <div className="p-6 space-y-4">
       {queries.map((query) => (
-        <div key={query.id} className="rounded-lg border border-gray-200 bg-white p-4">
+        <div key={query.id} className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-start gap-3">
-            <div className="h-8 w-8 rounded-md bg-emerald-50 flex items-center justify-center">
-              <FileSearch className="h-4 w-4 text-emerald-600" />
+            <div className="h-8 w-8 rounded-md bg-info-soft flex items-center justify-center">
+              <FileSearch className="h-4 w-4 text-info" />
             </div>
             <div>
-              <div className="text-sm font-semibold text-gray-900">{query.queryText}</div>
-              <div className="text-xs text-gray-500">{query.phase}</div>
+              <div className="text-sm font-semibold text-foreground">{query.queryText}</div>
+              <div className="text-xs text-dim">{query.phase}</div>
             </div>
           </div>
         </div>
@@ -498,20 +498,20 @@ function getLatestWafEvaluation(
 function WafStatusBadge({ status }: { readonly status: "covered" | "partial" | "notCovered" }) {
   if (status === "covered") {
     return (
-      <span className="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs text-green-700">
+      <span className="rounded-full border border-success-line bg-success-soft px-2 py-0.5 text-xs text-success">
         Covered
       </span>
     );
   }
   if (status === "partial") {
     return (
-      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+      <span className="rounded-full border border-warning-line bg-warning-soft px-2 py-0.5 text-xs text-warning">
         Partial
       </span>
     );
   }
   return (
-    <span className="rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-700">
+    <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-xs text-secondary">
       Not covered
     </span>
   );
@@ -524,27 +524,27 @@ function WafSeverityBadge({
 }) {
   if (severity === "critical") {
     return (
-      <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs text-red-700">
+      <span className="rounded-full border border-danger-line bg-danger-soft px-2 py-0.5 text-xs text-danger-strong">
         Critical
       </span>
     );
   }
   if (severity === "high") {
     return (
-      <span className="rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-xs text-orange-700">
+      <span className="rounded-full border border-warning-line bg-warning-soft px-2 py-0.5 text-xs text-warning">
         High
       </span>
     );
   }
   if (severity === "medium") {
     return (
-      <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+      <span className="rounded-full border border-warning-line bg-warning-soft px-2 py-0.5 text-xs text-warning">
         Medium
       </span>
     );
   }
   return (
-    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+    <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-secondary">
       Low
     </span>
   );
@@ -633,3 +633,5 @@ function computeWafProgress(items: readonly WafChecklist["items"][number][]) {
     percentComplete,
   };
 }
+
+

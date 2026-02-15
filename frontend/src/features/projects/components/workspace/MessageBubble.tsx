@@ -23,9 +23,9 @@ function MessageBubbleInner({ message }: MessageBubbleProps) {
   return (
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+        <div className="w-8 h-8 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
           <svg
-            className="h-5 w-5 text-blue-600"
+            className="h-5 w-5 text-brand"
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -38,14 +38,14 @@ function MessageBubbleInner({ message }: MessageBubbleProps) {
       <div className={`flex-1 max-w-3xl ${isUser ? "flex justify-end" : ""}`}>
         <div
           className={`rounded-lg px-4 py-3 ${
-            isUser ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-900"
+            isUser ? "bg-brand text-inverse" : "bg-surface text-foreground"
           }`}
         >
           <MessageContentComp content={message.content} isUser={isUser} />
 
           {!isUser && kbSources.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-gray-200 space-y-1">
-              <p className="text-xs font-medium text-gray-600 mb-2">Sources:</p>
+            <div className="mt-3 pt-3 border-t border-border space-y-1">
+              <p className="text-xs font-medium text-secondary mb-2">Sources:</p>
               <div className="flex flex-wrap gap-1">
                 {kbSources.map((source) => (
                   <a
@@ -65,15 +65,15 @@ function MessageBubbleInner({ message }: MessageBubbleProps) {
           )}
         </div>
 
-        <p className="text-xs text-gray-500 mt-1 px-1">
+        <p className="text-xs text-dim mt-1 px-1">
           {timeFormatter.format(timestamp)}
         </p>
       </div>
 
       {isUser && (
-        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center shrink-0">
+        <div className="w-8 h-8 rounded-full bg-border-stronger flex items-center justify-center shrink-0">
           <svg
-            className="h-5 w-5 text-gray-600"
+            className="h-5 w-5 text-secondary"
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -90,3 +90,6 @@ function MessageBubbleInner({ message }: MessageBubbleProps) {
 }
 
 export const messageBubbleComp = memo(MessageBubbleInner);
+
+
+

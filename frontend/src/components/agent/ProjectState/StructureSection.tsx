@@ -12,7 +12,7 @@ export function StructureSection({ structure }: StructureSectionProps) {
         <StateField label="Components">
           <ul className="space-y-1 mt-1">
             {structure.components.map((comp) => (
-              <li key={comp.name} className="text-gray-600">
+              <li key={comp.name} className="text-secondary">
                 <span className="font-medium">{comp.name}:</span> {comp.description}
               </li>
             ))}
@@ -22,7 +22,7 @@ export function StructureSection({ structure }: StructureSectionProps) {
       
       {structure.integrations !== undefined && structure.integrations.length > 0 && (
         <StateField label="Integrations">
-          <p className="text-gray-600 mt-1">
+          <p className="text-secondary mt-1">
             {structure.integrations.join(", ")}
           </p>
         </StateField>
@@ -30,3 +30,4 @@ export function StructureSection({ structure }: StructureSectionProps) {
     </StateSection>
   );
 }
+

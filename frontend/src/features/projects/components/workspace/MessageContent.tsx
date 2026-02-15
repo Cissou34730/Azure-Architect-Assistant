@@ -50,10 +50,11 @@ function MessageContentInner({ content, isUser }: MessageContentProps) {
   }
 
   return (
-    <div className="prose prose-sm max-w-none prose-pre:bg-gray-900 prose-pre:text-gray-100">
+    <div className="prose prose-sm max-w-none prose-pre:bg-code-bg prose-pre:text-code-fg">
       <ReactMarkdown components={markdownComponents}>{content}</ReactMarkdown>
     </div>
   );
 }
 
 export const messageContentComp = memo(MessageContentInner);
+

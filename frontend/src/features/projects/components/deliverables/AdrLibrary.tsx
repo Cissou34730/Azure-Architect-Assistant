@@ -54,7 +54,7 @@ export function AdrLibrary({ adrs }: AdrLibraryProps) {
         action={
           <button
             type="button"
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            className="bg-brand text-inverse px-4 py-2 rounded-lg hover:bg-brand-strong transition-colors text-sm"
           >
             Go to Workspace
           </button>
@@ -74,13 +74,13 @@ export function AdrLibrary({ adrs }: AdrLibraryProps) {
         onViewModeChange={setViewMode}
       />
 
-      <p className="text-sm text-gray-600 flex items-center gap-2">
+      <p className="text-sm text-secondary flex items-center gap-2">
         {filteredAdrs.length} of {adrs.length} ADRs
         {isSearching && <LoadingSpinner size="sm" />}
       </p>
 
       {filteredAdrs.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-dim">
           No ADRs match your filters
         </div>
       ) : viewMode === "grid" ? (
@@ -100,4 +100,6 @@ export function AdrLibrary({ adrs }: AdrLibraryProps) {
     </div>
   );
 }
+
+
 

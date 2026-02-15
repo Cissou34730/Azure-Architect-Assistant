@@ -31,9 +31,9 @@ export function IngestionListView({
 
   if (error !== null) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-card p-4">
-        <div className="text-red-800 font-medium">Error loading KBs</div>
-        <div className="text-red-600 text-sm mt-1">{error.message}</div>
+      <div className="bg-danger-soft border border-danger-line rounded-card p-4">
+        <div className="text-danger-strong font-medium">Error loading KBs</div>
+        <div className="text-danger text-sm mt-1">{error.message}</div>
         <Button
           variant="danger"
           size="sm"
@@ -59,3 +59,4 @@ export function IngestionListView({
     />
   );
 }
+

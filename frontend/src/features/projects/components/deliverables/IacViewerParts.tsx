@@ -45,8 +45,8 @@ export function ArtifactSelector({
           }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             selectedId === artifact.id
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              ? "bg-brand text-inverse"
+              : "bg-muted text-secondary hover:bg-border"
           }`}
         >
           {artifact.createdAt !== undefined
@@ -71,19 +71,19 @@ function ValidationResults({ results }: ValidationResultsProps) {
 
   return (
     <div className="mt-4 space-y-2">
-      <h4 className="text-sm font-medium text-gray-700">Validation Results</h4>
+      <h4 className="text-sm font-medium text-secondary">Validation Results</h4>
       <div className="flex flex-wrap gap-2">
         {results.map((result, idx) => (
           <div
             key={result.tool ?? idx}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg"
+            className="flex items-center gap-2 px-3 py-2 bg-surface rounded-lg"
           >
             {result.status?.toLowerCase() === "passed" ? (
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CheckCircle className="h-4 w-4 text-success" />
             ) : (
-              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertCircle className="h-4 w-4 text-warning" />
             )}
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-sm font-medium text-foreground">
               {result.tool}
             </span>
             <Badge
@@ -113,7 +113,7 @@ function FileTabs({ files, selectedIndex, onSelect }: FileTabsProps) {
   if (files.length === 0) return null;
 
   return (
-    <div className="border-b border-gray-200 flex overflow-x-auto">
+    <div className="border-b border-border flex overflow-x-auto">
       {files.map((file, idx) => (
         <button
           key={file.path}
@@ -123,8 +123,8 @@ function FileTabs({ files, selectedIndex, onSelect }: FileTabsProps) {
           }}
           className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
             selectedIndex === idx
-              ? "border-blue-600 text-blue-600 bg-blue-50"
-              : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              ? "border-brand text-brand bg-brand-soft"
+              : "border-transparent text-secondary hover:text-foreground hover:bg-surface"
           }`}
         >
           {file.path}
@@ -171,7 +171,7 @@ function CodeViewer({ file }: CodeViewerProps) {
 
   if (file.content === "") {
     return (
-      <div className="p-12 text-center text-gray-500">
+      <div className="p-12 text-center text-dim">
         No file content available
       </div>
     );
@@ -183,7 +183,7 @@ function CodeViewer({ file }: CodeViewerProps) {
         <button
           type="button"
           onClick={handleCopy}
-          className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+          className="flex items-center gap-2 px-3 py-2 bg-code-bg hover:bg-code-bg-hover text-inverse rounded-lg transition-colors text-sm"
         >
           {copied ? (
             <>
@@ -200,7 +200,7 @@ function CodeViewer({ file }: CodeViewerProps) {
         <button
           type="button"
           onClick={handleDownload}
-          className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors text-sm"
+          className="flex items-center gap-2 px-3 py-2 bg-code-bg hover:bg-code-bg-hover text-inverse rounded-lg transition-colors text-sm"
         >
           <Download className="h-4 w-4" />
           Download
@@ -208,10 +208,10 @@ function CodeViewer({ file }: CodeViewerProps) {
       </div>
 
       {shouldDeferHighlight && !showHighlighted ? (
-        <div className="bg-gray-900 rounded-lg p-6 text-center">
-          <Code className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-          <h4 className="text-white font-medium mb-2">Large file detected</h4>
-          <p className="text-gray-400 text-sm mb-6">
+        <div className="bg-code-bg rounded-lg p-6 text-center">
+          <Code className="h-12 w-12 text-dim mx-auto mb-4" />
+          <h4 className="text-inverse font-medium mb-2">Large file detected</h4>
+          <p className="text-dim text-sm mb-6">
             This file has {lineCount} lines. Syntax highlighting may impact performance.
           </p>
           <div className="flex justify-center gap-3">
@@ -220,19 +220,19 @@ function CodeViewer({ file }: CodeViewerProps) {
               onClick={() => {
                 setShowHighlighted(true);
               }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              className="px-4 py-2 bg-brand text-inverse rounded-lg hover:bg-brand-strong transition-colors text-sm"
             >
               Enable Highlighting
             </button>
             <button
               type="button"
               onClick={handleDownload}
-              className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+              className="px-4 py-2 bg-code-bg-hover text-inverse rounded-lg hover:bg-code-bg transition-colors text-sm"
             >
               Download File
             </button>
           </div>
-          <pre className="mt-8 text-left text-xs text-gray-500 max-h-40 overflow-hidden opacity-50 select-none">
+          <pre className="mt-8 text-left text-xs text-dim max-h-40 overflow-hidden opacity-50 select-none">
             {file.content.slice(0, 500)}...
           </pre>
         </div>
@@ -271,7 +271,7 @@ export function ArtifactBoard({
           <div>
             <CardTitle>Infrastructure as Code</CardTitle>
             {selectedArtifact.createdAt !== undefined && (
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-secondary mt-1">
                 Generated: {new Date(selectedArtifact.createdAt).toLocaleString()}
               </p>
             )}
@@ -282,7 +282,7 @@ export function ArtifactBoard({
               alert("Download all as ZIP - Coming soon");
             }}
             data-download-all-iac
-            className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-border rounded-lg transition-colors text-sm"
           >
             <Download className="h-4 w-4" />
             Download All
@@ -304,9 +304,13 @@ export function ArtifactBoard({
         {selectedArtifact.files.length > 0 ? (
           <CodeViewer file={selectedArtifact.files[selectedFileIndex]} />
         ) : (
-          <div className="p-12 text-center text-gray-500">No file selected</div>
+          <div className="p-12 text-center text-dim">No file selected</div>
         )}
       </CardContent>
     </Card>
   );
 }
+
+
+
+

@@ -24,7 +24,7 @@ export function IngestionMetricsSection({
 
   return (
     <div className="space-y-3 pt-4 border-t">
-      <h4 className="text-sm font-semibold text-gray-700">Pipeline Metrics</h4>
+      <h4 className="text-sm font-semibold text-secondary">Pipeline Metrics</h4>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {renderCrawledMetrics(metrics)}
         {renderProcessingMetrics(metrics)}
@@ -100,3 +100,4 @@ function renderSuccessMetrics(metrics: JobMetrics) {
     />
   );
 }
+

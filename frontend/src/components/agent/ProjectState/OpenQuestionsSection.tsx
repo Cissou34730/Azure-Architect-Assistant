@@ -11,8 +11,8 @@ export function OpenQuestionsSection({ questions }: OpenQuestionsSectionProps) {
 
   return (
     <StateSection icon="❓" title="Open Questions">
-      <div className="bg-yellow-50 rounded-lg p-3">
-        <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+      <div className="bg-warning-soft rounded-lg p-3">
+        <ul className="list-disc list-inside text-sm text-secondary space-y-1">
           {questions.map((q) => (
             <li key={q.substring(0, 30)}>{q}</li>
           ))}
@@ -21,3 +21,5 @@ export function OpenQuestionsSection({ questions }: OpenQuestionsSectionProps) {
     </StateSection>
   );
 }
+
+

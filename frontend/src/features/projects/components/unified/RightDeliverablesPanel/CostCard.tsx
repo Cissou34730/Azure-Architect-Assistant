@@ -19,7 +19,7 @@ export function CostCard({ estimate, onClick }: CostCardProps) {
       onClick={onClick}
     >
       <div className="flex items-center justify-between mt-1">
-        <div className="flex items-center text-blue-600">
+        <div className="flex items-center text-brand">
           <Calculator className="h-3 w-3 mr-1" />
           <span className="text-xs font-semibold">
             {new Intl.NumberFormat("en-US", {
@@ -29,9 +29,10 @@ export function CostCard({ estimate, onClick }: CostCardProps) {
                 : "USD",
             }).format(estimate.totalMonthlyCost)}
           </span>
-          <span className="text-[10px] text-gray-400 ml-1">/mo</span>
+          <span className="text-[10px] text-dim ml-1">/mo</span>
         </div>
       </div>
     </BaseCard>
   );
 }
+

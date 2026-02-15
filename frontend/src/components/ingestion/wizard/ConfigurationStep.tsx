@@ -84,7 +84,7 @@ export function ConfigurationStep({
         );
       default:
         return (
-          <p className="text-gray-500 italic">
+          <p className="text-dim italic">
             No configuration needed for this source type.
           </p>
         );
@@ -93,10 +93,11 @@ export function ConfigurationStep({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900">
+      <h3 className="text-lg font-semibold text-foreground">
         Source Configuration
       </h3>
       {renderConfig()}
     </div>
   );
 }
+

@@ -55,8 +55,8 @@ export function CommandPaletteContent({
   }, [selectedIndex, filteredCommands, onClose]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center pt-[20vh]">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden">
+    <div className="fixed inset-0 bg-overlay/50 z-50 flex items-start justify-center pt-[20vh]">
+      <div className="bg-card rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden">
         <PaletteInput
           value={search}
           onChange={(val) => {
@@ -82,3 +82,5 @@ export function CommandPaletteContent({
     </div>
   );
 }
+
+

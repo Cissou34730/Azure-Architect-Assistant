@@ -25,32 +25,32 @@ interface MetricCardProps {
 // Fixed color mapping to avoid dynamic class generation issues with Tailwind
 const COLOR_CLASSES: Record<MetricColor, { card: string; progress: string }> = {
   blue: {
-    card: "text-blue-600 bg-blue-50 border-blue-200",
-    progress: "bg-blue-500",
+    card: "text-brand bg-brand-soft border-brand-line",
+    progress: "bg-brand",
   },
   indigo: {
-    card: "text-indigo-600 bg-indigo-50 border-indigo-200",
-    progress: "bg-indigo-500",
+    card: "text-accent bg-accent-soft border-accent-line",
+    progress: "bg-accent-soft0",
   },
   purple: {
-    card: "text-purple-600 bg-purple-50 border-purple-200",
-    progress: "bg-purple-500",
+    card: "text-accent bg-accent-soft border-accent-line",
+    progress: "bg-accent-soft0",
   },
   pink: {
-    card: "text-pink-600 bg-pink-50 border-pink-200",
-    progress: "bg-pink-500",
+    card: "text-accent bg-accent-soft border-accent-line",
+    progress: "bg-accent-soft0",
   },
   green: {
-    card: "text-green-600 bg-green-50 border-green-200",
-    progress: "bg-green-500",
+    card: "text-success bg-success-soft border-success-line",
+    progress: "bg-success",
   },
   red: {
-    card: "text-red-600 bg-red-50 border-red-200",
-    progress: "bg-red-500",
+    card: "text-danger bg-danger-soft border-danger-line",
+    progress: "bg-danger-soft0",
   },
   yellow: {
-    card: "text-yellow-600 bg-yellow-50 border-yellow-200",
-    progress: "bg-yellow-500",
+    card: "text-warning bg-warning-soft border-warning-line",
+    progress: "bg-warning-soft0",
   },
 };
 
@@ -88,7 +88,7 @@ export function MetricCard({
         <div className="text-xs mt-1 opacity-75">{subtext}</div>
       )}
       {progress !== undefined && (
-        <div className="mt-2 h-1.5 bg-white/50 rounded-pill overflow-hidden">
+        <div className="mt-2 h-1.5 bg-card/50 rounded-pill overflow-hidden">
           <div
             className={`h-full transition-all duration-300 ${colors.progress}`}
             style={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }}
@@ -98,3 +98,7 @@ export function MetricCard({
     </div>
   );
 }
+
+
+
+

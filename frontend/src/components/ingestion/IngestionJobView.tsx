@@ -42,8 +42,8 @@ export function IngestionJobView({
   }
 
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-card p-4">
-      <div className="text-blue-800 font-medium font-bold">
+    <div className="bg-brand-soft border border-brand-line rounded-card p-4">
+      <div className="text-brand-strong font-medium font-bold">
         Ingestion not started yet.
       </div>
       <div className="mt-3 flex gap-3">
@@ -65,3 +65,4 @@ export function IngestionJobView({
     </div>
   );
 }
+

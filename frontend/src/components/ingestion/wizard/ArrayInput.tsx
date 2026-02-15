@@ -33,7 +33,7 @@ export function ArrayInput({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-secondary mb-2">
         {label}
       </label>
       <div className="space-y-2">
@@ -47,7 +47,7 @@ export function ArrayInput({
                 onChange={(e) => {
                   updateField(index, e.target.value);
                 }}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 border border-border-stronger rounded-md focus:outline-none focus:ring-2 focus:ring-brand"
                 placeholder={placeholder}
               />
               {values.length > 1 && (
@@ -56,7 +56,7 @@ export function ArrayInput({
                   onClick={() => {
                     removeField(index);
                   }}
-                  className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-md"
+                  className="px-3 py-2 text-danger hover:bg-danger-soft rounded-md"
                   aria-label={`Remove ${label} ${index + 1}`}
                 >
                   ×
@@ -69,13 +69,15 @@ export function ArrayInput({
       <button
         type="button"
         onClick={addField}
-        className="mt-2 text-sm text-blue-600 hover:text-blue-700"
+        className="mt-2 text-sm text-brand hover:text-brand-strong"
       >
         + Add another
       </button>
       {helpText !== undefined && helpText !== "" && (
-        <p className="mt-1 text-xs text-gray-500">{helpText}</p>
+        <p className="mt-1 text-xs text-dim">{helpText}</p>
       )}
     </div>
   );
 }
+
+

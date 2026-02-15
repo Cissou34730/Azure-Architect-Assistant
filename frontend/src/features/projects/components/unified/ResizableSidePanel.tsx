@@ -69,14 +69,14 @@ export function ResizableSidePanel({
     return (
       <button
         onClick={onToggle}
-        className={`fixed ${collapsedClasses} top-1/2 -translate-y-1/2 bg-white border border-gray-200 p-2 shadow-lg hover:bg-gray-50 transition-colors z-20`}
+        className={`fixed ${collapsedClasses} top-1/2 -translate-y-1/2 bg-card border border-border p-2 shadow-lg hover:bg-surface transition-colors z-20`}
         title={collapsedTitle}
         type="button"
       >
         {side === "left" ? (
-          <ChevronRight className="h-5 w-5 text-gray-600" />
+          <ChevronRight className="h-5 w-5 text-secondary" />
         ) : (
-          <ChevronLeft className="h-5 w-5 text-gray-600" />
+          <ChevronLeft className="h-5 w-5 text-secondary" />
         )}
       </button>
     );
@@ -89,7 +89,7 @@ export function ResizableSidePanel({
 
   return (
     <div
-      className={`group panel-scroll-scope relative h-full bg-white ${side === "left" ? "border-r" : "border-l"} border-gray-200 ${className}`}
+      className={`group panel-scroll-scope relative h-full bg-card ${side === "left" ? "border-r" : "border-l"} border-border ${className}`}
       style={{ width }}
     >
       <div
@@ -98,9 +98,11 @@ export function ResizableSidePanel({
         onPointerDown={handlePointerDown}
         className={`${handleClasses} opacity-0 group-hover:opacity-100 group/handle`}
       >
-        <div className="absolute inset-y-0 left-0 right-0 mx-auto w-0.5 bg-transparent transition-colors opacity-0 group-hover/handle:opacity-100 group-hover/handle:bg-blue-400" />
+        <div className="absolute inset-y-0 left-0 right-0 mx-auto w-0.5 bg-transparent transition-colors opacity-0 group-hover/handle:opacity-100 group-hover/handle:bg-brand" />
       </div>
       {children}
     </div>
   );
 }
+
+

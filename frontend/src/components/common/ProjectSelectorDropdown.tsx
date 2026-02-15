@@ -91,17 +91,17 @@ const ProjectSelectorDropdownInternal = forwardRef<
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={toggleDropdown}
-        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-60"
+        className="flex items-center gap-2 px-4 py-2 bg-card border border-border-stronger rounded-lg hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-brand min-w-60"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-label="Project selector"
       >
-        <Folder className="h-4 w-4 text-gray-600 shrink-0" />
-        <span className="flex-1 text-left text-sm font-medium text-gray-900 truncate">
+        <Folder className="h-4 w-4 text-secondary shrink-0" />
+        <span className="flex-1 text-left text-sm font-medium text-foreground truncate">
           {currentProject?.name ?? "Select a project"}
         </span>
         <ChevronDown
-          className={`h-4 w-4 text-gray-600 shrink-0 transition-transform ${
+          className={`h-4 w-4 text-secondary shrink-0 transition-transform ${
             isOpen ? "rotate-180" : ""
           }`}
         />
@@ -134,7 +134,7 @@ interface ProjectSelectorMenuProps {
   readonly loading: boolean;
   readonly searchQuery: string;
   readonly setSearchQuery: (value: string) => void;
-  readonly searchInputRef: React.RefObject<HTMLInputElement>;
+  readonly searchInputRef: React.RefObject<HTMLInputElement | null>;
   readonly filteredProjects: readonly Project[];
   readonly currentProjectId?: string;
   readonly highlightedIndex: number;
@@ -160,7 +160,7 @@ function ProjectSelectorMenu({
   onCreateNew,
 }: ProjectSelectorMenuProps) {
   return (
-    <div className="absolute top-full left-0 mt-2 w-full sm:w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+    <div className="absolute top-full left-0 mt-2 w-full sm:w-96 bg-card rounded-lg shadow-lg border border-border z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
       <ProjectSelectorSearch
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -190,3 +190,4 @@ function ProjectSelectorMenu({
     </div>
   );
 }
+

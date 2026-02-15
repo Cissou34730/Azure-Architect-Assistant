@@ -19,7 +19,7 @@ function CenterChatArea() {
   }, [sendMessage]);
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-card">
       {/* Chat Panel - Takes remaining space */}
       <div className="flex-1 overflow-hidden">
         <ChatPanel
@@ -37,3 +37,4 @@ function CenterChatArea() {
 
 const centerChatArea = memo(CenterChatArea);
 export { centerChatArea as CenterChatArea };
+

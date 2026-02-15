@@ -14,8 +14,8 @@ interface CenterWorkspaceTabsProps {
 }
 
 const TAB_BADGE_CLASS: Record<"input" | "artifact", string> = {
-  input: "bg-emerald-600 text-white border-emerald-600",
-  artifact: "bg-blue-600 text-white border-blue-600",
+  input: "bg-info text-inverse border-info",
+  artifact: "bg-brand text-inverse border-brand",
 };
 
 function TabBadge({ group }: { readonly group: "input" | "artifact" }) {
@@ -70,10 +70,10 @@ export function CenterWorkspaceTabs({
   });
 
   return (
-    <div className="flex flex-col h-full bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-      <div className="flex items-center justify-between px-3 py-2 bg-slate-900 text-white text-xs font-semibold uppercase tracking-wide">
+    <div className="flex flex-col h-full bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+      <div className="flex items-center justify-between px-3 py-2 bg-foreground text-inverse text-xs font-semibold uppercase tracking-wide">
         <span>Workspace Tabs</span>
-        <span className="text-slate-200">{tabs.length} open</span>
+        <span className="text-dim">{tabs.length} open</span>
       </div>
       <TabStrip
         tabs={tabs}
@@ -86,11 +86,11 @@ export function CenterWorkspaceTabs({
         setDraggingId={setDraggingId}
       />
 
-      <div className="flex-1 overflow-hidden bg-white">
+      <div className="flex-1 overflow-hidden bg-card">
         {hasActiveTab ? (
           <WorkspaceTabContent tab={activeTab} documents={documents} hasArtifacts={hasArtifacts} />
         ) : (
-          <div className="h-full flex items-center justify-center text-sm text-gray-500">
+          <div className="h-full flex items-center justify-center text-sm text-dim">
             Select an input or artifact from the left panel.
           </div>
         )}
@@ -121,18 +121,18 @@ function TabStrip({
   setDraggingId,
 }: TabStripProps) {
   return (
-    <div className="border-b border-gray-200 bg-slate-200">
+    <div className="border-b border-border bg-muted">
       <div className="flex items-stretch overflow-x-auto" role="tablist" aria-label="Workspace tabs">
         {tabs.length === 0 ? (
-          <div className="px-3 py-2 text-xs text-slate-600">No tabs open</div>
+          <div className="px-3 py-2 text-xs text-secondary">No tabs open</div>
         ) : (
           tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           const isPinned = tab.pinned;
           const accentClass =
-            tab.group === "input" ? "border-emerald-500" : "border-blue-500";
+            tab.group === "input" ? "border-info" : "border-brand";
           const titleClass =
-            tab.group === "input" ? "text-emerald-700" : "text-blue-700";
+            tab.group === "input" ? "text-info-strong" : "text-brand-strong";
           return (
             <div
               key={tab.id}
@@ -151,8 +151,8 @@ function TabStrip({
               }}
               className={`group relative flex items-stretch border-r border-t-2 ${
                 isActive
-                  ? `bg-white ${accentClass} border-r-gray-200`
-                  : "bg-slate-200 border-transparent hover:bg-slate-100"
+                  ? `bg-card ${accentClass} border-r-gray-200`
+                  : "bg-muted border-transparent hover:bg-surface"
               }`}
             >
               <button
@@ -160,13 +160,13 @@ function TabStrip({
                 onClick={() => { onTabChange(tab.id); }}
                 className={`flex items-center gap-2 px-3 text-xs font-medium h-9 ${
                   isActive
-                    ? "text-gray-900 border-b-2 border-slate-900/10"
-                    : "text-gray-700"
+                    ? "text-foreground border-b-2 border-border/30"
+                    : "text-secondary"
                 }`}
                 role="tab"
                 aria-selected={isActive}
               >
-                <span className={`h-2 w-2 rounded-full ${tab.group === "input" ? "bg-emerald-500" : "bg-blue-500"}`} />
+                <span className={`h-2 w-2 rounded-full ${tab.group === "input" ? "bg-info-soft0" : "bg-brand"}`} />
                 <TabBadge group={tab.group} />
                 <span className={`truncate max-w-[14rem] ${titleClass}`}>{tab.title}</span>
               </button>
@@ -177,11 +177,11 @@ function TabStrip({
                   onTogglePin(tab.id);
                 }}
                 aria-label={isPinned ? `Unpin ${tab.title}` : `Pin ${tab.title}`}
-                className={`h-9 px-2 text-gray-400 hover:text-gray-700 transition-opacity ${
+                className={`h-9 px-2 text-dim hover:text-secondary transition-opacity ${
                   isPinned ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                 }`}
               >
-                <Pin className={`h-3.5 w-3.5 ${isPinned ? "text-blue-600" : ""}`} />
+                <Pin className={`h-3.5 w-3.5 ${isPinned ? "text-brand" : ""}`} />
               </button>
               <button
                 type="button"
@@ -190,12 +190,12 @@ function TabStrip({
                   onCloseTab(tab.id);
                 }}
                 aria-label={`Close ${tab.title}`}
-                className="h-9 px-2 text-gray-400 hover:text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-9 px-2 text-dim hover:text-secondary opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 ×
               </button>
               {tab.dirty && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-blue-600 group-hover:opacity-0 transition-opacity">
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-brand group-hover:opacity-0 transition-opacity">
                   ●
                 </span>
               )}
@@ -318,3 +318,8 @@ function getNextTabIndex(currentIndex: number, total: number, reverse: boolean):
   const direction = reverse ? -1 : 1;
   return (currentIndex + direction + total) % total;
 }
+
+
+
+
+

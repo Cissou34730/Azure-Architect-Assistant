@@ -43,7 +43,7 @@ function ChatListHeader({ canLoadOlder, loadingOlder, onLoadOlder }: ChatHeaderP
         type="button"
         onClick={onLoadOlder}
         disabled={loadingOlder}
-        className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2 mx-auto"
+        className="text-sm font-medium text-brand hover:text-brand-strong disabled:text-dim disabled:cursor-not-allowed flex items-center justify-center gap-2 mx-auto"
       >
         {loadingOlder ? (
           <>
@@ -77,10 +77,10 @@ function ChatListFooter({
     <div className="px-6 py-4 space-y-4">
       {(loading || sending) && (
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-            <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+          <div className="w-8 h-8 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
+            <Loader2 className="h-5 w-5 text-brand animate-spin" />
           </div>
-          <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600">
+          <div className="bg-surface rounded-lg px-4 py-3 text-sm text-secondary">
             Thinking...
           </div>
         </div>
@@ -89,19 +89,19 @@ function ChatListFooter({
       {failedMessages.map((failed) => (
         <div
           key={failed.id}
-          className="flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-lg text-red-800"
+          className="flex items-start gap-3 p-4 bg-danger-soft border border-danger-line rounded-lg text-danger-strong"
         >
           <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-sm font-medium">Message failed to send</p>
             <p className="text-sm opacity-90 line-clamp-1">{failed.content}</p>
-            <p className="text-xs mt-1 text-red-600">{failed.error}</p>
+            <p className="text-xs mt-1 text-danger">{failed.error}</p>
             <button
               type="button"
               onClick={() => {
                 void onRetryMessage?.(failed.id);
               }}
-              className="mt-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-red-700 hover:text-red-900 transition-colors"
+              className="mt-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-danger-strong hover:text-danger-strong transition-colors"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Retry Send
@@ -131,7 +131,7 @@ function ChatInputForm({
   onKeyDown,
 }: ChatInputProps) {
   return (
-    <div className="border-t border-gray-200 p-4 bg-white">
+    <div className="border-t border-border p-4 bg-card">
       <form onSubmit={onSubmit} className="flex gap-2">
         <input
           type="text"
@@ -140,24 +140,24 @@ function ChatInputForm({
           onKeyDown={onKeyDown}
           placeholder="Type your message... (Cmd+Enter to send)"
           disabled={sending}
-          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+          className="flex-1 px-4 py-3 border border-border-stronger rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent disabled:bg-surface disabled:text-dim"
         />
         <button
           type="submit"
           disabled={isInputDisabled}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          className="px-6 py-3 bg-brand text-inverse rounded-lg hover:bg-brand-strong disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
         >
           <Send className="h-4 w-4" />
           <span className="hidden sm:inline">Send</span>
         </button>
       </form>
-      <p className="text-xs text-gray-500 mt-2">
+      <p className="text-xs text-dim mt-2">
         Use{" "}
-        <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
+        <kbd className="px-1 py-0.5 bg-muted border border-border-stronger rounded text-xs">
           Cmd
         </kbd>{" "}
         +{" "}
-        <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
+        <kbd className="px-1 py-0.5 bg-muted border border-border-stronger rounded text-xs">
           Enter
         </kbd>{" "}
         to send
@@ -168,7 +168,7 @@ function ChatInputForm({
 
 interface ChatMessagesListProps {
   readonly messages: readonly Message[];
-  readonly virtuosoRef: RefObject<VirtuosoHandle>;
+  readonly virtuosoRef: RefObject<VirtuosoHandle | null>;
   readonly headerContent: ReactNode;
   readonly footerContent: ReactNode;
 }
@@ -294,7 +294,7 @@ export function ChatPanel({
   );
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-card">
       <div className="flex-1 min-h-0">
         <ChatMessagesList
           messages={messages}
@@ -315,3 +315,6 @@ export function ChatPanel({
     </div>
   );
 }
+
+
+

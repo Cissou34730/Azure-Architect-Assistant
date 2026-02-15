@@ -28,7 +28,7 @@ export function ProjectSelectorList({
         {Array.from({ length: 3 }).map((_, i) => (
           // eslint-disable-next-line react/no-array-index-key -- Static loading skeleton
           <div key={i} className="animate-pulse">
-            <div className="h-14 bg-gray-100 rounded-lg" />
+            <div className="h-14 bg-muted rounded-lg" />
           </div>
         ))}
       </div>
@@ -54,3 +54,4 @@ export function ProjectSelectorList({
     </div>
   );
 }
+

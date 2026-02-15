@@ -66,7 +66,7 @@ export function IngestionWorkspace() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-gray-50">
+    <div className="flex-1 flex flex-col h-full bg-surface">
       <IngestionWorkspaceHeader
         view={view}
         onCreateClick={() => {
@@ -120,3 +120,4 @@ export function IngestionWorkspace() {
     </div>
   );
 }
+

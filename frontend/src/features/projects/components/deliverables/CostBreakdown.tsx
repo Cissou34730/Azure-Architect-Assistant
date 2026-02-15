@@ -73,7 +73,7 @@ export function CostBreakdown({ costEstimates }: CostBreakdownProps) {
         action={
           <button
             type="button"
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            className="bg-brand text-inverse px-4 py-2 rounded-lg hover:bg-brand-strong transition-colors text-sm"
           >
             Go to Workspace
           </button>
@@ -97,7 +97,7 @@ export function CostBreakdown({ costEstimates }: CostBreakdownProps) {
               <div>
                 <CardTitle>Cost Estimate</CardTitle>
                 {selectedEstimate.createdAt !== undefined && (
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-secondary mt-1">
                     Generated:{" "}
                     {new Date(selectedEstimate.createdAt).toLocaleString()}
                   </p>
@@ -108,7 +108,7 @@ export function CostBreakdown({ costEstimates }: CostBreakdownProps) {
                 onClick={() => {
                   handleExportCSV(selectedEstimate);
                 }}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-sm"
+                className="flex items-center gap-2 px-3 py-2 bg-muted hover:bg-border rounded-lg transition-colors text-sm"
               >
                 <Download className="h-4 w-4" />
                 Export CSV
@@ -122,7 +122,7 @@ export function CostBreakdown({ costEstimates }: CostBreakdownProps) {
 
               {selectedEstimate.lineItems.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">
                     Cost by Service
                   </h3>
                   <Suspense fallback={<ChartSkeleton />}>
@@ -149,3 +149,5 @@ export function CostBreakdown({ costEstimates }: CostBreakdownProps) {
     </div>
   );
 }
+
+

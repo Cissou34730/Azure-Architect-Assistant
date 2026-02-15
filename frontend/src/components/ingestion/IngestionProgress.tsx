@@ -29,13 +29,13 @@ export function IngestionProgress({
     return (
       <div className="card space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-foreground">
             Ingestion Progress
           </h3>
           <StatusBadge variant="inactive">NOT STARTED</StatusBadge>
         </div>
 
-        <div className="p-3 bg-gray-50 border rounded-md text-sm text-gray-700">
+        <div className="p-3 bg-surface border rounded-md text-sm text-secondary">
           Ingestion has not started yet.
         </div>
 
@@ -62,7 +62,7 @@ export function IngestionProgress({
     <div className="card space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-foreground">
             Ingestion Progress
           </h3>
           <StatusBadge variant={getStatusVariant()}>
@@ -80,7 +80,7 @@ export function IngestionProgress({
 
       {job.phaseDetails !== undefined && job.phaseDetails.length > 0 && (
         <div className="pt-4 border-t">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">Phases</h4>
+          <h4 className="text-sm font-semibold text-secondary mb-2">Phases</h4>
           <PhaseStatus phases={job.phaseDetails} />
         </div>
       )}
@@ -89,16 +89,16 @@ export function IngestionProgress({
 
       {/* Error Display */}
       {job.error !== null && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-          <div className="text-sm font-medium text-red-800">Error</div>
-          <div className="text-sm text-red-600 mt-1">{job.error}</div>
+        <div className="p-3 bg-danger-soft border border-danger-line rounded-md">
+          <div className="text-sm font-medium text-danger-strong">Error</div>
+          <div className="text-sm text-danger mt-1">{job.error}</div>
         </div>
       )}
 
       <IngestionActions job={job} onRefresh={onRefresh} />
 
       {/* Timestamps */}
-      <div className="flex justify-between text-xs text-gray-500 pt-2 border-t">
+      <div className="flex justify-between text-xs text-dim pt-2 border-t">
         <div>Started: {new Date(job.startedAt).toLocaleString()}</div>
         {job.completedAt !== null && (
           <div>Completed: {new Date(job.completedAt).toLocaleString()}</div>
@@ -107,3 +107,5 @@ export function IngestionProgress({
     </div>
   );
 }
+
+

@@ -16,20 +16,20 @@ function AdrTableItem({ adr, onSelect }: AdrTableItemProps) {
       onClick={() => {
         onSelect(adr);
       }}
-      className="hover:bg-gray-50 cursor-pointer"
+      className="hover:bg-surface cursor-pointer"
     >
-      <td className="px-4 py-3 text-sm text-gray-900">{adr.title}</td>
+      <td className="px-4 py-3 text-sm text-foreground">{adr.title}</td>
       <td className="px-4 py-3">
         <Badge variant={getStatusVariant(adr.status)} size="sm">
           {adr.status}
         </Badge>
       </td>
-      <td className="px-4 py-3 text-sm text-gray-600">
+      <td className="px-4 py-3 text-sm text-secondary">
         {adr.createdAt !== undefined
           ? new Date(adr.createdAt).toLocaleDateString()
           : "—"}
       </td>
-      <td className="px-4 py-3 text-sm text-gray-600">
+      <td className="px-4 py-3 text-sm text-secondary">
         {adr.relatedRequirementIds.length + adr.relatedDiagramIds.length}
       </td>
     </tr>
@@ -42,17 +42,17 @@ interface AdrTableProps {
 }
 
 function AdrTableHeader() {
-  return <tr className="bg-gray-50 border-b border-gray-200">
-    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase w-1/2">
+  return <tr className="bg-surface border-b border-border">
+    <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase w-1/2">
       Title
     </th>
-    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
+    <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase">
       Status
     </th>
-    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
+    <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase">
       Created
     </th>
-    <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">
+    <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase">
       Related
     </th>
   </tr>
@@ -61,25 +61,25 @@ function AdrTableHeader() {
 export function AdrTable({ adrs, onSelect }: AdrTableProps) {
   if (adrs.length > VIRTUALIZE_THRESHOLD) {
     return (
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+      <div className="overflow-x-auto border border-border rounded-lg">
         <TableVirtuoso
           useWindowScroll
           data={adrs}
           fixedHeaderContent={AdrTableHeader}
           itemContent={(_index, adr) => (
             <>
-              <td className="px-4 py-3 text-sm text-gray-900">{adr.title}</td>
+              <td className="px-4 py-3 text-sm text-foreground">{adr.title}</td>
               <td className="px-4 py-3">
                 <Badge variant={getStatusVariant(adr.status)} size="sm">
                   {adr.status}
                 </Badge>
               </td>
-              <td className="px-4 py-3 text-sm text-gray-600">
+              <td className="px-4 py-3 text-sm text-secondary">
                 {adr.createdAt !== undefined
                   ? new Date(adr.createdAt).toLocaleDateString()
                   : "—"}
               </td>
-              <td className="px-4 py-3 text-sm text-gray-600">
+              <td className="px-4 py-3 text-sm text-secondary">
                 {adr.relatedRequirementIds.length + adr.relatedDiagramIds.length}
               </td>
             </>
@@ -98,7 +98,7 @@ export function AdrTable({ adrs, onSelect }: AdrTableProps) {
                       onSelect(item);
                     }
                   }}
-                  className="hover:bg-gray-50 cursor-pointer divide-y divide-gray-200"
+                  className="hover:bg-surface cursor-pointer divide-y divide-gray-200"
                 />
               );
             },
@@ -109,7 +109,7 @@ export function AdrTable({ adrs, onSelect }: AdrTableProps) {
   }
 
   return (
-    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+    <div className="overflow-x-auto border border-border rounded-lg">
       <table className="w-full border-collapse">
         <thead>
           <AdrTableHeader />
@@ -127,3 +127,4 @@ export function AdrTable({ adrs, onSelect }: AdrTableProps) {
     </div>
   );
 }
+

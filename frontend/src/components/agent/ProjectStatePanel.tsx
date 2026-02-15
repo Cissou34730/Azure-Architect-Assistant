@@ -16,9 +16,9 @@ export function ProjectStatePanel({
   isLoading,
 }: ProjectStatePanelProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[calc(100vh-260px)]">
-      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-        <h2 className="text-lg font-semibold text-gray-900">Project State</h2>
+    <div className="bg-card rounded-lg shadow-sm border border-border flex flex-col h-[calc(100vh-260px)]">
+      <div className="px-4 py-3 border-b border-border bg-surface">
+        <h2 className="text-lg font-semibold text-foreground">Project State</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
@@ -36,7 +36,7 @@ export function ProjectStatePanel({
 
 function EmptyState() {
   return (
-    <div className="text-center text-gray-500 mt-12">
+    <div className="text-center text-dim mt-12">
       <div className="text-6xl mb-4">📋</div>
       <h3 className="text-xl font-semibold mb-2">No Project Selected</h3>
       <p className="text-sm">
@@ -48,7 +48,7 @@ function EmptyState() {
 
 function LoadingState() {
   return (
-    <div className="text-center text-gray-500 mt-12">
+    <div className="text-center text-dim mt-12">
       <div className="text-6xl mb-4">⏳</div>
       <h3 className="text-xl font-semibold mb-2">Loading Project State...</h3>
       <p className="text-sm">
@@ -80,10 +80,11 @@ function ProjectStateContent({ projectState }: ProjectStateContentProps) {
       <OpenQuestionsSection questions={projectState.openQuestions ?? []} />
 
       {projectState.lastUpdated !== undefined && (
-        <div className="text-xs text-gray-500 text-right">
+        <div className="text-xs text-dim text-right">
           Last updated: {new Date(projectState.lastUpdated).toLocaleString()}
         </div>
       )}
     </div>
   );
 }
+

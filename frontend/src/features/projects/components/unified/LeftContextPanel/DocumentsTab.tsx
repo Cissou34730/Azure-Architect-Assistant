@@ -23,7 +23,7 @@ export function DocumentsTab({ documents }: DocumentsTabProps) {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="p-4 space-y-4 border-b border-gray-200 bg-white">
+      <div className="p-4 space-y-4 border-b border-border bg-card">
         <TextRequirementsSection
           textRequirements={textRequirements}
           onChange={setTextRequirements}
@@ -63,7 +63,7 @@ function TextRequirementsSection({
 }: TextRequirementsSectionProps) {
   return (
     <div>
-      <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+      <label className="text-xs font-semibold text-secondary uppercase tracking-wide">
         Text Requirements
       </label>
       <textarea
@@ -73,10 +73,10 @@ function TextRequirementsSection({
         }}
         rows={5}
         placeholder="Add business context, constraints, and requirements..."
-        className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="mt-2 w-full rounded-lg border border-border-stronger px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
       />
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-dim">
           Saved to the project before analysis.
         </span>
         <button
@@ -85,7 +85,7 @@ function TextRequirementsSection({
             void onSave();
           }}
           disabled={loading || !hasProject}
-          className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-md border border-border-stronger bg-card px-3 py-1.5 text-xs font-semibold text-secondary hover:bg-surface disabled:opacity-50"
         >
           <Save className="h-3.5 w-3.5" />
           Save
@@ -119,7 +119,7 @@ function UploadDocumentsSection({
       }}
       className="space-y-2"
     >
-      <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+      <label className="text-xs font-semibold text-secondary uppercase tracking-wide">
         Upload Documents
       </label>
       <input
@@ -129,10 +129,10 @@ function UploadDocumentsSection({
         onChange={(e) => {
           onFilesChange(e.target.files);
         }}
-        className="block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+        className="block w-full text-sm text-secondary file:mr-3 file:rounded-md file:border-0 file:bg-brand-soft file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand-strong hover:file:bg-brand-soft"
       />
       {files !== null && files.length > 0 && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-dim">
           {files.length} file{files.length === 1 ? "" : "s"} selected
         </p>
       )}
@@ -140,7 +140,7 @@ function UploadDocumentsSection({
         <button
           type="submit"
           disabled={loading || files === null || files.length === 0}
-          className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-inverse hover:bg-brand-strong disabled:opacity-50"
         >
           <UploadCloud className="h-3.5 w-3.5" />
           Upload
@@ -151,14 +151,14 @@ function UploadDocumentsSection({
             void onAnalyze();
           }}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-md border border-border-stronger bg-card px-3 py-1.5 text-xs font-semibold text-secondary hover:bg-surface disabled:opacity-50"
         >
           <Sparkles className="h-3.5 w-3.5" />
           Analyze
         </button>
       </div>
       {loadingMessage !== "" && (
-        <p className="text-xs text-gray-500">{loadingMessage}</p>
+        <p className="text-xs text-dim">{loadingMessage}</p>
       )}
     </form>
   );
@@ -167,7 +167,7 @@ function UploadDocumentsSection({
 function DocumentsList({ documents }: DocumentsTabProps) {
   if (documents.length === 0) {
     return (
-      <div className="p-4 text-center text-sm text-gray-500">
+      <div className="p-4 text-center text-sm text-dim">
         No reference documents found for this architecture.
       </div>
     );
@@ -182,19 +182,19 @@ function DocumentsList({ documents }: DocumentsTabProps) {
           <div className="px-4 py-1">
             <div
               key={doc.id}
-              className="flex items-start gap-2 p-3 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+              className="flex items-start gap-2 p-3 bg-card rounded-lg border border-border hover:bg-surface transition-colors cursor-pointer"
               onClick={() => {
                 if (doc.url !== undefined) {
                   window.open(doc.url, "_blank");
                 }
               }}
             >
-              <File className="h-4 w-4 text-gray-600 shrink-0 mt-0.5" />
+              <File className="h-4 w-4 text-secondary shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
+                <div className="text-sm font-medium text-foreground truncate">
                   {doc.title}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-dim mt-1">
                   <span className="capitalize">{doc.category}</span>
                   {doc.accessedAt !== undefined && (
                     <>
@@ -212,3 +212,6 @@ function DocumentsList({ documents }: DocumentsTabProps) {
     </div>
   );
 }
+
+
+

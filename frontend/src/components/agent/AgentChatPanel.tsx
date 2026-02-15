@@ -26,8 +26,8 @@ function MessageBubble({
       <div
         className={`max-w-[85%] rounded-lg px-4 py-3 ${
           message.role === "user"
-            ? "bg-accent-primary text-white"
-            : "bg-gray-100 text-gray-900"
+            ? "bg-accent-primary text-inverse"
+            : "bg-muted text-foreground"
         }`}
       >
         <div className="whitespace-pre-wrap text-sm">{message.content}</div>
@@ -36,23 +36,23 @@ function MessageBubble({
           showReasoning &&
           message.reasoningSteps !== undefined &&
           message.reasoningSteps.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-300">
-              <p className="text-xs font-semibold text-gray-700 mb-2">
+            <div className="mt-4 pt-4 border-t border-border-stronger">
+              <p className="text-xs font-semibold text-secondary mb-2">
                 Reasoning Steps:
               </p>
               <div className="space-y-2">
                 {message.reasoningSteps.map((step) => (
                   <div
                     key={`${step.action}-${step.actionInput.substring(0, 20)}`}
-                    className="text-xs bg-white rounded p-2 border border-gray-200"
+                    className="text-xs bg-card rounded p-2 border border-border"
                   >
-                    <p className="font-semibold text-gray-800">
+                    <p className="font-semibold text-foreground">
                       Action: {step.action}
                     </p>
-                    <p className="text-gray-600 mt-1">
+                    <p className="text-secondary mt-1">
                       Input: {step.actionInput}
                     </p>
-                    <p className="text-gray-600 mt-1">
+                    <p className="text-secondary mt-1">
                       Result: {step.observation.substring(0, 100)}...
                     </p>
                   </div>
@@ -67,7 +67,7 @@ function MessageBubble({
 
 function EmptyChat({ selectedProjectId }: { readonly selectedProjectId: string }) {
   return (
-    <div className="text-center text-gray-500 mt-12">
+    <div className="text-center text-dim mt-12">
       <div className="text-6xl mb-4">💬</div>
       <h3 className="text-xl font-semibold mb-2">Start a conversation</h3>
       <p className="text-sm mb-4">
@@ -76,8 +76,8 @@ function EmptyChat({ selectedProjectId }: { readonly selectedProjectId: string }
           : "Select a project above for context-aware assistance, or ask generic Azure questions."}
       </p>
       <div className="mt-6 space-y-2 text-left max-w-lg mx-auto">
-        <p className="text-sm font-medium text-gray-700">Try asking:</p>
-        <ul className="text-sm text-gray-600 space-y-1">
+        <p className="text-sm font-medium text-secondary">Try asking:</p>
+        <ul className="text-sm text-secondary space-y-1">
           {selectedProjectId !== "" ? (
             <>
               <li>• &quot;We need 99.9% availability&quot;</li>
@@ -125,9 +125,9 @@ export function AgentChatPanel({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[calc(100vh-260px)]">
-      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-        <h2 className="text-lg font-semibold text-gray-900">Agent Chat</h2>
+    <div className="bg-card rounded-lg shadow-sm border border-border flex flex-col h-[calc(100vh-260px)]">
+      <div className="px-4 py-3 border-b border-border bg-surface">
+        <h2 className="text-lg font-semibold text-foreground">Agent Chat</h2>
       </div>
 
       {/* Messages */}
@@ -148,7 +148,7 @@ export function AgentChatPanel({
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-200 p-4">
+      <div className="border-t border-border p-4">
         <div className="flex space-x-3">
           <textarea
             value={input}
@@ -163,20 +163,22 @@ export function AgentChatPanel({
             }
             rows={2}
             disabled={isLoading}
-            className="flex-1 resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+            className="flex-1 resize-none rounded-lg border border-border-stronger px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent disabled:bg-surface disabled:text-dim"
           />
           <button
             onClick={onSendMessage}
             disabled={isLoading || input.trim() === ""}
-            className="px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            className="px-6 py-3 bg-accent-primary text-inverse rounded-lg hover:bg-accent-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
           >
             Send
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-dim mt-2">
           Press Enter to send, Shift+Enter for new line
         </p>
       </div>
     </div>
   );
 }
+
+

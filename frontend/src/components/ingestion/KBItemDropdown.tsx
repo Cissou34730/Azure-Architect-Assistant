@@ -44,7 +44,7 @@ export function KBItemDropdown({
             setShowActions(false);
           }
         }}
-        className="px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-button"
+        className="px-2 py-1.5 text-sm text-secondary hover:bg-muted rounded-button"
         aria-label="More actions"
         aria-expanded={showActions ? "true" : "false"}
         aria-haspopup="menu"
@@ -66,7 +66,7 @@ export function KBItemDropdown({
 
       {showActions && (
         <div
-          className="absolute right-0 mt-1 w-48 bg-white rounded-button shadow-lg border border-gray-200 z-20"
+          className="absolute right-0 mt-1 w-48 bg-card rounded-button shadow-lg border border-border z-20"
           role="menu"
         >
           <button
@@ -74,7 +74,7 @@ export function KBItemDropdown({
               setShowActions(false);
               onDelete();
             }}
-            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-button"
+            className="w-full px-4 py-2 text-left text-sm text-danger hover:bg-danger-soft rounded-button"
             role="menuitem"
           >
             Delete Knowledge Base
@@ -84,3 +84,5 @@ export function KBItemDropdown({
     </div>
   );
 }
+
+

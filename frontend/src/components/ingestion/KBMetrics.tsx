@@ -16,8 +16,8 @@ export function KBMetrics({ metrics }: KBMetricsProps) {
     }
     return (
       <div className="flex items-center gap-1">
-        <span className="text-gray-500">{label}:</span>
-        <span className="font-semibold text-gray-700">{value}</span>
+        <span className="text-dim">{label}:</span>
+        <span className="font-semibold text-secondary">{value}</span>
       </div>
     );
   };
@@ -32,14 +32,14 @@ export function KBMetrics({ metrics }: KBMetricsProps) {
 
     return (
       <div className="flex items-center gap-1">
-        <span className="text-gray-500">Indexed:</span>
-        <span className="font-semibold text-gray-700">
+        <span className="text-dim">Indexed:</span>
+        <span className="font-semibold text-secondary">
           {embedded}
           {queued !== undefined && queued > 0 && (
             <>
               {" / "}
               {queued}
-              <span className="text-gray-500 ml-1">
+              <span className="text-dim ml-1">
                 ({((embedded / queued) * 100).toFixed(0)}%)
               </span>
             </>
@@ -55,8 +55,8 @@ export function KBMetrics({ metrics }: KBMetricsProps) {
     }
     return (
       <div className="flex items-center gap-1">
-        <span className="text-gray-500">Failed:</span>
-        <span className="font-semibold text-red-600">
+        <span className="text-dim">Failed:</span>
+        <span className="font-semibold text-danger">
           {metrics.chunksFailed}
         </span>
       </div>
@@ -76,3 +76,5 @@ export function KBMetrics({ metrics }: KBMetricsProps) {
     </div>
   );
 }
+
+

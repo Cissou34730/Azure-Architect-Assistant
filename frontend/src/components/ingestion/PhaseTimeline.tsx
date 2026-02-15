@@ -17,11 +17,11 @@ const PHASE_LABELS: Record<string, string> = {
 };
 
 const PHASE_COLORS: Record<string, string> = {
-  loading: "bg-blue-500",
-  chunking: "bg-indigo-500",
-  embedding: "bg-purple-500",
-  indexing: "bg-pink-500",
-  completed: "bg-green-500",
+  loading: "bg-brand",
+  chunking: "bg-accent-soft0",
+  embedding: "bg-accent-soft0",
+  indexing: "bg-accent-soft0",
+  completed: "bg-success",
 };
 
 interface PhaseIndicatorProps {
@@ -60,22 +60,22 @@ function PhaseIndicator({
 
   const getContainerClass = () => {
     if (isComplete) {
-      return "bg-green-500 text-white";
+      return "bg-success text-inverse";
     }
     if (isActive) {
-      return `${PHASE_COLORS[phase] ?? "bg-blue-500"} text-white animate-pulse`;
+      return `${PHASE_COLORS[phase] ?? "bg-brand"} text-inverse animate-pulse`;
     }
-    return "bg-gray-200 text-gray-400";
+    return "bg-border text-dim";
   };
 
   const getLabelClass = () => {
     if (isActive) {
-      return "text-gray-900";
+      return "text-foreground";
     }
     if (isComplete) {
-      return "text-gray-700";
+      return "text-secondary";
     }
-    return "text-gray-400";
+    return "text-dim";
   };
 
   return (
@@ -89,7 +89,7 @@ function PhaseIndicator({
         {index < PHASE_ORDER.length - 1 && (
           <div
             className={`w-0.5 h-6 my-1 ${
-              isComplete ? "bg-green-500" : "bg-gray-200"
+              isComplete ? "bg-success" : "bg-border"
             }`}
           />
         )}
@@ -101,7 +101,7 @@ function PhaseIndicator({
             {PHASE_LABELS[phase] ?? phase}
           </span>
           {isActive && (
-            <span className="text-xs font-bold text-blue-600 animate-pulse">
+            <span className="text-xs font-bold text-brand animate-pulse">
               PROCESSING...
             </span>
           )}
@@ -138,3 +138,7 @@ export function PhaseTimeline({ job }: { readonly job: IngestionJob }) {
     </div>
   );
 }
+
+
+
+

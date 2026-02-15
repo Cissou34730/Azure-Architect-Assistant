@@ -15,9 +15,9 @@ export function KBJobStatus({ job }: KBJobStatusProps) {
     return (
       <div className="mt-3 space-y-2">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-pill bg-gray-500" />
-          <span className="text-sm font-medium text-gray-700">NOT STARTED</span>
-          <span className="text-xs text-gray-500">Waiting to start</span>
+          <div className="w-2 h-2 rounded-pill bg-dim" />
+          <span className="text-sm font-medium text-secondary">NOT STARTED</span>
+          <span className="text-xs text-dim">Waiting to start</span>
         </div>
       </div>
     );
@@ -27,11 +27,11 @@ export function KBJobStatus({ job }: KBJobStatusProps) {
     switch (job.status) {
       case "not_started":
       case "pending":
-        return "bg-gray-400";
+        return "bg-border-stronger";
       case "running":
         return "bg-status-running animate-pulse";
       case "paused":
-        return "bg-yellow-500";
+        return "bg-warning-soft0";
       case "completed":
         return "bg-status-completed";
       case "failed":
@@ -50,9 +50,9 @@ export function KBJobStatus({ job }: KBJobStatusProps) {
     <div className="mt-3 space-y-2">
       <div className="flex items-center gap-2">
         <div className={`w-2 h-2 rounded-pill ${getStatusColorClass()}`} />
-        <span className="text-sm font-medium text-gray-700">{statusText}</span>
+        <span className="text-sm font-medium text-secondary">{statusText}</span>
         {job.message !== "" && (
-          <span className="text-xs text-gray-500">{job.message}</span>
+          <span className="text-xs text-dim">{job.message}</span>
         )}
       </div>
 
@@ -60,3 +60,6 @@ export function KBJobStatus({ job }: KBJobStatusProps) {
     </div>
   );
 }
+
+
+

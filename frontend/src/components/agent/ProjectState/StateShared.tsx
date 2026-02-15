@@ -9,10 +9,10 @@ interface StateSectionProps {
 export function StateSection({ icon, title, children }: StateSectionProps) {
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+      <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center">
         <span className="mr-2">{icon}</span> {title}
       </h3>
-      <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
+      <div className="bg-surface rounded-lg p-3 space-y-2 text-sm">
         {children}
       </div>
     </div>
@@ -27,8 +27,9 @@ interface StateFieldProps {
 export function StateField({ label, children }: StateFieldProps) {
   return (
     <div>
-      <span className="font-medium text-gray-700">{label}:</span>
+      <span className="font-medium text-secondary">{label}:</span>
       {children}
     </div>
   );
 }
+

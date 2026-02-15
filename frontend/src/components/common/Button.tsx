@@ -7,6 +7,7 @@ import { ButtonHTMLAttributes, ReactNode } from "react";
 
 type ButtonVariant =
   | "primary"
+  | "secondary"
   | "success"
   | "warning"
   | "danger"
@@ -22,17 +23,18 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "btn-primary",
-  success: "btn-success",
-  warning: "btn-warning",
-  danger: "btn-danger",
-  ghost: "text-gray-700 hover:bg-gray-100",
+  primary: "ui-btn--primary",
+  secondary: "ui-btn--secondary",
+  success: "ui-btn--success",
+  warning: "ui-btn--warning",
+  danger: "ui-btn--danger",
+  ghost: "ui-btn--ghost",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "text-sm",
-  md: "text-base",
-  lg: "text-lg px-6 py-3",
+  sm: "ui-btn--sm",
+  md: "ui-btn--md",
+  lg: "ui-btn--lg",
 };
 
 function LoadingSpinner() {
@@ -74,8 +76,7 @@ export function Button({
   className = "",
   ...props
 }: ButtonProps) {
-  const baseClasses =
-    "inline-flex items-center justify-center gap-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseClasses = "ui-btn";
   const classes = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
 
   const isActuallyDisabled = (disabled ?? false) || isLoading;

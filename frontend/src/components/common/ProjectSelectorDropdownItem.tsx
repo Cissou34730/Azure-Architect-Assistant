@@ -25,21 +25,21 @@ export function ProjectSelectorDropdownItem({
       onClick={() => { onSelect(project); }}
       onMouseEnter={onMouseEnter}
       className={`w-full flex items-center gap-3 px-4 py-3 transition-colors group cursor-pointer ${
-        isHighlighted ? "bg-gray-50" : ""
-      } ${isActive ? "bg-blue-50" : ""} hover:bg-gray-50`}
+        isHighlighted ? "bg-surface" : ""
+      } ${isActive ? "bg-brand-soft" : ""} hover:bg-surface`}
     >
-      <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-        <Folder className="h-4 w-4 text-blue-600" />
+      <div className="w-8 h-8 rounded-lg bg-brand-soft flex items-center justify-center shrink-0">
+        <Folder className="h-4 w-4 text-brand" />
       </div>
 
       <div className="flex-1 min-w-0 text-left">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-900 truncate">
+          <span className="text-sm font-medium text-foreground truncate">
             {project.name}
           </span>
-          {isActive && <Check className="h-4 w-4 text-blue-600 shrink-0" />}
+          {isActive && <Check className="h-4 w-4 text-brand shrink-0" />}
         </div>
-        <p className="text-xs text-gray-500 truncate">
+        <p className="text-xs text-dim truncate">
           Updated {new Date(project.createdAt).toLocaleDateString()}
         </p>
       </div>
@@ -49,8 +49,8 @@ export function ProjectSelectorDropdownItem({
         disabled={!allowDelete}
         className={`p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all ${
           allowDelete
-            ? "text-gray-400 hover:text-red-600 hover:bg-red-50"
-            : "text-gray-300 cursor-not-allowed"
+            ? "text-dim hover:text-danger hover:bg-danger-soft"
+            : "text-border cursor-not-allowed"
         }`}
         aria-label={allowDelete ? "Delete project" : "Delete project (coming soon)"}
         title={allowDelete ? "Delete project" : "Delete (coming soon)"}
@@ -60,3 +60,6 @@ export function ProjectSelectorDropdownItem({
     </div>
   );
 }
+
+
+

@@ -49,7 +49,7 @@ function List({ items }: { readonly items: string[] | undefined }) {
 function WebsiteReview({ urls }: { readonly urls?: string[] }) {
   return (
     <div>
-      <div className="text-sm font-medium text-gray-700">URLs</div>
+      <div className="text-sm font-medium text-secondary">URLs</div>
       <List items={urls} />
     </div>
   );
@@ -62,7 +62,7 @@ interface YouTubeReviewProps {
 function YouTubeReview({ videoUrls }: YouTubeReviewProps) {
   return (
     <div>
-      <div className="text-sm font-medium text-gray-700">Video URLs</div>
+      <div className="text-sm font-medium text-secondary">Video URLs</div>
       <List items={videoUrls} />
     </div>
   );
@@ -82,17 +82,17 @@ function PDFReview({
   return (
     <div className="space-y-3">
       <div>
-        <div className="text-sm font-medium text-gray-700">Local PDF Paths</div>
+        <div className="text-sm font-medium text-secondary">Local PDF Paths</div>
         <List items={pdfLocalPaths} />
       </div>
       <div>
-        <div className="text-sm font-medium text-gray-700">Online PDF URLs</div>
+        <div className="text-sm font-medium text-secondary">Online PDF URLs</div>
         <List items={pdfUrls} />
       </div>
       {pdfFolderPath !== undefined && pdfFolderPath !== "" && (
         <div>
-          <div className="text-sm font-medium text-gray-700">PDF Folder</div>
-          <div className="text-sm text-gray-900 font-mono">{pdfFolderPath}</div>
+          <div className="text-sm font-medium text-secondary">PDF Folder</div>
+          <div className="text-sm text-foreground font-mono">{pdfFolderPath}</div>
         </div>
       )}
     </div>
@@ -106,8 +106,8 @@ interface MarkdownReviewProps {
 function MarkdownReview({ markdownFolderPath }: MarkdownReviewProps) {
   return (
     <div>
-      <div className="text-sm font-medium text-gray-700">Markdown Folder</div>
-      <div className="text-sm text-gray-900 font-mono">{markdownFolderPath}</div>
+      <div className="text-sm font-medium text-secondary">Markdown Folder</div>
+      <div className="text-sm text-foreground font-mono">{markdownFolderPath}</div>
     </div>
   );
 }
@@ -142,39 +142,40 @@ export function ReviewStep(props: ReviewStepProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900">Review Configuration</h3>
+      <h3 className="text-lg font-semibold text-foreground">Review Configuration</h3>
 
-      <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+      <div className="bg-surface rounded-lg p-4 space-y-3">
         <div>
-          <div className="text-sm font-medium text-gray-700">Name</div>
-          <div className="text-sm text-gray-900">{name}</div>
+          <div className="text-sm font-medium text-secondary">Name</div>
+          <div className="text-sm text-foreground">{name}</div>
         </div>
 
         <div>
-          <div className="text-sm font-medium text-gray-700">KB ID</div>
-          <div className="text-sm text-gray-900 font-mono">{kbId}</div>
+          <div className="text-sm font-medium text-secondary">KB ID</div>
+          <div className="text-sm text-foreground font-mono">{kbId}</div>
         </div>
 
         {description !== "" && (
           <div>
-            <div className="text-sm font-medium text-gray-700">Description</div>
-            <div className="text-sm text-gray-900">{description}</div>
+            <div className="text-sm font-medium text-secondary">Description</div>
+            <div className="text-sm text-foreground">{description}</div>
           </div>
         )}
 
         <div>
-          <div className="text-sm font-medium text-gray-700">Source Type</div>
-          <div className="text-sm text-gray-900">{sourceTypeLabels[sourceType]}</div>
+          <div className="text-sm font-medium text-secondary">Source Type</div>
+          <div className="text-sm text-foreground">{sourceTypeLabels[sourceType]}</div>
         </div>
 
-        <div className="pt-2 border-t border-gray-200">
+        <div className="pt-2 border-t border-border">
           <SourceConfig config={props} />
         </div>
       </div>
 
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-        <p className="text-sm text-blue-800">✓ Click &quot;Create KB&quot; to start the ingestion process</p>
+      <div className="p-3 bg-brand-soft border border-brand-line rounded-md">
+        <p className="text-sm text-brand-strong">✓ Click &quot;Create KB&quot; to start the ingestion process</p>
       </div>
     </div>
   );
 }
+

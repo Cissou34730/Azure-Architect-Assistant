@@ -30,10 +30,10 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
   }, [toast.id, toast.duration, onClose]);
 
   const typeStyles = {
-    success: "bg-green-50 border-green-200 text-green-800",
-    error: "bg-red-50 border-red-200 text-red-800",
-    warning: "bg-yellow-50 border-yellow-200 text-yellow-800",
-    info: "bg-blue-50 border-blue-200 text-blue-800",
+    success: "ui-toast-success",
+    error: "ui-toast-error",
+    warning: "ui-toast-warning",
+    info: "ui-toast-info",
   };
 
   const iconPaths = {
@@ -47,7 +47,7 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
 
   return (
     <div
-      className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg ${typeStyles[toast.type]} animate-slide-in`}
+      className={`ui-toast ${typeStyles[toast.type]} animate-slide-in`}
       role="alert"
       aria-live="polite"
     >

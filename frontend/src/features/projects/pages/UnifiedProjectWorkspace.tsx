@@ -49,7 +49,7 @@ export function UnifiedProjectWorkspace({
   onResizeRight,
 }: UnifiedProjectWorkspaceProps) {
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-100">
+    <div className="flex flex-col h-screen overflow-hidden bg-surface">
       <ProjectHeader
         onUploadClick={onUploadClick}
         onGenerateClick={onGenerateClick}
@@ -67,7 +67,7 @@ export function UnifiedProjectWorkspace({
           onResize={onResizeLeft}
           onToggle={onToggleLeft}
           collapsedTitle="Show inputs & artifacts"
-          className="bg-slate-50"
+          className="bg-muted"
         >
           <LeftInputsArtifactsPanel
             onToggle={onToggleLeft}
@@ -75,7 +75,7 @@ export function UnifiedProjectWorkspace({
           />
         </ResizableSidePanel>
 
-        <div className="flex-1 overflow-hidden px-4 py-4 bg-white panel-scroll-scope">
+        <div className="flex-1 overflow-hidden px-4 py-4 bg-card panel-scroll-scope">
           <CenterWorkspaceTabs
             tabs={tabs}
             activeTabId={activeTabId}
@@ -95,7 +95,7 @@ export function UnifiedProjectWorkspace({
           onResize={onResizeRight}
           onToggle={onToggleRight}
           collapsedTitle="Show chat"
-          className="bg-slate-50"
+          className="bg-muted"
         >
           <RightChatPanel onToggle={onToggleRight} />
         </ResizableSidePanel>
@@ -103,3 +103,5 @@ export function UnifiedProjectWorkspace({
     </div>
   );
 }
+
+

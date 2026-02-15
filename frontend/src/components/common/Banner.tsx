@@ -6,8 +6,9 @@ export function Banner() {
   }
 
   return (
-    <div className="bg-yellow-400 border-b-2 border-yellow-600 px-4 py-2 text-center font-semibold text-yellow-900 shadow-md">
+    <div className="bg-warning border-b-2 border-warning px-4 py-2 text-center font-semibold text-warning-strong shadow-md">
       {bannerMessage}
     </div>
   );
 }
+

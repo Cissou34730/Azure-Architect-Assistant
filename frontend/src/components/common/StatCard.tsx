@@ -19,7 +19,7 @@ export function StatCard({
   value,
   trend,
   className = "",
-  iconColor = "text-blue-600",
+  iconColor = "text-brand",
 }: StatCardProps) {
 // eslint-disable-next-line @typescript-eslint/naming-convention
   const Icon = iconProp;
@@ -28,13 +28,13 @@ export function StatCard({
     <Card className={className} hover>
       <CardContent className="flex items-center justify-between">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600">{label}</p>
+          <p className="text-sm font-medium text-secondary">{label}</p>
           <div className="flex items-baseline mt-1">
-            <p className="text-2xl font-semibold text-gray-900">{value}</p>
+            <p className="text-2xl font-semibold text-foreground">{value}</p>
             {trend !== undefined && (
               <span
                 className={`ml-2 text-sm font-medium ${
-                  trend.isPositive ? "text-green-600" : "text-red-600"
+                  trend.isPositive ? "text-success" : "text-danger"
                 }`}
               >
                 {trend.isPositive ? "+" : ""}
@@ -43,10 +43,12 @@ export function StatCard({
             )}
           </div>
         </div>
-        <div className={`p-3 rounded-full bg-opacity-10 ${iconColor}`}>
+        <div className="p-3 rounded-full bg-muted">
           <Icon className={`h-6 w-6 ${iconColor}`} />
         </div>
       </CardContent>
     </Card>
   );
 }
+
+

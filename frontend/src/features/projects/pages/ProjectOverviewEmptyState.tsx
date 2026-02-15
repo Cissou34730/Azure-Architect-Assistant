@@ -2,9 +2,9 @@ export function ProjectOverviewEmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4">
       <div className="text-center max-w-md">
-        <div className="mb-4 rounded-full bg-blue-50 p-6 inline-block">
+        <div className="mb-4 rounded-full bg-brand-soft p-6 inline-block">
           <svg
-            className="h-16 w-16 text-blue-600"
+            className="h-16 w-16 text-brand"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -17,8 +17,8 @@ export function ProjectOverviewEmptyState() {
             />
           </svg>
         </div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Get Started</h3>
-        <p className="text-gray-600 mb-6">
+        <h3 className="text-xl font-semibold text-foreground mb-2">Get Started</h3>
+        <p className="text-secondary mb-6">
           Upload and analyze documents in the Workspace to start building your architecture.
         </p>
         <button
@@ -26,7 +26,7 @@ export function ProjectOverviewEmptyState() {
             const event = new CustomEvent("navigate-to-workspace");
             window.dispatchEvent(event);
           }}
-          className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          className="bg-brand text-inverse px-6 py-3 rounded-lg hover:bg-brand-strong transition-colors font-medium"
         >
           Go to Workspace
         </button>
@@ -34,3 +34,5 @@ export function ProjectOverviewEmptyState() {
     </div>
   );
 }
+
+

@@ -29,7 +29,7 @@ export function WorkspaceTabContent({
 
   if (projectState === null) {
     return (
-      <div className="h-full flex items-center justify-center text-sm text-gray-500">
+      <div className="h-full flex items-center justify-center text-sm text-dim">
         Loading project data...
       </div>
     );
@@ -47,7 +47,7 @@ export function WorkspaceTabContent({
     const document = getDocumentById(documents, tab.documentId);
     if (document === undefined) {
       return (
-        <div className="p-6 text-sm text-gray-500">
+        <div className="p-6 text-sm text-dim">
           This document is no longer available.
         </div>
       );
@@ -68,7 +68,7 @@ export function WorkspaceTabContent({
   }
 
   return (
-    <div className="p-6 text-sm text-gray-500">
+    <div className="p-6 text-sm text-dim">
       Select an item to view details.
     </div>
   );
@@ -77,3 +77,4 @@ export function WorkspaceTabContent({
 function isArtifactTab(tab: WorkspaceTab): tab is ArtifactWorkspaceTab {
   return tab.group === "artifact";
 }
+

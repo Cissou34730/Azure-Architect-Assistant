@@ -23,7 +23,7 @@ export function WizardFooter({
     <div className="px-6 py-4 border-t flex justify-between">
       <button
         onClick={onCancel}
-        className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+        className="px-4 py-2 text-secondary hover:bg-muted rounded-md"
         disabled={loading}
       >
         Cancel
@@ -33,7 +33,7 @@ export function WizardFooter({
         {step !== "basic" && (
           <button
             onClick={onBack}
-            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-md"
+            className="px-4 py-2 text-secondary hover:bg-muted rounded-md"
             disabled={loading}
           >
             Back
@@ -44,7 +44,7 @@ export function WizardFooter({
           <button
             onClick={onNext}
             disabled={!canProceed() || loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-brand text-inverse rounded-md hover:bg-brand-strong disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
           </button>
@@ -52,7 +52,7 @@ export function WizardFooter({
           <button
             onClick={onSubmit}
             disabled={loading}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-success text-inverse rounded-md hover:bg-success-strong disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Creating..." : "Create KB"}
           </button>
@@ -61,3 +61,6 @@ export function WizardFooter({
     </div>
   );
 }
+
+
+

@@ -68,26 +68,26 @@ function LeftContextPanelBase({ isOpen, onToggle }: LeftContextPanelProps) {
     return (
       <button
         onClick={onToggle}
-        className="fixed left-0 top-1/2 -translate-y-1/2 bg-white border-r border-y border-gray-200 rounded-r-lg p-2 shadow-lg hover:bg-gray-50 transition-colors z-20"
+        className="fixed left-0 top-1/2 -translate-y-1/2 bg-card border-r border-y border-border rounded-r-lg p-2 shadow-lg hover:bg-surface transition-colors z-20"
         title="Show context panel"
         type="button"
       >
-        <ChevronRight className="h-5 w-5 text-gray-600" />
+        <ChevronRight className="h-5 w-5 text-secondary" />
       </button>
     );
   }
 
   return (
-    <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shrink-0">
-        <h2 className="font-semibold text-gray-900">Context</h2>
+    <div className="w-80 bg-surface border-r border-border flex flex-col h-full">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
+        <h2 className="font-semibold text-foreground">Context</h2>
         <button
           onClick={onToggle}
-          className="p-1 hover:bg-gray-100 rounded transition-colors"
+          className="p-1 hover:bg-muted rounded transition-colors"
           title="Hide context panel"
           type="button"
         >
-          <ChevronLeft className="h-5 w-5 text-gray-600" />
+          <ChevronLeft className="h-5 w-5 text-secondary" />
         </button>
       </div>
 
@@ -108,4 +108,5 @@ function LeftContextPanelBase({ isOpen, onToggle }: LeftContextPanelProps) {
 
 const leftContextPanel = memo(LeftContextPanelBase);
 export { leftContextPanel as LeftContextPanel };
+
 

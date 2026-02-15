@@ -38,7 +38,7 @@ export function PDFConfig({
       <div>
         <label
           htmlFor="pdf-folder"
-          className="block text-sm font-medium text-gray-700 mb-1"
+          className="block text-sm font-medium text-secondary mb-1"
         >
           PDF Folder Path
         </label>
@@ -49,16 +49,16 @@ export function PDFConfig({
           onChange={(e) => {
             setPdfFolderPath(e.target.value);
           }}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-border-stronger rounded-md focus:outline-none focus:ring-2 focus:ring-brand"
           placeholder="C:\Documents\PDFs"
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-dim">
           Process all PDF files in this folder
         </p>
       </div>
 
-      <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
-        <p className="text-sm text-amber-800">
+      <div className="p-3 bg-warning-soft border border-warning-line rounded-md">
+        <p className="text-sm text-warning-strong">
           ⚠️ At least one PDF source (local path, URL, or folder) is
           required
         </p>
@@ -66,3 +66,5 @@ export function PDFConfig({
     </>
   );
 }
+
+

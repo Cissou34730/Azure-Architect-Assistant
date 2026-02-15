@@ -26,9 +26,10 @@ export function LoadingSpinner({ size = "md", message }: LoadingSpinnerProps) {
         aria-hidden="true"
       />
       {message !== undefined && message !== "" && (
-        <p className="text-sm text-gray-600">{message}</p>
+        <p className="text-sm text-secondary">{message}</p>
       )}
       <span className="sr-only">Loading...</span>
     </div>
   );
 }
+

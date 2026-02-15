@@ -10,15 +10,15 @@ export function InputDocumentView({ document }: InputDocumentViewProps) {
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
-          <FileText className="h-5 w-5 text-emerald-600" />
+        <div className="h-10 w-10 rounded-lg bg-info-soft flex items-center justify-center">
+          <FileText className="h-5 w-5 text-info" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-gray-900">{document.title}</h3>
-          <p className="text-xs text-gray-500 capitalize">{document.category}</p>
+          <h3 className="text-sm font-semibold text-foreground">{document.title}</h3>
+          <p className="text-xs text-dim capitalize">{document.category}</p>
         </div>
       </div>
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+      <div className="rounded-lg border border-border bg-surface p-4 text-sm text-secondary">
         Document content is stored remotely. Use the action below to open it in a new tab.
       </div>
       <button
@@ -29,10 +29,12 @@ export function InputDocumentView({ document }: InputDocumentViewProps) {
           }
         }}
         disabled={!hasUrl}
-        className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-md border border-border-stronger bg-card px-4 py-2 text-xs font-semibold text-secondary hover:bg-surface disabled:opacity-60"
       >
         Open source document
       </button>
     </div>
   );
 }
+
+

@@ -26,7 +26,7 @@ export function WebsiteConfig({
       <div>
         <label
           htmlFor="url-prefix"
-          className="block text-sm font-medium text-gray-700 mb-1"
+          className="block text-sm font-medium text-secondary mb-1"
         >
           URL Prefix Filter
         </label>
@@ -37,13 +37,14 @@ export function WebsiteConfig({
           onChange={(e) => {
             setUrlPrefix(e.target.value);
           }}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-border-stronger rounded-md focus:outline-none focus:ring-2 focus:ring-brand"
           placeholder="https://example.com/docs/section/"
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-dim">
           Auto-filled from first URL. Only pages starting with this prefix will be crawled. Edit to restrict scope further.
         </p>
       </div>
     </>
   );
 }
+

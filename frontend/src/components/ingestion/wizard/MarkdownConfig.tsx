@@ -12,7 +12,7 @@ export function MarkdownConfig({
       <div>
         <label
           htmlFor="markdown-folder"
-          className="block text-sm font-medium text-gray-700 mb-1"
+          className="block text-sm font-medium text-secondary mb-1"
         >
           Markdown Folder Path *
         </label>
@@ -23,20 +23,22 @@ export function MarkdownConfig({
           onChange={(e) => {
             setMarkdownFolderPath(e.target.value);
           }}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-border-stronger rounded-md focus:outline-none focus:ring-2 focus:ring-brand"
           placeholder="C:\Documentation\markdown"
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-dim">
           Path to folder containing .md files (will recursively process
           subfolders)
         </p>
       </div>
 
-      <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-        <p className="text-sm text-green-800">
+      <div className="p-3 bg-success-soft border border-success-line rounded-md">
+        <p className="text-sm text-success-strong">
           ✅ Markdown structure and hierarchy will be preserved in metadata
         </p>
       </div>
     </>
   );
 }
+
+

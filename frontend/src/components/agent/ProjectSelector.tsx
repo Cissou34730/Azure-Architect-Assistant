@@ -15,7 +15,7 @@ export function ProjectSelector({
     <div className="flex items-center space-x-3">
       <label
         htmlFor="project-select"
-        className="text-sm font-medium text-gray-700"
+        className="text-sm font-medium text-secondary"
       >
         Project Context:
       </label>
@@ -25,7 +25,7 @@ export function ProjectSelector({
         onChange={(e) => {
           onProjectChange(e.target.value);
         }}
-        className="flex-1 max-w-md rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
+        className="flex-1 max-w-md rounded-lg border border-border-stronger px-4 py-2 focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
       >
         <option value="">No project (Generic mode)</option>
         {projects.map((project) => (
@@ -35,10 +35,11 @@ export function ProjectSelector({
         ))}
       </select>
       {selectedProjectId !== "" && (
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-dim">
           Agent will consider project context in responses
         </span>
       )}
     </div>
   );
 }
+

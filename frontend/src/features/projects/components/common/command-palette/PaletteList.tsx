@@ -18,7 +18,7 @@ export function PaletteList({
 }: PaletteListProps) {
   if (filteredCommands.length === 0) {
     return (
-      <div className="py-12 text-center text-gray-500">
+      <div className="py-12 text-center text-dim">
         <p>No commands found</p>
         <p className="text-sm mt-1">Try a different search term</p>
       </div>
@@ -29,7 +29,7 @@ export function PaletteList({
     <div className="max-h-96 overflow-y-auto">
       {Object.entries(groupedCommands).map(([category, cmds]) => (
         <div key={category}>
-          <div className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50">
+          <div className="px-4 py-2 text-xs font-semibold text-dim bg-surface">
             {category}
           </div>
           {cmds.map((cmd) => {
@@ -55,3 +55,4 @@ export function PaletteList({
     </div>
   );
 }
+

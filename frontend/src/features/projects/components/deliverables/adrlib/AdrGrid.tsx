@@ -20,7 +20,7 @@ function AdrGridItem({ adr, onSelect }: AdrGridItemProps) {
     >
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-medium text-gray-900 text-sm line-clamp-2 flex-1">
+          <h3 className="font-medium text-foreground text-sm line-clamp-2 flex-1">
             {adr.title}
           </h3>
           <Badge variant={getStatusVariant(adr.status)} size="sm">
@@ -29,12 +29,12 @@ function AdrGridItem({ adr, onSelect }: AdrGridItemProps) {
         </div>
 
         {adr.context !== "" && (
-          <p className="text-xs text-gray-600 line-clamp-3 mb-3">
+          <p className="text-xs text-secondary line-clamp-3 mb-3">
             {adr.context}
           </p>
         )}
 
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="flex items-center gap-2 text-xs text-dim">
           {adr.createdAt !== undefined && (
             <span>{new Date(adr.createdAt).toLocaleDateString()}</span>
           )}
@@ -86,3 +86,4 @@ export function AdrGrid({ adrs, onSelect }: AdrGridProps) {
     </div>
   );
 }
+

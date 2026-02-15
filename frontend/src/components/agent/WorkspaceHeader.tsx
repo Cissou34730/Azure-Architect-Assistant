@@ -16,10 +16,10 @@ export function WorkspaceHeader({
   return (
     <div className="flex items-center justify-between mb-4">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-3xl font-bold text-foreground">
           Azure Architect Assistant
         </h1>
-        <p className="mt-1 text-gray-600">
+        <p className="mt-1 text-secondary">
           Chat with the ReAct agent powered by Microsoft documentation
         </p>
       </div>
@@ -27,7 +27,7 @@ export function WorkspaceHeader({
         <StatusBadge status={agentStatus} />
         <button
           onClick={onClearChat}
-          className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+          className="px-4 py-2 text-sm text-secondary hover:text-foreground hover:bg-muted rounded-md transition-colors"
         >
           Clear Chat
         </button>
@@ -35,8 +35,8 @@ export function WorkspaceHeader({
           onClick={onToggleReasoning}
           className={`px-4 py-2 text-sm rounded-md transition-colors ${
             showReasoning
-              ? "bg-accent-primary text-white"
-              : "text-gray-700 hover:bg-gray-100"
+              ? "bg-accent-primary text-inverse"
+              : "text-secondary hover:bg-muted"
           }`}
         >
           {showReasoning ? "Hide" : "Show"} Reasoning
@@ -51,15 +51,15 @@ function StatusBadge({ status }: { readonly status: AgentStatus }) {
     AgentStatus,
     { readonly bg: string; readonly text: string; readonly label: string }
   > = {
-    healthy: { bg: "bg-green-100", text: "text-green-800", label: "● Ready" },
+    healthy: { bg: "bg-success-soft", text: "text-success-strong", label: "● Ready" },
     // Status keys come from backend API which uses snake_case
     // eslint-disable-next-line @typescript-eslint/naming-convention
     not_initialized: {
-      bg: "bg-yellow-100",
-      text: "text-yellow-800",
+      bg: "bg-warning-soft",
+      text: "text-warning-strong",
       label: "○ Not Initialized",
     },
-    unknown: { bg: "bg-gray-100", text: "text-gray-800", label: "○ Unknown" },
+    unknown: { bg: "bg-muted", text: "text-foreground", label: "○ Unknown" },
   };
 
   const config = statusConfig[status];
@@ -72,3 +72,6 @@ function StatusBadge({ status }: { readonly status: AgentStatus }) {
     </div>
   );
 }
+
+
+
