@@ -117,7 +117,10 @@ async def test_chunking_stage_sets_chunks_and_updates_progress(monkeypatch: pyte
         config={},
         checkpoint={},
         counters={'chunks_seen': 0},
-        results={'batch': ['doc1']},
+        results={
+            'batch': ['doc1'],
+            'phases_started': {'chunking': False, 'embedding': False, 'indexing': False},
+        },
     )
 
     await stage.execute(context)
@@ -127,6 +130,7 @@ async def test_chunking_stage_sets_chunks_and_updates_progress(monkeypatch: pyte
     assert [c.content_hash for c in chunks] == ['a', 'b']
     assert context.counters['chunks_seen'] == 2
     assert ('job1', 'chunking') in phase_repo.started
+    assert context.results['phases_started']['chunking'] is True
 
 
 @pytest.mark.asyncio

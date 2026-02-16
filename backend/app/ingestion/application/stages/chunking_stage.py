@@ -28,6 +28,11 @@ class ChunkingStage(PipelineStage):
         if not isinstance(batch, list):
             raise TypeError('ChunkingStage requires context.results["batch"] to be a list')
 
+        phases_started = context.results.get('phases_started')
+        if not isinstance(phases_started, dict):
+            phases_started = {'chunking': False, 'embedding': False, 'indexing': False}
+            context.results['phases_started'] = phases_started
+
         chunks = await asyncio.to_thread(chunk_documents_to_chunks, batch, self._chunker, context.kb_id)
         chunks_list = cast(list[Any], chunks)
 
@@ -35,6 +40,7 @@ class ChunkingStage(PipelineStage):
         context.results['chunks'] = chunks_list
 
         start_phase_noncritical(self._phase_repo, context.job_id, 'chunking')
+        phases_started['chunking'] = True
         update_progress_noncritical(
             self._phase_repo,
             context.job_id,
