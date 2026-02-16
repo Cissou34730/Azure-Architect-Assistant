@@ -1,14 +1,29 @@
-import { File, UploadCloud, Save, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Circle,
+  File,
+  Save,
+  Sparkles,
+  UploadCloud,
+} from "lucide-react";
 import { Virtuoso } from "react-virtuoso";
-import type { ReferenceDocument } from "../../../../../types/api";
+import { featureFlags } from "../../../../../config/featureFlags";
+import type {
+  AnalysisSummary,
+  ReferenceDocument,
+  UploadSummary,
+} from "../../../../../types/api";
 import { useProjectContext } from "../../../context/useProjectContext";
 
 interface DocumentsTabProps {
   readonly documents: readonly ReferenceDocument[];
+  readonly onOpenDocument?: (documentId: string) => void;
 }
 
-export function DocumentsTab({ documents }: DocumentsTabProps) {
+export function DocumentsTab({ documents, onOpenDocument }: DocumentsTabProps) {
   const {
+    projectState,
     selectedProject,
     textRequirements,
     setTextRequirements,
@@ -17,18 +32,41 @@ export function DocumentsTab({ documents }: DocumentsTabProps) {
     handleSaveTextRequirements,
     handleUploadDocuments,
     handleAnalyzeDocuments,
-    loading,
-    loadingMessage,
+    isUploadingDocuments,
+    isAnalyzingDocuments,
+    inputWorkflow,
   } = useProjectContext();
+  const busy = isUploadingDocuments || isAnalyzingDocuments;
+  const setupFlowEnabled = featureFlags.enableUnifiedProjectInitialization;
+
+  const hasTextInput = textRequirements.trim() !== "";
+  const hasUploadedDocuments = documents.length > 0;
+  const hasPendingFiles = files !== null && files.length > 0;
+  const hasInputs = hasTextInput || hasUploadedDocuments || hasPendingFiles;
+  const uploadSummary =
+    inputWorkflow.uploadSummary ?? projectState?.projectDocumentStats ?? null;
+  const analysisSummary =
+    projectState?.analysisSummary ?? inputWorkflow.analysisSummary;
+  const setupCompleted =
+    inputWorkflow.setupCompleted || analysisSummary?.status === "success";
 
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 space-y-4 border-b border-border bg-card">
+        {setupFlowEnabled && (
+          <InitializationSetupPanel
+            hasInputs={hasInputs}
+            uploadSummary={uploadSummary}
+            analysisSummary={analysisSummary}
+            setupCompleted={setupCompleted}
+            isAnalyzing={isAnalyzingDocuments}
+          />
+        )}
         <TextRequirementsSection
           textRequirements={textRequirements}
           onChange={setTextRequirements}
           onSave={handleSaveTextRequirements}
-          loading={loading}
+          loading={busy}
           hasProject={selectedProject !== null}
         />
         <UploadDocumentsSection
@@ -36,12 +74,118 @@ export function DocumentsTab({ documents }: DocumentsTabProps) {
           onFilesChange={setFiles}
           onUpload={handleUploadDocuments}
           onAnalyze={handleAnalyzeDocuments}
-          loading={loading}
-          loadingMessage={loadingMessage}
+          loading={busy}
+          isUploading={isUploadingDocuments}
+          isAnalyzing={isAnalyzingDocuments}
+          loadingMessage={inputWorkflow.message}
+          uploadSummary={uploadSummary}
+          analysisSummary={analysisSummary}
+          setupFlowEnabled={setupFlowEnabled}
         />
       </div>
 
-      <DocumentsList documents={documents} />
+      <DocumentsList documents={documents} onOpenDocument={onOpenDocument} />
+    </div>
+  );
+}
+
+interface InitializationSetupPanelProps {
+  readonly hasInputs: boolean;
+  readonly uploadSummary: UploadSummary | null;
+  readonly analysisSummary: AnalysisSummary | null | undefined;
+  readonly setupCompleted: boolean;
+  readonly isAnalyzing: boolean;
+}
+
+function InitializationSetupPanel({
+  hasInputs,
+  uploadSummary,
+  analysisSummary,
+  setupCompleted,
+  isAnalyzing,
+}: InitializationSetupPanelProps) {
+  const uploadStepComplete =
+    uploadSummary !== null && uploadSummary.attemptedDocuments > 0;
+  const analysisStepComplete = analysisSummary?.status === "success";
+
+  return (
+    <div className="rounded-lg border border-border bg-surface p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold text-secondary uppercase tracking-wide">
+            Initialization Setup
+          </p>
+          <p className="text-xs text-dim">
+            Chat stays available while you complete setup.
+          </p>
+        </div>
+        <span
+          className={
+            setupCompleted
+              ? "rounded-full border border-success-line bg-success-soft px-2 py-1 text-xs text-success"
+              : "rounded-full border border-border bg-card px-2 py-1 text-xs text-secondary"
+          }
+        >
+          {setupCompleted ? "Ready" : "In progress"}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2">
+        <SetupStepRow
+          title="Step A - Add Inputs"
+          description="Add requirement text or select files for upload."
+          complete={hasInputs}
+          inProgress={false}
+        />
+        <SetupStepRow
+          title="Step B - Upload Results"
+          description="Confirm parsed vs failed files after upload."
+          complete={uploadStepComplete}
+          inProgress={false}
+        />
+        <SetupStepRow
+          title="Step C - Analyze"
+          description="Run analysis to build baseline artifacts."
+          complete={analysisStepComplete}
+          inProgress={isAnalyzing}
+        />
+        <SetupStepRow
+          title="Step D - Setup Complete"
+          description="Initialization is complete after first successful analysis."
+          complete={setupCompleted}
+          inProgress={false}
+        />
+      </div>
+    </div>
+  );
+}
+
+interface SetupStepRowProps {
+  readonly title: string;
+  readonly description: string;
+  readonly complete: boolean;
+  readonly inProgress: boolean;
+}
+
+function SetupStepRow({
+  title,
+  description,
+  complete,
+  inProgress,
+}: SetupStepRowProps) {
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-border bg-card px-2 py-2">
+      {complete ? (
+        <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
+      ) : inProgress ? (
+        <Circle className="h-4 w-4 text-brand mt-0.5 shrink-0 animate-pulse" />
+      ) : (
+        <Circle className="h-4 w-4 text-dim mt-0.5 shrink-0" />
+      )}
+      <div>
+        <p className="text-xs font-semibold text-foreground">{title}</p>
+        <p className="text-xs text-dim">{description}</p>
+      </div>
     </div>
   );
 }
@@ -101,7 +245,12 @@ interface UploadDocumentsSectionProps {
   readonly onUpload: (event: React.FormEvent) => Promise<void>;
   readonly onAnalyze: () => Promise<void>;
   readonly loading: boolean;
+  readonly isUploading: boolean;
+  readonly isAnalyzing: boolean;
   readonly loadingMessage: string;
+  readonly uploadSummary: UploadSummary | null;
+  readonly analysisSummary: AnalysisSummary | null | undefined;
+  readonly setupFlowEnabled: boolean;
 }
 
 function UploadDocumentsSection({
@@ -110,13 +259,19 @@ function UploadDocumentsSection({
   onUpload,
   onAnalyze,
   loading,
+  isUploading,
+  isAnalyzing,
   loadingMessage,
+  uploadSummary,
+  analysisSummary,
+  setupFlowEnabled,
 }: UploadDocumentsSectionProps) {
   return (
     <form
       onSubmit={(e) => {
         void onUpload(e);
       }}
+      data-upload-area
       className="space-y-2"
     >
       <label className="text-xs font-semibold text-secondary uppercase tracking-wide">
@@ -143,7 +298,7 @@ function UploadDocumentsSection({
           className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-inverse hover:bg-brand-strong disabled:opacity-50"
         >
           <UploadCloud className="h-3.5 w-3.5" />
-          Upload
+          {isUploading ? "Uploading..." : "Upload"}
         </button>
         <button
           type="button"
@@ -154,9 +309,18 @@ function UploadDocumentsSection({
           className="inline-flex items-center gap-2 rounded-md border border-border-stronger bg-card px-3 py-1.5 text-xs font-semibold text-secondary hover:bg-surface disabled:opacity-50"
         >
           <Sparkles className="h-3.5 w-3.5" />
-          Analyze
+          {isAnalyzing ? "Analyzing..." : "Analyze"}
         </button>
       </div>
+
+      {setupFlowEnabled && uploadSummary !== null && (
+        <UploadSummaryPanel summary={uploadSummary} />
+      )}
+
+      {setupFlowEnabled && analysisSummary !== null && analysisSummary !== undefined && (
+        <AnalysisSummaryPanel summary={analysisSummary} />
+      )}
+
       {loadingMessage !== "" && (
         <p className="text-xs text-dim">{loadingMessage}</p>
       )}
@@ -164,7 +328,77 @@ function UploadDocumentsSection({
   );
 }
 
-function DocumentsList({ documents }: DocumentsTabProps) {
+function UploadSummaryPanel({ summary }: { readonly summary: UploadSummary }) {
+  return (
+    <div className="rounded-md border border-border bg-surface px-3 py-2 space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-foreground">Upload Summary</span>
+        <span className="text-secondary">
+          {summary.parsedDocuments}/{summary.attemptedDocuments} parsed
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-xs">
+        <div className="rounded border border-border bg-card px-2 py-1 text-secondary">
+          Attempted: {summary.attemptedDocuments}
+        </div>
+        <div className="rounded border border-success-line bg-success-soft px-2 py-1 text-success">
+          Parsed: {summary.parsedDocuments}
+        </div>
+        <div className="rounded border border-danger-line bg-danger-soft px-2 py-1 text-danger-strong">
+          Failed: {summary.failedDocuments}
+        </div>
+      </div>
+      {summary.failures.length > 0 && (
+        <div className="space-y-1">
+          {summary.failures.map((failure) => (
+            <div
+              key={`${failure.documentId ?? failure.fileName}-${failure.reason}`}
+              className="flex items-start gap-1.5 text-xs text-danger-strong"
+            >
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>
+                {failure.fileName}: {failure.reason}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AnalysisSummaryPanel({ summary }: { readonly summary: AnalysisSummary }) {
+  return (
+    <div className="rounded-md border border-border bg-surface px-3 py-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-foreground">Analysis Summary</span>
+        <span
+          className={
+            summary.status === "success"
+              ? "text-success"
+              : "text-danger-strong"
+          }
+        >
+          {summary.status}
+        </span>
+      </div>
+      <p className="text-xs text-secondary mt-1">
+        Analyzed: {summary.analyzedDocuments} | Skipped: {summary.skippedDocuments}
+      </p>
+      <p className="text-xs text-dim mt-1">
+        Completed: {new Date(summary.completedAt).toLocaleString()}
+      </p>
+    </div>
+  );
+}
+
+function DocumentsList({
+  documents,
+  onOpenDocument,
+}: {
+  readonly documents: readonly ReferenceDocument[];
+  readonly onOpenDocument?: (documentId: string) => void;
+}) {
   if (documents.length === 0) {
     return (
       <div className="p-4 text-center text-sm text-dim">
@@ -184,8 +418,8 @@ function DocumentsList({ documents }: DocumentsTabProps) {
               key={doc.id}
               className="flex items-start gap-2 p-3 bg-card rounded-lg border border-border hover:bg-surface transition-colors cursor-pointer"
               onClick={() => {
-                if (doc.url !== undefined) {
-                  window.open(doc.url, "_blank");
+                if (onOpenDocument !== undefined) {
+                  onOpenDocument(doc.id);
                 }
               }}
             >
@@ -203,6 +437,20 @@ function DocumentsList({ documents }: DocumentsTabProps) {
                     </>
                   )}
                 </div>
+                {featureFlags.enableDocumentStatusTrace && (
+                  <div className="text-xs text-secondary mt-1">
+                    Parse: {doc.parseStatus ?? "unknown"} | Analysis:{" "}
+                    {doc.analysisStatus ?? "unknown"}
+                  </div>
+                )}
+                {featureFlags.enableDocumentStatusTrace &&
+                  doc.parseError !== undefined &&
+                  doc.parseError !== null &&
+                  doc.parseError !== "" && (
+                    <div className="text-xs text-danger-strong mt-1">
+                      {doc.parseError}
+                    </div>
+                  )}
               </div>
             </div>
           </div>
@@ -212,6 +460,3 @@ function DocumentsList({ documents }: DocumentsTabProps) {
     </div>
   );
 }
-
-
-

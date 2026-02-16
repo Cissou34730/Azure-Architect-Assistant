@@ -61,8 +61,8 @@ export interface ProjectState {
   readonly mindMap: Record<string, unknown>;
   readonly referenceDocuments: readonly ReferenceDocument[];
   readonly mcpQueries: readonly MCPQuery[];
-  // eslint-disable-next-line @typescript-eslint/no-restricted-types -- Dynamic backend statistics
-  readonly projectDocumentStats?: Record<string, unknown>;
+  readonly projectDocumentStats?: UploadSummary;
+  readonly analysisSummary?: AnalysisSummary;
   readonly iterationEvents: readonly IterationEvent[];
 
   // Flat properties for compatibility
@@ -115,5 +115,7 @@ import type {
   IterationEvent,
   SourceCitation,
   CandidateArchitecture,
+  UploadSummary,
+  AnalysisSummary,
 } from "./api-artifacts";
 import type { DiagramData } from "./api-diagrams";

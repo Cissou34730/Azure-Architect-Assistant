@@ -30,10 +30,10 @@ export function ProjectProvider({
 
   const stateValue = useMemo(() => ({
     projectState: value.projectState,
-    loading: value.loading,
+    loading: value.loadingState,
     refreshState: value.refreshState,
     analyzeDocuments: value.analyzeDocuments,
-  }), [value.projectState, value.loading, value.refreshState, value.analyzeDocuments]);
+  }), [value.projectState, value.loadingState, value.refreshState, value.analyzeDocuments]);
 
   const metaValue = useMemo(() => ({
     selectedProject: value.selectedProject,
@@ -48,7 +48,7 @@ export function ProjectProvider({
   const chatValue = useMemo(() => ({
     messages: value.messages,
     sendMessage: value.sendMessage,
-    loading: value.loading,
+    loading: value.loadingChat,
     loadingMessage: value.loadingMessage,
     refreshMessages: value.refreshMessages,
     fetchOlderMessages: value.fetchOlderMessages,
@@ -57,7 +57,7 @@ export function ProjectProvider({
   }), [
     value.messages,
     value.sendMessage,
-    value.loading,
+    value.loadingChat,
     value.loadingMessage,
     value.refreshMessages,
     value.fetchOlderMessages,

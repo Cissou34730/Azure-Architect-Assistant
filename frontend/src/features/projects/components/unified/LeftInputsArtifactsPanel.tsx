@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
 import { ChevronLeft } from "lucide-react";
+import { featureFlags } from "../../../../config/featureFlags";
 import { useProjectContext } from "../../context/useProjectContext";
 import { useProjectStateContext } from "../../context/useProjectStateContext";
 import type { WorkspaceTab } from "./workspace/types";
@@ -16,12 +17,32 @@ function LeftInputsArtifactsPanelBase({
   onOpenTab,
 }: LeftInputsArtifactsPanelProps) {
   const { projectState } = useProjectStateContext();
-  const { textRequirements } = useProjectContext();
+  const { textRequirements, inputWorkflow } = useProjectContext();
 
   const documents = useMemo(
     () => projectState?.referenceDocuments ?? [],
     [projectState?.referenceDocuments],
   );
+
+  const uploadState = useMemo(() => {
+    if (inputWorkflow.uploadState !== "idle") {
+      return inputWorkflow.uploadState;
+    }
+    if ((projectState?.projectDocumentStats?.attemptedDocuments ?? 0) > 0) {
+      return "success";
+    }
+    return "idle";
+  }, [inputWorkflow.uploadState, projectState?.projectDocumentStats?.attemptedDocuments]);
+
+  const analysisState = useMemo(() => {
+    if (inputWorkflow.analysisState !== "idle") {
+      return inputWorkflow.analysisState;
+    }
+    if (projectState?.analysisSummary?.status === "success") {
+      return "success";
+    }
+    return "idle";
+  }, [inputWorkflow.analysisState, projectState?.analysisSummary?.status]);
 
   const artifacts = useMemo<ArtifactCounts>(() => {
     if (projectState === null) {
@@ -81,6 +102,11 @@ function LeftInputsArtifactsPanelBase({
         <InputsSection
           documents={documents}
           textRequirements={textRequirements}
+          uploadState={uploadState}
+          analysisState={analysisState}
+          workflowMessage={inputWorkflow.message}
+          showStatusTrace={featureFlags.enableDocumentStatusTrace}
+          showWorkflowTrace={featureFlags.enableUnifiedProjectInitialization}
           onOpenTab={onOpenTab}
         />
         <ArtifactsSection artifacts={artifacts} onOpenTab={onOpenTab} />

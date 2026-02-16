@@ -11,14 +11,12 @@ import { useRenderCount } from "../../../hooks/useRenderCount";
 
 interface ProjectHeaderProps {
   readonly onUploadClick?: () => void;
-  readonly onGenerateClick?: () => void;
   readonly onAdrClick?: () => void;
   readonly onExportClick?: () => void;
 }
 
 function ProjectHeader({
   onUploadClick,
-  onGenerateClick,
   onAdrClick,
   onExportClick,
 }: ProjectHeaderProps) {
@@ -37,7 +35,6 @@ function ProjectHeader({
 
   const { showShortcuts, setShowShortcuts, shortcuts } = useProjectHeaderKeyboard({
     onUploadClick,
-    onGenerateClick,
     projectSelectorRef,
   });
 
@@ -70,14 +67,12 @@ function ProjectHeader({
                 onProjectDelete={handleDeleteRequest}
                 onCreateNew={createNewProject}
                 loading={loading}
-                allowDelete={false}
+                allowDelete={true}
               />
             </div>
 
             <div className="flex items-center gap-2">
               <ProjectHeaderActions
-                onUploadClick={onUploadClick}
-                onGenerateClick={onGenerateClick}
                 onAdrClick={onAdrClick}
                 onExportClick={onExportClick}
                 exportDisabled

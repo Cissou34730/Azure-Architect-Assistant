@@ -11,7 +11,6 @@ interface UnifiedProjectWorkspaceProps {
   readonly onToggleLeft: () => void;
   readonly onToggleRight: () => void;
   readonly onUploadClick: () => void;
-  readonly onGenerateClick: () => void;
   readonly onAdrClick: () => void;
   readonly onExportClick: () => void;
   readonly tabs: readonly WorkspaceTab[];
@@ -33,7 +32,6 @@ export function UnifiedProjectWorkspace({
   onToggleLeft,
   onToggleRight,
   onUploadClick,
-  onGenerateClick,
   onAdrClick,
   onExportClick,
   tabs,
@@ -52,7 +50,6 @@ export function UnifiedProjectWorkspace({
     <div className="flex flex-col h-screen overflow-hidden bg-surface">
       <ProjectHeader
         onUploadClick={onUploadClick}
-        onGenerateClick={onGenerateClick}
         onAdrClick={onAdrClick}
         onExportClick={onExportClick}
       />
@@ -81,6 +78,7 @@ export function UnifiedProjectWorkspace({
             activeTabId={activeTabId}
             onTabChange={onTabChange}
             onCloseTab={onCloseTab}
+            onOpenTab={onOpenTab}
             onTogglePin={onTogglePin}
             onReorderTab={onReorderTab}
           />

@@ -64,10 +64,11 @@ export function TreeGroup({ label, children }: TreeGroupProps) {
 interface TreeRowProps {
   readonly icon: LucideIcon;
   readonly label: string;
+  readonly meta?: ReactNode;
   readonly onClick: () => void;
 }
 
-export function TreeRow({ icon, label, onClick }: TreeRowProps) {
+export function TreeRow({ icon, label, meta, onClick }: TreeRowProps) {
   const iconComponent = icon;
   return (
     <button
@@ -76,7 +77,8 @@ export function TreeRow({ icon, label, onClick }: TreeRowProps) {
       className="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-secondary hover:bg-surface"
     >
       {createElement(iconComponent, { className: "h-4 w-4 text-dim" })}
-      <span className="truncate">{label}</span>
+      <span className="truncate flex-1 text-left">{label}</span>
+      {meta}
     </button>
   );
 }

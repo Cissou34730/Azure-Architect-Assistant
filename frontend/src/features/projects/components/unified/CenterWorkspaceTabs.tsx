@@ -9,6 +9,7 @@ interface CenterWorkspaceTabsProps {
   readonly activeTabId: string;
   readonly onTabChange: (tabId: string) => void;
   readonly onCloseTab: (tabId: string) => void;
+  readonly onOpenTab: (tab: WorkspaceTab) => void;
   readonly onTogglePin: (tabId: string) => void;
   readonly onReorderTab: (sourceId: string, targetId: string) => void;
 }
@@ -33,6 +34,7 @@ export function CenterWorkspaceTabs({
   activeTabId,
   onTabChange,
   onCloseTab,
+  onOpenTab,
   onTogglePin,
   onReorderTab,
 }: CenterWorkspaceTabsProps) {
@@ -88,7 +90,12 @@ export function CenterWorkspaceTabs({
 
       <div className="flex-1 overflow-hidden bg-card">
         {hasActiveTab ? (
-          <WorkspaceTabContent tab={activeTab} documents={documents} hasArtifacts={hasArtifacts} />
+          <WorkspaceTabContent
+            tab={activeTab}
+            documents={documents}
+            hasArtifacts={hasArtifacts}
+            onOpenTab={onOpenTab}
+          />
         ) : (
           <div className="h-full flex items-center justify-center text-sm text-dim">
             Select an input or artifact from the left panel.

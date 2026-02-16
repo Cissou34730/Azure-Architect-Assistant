@@ -1,0 +1,10 @@
+{
+  "subject": "Documentation JSON pointer convention",
+  "fact": "Some root-level docs JSON files are lightweight pointer documents using {\"status\":\"pointer\",\"movedTo\":\"...\"} that redirect to the canonical file location.",
+  "citations": [
+    "docs/arch_mindmap.json",
+    "docs/INDEXER_PERFORMANCE_ANALYSIS.json"
+  ],
+  "reason": "Future loaders/parsers that read docs JSON files must resolve pointer-style files instead of assuming full payloads at original paths.",
+  "category": "project-structure"
+}

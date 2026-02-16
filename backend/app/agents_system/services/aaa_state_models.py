@@ -55,6 +55,12 @@ class ReferenceDocument(BaseModel):
     category: str
     title: str
     url: str | None = None
+    mime_type: str | None = None
+    parse_status: str | None = None
+    analysis_status: str | None = None
+    parse_error: str | None = None
+    uploaded_at: str | None = None
+    analyzed_at: str | None = None
     accessed_at: str
 
 

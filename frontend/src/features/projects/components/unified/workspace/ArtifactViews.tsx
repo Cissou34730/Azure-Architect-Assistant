@@ -23,8 +23,6 @@ interface ArtifactViewProps {
   readonly tabKind: ArtifactTab;
   readonly projectState: ProjectState;
   readonly hasArtifacts: boolean;
-  readonly onGenerate: () => Promise<void>;
-  readonly loading: boolean;
 }
 
 type ArtifactRenderer = (props: ArtifactViewProps) => ReactElement;
@@ -49,12 +47,10 @@ const artifactRenderers: Record<ArtifactTab, ArtifactRenderer> = {
   ["artifact-costs"]: ({ projectState }) => (
     <CostBreakdown costEstimates={projectState.costEstimates} />
   ),
-  ["artifact-findings"]: ({ projectState, hasArtifacts, onGenerate, loading }) => (
+  ["artifact-findings"]: ({ projectState, hasArtifacts }) => (
     <FindingsList
       projectState={projectState}
       hasArtifacts={hasArtifacts}
-      onGenerate={onGenerate}
-      loading={loading}
     />
   ),
   ["artifact-waf"]: ({ projectState }) => <WafChecklistView projectState={projectState} />,
@@ -79,15 +75,11 @@ export function ArtifactViews(props: ArtifactViewProps) {
 interface FindingsListProps {
   readonly projectState: ProjectState;
   readonly hasArtifacts: boolean;
-  readonly onGenerate: () => Promise<void>;
-  readonly loading: boolean;
 }
 
 function FindingsList({
   projectState,
   hasArtifacts,
-  onGenerate,
-  loading,
 }: FindingsListProps) {
   const findings = safeArray(projectState.findings);
   if (!hasArtifacts) {
@@ -95,9 +87,7 @@ function FindingsList({
       <EmptyArtifactState
         icon={ShieldAlert}
         title="No findings yet"
-        description="Run an analysis to generate findings and gaps."
-        onGenerate={onGenerate}
-        loading={loading}
+        description="Findings will appear after you run analysis from Inputs setup."
       />
     );
   }

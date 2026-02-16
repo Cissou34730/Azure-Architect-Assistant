@@ -11,7 +11,7 @@ export function useUnifiedProjectPage() {
   const navigate = useNavigate();
 
   const { loadingProject } = useProjectMetaContext();
-  const { projectState, loading: loadingState, analyzeDocuments } = useProjectStateContext();
+  const { projectState, loading: loadingState } = useProjectStateContext();
   const { loading: loadingChat } = useProjectChatContext();
 
   const loading = loadingProject || loadingState || loadingChat;
@@ -24,10 +24,6 @@ export function useUnifiedProjectPage() {
     sidePanelState.openLeftPanel();
     window.dispatchEvent(new CustomEvent("open-documents-tab"));
   }, [sidePanelState]);
-
-  const handleGenerateDiagramClick = useCallback(() => {
-    void analyzeDocuments();
-  }, [analyzeDocuments]);
 
   const handleCreateAdrClick = useCallback(() => {
     console.log("Create ADR clicked");
@@ -43,7 +39,6 @@ export function useUnifiedProjectPage() {
     projectState,
     ...sidePanelState,
     handleUploadClick,
-    handleGenerateDiagramClick,
     handleCreateAdrClick,
     handleExportClick,
     ...navigation,

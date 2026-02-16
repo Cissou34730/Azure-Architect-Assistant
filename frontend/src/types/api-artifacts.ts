@@ -164,8 +164,41 @@ export interface ReferenceDocument {
   readonly id: string;
   readonly category: string;
   readonly title: string;
-  readonly url?: string;
+  readonly url?: string | null;
+  readonly mimeType?: string;
   readonly accessedAt?: string;
+  readonly parseStatus?: "parsed" | "parse_failed";
+  readonly analysisStatus?:
+    | "not_started"
+    | "analyzing"
+    | "analyzed"
+    | "analysis_failed"
+    | "skipped";
+  readonly parseError?: string | null;
+  readonly uploadedAt?: string;
+  readonly analyzedAt?: string | null;
+}
+
+export interface UploadFailure {
+  readonly documentId: string | null;
+  readonly fileName: string;
+  readonly reason: string;
+}
+
+export interface UploadSummary {
+  readonly attemptedDocuments: number;
+  readonly parsedDocuments: number;
+  readonly failedDocuments: number;
+  readonly failures: readonly UploadFailure[];
+}
+
+export interface AnalysisSummary {
+  readonly runId: string;
+  readonly startedAt: string;
+  readonly completedAt: string;
+  readonly status: "success" | "failed";
+  readonly analyzedDocuments: number;
+  readonly skippedDocuments: number;
 }
 
 export interface MCPQuery {

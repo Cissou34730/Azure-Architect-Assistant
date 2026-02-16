@@ -1,6 +1,11 @@
-import { Project, ProjectState } from "../types/api";
+import { Project, ProjectState, UploadSummary } from "../types/api";
 import { API_BASE } from "./config";
 import { fetchWithErrorHandling } from "./serviceError";
+
+interface UploadDocumentsResponse {
+  readonly documents: readonly Record<string, unknown>[];
+  readonly uploadSummary: UploadSummary;
+}
 
 export const projectApi = {
   async get(id: string): Promise<Project> {
@@ -35,14 +40,16 @@ export const projectApi = {
     return data.project;
   },
 
-  async uploadDocuments(projectId: string, files: FileList): Promise<void> {
+  async uploadDocuments(
+    projectId: string,
+    files: FileList,
+  ): Promise<UploadDocumentsResponse> {
     const formData = new FormData();
     Array.from(files).forEach((file) => {
       formData.append("documents", file);
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-restricted-types
-    await fetchWithErrorHandling<Record<string, unknown>>(
+    const data = await fetchWithErrorHandling<UploadDocumentsResponse>(
       `${API_BASE}/projects/${projectId}/documents`,
       {
         method: "POST",
@@ -50,6 +57,7 @@ export const projectApi = {
       },
       "upload documents"
     );
+    return data;
   },
 
   async saveTextRequirements(
@@ -83,5 +91,41 @@ export const projectApi = {
       "analyze documents"
     );
     return data.projectState;
+  },
+
+  async delete(projectId: string): Promise<void> {
+    await fetchWithErrorHandling<{
+      readonly message: string;
+      readonly deletedCount: number;
+      readonly projectIds: readonly string[];
+    }>(
+      `${API_BASE}/projects/${projectId}`,
+      {
+        method: "DELETE",
+      },
+      "delete project"
+    );
+  },
+
+  async bulkDelete(
+    projectIds: readonly string[]
+  ): Promise<{ readonly deletedCount: number }> {
+    const data = await fetchWithErrorHandling<{
+      readonly message: string;
+      readonly deletedCount: number;
+      readonly projectIds: readonly string[];
+    }>(
+      `${API_BASE}/projects/bulk-delete`,
+      {
+        method: "POST",
+        headers: {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ projectIds }),
+      },
+      "bulk delete projects"
+    );
+    return { deletedCount: data.deletedCount };
   },
 };

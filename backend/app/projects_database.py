@@ -7,6 +7,7 @@ import logging
 import os
 from pathlib import Path
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -63,8 +64,39 @@ async def init_database():
     async with engine.begin() as conn:
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_run_additive_schema_migrations)
 
     logger.info("Database tables initialized successfully")
+
+
+def _run_additive_schema_migrations(sync_conn) -> None:
+    """Apply additive schema changes that create_all cannot enforce on existing DBs."""
+    _ensure_documents_status_columns(sync_conn)
+
+
+def _ensure_documents_status_columns(sync_conn) -> None:
+    result = sync_conn.execute(text("PRAGMA table_info(documents)"))
+    existing_columns = {str(row[1]) for row in result.fetchall()}
+
+    additive_columns = (
+        ("stored_path", "TEXT"),
+        ("parse_status", "TEXT"),
+        ("analysis_status", "TEXT"),
+        ("parse_error", "TEXT"),
+        ("analyzed_at", "TEXT"),
+        ("last_analysis_run_id", "TEXT"),
+    )
+
+    for column_name, column_type in additive_columns:
+        if column_name in existing_columns:
+            continue
+        sync_conn.execute(
+            text(f"ALTER TABLE documents ADD COLUMN {column_name} {column_type}")
+        )
+        logger.info(
+            "Applied additive migration on documents table: added column %s",
+            column_name,
+        )
 
 
 async def get_db():

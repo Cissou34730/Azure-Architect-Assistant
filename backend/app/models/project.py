@@ -27,6 +27,7 @@ class Project(Base):
         nullable=False,
         default=lambda: datetime.now(timezone.utc).isoformat(),
     )
+    deleted_at = Column(String(30), nullable=True)
 
     # Relationships
     documents = relationship(
@@ -72,6 +73,12 @@ class ProjectDocument(Base):
     file_name = Column(String(255), nullable=False)
     mime_type = Column(String(100), nullable=False)
     raw_text = Column(Text, nullable=False)
+    stored_path = Column(Text, nullable=True)
+    parse_status = Column(String(32), nullable=True)
+    analysis_status = Column(String(32), nullable=True)
+    parse_error = Column(Text, nullable=True)
+    analyzed_at = Column(String(30), nullable=True)
+    last_analysis_run_id = Column(String(36), nullable=True)
     uploaded_at = Column(
         String(30),
         nullable=False,
@@ -89,7 +96,13 @@ class ProjectDocument(Base):
             "fileName": str(self.file_name),
             "mimeType": str(self.mime_type),
             "rawText": str(self.raw_text),
+            "storedPath": self.stored_path,
+            "parseStatus": self.parse_status,
+            "analysisStatus": self.analysis_status,
+            "parseError": self.parse_error,
             "uploadedAt": str(self.uploaded_at),
+            "analyzedAt": self.analyzed_at,
+            "lastAnalysisRunId": self.last_analysis_run_id,
         }
 
 

@@ -72,6 +72,8 @@ async def test_analyze_docs_persists_ingestion_stats_and_requirements(monkeypatc
 
         _verify_ingestion_stats(state)
         _verify_requirements(state)
+        _verify_analysis_summary(state)
+        _verify_reference_documents(state)
 
         # Confirm persistence into ProjectState
         result = await session.execute(select(ProjectState).where(ProjectState.project_id == project.id))
@@ -91,5 +93,39 @@ def _verify_requirements(state: dict) -> None:
     reqs = state.get("requirements", [])
     assert reqs, "requirements should not be empty"
     assert isinstance(reqs[0].get("id"), str)
+
+
+def _verify_analysis_summary(state: dict) -> None:
+    summary = state.get("analysisSummary")
+    assert isinstance(summary, dict)
+    assert summary.get("status") == "success"
+    assert summary.get("analyzedDocuments") == 1
+    assert summary.get("skippedDocuments") == 1
+    assert isinstance(summary.get("runId"), str)
+    assert isinstance(summary.get("startedAt"), str)
+    assert isinstance(summary.get("completedAt"), str)
+
+
+def _verify_reference_documents(state: dict) -> None:
+    reference_documents = state.get("referenceDocuments")
+    assert isinstance(reference_documents, list)
+    assert len(reference_documents) == 2
+
+    docs_by_id = {
+        str(item.get("id")): item
+        for item in reference_documents
+        if isinstance(item, dict)
+    }
+
+    first_doc = docs_by_id.get("d-1")
+    assert isinstance(first_doc, dict)
+    assert first_doc.get("parseStatus") == "parsed"
+    assert first_doc.get("analysisStatus") == "analyzed"
+    assert isinstance(first_doc.get("analyzedAt"), str)
+
+    second_doc = docs_by_id.get("d-2")
+    assert isinstance(second_doc, dict)
+    assert second_doc.get("parseStatus") == "parse_failed"
+    assert second_doc.get("analysisStatus") == "skipped"
 
 

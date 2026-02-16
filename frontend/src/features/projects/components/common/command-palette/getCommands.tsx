@@ -1,8 +1,8 @@
 import {
+  FolderOpen,
   FileText,
   MessageSquare,
   BarChart2,
-  Upload,
   Download,
   HelpCircle,
 } from "lucide-react";
@@ -98,17 +98,11 @@ function getActionCommands(
   return [
     {
       id: "action-upload",
-      label: "Upload Documents",
-      icon: <Upload className="h-4 w-4" />,
-      keywords: ["upload", "documents", "files", "add"],
+      label: "Open Inputs Setup",
+      icon: <FolderOpen className="h-4 w-4" />,
+      keywords: ["upload", "documents", "files", "inputs", "setup"],
       action: () => {
         onNavigate(`/project/${projectId}?tab=inputs`);
-        setTimeout(() => {
-          const uploadArea = document.querySelector("[data-upload-area]");
-          if (uploadArea !== null) {
-            uploadArea.scrollIntoView({ behavior: "smooth" });
-          }
-        }, 100);
       },
       category: "Actions",
     },
