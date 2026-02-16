@@ -76,6 +76,14 @@ class AppSettings(BaseSettings):
         / "data"
         / "diagrams.db",
     )
+    
+    # Models cache settings
+    models_cache_path: Path = Field(
+        default_factory=lambda: Path(__file__).resolve().parents[2]
+        / "data"
+        / "openai_models_cache.json",
+        description="Disk cache for OpenAI models list with 7-day TTL"
+    )
 
     # WAF Checklist Normalization Settings
     aaa_feature_waf_normalized: bool = Field(
@@ -110,7 +118,6 @@ class AppSettings(BaseSettings):
         / "lib"
         / "plantuml.jar",
     )
-    diagram_openai_model: str = Field("gpt-4-turbo-preview")
     diagram_max_retries: int = Field(3)
     diagram_generation_timeout: int = Field(30)
 
@@ -124,6 +131,7 @@ class AppSettings(BaseSettings):
     ingestion_database: Path | None = None
     knowledge_bases_root: Path | None = None
     vite_banner_message: str | None = None
+    vite_api_base: str | None = None
 
     @field_validator("cors_allow_origins", mode="before")
     @classmethod

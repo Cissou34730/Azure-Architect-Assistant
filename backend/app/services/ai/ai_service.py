@@ -3,6 +3,7 @@ Unified AI Service
 Single entry point for all AI operations (LLM and Embeddings).
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from functools import lru_cache
@@ -223,6 +224,7 @@ class AIServiceManager:
     """
 
     _instance: "AIService | None" = None
+    _lock: asyncio.Lock = asyncio.Lock()
 
     @classmethod
     def get_instance(cls, config: AIConfig | None = None) -> "AIService":
@@ -235,6 +237,69 @@ class AIServiceManager:
     def set_instance(cls, instance: "AIService | None") -> None:
         """Set or clear singleton instance (for testing/lifecycle)."""
         cls._instance = instance
+
+    @classmethod
+    async def reinitialize_with_model(cls, new_model: str) -> None:
+        """
+        Reinitialize AIService with a new model.
+        
+        Thread-safe implementation using asyncio.Lock to prevent concurrent
+        reinitializations. Waits for in-flight requests via a grace period.
+        Clears all cached service instances to ensure fresh initialization.
+        
+        Args:
+            new_model: New model ID to use (e.g., "gpt-4-turbo-preview")
+        
+        Raises:
+            ValueError: If model ID is invalid or reinitialization fails
+        """
+        async with cls._lock:
+            logger.info(f"Reinitialization requested: changing model to {new_model}")
+            
+            # Get current instance (if any)
+            old_instance = cls._instance
+            old_model = old_instance.get_llm_model() if old_instance else None
+            
+            if old_model == new_model:
+                logger.info(f"Model already set to {new_model}, skipping reinitialization")
+                return
+            
+            # Grace period for in-flight requests (simple approach)
+            # More sophisticated: maintain request counter and wait for zero
+            await asyncio.sleep(0.5)
+            
+            try:
+                # Create new config with updated model
+                new_config = AIConfig(openai_llm_model=new_model)
+                new_config.validate_provider_config()
+                
+                # Create new AIService instance
+                new_instance = AIService(new_config)
+                
+                # Replace singleton instance
+                cls._instance = new_instance
+                
+                # CRITICAL: Clear all cached service instances that depend on AIService
+                # This ensures fresh instances are created with the new model
+                get_ai_service.cache_clear()
+                logger.debug("Cleared get_ai_service LRU cache")
+                
+                # Clear LLMService singleton to force recreation with new AI service
+                from app.services.llm_service import LLMServiceSingleton  # noqa: PLC0415
+                LLMServiceSingleton.set_instance(None)
+                logger.debug("Cleared LLMService singleton instance")
+                
+                logger.info(
+                    f"AIService reinitialized: {old_model} -> {new_model} "
+                    f"(all service caches cleared)"
+                )
+                
+            except Exception as e:
+                logger.error(f"Failed to reinitialize AIService with model {new_model}: {e}")
+                # Keep old instance if reinitialization fails
+                if old_instance:
+                    cls._instance = old_instance
+                raise ValueError(f"Failed to change model to {new_model}: {e!s}") from e
 
 
 @lru_cache(maxsize=1)

@@ -107,8 +107,9 @@ Notes:
             project_state = await self._complete_json(
                 system_prompt, user_prompt, max_tokens=3000
             )
-        except Exception:  # noqa: BLE001
+        except Exception as e:
             # Fallback to legacy parsing if JSON mode fails for any reason
+            logger.warning(f"JSON mode failed, falling back to legacy parsing: {e}")
             response = await self._complete(system_prompt, user_prompt, max_tokens=3000)
             project_state = self._parse_project_state(response)
 
@@ -120,24 +121,42 @@ Notes:
         """Make an LLM call requesting JSON-only output and parse it.
 
         Uses OpenAI JSON mode via response_format when supported by the provider.
+        Falls back to regular mode if not supported.
         """
         messages = [
             ChatMessage(role="system", content=system_prompt),
             ChatMessage(role="user", content=user_prompt),
         ]
 
-        response = await self.ai_service.chat(
-            messages=messages,
-            temperature=self.ai_service.config.default_temperature,
-            max_tokens=max_tokens,
-            response_format={"type": "json_object"},
-        )
+        try:
+            response = await self.ai_service.chat(
+                messages=messages,
+                temperature=self.ai_service.config.default_temperature,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+            )
+        except Exception as e:
+            # If response_format not supported, retry without it
+            logger.warning(f"JSON mode failed, retrying without response_format: {e}")
+            response = await self.ai_service.chat(
+                messages=messages,
+                temperature=self.ai_service.config.default_temperature,
+                max_tokens=max_tokens,
+            )
 
         content = response.content
         if not content:
             raise ValueError("LLM returned empty response")
 
-        return json.loads(content)
+        # Log first 500 chars for debugging
+        logger.debug(f"LLM response preview: {content[:500]}...")
+        
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode failed: {e}")
+            logger.error(f"Response content: {content[:1000]}")
+            raise
 
     async def process_chat_message(
         self,
@@ -266,10 +285,16 @@ Use clear headings, bullet points, and technical details. Reference Azure Well-A
         json_match = re.search(r"\{[\s\S]*\}", response)
         if not json_match:
             logger.error("Failed to extract JSON from LLM response")
+            logger.error(f"Response content (first 1000 chars): {response[:1000]}")
             raise ValueError("Failed to extract JSON from LLM response")
 
-        parsed = json.loads(json_match.group(0))
-        return parsed
+        try:
+            parsed = json.loads(json_match.group(0))
+            return parsed
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode failed in _parse_project_state: {e}")
+            logger.error(f"Extracted JSON string: {json_match.group(0)[:1000]}")
+            raise
 
     def _parse_chat_response(
         self, response: str, current_state: dict[str, Any]
