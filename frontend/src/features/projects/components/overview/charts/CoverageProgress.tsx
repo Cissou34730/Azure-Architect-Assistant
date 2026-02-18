@@ -7,9 +7,9 @@ export function CoverageProgress({ percentage }: CoverageProgressProps) {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
-  let color = "#10b981"; // green
-  if (percentage < 33) color = "#ef4444"; // red
-  else if (percentage < 66) color = "#f59e0b"; // amber
+  let color = "var(--color-success)"; // green
+  if (percentage < 33) color = "var(--color-danger)"; // red
+  else if (percentage < 66) color = "var(--color-warning)"; // amber
 
   return (
     <div className="relative inline-flex items-center justify-center">
@@ -19,7 +19,7 @@ export function CoverageProgress({ percentage }: CoverageProgressProps) {
           cx="80"
           cy="80"
           r={radius}
-          stroke="#e5e7eb"
+          stroke="var(--color-border)"
           strokeWidth="12"
           fill="none"
         />

@@ -4,7 +4,7 @@
  */
 
 import { IngestionJob } from "../../types/ingestion";
-import { Button, StatusBadge } from "../common";
+import { Button, StatusBadge, Card } from "../common";
 import PhaseStatus from "./PhaseStatus";
 import { PhaseTimeline } from "./PhaseTimeline";
 import { IngestionActions } from "./IngestionActions";
@@ -27,7 +27,7 @@ export function IngestionProgress({
   // Render explicit Not Started state
   if (isNotStarted) {
     return (
-      <div className="card space-y-6">
+      <Card className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-foreground">
             Ingestion Progress
@@ -46,7 +46,7 @@ export function IngestionProgress({
             </Button>
           )}
         </div>
-      </div>
+      </Card>
     );
   }
 
@@ -59,7 +59,7 @@ export function IngestionProgress({
   };
 
   return (
-    <div className="card space-y-6">
+    <Card className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-foreground">
@@ -104,7 +104,7 @@ export function IngestionProgress({
           <div>Completed: {new Date(job.completedAt).toLocaleString()}</div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 

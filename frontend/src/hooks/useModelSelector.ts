@@ -3,7 +3,13 @@
  * Manages LLM model selection state and operations.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { settingsApi } from "../services/settingsService";
 import type { ModelInfo } from "../services/settingsService";
 
@@ -12,6 +18,7 @@ interface ModelSelectorState {
   readonly selectedModel: string;
   readonly isLoading: boolean;
   readonly isRefreshing: boolean;
+  readonly isSetting: boolean;
   readonly error: string | null;
 }
 
@@ -48,12 +55,13 @@ export function useModelSelector(): UseModelSelectorResult {
     selectedModel: "",
     isLoading: true,
     isRefreshing: false,
+    isSetting: false,
     error: null,
   });
 
   const fetchModels = useFetchModels(setState);
   const refreshModels = useRefreshModels(setState);
-  const setModel = useSetModel(state.selectedModel, setState);
+  const setModel = useSetModel(setState);
 
   // Fetch models on mount
   useEffect(() => {
@@ -67,13 +75,19 @@ export function useModelSelector(): UseModelSelectorResult {
  * Hook for fetching models operation.
  */
 function useFetchModels(
-  setState: React.Dispatch<React.SetStateAction<ModelSelectorState>>,
+  setState: Dispatch<SetStateAction<ModelSelectorState>>,
 ): () => Promise<void> {
   return useCallback(async () => {
     try {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
       const data = await fetchModelsData(false);
-      setState({ ...data, isLoading: false, isRefreshing: false, error: null });
+      setState((prev) => ({
+        ...prev,
+        ...data,
+        isLoading: false,
+        isRefreshing: false,
+        error: null,
+      }));
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to fetch models";
@@ -91,13 +105,19 @@ function useFetchModels(
  * Hook for refreshing models operation.
  */
 function useRefreshModels(
-  setState: React.Dispatch<React.SetStateAction<ModelSelectorState>>,
+  setState: Dispatch<SetStateAction<ModelSelectorState>>,
 ): () => Promise<void> {
   return useCallback(async () => {
     try {
       setState((prev) => ({ ...prev, isRefreshing: true, error: null }));
       const data = await fetchModelsData(true);
-      setState({ ...data, isLoading: false, isRefreshing: false, error: null });
+      setState((prev) => ({
+        ...prev,
+        ...data,
+        isLoading: false,
+        isRefreshing: false,
+        error: null,
+      }));
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to refresh models";
@@ -114,46 +134,51 @@ function useRefreshModels(
  * Hook for setting model operation.
  */
 function useSetModel(
-  currentModel: string,
-  setState: React.Dispatch<React.SetStateAction<ModelSelectorState>>,
+  setState: Dispatch<SetStateAction<ModelSelectorState>>,
 ): (modelId: string) => Promise<void> {
   return useCallback(
     async (modelId: string) => {
-      const previousModel = currentModel;
-      
+      let previousModel = "";
+
       try {
-        // Optimistic update
-        setState((prev) => ({ ...prev, selectedModel: modelId, error: null }));
-        
-        // Send change request to backend
+        setState((prev) => {
+          previousModel = prev.selectedModel;
+          return {
+            ...prev,
+            selectedModel: modelId,
+            isSetting: true,
+            error: null,
+          };
+        });
+
         const response = await settingsApi.setModel(modelId);
 
         if (!response.success || response.currentModel !== modelId) {
           throw new Error(response.message ?? "Failed to change model");
         }
-        
-        // Verify the actual current model from backend
-        const actualCurrentModel = await settingsApi.getCurrentModel();
-        
-        // Update state with verified model
-        setState((prev) => ({ 
-          ...prev, 
-          selectedModel: actualCurrentModel, 
-          error: null 
+
+        const syncedData = await fetchModelsData(false);
+
+        setState((prev) => ({
+          ...prev,
+          ...syncedData,
+          isLoading: false,
+          isRefreshing: false,
+          isSetting: false,
+          error: null,
         }));
-        
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Failed to set model";
-        // Rollback to previous model on error
         setState((prev) => ({
           ...prev,
           selectedModel: previousModel,
+          isSetting: false,
           error: errorMessage,
         }));
         throw err;
       }
     },
-    [currentModel, setState],
+    [setState],
   );
 }

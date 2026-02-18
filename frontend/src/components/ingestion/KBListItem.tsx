@@ -5,6 +5,7 @@
 
 import { KnowledgeBase, IngestionJob } from "../../types/ingestion";
 import { useState } from "react";
+import { Card } from "../common";
 import { KBListItemInfo } from "./KBListItemInfo";
 import { KBActions } from "./KBActions";
 import { KBItemDropdown } from "./KBItemDropdown";
@@ -46,8 +47,8 @@ export function KBListItem({
   const { isIngesting, isPaused, canStartIngestion } = getJobStates(job);
 
   return (
-    <div
-      className="card hover:shadow-lg transition-shadow"
+    <Card
+      className="hover:shadow-lg transition-shadow"
       role="article"
       aria-label={`Knowledge base: ${kb.name}`}
     >
@@ -73,6 +74,6 @@ export function KBListItem({
           />
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

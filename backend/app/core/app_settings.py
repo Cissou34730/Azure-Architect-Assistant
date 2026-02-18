@@ -121,6 +121,38 @@ class AppSettings(BaseSettings):
     diagram_max_retries: int = Field(3)
     diagram_generation_timeout: int = Field(30)
 
+    # LLM extraction and JSON repair settings
+    llm_analyze_max_tokens: int = Field(
+        default=6000,
+        ge=512,
+        le=32768,
+        description="Max completion tokens used for document analysis extraction",
+    )
+    llm_json_repair_min_tokens: int = Field(
+        default=1500,
+        ge=256,
+        le=16384,
+        description="Minimum token budget for JSON repair retries",
+    )
+    llm_json_repair_token_divisor: int = Field(
+        default=2,
+        ge=1,
+        le=16,
+        description="Repair token budget divisor based on original request budget",
+    )
+    llm_response_preview_log_chars: int = Field(
+        default=500,
+        ge=100,
+        le=10000,
+        description="Max chars for debug response previews",
+    )
+    llm_response_error_log_chars: int = Field(
+        default=1000,
+        ge=100,
+        le=20000,
+        description="Max chars for error response snippets",
+    )
+
     # Explicitly model commonly-present env keys to avoid extras in .env
     frontend_port: int | None = None
     backend_url: str | None = None

@@ -3,27 +3,24 @@ import { Outlet } from "react-router-dom";
 import {
   Banner,
   Navigation,
-  ToastContainer,
   PageLoader,
 } from "../components/common";
-import { useToast } from "../hooks/useToast";
+import { ToastProvider } from "../contexts/ToastContext";
 
 export function Layout() {
-  const { toasts, close } = useToast();
-
   return (
-    <div className="min-h-screen bg-surface">
-      <Banner />
-      <Navigation />
+    <ToastProvider>
+      <div className="min-h-screen bg-surface">
+        <Banner />
+        <Navigation />
 
-      <main role="main">
-        <Suspense fallback={<PageLoader />}>
-          <Outlet />
-        </Suspense>
-      </main>
-
-      <ToastContainer toasts={toasts} onClose={close} />
-    </div>
+        <main role="main">
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
+        </main>
+      </div>
+    </ToastProvider>
   );
 }
 

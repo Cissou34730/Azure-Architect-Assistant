@@ -1,3 +1,5 @@
+import { Card } from "../common";
+
 interface KB {
   readonly id: string;
   readonly name: string;
@@ -101,7 +103,7 @@ export function KBSelector({
   };
 
   return (
-    <div className="bg-card rounded-lg shadow-md p-6 mb-6">
+    <Card className="p-6 mb-6">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-foreground">
           Select Knowledge Bases
@@ -149,7 +151,7 @@ export function KBSelector({
           {selectedKBs.length !== 1 ? "s" : ""} selected
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

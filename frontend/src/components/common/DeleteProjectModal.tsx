@@ -2,6 +2,8 @@ import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { Project } from "../../types/api";
 import { DeleteProjectModalContent } from "./DeleteProjectModalContent";
+import { Button } from "./Button";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 interface DeleteProjectModalProps {
   readonly project: Project;
@@ -18,6 +20,7 @@ export function DeleteProjectModal({
 }: DeleteProjectModalProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const trapRef = useFocusTrap<HTMLDivElement>();
 
   if (!isOpen) return null;
 
@@ -52,6 +55,7 @@ export function DeleteProjectModal({
 
       {/* Modal */}
       <div
+        ref={trapRef}
         className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card rounded-lg shadow-xl z-50 animate-in fade-in zoom-in-95 duration-200"
         onKeyDown={handleKeyDown}
         role="dialog"
@@ -90,27 +94,21 @@ export function DeleteProjectModal({
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
-          <button
+          <Button
+            variant="secondary"
             onClick={onClose}
             disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-secondary bg-card border border-border-stronger rounded-lg hover:bg-surface disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="danger"
             onClick={handleConfirm}
             disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-inverse bg-danger rounded-lg hover:bg-danger-strong disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            isLoading={isDeleting}
           >
-            {isDeleting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-inverse border-t-transparent rounded-full animate-spin" />
-                Deleting...
-              </>
-            ) : (
-              "Delete Project"
-            )}
-          </button>
+            Delete Project
+          </Button>
         </div>
       </div>
     </>

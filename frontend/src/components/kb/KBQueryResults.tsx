@@ -1,4 +1,5 @@
 import { KbQueryResponse, KbSource } from "../../types/api";
+import { Card, Button } from "../common";
 
 interface SourceItemProps {
   readonly source: KbSource;
@@ -63,16 +64,16 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
   return (
     <div className="space-y-6">
       {/* Answer */}
-      <div className="bg-card rounded-lg shadow-md p-6">
+      <Card className="p-6">
         <h2 className="text-xl font-semibold text-foreground mb-4">Answer</h2>
         <div className="prose prose max-w-none">
           <p className="text-foreground whitespace-pre-wrap">{response.answer}</p>
         </div>
-      </div>
+      </Card>
 
       {/* Sources */}
       {sources.length > 0 && (
-        <div className="bg-card rounded-lg shadow-md p-6">
+        <Card className="p-6">
           <h2 className="text-xl font-semibold text-foreground mb-4">
             Sources ({sources.length})
           </h2>
@@ -84,7 +85,7 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
               />
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Suggested Follow-ups */}
@@ -95,16 +96,17 @@ export function KBQueryResults({ response, onFollowUp }: Props) {
           </h2>
           <div className="space-y-2">
             {followUps.map((followUp) => (
-              <button
+              <Button
                 key={followUp}
                 type="button"
+                variant="ghost"
+                className="block w-full text-left"
                 onClick={() => {
                   onFollowUp(followUp);
                 }}
-                className="block w-full text-left px-4 py-2 bg-card border border-brand-line rounded-lg hover:bg-brand-soft hover:border-brand-line transition-colors"
               >
                 <span className="text-brand-strong">💬 {followUp}</span>
-              </button>
+              </Button>
             ))}
           </div>
         </div>

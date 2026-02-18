@@ -1,13 +1,13 @@
-import { ReactNode } from "react";
+import { HTMLAttributes, ReactNode } from "react";
 
-interface CardProps {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
   hover?: boolean;
   onClick?: () => void;
 }
 
-export function Card({ children, className = "", hover = false, onClick }: CardProps) {
+export function Card({ children, className = "", hover = false, onClick, ...rest }: CardProps) {
   const baseClasses = "ui-card";
   const hoverClasses = hover ? "ui-card--interactive" : "";
   const clickClasses = onClick !== undefined ? "cursor-pointer" : "";
@@ -16,6 +16,7 @@ export function Card({ children, className = "", hover = false, onClick }: CardP
     <div
       className={`${baseClasses} ${hoverClasses} ${clickClasses} ${className}`}
       onClick={onClick}
+      {...rest}
     >
       {children}
     </div>

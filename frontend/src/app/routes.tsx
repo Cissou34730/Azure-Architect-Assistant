@@ -25,12 +25,6 @@ const IngestionWorkspace = lazy(() =>
     default: m.IngestionWorkspace,
   })),
 );
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const AgentChatWorkspace = lazy(() =>
-  import("../components/agent").then((m) => ({
-    default: m.AgentChatWorkspace,
-  })),
-);
 
 export const router = createBrowserRouter([
   {
@@ -74,10 +68,6 @@ export const router = createBrowserRouter([
       {
         path: "kb-management",
         element: <IngestionWorkspace />,
-      },
-      {
-        path: "agent-chat",
-        element: <AgentChatWorkspace />,
       },
     ],
   },

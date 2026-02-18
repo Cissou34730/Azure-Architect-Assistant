@@ -3,6 +3,8 @@ import { VirtuosoGrid } from "react-virtuoso";
 import { Network, X, Download, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { Card, CardContent, Badge, EmptyState } from "../../../../components/common";
 import MermaidRenderer from "../../../../components/diagrams/MermaidRenderer";
+import { useToastContext } from "../../../../contexts/ToastContext";
+import { useFocusTrap } from "../../../../hooks/useFocusTrap";
 import type { DiagramData } from "../../../../types/api";
 
 const VIRTUALIZE_THRESHOLD = 9;
@@ -104,6 +106,7 @@ function DiagramCard({ diagram, onClick }: DiagramCardProps) {
 interface DiagramModalProps {
   readonly diagram: DiagramData;
   readonly onClose: () => void;
+  readonly onShowToast: (message: string) => void;
 }
 
 function useZoomControls() {
@@ -124,18 +127,31 @@ function useZoomControls() {
   return { zoom, handleZoomIn, handleZoomOut, handleResetZoom };
 }
 
-function DiagramModal({ diagram, onClose }: DiagramModalProps) {
+function DiagramModal({ diagram, onClose, onShowToast }: DiagramModalProps) {
   const safeSource = getSafeString(diagram.sourceCode).trim();
   const { zoom, handleZoomIn, handleZoomOut, handleResetZoom } = useZoomControls();
+  const trapRef = useFocusTrap<HTMLDivElement>();
   
   const handleDownloadSVG = () => {
-    // Implementation would export the rendered SVG
-    alert("Download SVG - Feature coming soon");
+    onShowToast("Download SVG - Feature coming soon");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      onClose();
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay/75 p-4">
-      <div className="bg-card rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col">
+      <div
+        ref={trapRef}
+        className="bg-card rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col"
+        onKeyDown={handleKeyDown}
+        role="dialog"
+        aria-modal="true"
+        aria-label={diagram.diagramType}
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
           <div>
@@ -224,6 +240,7 @@ function DiagramModal({ diagram, onClose }: DiagramModalProps) {
 export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
   const [filter, setFilter] = useState<DiagramFilter>("all");
   const [selectedDiagram, setSelectedDiagram] = useState<DiagramData | null>(null);
+  const { info } = useToastContext();
 
   const filteredDiagrams = useMemo(() => {
     return diagrams.filter((diagram) => {
@@ -300,6 +317,7 @@ export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
           onClose={() => {
             setSelectedDiagram(null);
           }}
+          onShowToast={info}
         />
       )}
     </div>

@@ -30,15 +30,15 @@ const COLOR_CLASSES: Record<MetricColor, { card: string; progress: string }> = {
   },
   indigo: {
     card: "text-accent bg-accent-soft border-accent-line",
-    progress: "bg-accent-soft0",
+    progress: "bg-accent-soft",
   },
   purple: {
     card: "text-accent bg-accent-soft border-accent-line",
-    progress: "bg-accent-soft0",
+    progress: "bg-accent-soft",
   },
   pink: {
     card: "text-accent bg-accent-soft border-accent-line",
-    progress: "bg-accent-soft0",
+    progress: "bg-accent-soft",
   },
   green: {
     card: "text-success bg-success-soft border-success-line",
@@ -46,11 +46,11 @@ const COLOR_CLASSES: Record<MetricColor, { card: string; progress: string }> = {
   },
   red: {
     card: "text-danger bg-danger-soft border-danger-line",
-    progress: "bg-danger-soft0",
+    progress: "bg-danger-soft",
   },
   yellow: {
     card: "text-warning bg-warning-soft border-warning-line",
-    progress: "bg-warning-soft0",
+    progress: "bg-warning-soft",
   },
 };
 
