@@ -14,7 +14,7 @@ export function useChatHandlers({
   const { error: showError } = useToast();
 
   const handleSendChatMessage = useCallback(
-    async (e?: React.FormEvent): Promise<void> => {
+    async (e?: React.SyntheticEvent): Promise<void> => {
       e?.preventDefault();
       if (chatInput.trim() === "") {
         return;

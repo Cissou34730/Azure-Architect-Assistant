@@ -14,7 +14,7 @@ export function useKBWorkspace() {
   }, [healthHook.healthStatus]);
 
   // Handler for submitting query with selected KBs
-  const handleSubmitQuery = (e?: React.FormEvent) => {
+  const handleSubmitQuery = (e?: React.SyntheticEvent) => {
     void queryHook.submitQuery(e, kbListHook.selectedKBs);
   };
 

@@ -10,7 +10,7 @@ export function useKBQuery() {
   const [isLoading, setIsLoading] = useState(false);
 
   const submitQuery = async (
-    e?: React.FormEvent,
+    e?: React.SyntheticEvent,
     kbIds?: readonly string[]
   ) => {
     if (e !== undefined) e.preventDefault();

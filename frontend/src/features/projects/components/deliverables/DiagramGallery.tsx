@@ -127,11 +127,80 @@ function useZoomControls() {
   return { zoom, handleZoomIn, handleZoomOut, handleResetZoom };
 }
 
+interface DiagramModalControlsProps {
+  readonly zoom: number;
+  readonly onZoomIn: () => void;
+  readonly onZoomOut: () => void;
+  readonly onResetZoom: () => void;
+  readonly onDownloadSVG: () => void;
+  readonly onClose: () => void;
+}
+
+function DiagramModalControls({
+  zoom,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+  onDownloadSVG,
+  onClose,
+}: DiagramModalControlsProps) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onZoomOut}
+        disabled={zoom <= 50}
+        className="p-2 hover:bg-muted rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        aria-label="Zoom Out"
+      >
+        <ZoomOut className="h-5 w-5 text-secondary" />
+      </button>
+      <span className="text-sm font-medium text-secondary min-w-12 text-center">
+        {zoom}%
+      </span>
+      <button
+        type="button"
+        onClick={onZoomIn}
+        disabled={zoom >= 300}
+        className="p-2 hover:bg-muted rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        aria-label="Zoom In"
+      >
+        <ZoomIn className="h-5 w-5 text-secondary" />
+      </button>
+      <button
+        type="button"
+        onClick={onResetZoom}
+        className="p-2 hover:bg-muted rounded-lg transition-colors"
+        aria-label="Reset Zoom"
+      >
+        <Maximize2 className="h-5 w-5 text-secondary" />
+      </button>
+      <div className="w-px h-6 bg-border-stronger mx-1" />
+      <button
+        type="button"
+        onClick={onDownloadSVG}
+        className="p-2 hover:bg-muted rounded-lg transition-colors"
+        aria-label="Download"
+      >
+        <Download className="h-5 w-5 text-secondary" />
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        className="p-2 hover:bg-muted rounded-lg transition-colors"
+        aria-label="Close"
+      >
+        <X className="h-5 w-5 text-secondary" />
+      </button>
+    </div>
+  );
+}
+
 function DiagramModal({ diagram, onClose, onShowToast }: DiagramModalProps) {
   const safeSource = getSafeString(diagram.sourceCode).trim();
   const { zoom, handleZoomIn, handleZoomOut, handleResetZoom } = useZoomControls();
   const trapRef = useFocusTrap<HTMLDivElement>();
-  
+
   const handleDownloadSVG = () => {
     onShowToast("Download SVG - Feature coming soon");
   };
@@ -162,60 +231,20 @@ function DiagramModal({ diagram, onClose, onShowToast }: DiagramModalProps) {
               Version: {diagram.version}
             </Badge>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleZoomOut}
-              disabled={zoom <= 50}
-              className="p-2 hover:bg-muted rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              aria-label="Zoom Out"
-            >
-              <ZoomOut className="h-5 w-5 text-secondary" />
-            </button>
-            <span className="text-sm font-medium text-secondary min-w-12 text-center">
-              {zoom}%
-            </span>
-            <button
-              type="button"
-              onClick={handleZoomIn}
-              disabled={zoom >= 300}
-              className="p-2 hover:bg-muted rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              aria-label="Zoom In"
-            >
-              <ZoomIn className="h-5 w-5 text-secondary" />
-            </button>
-            <button
-              type="button"
-              onClick={handleResetZoom}
-              className="p-2 hover:bg-muted rounded-lg transition-colors"
-              aria-label="Reset Zoom"
-            >
-              <Maximize2 className="h-5 w-5 text-secondary" />
-            </button>
-            <div className="w-px h-6 bg-border-stronger mx-1" />
-            <button
-              type="button"
-              onClick={handleDownloadSVG}
-              className="p-2 hover:bg-muted rounded-lg transition-colors"
-              aria-label="Download"
-            >
-              <Download className="h-5 w-5 text-secondary" />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 hover:bg-muted rounded-lg transition-colors"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5 text-secondary" />
-            </button>
-          </div>
+          <DiagramModalControls
+            zoom={zoom}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onResetZoom={handleResetZoom}
+            onDownloadSVG={handleDownloadSVG}
+            onClose={onClose}
+          />
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-auto bg-card">
           {safeSource !== "" ? (
-            <div 
+            <div
               className="w-full h-full flex items-center justify-center p-6"
               style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center', transition: 'transform 0.2s ease' }}
             >

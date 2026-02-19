@@ -7,7 +7,7 @@ export function useChatInput(
   const [sending, setSending] = useState(false);
 
   const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
+    async (e: React.SyntheticEvent) => {
       e.preventDefault();
       if (input.trim() === "" || sending) {
         return;

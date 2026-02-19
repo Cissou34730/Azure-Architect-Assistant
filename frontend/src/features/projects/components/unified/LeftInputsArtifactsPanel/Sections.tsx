@@ -261,7 +261,7 @@ function toWorkflowLabel(state: "idle" | "running" | "success" | "error"): strin
       return "Done";
     case "error":
       return "Failed";
-    default:
+    case "idle":
       return "Not started";
   }
 }

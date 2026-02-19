@@ -4,7 +4,7 @@ interface Props {
   readonly question: string;
   readonly isLoading: boolean;
   readonly onQuestionChange: (value: string) => void;
-  readonly onSubmit: (e: React.FormEvent) => void;
+  readonly onSubmit: (e: React.SyntheticEvent) => void;
   readonly onRefresh: () => void;
 }
 

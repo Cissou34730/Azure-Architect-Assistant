@@ -13,7 +13,7 @@ export default function ProjectsPage() {
     void fetchProjects();
   }, [fetchProjects]);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     try {
       const project = await createProject(newProjectName);

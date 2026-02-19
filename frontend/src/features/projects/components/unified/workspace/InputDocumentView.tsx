@@ -5,7 +5,13 @@ interface InputDocumentViewProps {
   readonly document: ReferenceDocument;
 }
 
-export function InputDocumentView({ document }: InputDocumentViewProps) {
+interface PreviewDetails {
+  readonly hasUrl: boolean;
+  readonly isPdf: boolean;
+  readonly previewUrl: string | undefined;
+}
+
+function resolvePreviewDetails(document: ReferenceDocument): PreviewDetails {
   const normalizedUrl =
     typeof document.url === "string" ? document.url.trim() : "";
   const rawUrlIsValid =
@@ -17,11 +23,28 @@ export function InputDocumentView({ document }: InputDocumentViewProps) {
   const isPdf =
     (document.mimeType ?? "").toLowerCase().includes("pdf") ||
     document.title.toLowerCase().endsWith(".pdf");
-  const previewUrl = hasUrl && resolvedUrl !== undefined
+  const previewUrl = hasUrl
     ? isPdf
       ? withPdfViewerHash(resolvedUrl)
       : resolvedUrl
     : undefined;
+  return { hasUrl, isPdf, previewUrl };
+}
+
+function getParseError(document: ReferenceDocument): string | null {
+  if (
+    document.parseError !== undefined &&
+    document.parseError !== null &&
+    document.parseError !== ""
+  ) {
+    return document.parseError;
+  }
+  return null;
+}
+
+export function InputDocumentView({ document }: InputDocumentViewProps) {
+  const { hasUrl, isPdf, previewUrl } = resolvePreviewDetails(document);
+  const parseError = getParseError(document);
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center gap-3">
@@ -44,11 +67,9 @@ export function InputDocumentView({ document }: InputDocumentViewProps) {
         Parse status: {document.parseStatus ?? "unknown"} | Analysis status:{" "}
         {document.analysisStatus ?? "unknown"}
       </div>
-      {document.parseError !== undefined &&
-        document.parseError !== null &&
-        document.parseError !== "" && (
-          <div className="text-xs text-danger-strong">{document.parseError}</div>
-        )}
+      {parseError !== null && (
+        <div className="text-xs text-danger-strong">{parseError}</div>
+      )}
       {hasUrl && isPdf && (
         <div className="rounded-lg border border-border bg-card overflow-hidden">
           <iframe

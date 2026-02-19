@@ -1,0 +1,113 @@
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\components\kb\KBQueryForm.tsx
+  7:32  error  `FormEvent` is deprecated. FormEvent doesn't actually exist.
+You probably meant to use {@link ChangeEvent}, {@link InputEvent}, {@link SubmitEvent}, or just {@link SyntheticEvent} instead
+depending on the event type  @typescript-eslint/no-deprecated
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\contexts\ToastContext.tsx
+  17:7   error    Variable name `ToastContext` must match one of the following formats: camelCase, UPPER_CASE                                     @typescript-eslint/naming-convention
+  34:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\components\ProjectList.tsx
+  10:30  error  `FormEvent` is deprecated. FormEvent doesn't actually exist.
+You probably meant to use {@link ChangeEvent}, {@link InputEvent}, {@link SubmitEvent}, or just {@link SyntheticEvent} instead
+depending on the event type  @typescript-eslint/no-deprecated
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\components\deliverables\CostBreakdownParts.tsx
+  199:45  warning  Don't use `unknown` as a type. Avoid 'unknown' in internal code. Use domain types; reserve 'unknown' for external boundaries (I/O, JSON, external APIs)  @typescript-eslint/no-restricted-types
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\components\deliverables\DiagramGallery.tsx
+  130:1  error  Function 'DiagramModal' has too many lines (105). Maximum allowed is 100  max-lines-per-function
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\components\unified\CenterWorkspaceTabs.tsx
+  323:1  error  File has too many lines (305). Maximum allowed is 300  max-lines
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\components\unified\LeftContextPanel\DocumentsTab.tsx
+   24:8   error  Function 'DocumentsTab' has a complexity of 13. Maximum allowed is 10                                                                                                                                                    complexity
+  245:36  error  `FormEvent` is deprecated. FormEvent doesn't actually exist.
+You probably meant to use {@link ChangeEvent}, {@link InputEvent}, {@link SubmitEvent}, or just {@link SyntheticEvent} instead
+depending on the event type  @typescript-eslint/no-deprecated
+  256:1   error  Function 'UploadDocumentsSection' has a complexity of 14. Maximum allowed is 10                                                                                                                                          complexity
+  317:1   error  File has too many lines (440). Maximum allowed is 300                                                                                                                                                                    max-lines
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\components\unified\LeftContextPanel\RequirementsTab.tsx
+  54:20  error  Do not use 'as' assertions. Prefer precise types or type guards  no-restricted-syntax
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\components\unified\LeftInputsArtifactsPanel\Sections.tsx
+  257:11  error  Switch is not exhaustive. Cases not matched: "idle"  @typescript-eslint/switch-exhaustiveness-check
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\components\unified\workspace\ArtifactViews.tsx
+  319:1  error  File has too many lines (587). Maximum allowed is 300  max-lines
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\components\unified\workspace\InputDocumentView.tsx
+   8:8   error  Function 'InputDocumentView' has a complexity of 21. Maximum allowed is 10  complexity
+  20:32  error  Unnecessary conditional, the types have no overlap                          @typescript-eslint/no-unnecessary-condition
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\components\workspace\ChatPanel.tsx
+  120:30  error  `FormEvent` is deprecated. FormEvent doesn't actually exist.
+You probably meant to use {@link ChangeEvent}, {@link InputEvent}, {@link SubmitEvent}, or just {@link SyntheticEvent} instead
+depending on the event type  @typescript-eslint/no-deprecated
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\components\workspace\useChatInput.ts
+  10:21  error  `FormEvent` is deprecated. FormEvent doesn't actually exist.
+You probably meant to use {@link ChangeEvent}, {@link InputEvent}, {@link SubmitEvent}, or just {@link SyntheticEvent} instead
+depending on the event type  @typescript-eslint/no-deprecated
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\hooks\useChatHandlers.ts
+  17:22  error  `FormEvent` is deprecated. FormEvent doesn't actually exist.
+You probably meant to use {@link ChangeEvent}, {@link InputEvent}, {@link SubmitEvent}, or just {@link SyntheticEvent} instead
+depending on the event type  @typescript-eslint/no-deprecated
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\hooks\useDocumentUpload.ts
+  21:21  error  `FormEvent` is deprecated. FormEvent doesn't actually exist.
+You probably meant to use {@link ChangeEvent}, {@link InputEvent}, {@link SubmitEvent}, or just {@link SyntheticEvent} instead
+depending on the event type  @typescript-eslint/no-deprecated
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\hooks\useInputAnalysisWorkflow.ts
+  42:8  error  Function 'useInputAnalysisWorkflow' has too many lines (86). Maximum allowed is 50  max-lines-per-function
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\hooks\useProjectOperations.ts
+  31:8   error  Function 'useProjectOperations' has too many lines (90). Maximum allowed is 50                                                                                                                                           max-lines-per-function
+  45:49  error  `FormEvent` is deprecated. FormEvent doesn't actually exist.
+You probably meant to use {@link ChangeEvent}, {@link InputEvent}, {@link SubmitEvent}, or just {@link SyntheticEvent} instead
+depending on the event type  @typescript-eslint/no-deprecated
+  72:58  error  Async arrow function has a complexity of 12. Maximum allowed is 10                                                                                                                                                       complexity
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\features\projects\pages\ProjectsPage.tsx
+  16:40  error  `FormEvent` is deprecated. FormEvent doesn't actually exist.
+You probably meant to use {@link ChangeEvent}, {@link InputEvent}, {@link SubmitEvent}, or just {@link SyntheticEvent} instead
+depending on the event type  @typescript-eslint/no-deprecated
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\hooks\useFocusTrap.ts
+  25:10  error  Unnecessary optional chain on a non-nullish value  @typescript-eslint/no-unnecessary-condition
+  38:15  error  Unnecessary optional chain on a non-nullish value  @typescript-eslint/no-unnecessary-condition
+  43:16  error  Unnecessary optional chain on a non-nullish value  @typescript-eslint/no-unnecessary-condition
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\hooks\useKBQuery.ts
+  13:15  error  `FormEvent` is deprecated. FormEvent doesn't actually exist.
+You probably meant to use {@link ChangeEvent}, {@link InputEvent}, {@link SubmitEvent}, or just {@link SyntheticEvent} instead
+depending on the event type  @typescript-eslint/no-deprecated
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\hooks\useKBWorkspace.ts
+  17:40  error  `FormEvent` is deprecated. FormEvent doesn't actually exist.
+You probably meant to use {@link ChangeEvent}, {@link InputEvent}, {@link SubmitEvent}, or just {@link SyntheticEvent} instead
+depending on the event type  @typescript-eslint/no-deprecated
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\services\checklistService.ts
+   17:38  warning  Don't use `unknown` as a type. Avoid 'unknown' in internal code. Use domain types; reserve 'unknown' for external boundaries (I/O, JSON, external APIs)  @typescript-eslint/no-restricted-types
+   18:42  warning  Don't use `unknown` as a type. Avoid 'unknown' in internal code. Use domain types; reserve 'unknown' for external boundaries (I/O, JSON, external APIs)  @typescript-eslint/no-restricted-types
+  138:28  warning  Don't use `unknown` as a type. Avoid 'unknown' in internal code. Use domain types; reserve 'unknown' for external boundaries (I/O, JSON, external APIs)  @typescript-eslint/no-restricted-types
+  139:28  warning  Don't use `unknown` as a type. Avoid 'unknown' in internal code. Use domain types; reserve 'unknown' for external boundaries (I/O, JSON, external APIs)  @typescript-eslint/no-restricted-types
+  160:25  warning  Don't use `unknown` as a type. Avoid 'unknown' in internal code. Use domain types; reserve 'unknown' for external boundaries (I/O, JSON, external APIs)  @typescript-eslint/no-restricted-types
+  174:25  warning  Don't use `unknown` as a type. Avoid 'unknown' in internal code. Use domain types; reserve 'unknown' for external boundaries (I/O, JSON, external APIs)  @typescript-eslint/no-restricted-types
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\services\projectService.ts
+  6:47  warning  Don't use `unknown` as a type. Avoid 'unknown' in internal code. Use domain types; reserve 'unknown' for external boundaries (I/O, JSON, external APIs)  @typescript-eslint/no-restricted-types
+
+C:\Users\cyril.beurier\code\Azure-Architect-Assistant-archchatbot\frontend\src\types\api-artifacts.ts
+   80:37  warning  Don't use `unknown` as a type. Avoid 'unknown' in internal code. Use domain types; reserve 'unknown' for external boundaries (I/O, JSON, external APIs)  @typescript-eslint/no-restricted-types
+   81:41  warning  Don't use `unknown` as a type. Avoid 'unknown' in internal code. Use domain types; reserve 'unknown' for external boundaries (I/O, JSON, external APIs)  @typescript-eslint/no-restricted-types
+  100:49  warning  Don't use `unknown` as a type. Avoid 'unknown' in internal code. Use domain types; reserve 'unknown' for external boundaries (I/O, JSON, external APIs)  @typescript-eslint/no-restricted-types
+  223:1   error    File has too many lines (222). Maximum allowed is 200                                                                                                    max-lines
+
+✖ 41 problems (29 errors, 12 warnings)

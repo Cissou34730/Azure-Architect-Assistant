@@ -14,7 +14,7 @@ interface ToastContextValue {
   readonly closeAll: () => void;
 }
 
-const ToastContext = createContext<ToastContextValue | null>(null);
+const toastContext = createContext<ToastContextValue | null>(null);
 
 interface ToastProviderProps {
   readonly children: ReactNode;
@@ -24,15 +24,15 @@ export function ToastProvider({ children }: ToastProviderProps) {
   const toast = useToast();
 
   return (
-    <ToastContext.Provider value={toast}>
+    <toastContext.Provider value={toast}>
       {children}
       <ToastContainer toasts={toast.toasts} onClose={toast.close} />
-    </ToastContext.Provider>
+    </toastContext.Provider>
   );
 }
 
 export function useToastContext(): ToastContextValue {
-  const ctx = useContext(ToastContext);
+  const ctx = useContext(toastContext);
   if (ctx === null) {
     throw new Error("useToastContext must be used within a ToastProvider");
   }

@@ -51,12 +51,12 @@ export function RequirementsTab({ requirements }: RequirementsTabProps) {
       return cat !== "business" && cat !== "functional" && cat !== "nfr";
     });
 
-    const groups = [
+    const groups: readonly GroupConfig[] = [
       { title: "Business", items: business, color: "blue" },
       { title: "Functional", items: functional, color: "green" },
       { title: "Non-Functional", items: nfr, color: "purple" },
       { title: "Other", items: other, color: "gray" },
-    ] as const satisfies readonly GroupConfig[];
+    ] satisfies readonly GroupConfig[];
 
     const nonEmptyGroups = groups.filter((group) => group.items.length > 0);
 

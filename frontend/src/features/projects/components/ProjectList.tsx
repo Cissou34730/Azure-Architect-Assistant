@@ -7,7 +7,7 @@ interface ProjectListProps {
   onSelectProject: (project: Project) => void;
   projectName: string;
   onProjectNameChange: (name: string) => void;
-  onCreateProject: (e: React.FormEvent) => void;
+  onCreateProject: (e: React.SyntheticEvent) => void;
   loading: boolean;
 }
 
