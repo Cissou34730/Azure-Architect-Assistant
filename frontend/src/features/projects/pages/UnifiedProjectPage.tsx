@@ -18,13 +18,15 @@ export default function UnifiedProjectPage() {
     projectState,
     leftPanelOpen,
     rightPanelOpen,
-    handleGenerateDiagramClick,
     handleExportClick,
     toggleLeftPanel,
     toggleRightPanel,
     openLeftPanel,
   } = useUnifiedProjectPage();
-  const { textRequirements, selectedProject: selectedProjectContext } = useProjectContext();
+  const {
+    textRequirements,
+    selectedProject: selectedProjectContext,
+  } = useProjectContext();
 
   const leftPanelWidth = usePanelWidth({
     storageKey: "ux.leftPanelWidth",
@@ -59,15 +61,18 @@ export default function UnifiedProjectPage() {
     currentText: textRequirements,
     setDirty,
   });
+  const { handleUploadClick, handleAdrClick } = useWorkspaceQuickOpen(
+    openLeftPanel,
+    openTab,
+  );
+
   useRouteIntentHandlers({
     searchParams,
     setSearchParams,
     openLeftPanel,
     openTab,
-    onGenerateCandidate: handleGenerateDiagramClick,
+    onGenerateCandidate: handleUploadClick,
   });
-
-  const { handleUploadClick, handleAdrClick } = useWorkspaceQuickOpen(openLeftPanel, openTab);
 
   if (selectedProjectMeta === null) {
     return <ProjectNotFound />;
@@ -84,7 +89,6 @@ export default function UnifiedProjectPage() {
       onToggleLeft={toggleLeftPanel}
       onToggleRight={toggleRightPanel}
       onUploadClick={handleUploadClick}
-      onGenerateClick={handleGenerateDiagramClick}
       onAdrClick={handleAdrClick}
       onExportClick={handleExportClick}
       tabs={tabs}

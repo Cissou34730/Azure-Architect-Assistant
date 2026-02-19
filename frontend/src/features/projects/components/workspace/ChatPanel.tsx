@@ -4,7 +4,7 @@ import {
   useMemo,
   useState,
   useCallback,
-  type FormEvent,
+  type SyntheticEvent,
   type ChangeEvent,
   type KeyboardEvent,
   type ReactNode,
@@ -117,7 +117,7 @@ interface ChatInputProps {
   readonly input: string;
   readonly sending: boolean;
   readonly isInputDisabled: boolean;
-  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  readonly onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
   readonly onInputChange: (event: ChangeEvent<HTMLInputElement>) => void;
   readonly onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
 }

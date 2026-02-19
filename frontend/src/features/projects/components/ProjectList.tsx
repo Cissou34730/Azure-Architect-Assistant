@@ -1,4 +1,5 @@
 import { Project } from "../../../types/api";
+import { Button } from "../../../components/common";
 
 interface ProjectListProps {
   projects: readonly Project[];
@@ -6,7 +7,7 @@ interface ProjectListProps {
   onSelectProject: (project: Project) => void;
   projectName: string;
   onProjectNameChange: (name: string) => void;
-  onCreateProject: (e: React.FormEvent) => void;
+  onCreateProject: (e: React.SyntheticEvent) => void;
   loading: boolean;
 }
 
@@ -31,13 +32,14 @@ export function ProjectList({
           placeholder="New project name"
           className="w-full px-3 py-2 border border-border-stronger rounded-md mb-2 text-sm"
         />
-        <button
+        <Button
           type="submit"
+          variant="primary"
           disabled={loading}
-          className="w-full bg-brand text-inverse px-4 py-2 rounded-md hover:bg-brand-strong disabled:opacity-50 text-sm"
+          className="w-full text-sm"
         >
           Create Project
-        </button>
+        </Button>
       </form>
 
       <div className="space-y-2">

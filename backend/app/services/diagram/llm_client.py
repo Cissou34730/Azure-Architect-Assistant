@@ -4,7 +4,7 @@ import json
 import logging
 from typing import Any
 
-from openai import APIError, APITimeoutError, AsyncOpenAI, RateLimitError
+from openai import APIError, APITimeoutError, RateLimitError
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -12,7 +12,9 @@ from tenacity import (
     wait_exponential,
 )
 
-from app.core.app_settings import get_app_settings, get_openai_settings
+from app.core.app_settings import get_app_settings
+from app.services.ai.ai_service import AIService, AIServiceManager
+from app.services.ai.interfaces import ChatMessage
 
 logger = logging.getLogger(__name__)
 
@@ -22,21 +24,28 @@ class DiagramLLMClient:
     Diagram-specific LLM client with diagram generation optimizations.
 
     Features:
+    - Uses centralized AIService for consistent model management
     - Automatic retry with exponential backoff
     - Rate limiting compliance
     - Diagram-specific prompt handling
-    - Separate from general llm_service.py for isolation
     """
 
-    def __init__(self) -> None:
-        """Initialize diagram LLM client with settings."""
+    def __init__(self, ai_service: AIService | None = None) -> None:
+        """
+        Initialize diagram LLM client with AIService.
+        
+        Args:
+            ai_service: Optional AIService instance (uses singleton if None)
+        """
         app_settings = get_app_settings()
-        openai_settings = get_openai_settings()
 
-        self.client = AsyncOpenAI(api_key=openai_settings.api_key)
-        self.model = app_settings.diagram_openai_model
+        self.ai_service = ai_service or AIServiceManager.get_instance()
         self.max_retries = app_settings.diagram_max_retries
         self.timeout = app_settings.diagram_generation_timeout
+
+        logger.info(
+            f"DiagramLLMClient initialized with model: {self.ai_service.get_llm_model()}"
+        )
 
     @retry(
         stop=stop_after_attempt(3),
@@ -67,21 +76,21 @@ class DiagramLLMClient:
             APITimeoutError: On timeout (retried automatically)
         """
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert at generating architecture diagrams from text descriptions.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
+            messages = [
+                ChatMessage(
+                    role="system",
+                    content="You are an expert at generating architecture diagrams from text descriptions.",
+                ),
+                ChatMessage(role="user", content=prompt),
+            ]
+
+            response = await self.ai_service.chat(
+                messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                timeout=self.timeout,
             )
 
-            content = response.choices[0].message.content
+            content = response.content
             if not content:
                 raise ValueError("LLM returned empty response")
 
@@ -119,22 +128,23 @@ class DiagramLLMClient:
             ValueError: If response is not valid JSON
         """
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert at validating architecture diagrams. Return JSON only.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
+            messages = [
+                ChatMessage(
+                    role="system",
+                    content="You are an expert at validating architecture diagrams. Return JSON only.",
+                ),
+                ChatMessage(role="user", content=prompt),
+            ]
+
+            # Note: AIService doesn't currently expose response_format parameter
+            # We rely on the prompt to request JSON output
+            response = await self.ai_service.chat(
+                messages=messages,
                 temperature=temperature,
                 max_tokens=1000,
-                timeout=10,
-                response_format={"type": "json_object"},
             )
 
-            content = response.choices[0].message.content
+            content = response.content
             if not content:
                 raise ValueError("LLM returned empty validation response")
 
@@ -189,22 +199,21 @@ Focus on:
 """
 
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert at identifying unclear requirements. Return JSON only.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
+            messages = [
+                ChatMessage(
+                    role="system",
+                    content="You are an expert at identifying unclear requirements. Return JSON only.",
+                ),
+                ChatMessage(role="user", content=prompt),
+            ]
+
+            response = await self.ai_service.chat(
+                messages=messages,
                 temperature=temperature,
                 max_tokens=2000,
-                timeout=15,
-                response_format={"type": "json_object"},
             )
 
-            content = response.choices[0].message.content
+            content = response.content
             if not content:
                 return {"ambiguities": []}
 

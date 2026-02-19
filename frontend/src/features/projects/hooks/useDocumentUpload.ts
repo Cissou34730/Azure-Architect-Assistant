@@ -18,7 +18,7 @@ export function useDocumentUpload({
   showError,
 }: UseDocumentUploadProps) {
   const handleUploadDocuments = useCallback(
-    async (e: React.FormEvent): Promise<void> => {
+    async (e: React.SyntheticEvent): Promise<void> => {
       e.preventDefault();
       if (files === null || files.length === 0 || selectedProject === null) {
         return;

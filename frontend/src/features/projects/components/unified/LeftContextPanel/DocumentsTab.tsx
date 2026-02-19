@@ -1,13 +1,44 @@
-import { File, UploadCloud, Save, Sparkles } from "lucide-react";
-import { Virtuoso } from "react-virtuoso";
-import type { ReferenceDocument } from "../../../../../types/api";
+import {
+  Save,
+  Sparkles,
+  UploadCloud,
+} from "lucide-react";
+import { featureFlags } from "../../../../../config/featureFlags";
+import type {
+  AnalysisSummary,
+  ReferenceDocument,
+  UploadSummary,
+} from "../../../../../types/api";
 import { useProjectContext } from "../../../context/useProjectContext";
+import {
+  InitializationSetupPanel,
+  UploadSummaryPanel,
+  AnalysisSummaryPanel,
+  DocumentsList,
+} from "./DocumentsTabParts";
 
 interface DocumentsTabProps {
   readonly documents: readonly ReferenceDocument[];
+  readonly onOpenDocument?: (documentId: string) => void;
 }
 
-export function DocumentsTab({ documents }: DocumentsTabProps) {
+function useDocumentsTabDerivedState(documents: readonly ReferenceDocument[]) {
+  const ctx = useProjectContext();
+  const busy = ctx.isUploadingDocuments || ctx.isAnalyzingDocuments;
+  const hasTextInput = ctx.textRequirements.trim() !== "";
+  const hasUploadedDocuments = documents.length > 0;
+  const hasPendingFiles = ctx.files !== null && ctx.files.length > 0;
+  const hasInputs = hasTextInput || hasUploadedDocuments || hasPendingFiles;
+  const uploadSummary =
+    ctx.inputWorkflow.uploadSummary ?? ctx.projectState?.projectDocumentStats ?? null;
+  const analysisSummary =
+    ctx.projectState?.analysisSummary ?? ctx.inputWorkflow.analysisSummary;
+  const setupCompleted =
+    ctx.inputWorkflow.setupCompleted || analysisSummary?.status === "success";
+  return { ...ctx, busy, hasInputs, uploadSummary, analysisSummary, setupCompleted };
+}
+
+export function DocumentsTab({ documents, onOpenDocument }: DocumentsTabProps) {
   const {
     selectedProject,
     textRequirements,
@@ -17,18 +48,34 @@ export function DocumentsTab({ documents }: DocumentsTabProps) {
     handleSaveTextRequirements,
     handleUploadDocuments,
     handleAnalyzeDocuments,
-    loading,
-    loadingMessage,
-  } = useProjectContext();
+    isUploadingDocuments,
+    isAnalyzingDocuments,
+    inputWorkflow,
+    busy,
+    hasInputs,
+    uploadSummary,
+    analysisSummary,
+    setupCompleted,
+  } = useDocumentsTabDerivedState(documents);
+  const setupFlowEnabled = featureFlags.enableUnifiedProjectInitialization;
 
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 space-y-4 border-b border-border bg-card">
+        {setupFlowEnabled && (
+          <InitializationSetupPanel
+            hasInputs={hasInputs}
+            uploadSummary={uploadSummary}
+            analysisSummary={analysisSummary}
+            setupCompleted={setupCompleted}
+            isAnalyzing={isAnalyzingDocuments}
+          />
+        )}
         <TextRequirementsSection
           textRequirements={textRequirements}
           onChange={setTextRequirements}
           onSave={handleSaveTextRequirements}
-          loading={loading}
+          loading={busy}
           hasProject={selectedProject !== null}
         />
         <UploadDocumentsSection
@@ -36,12 +83,17 @@ export function DocumentsTab({ documents }: DocumentsTabProps) {
           onFilesChange={setFiles}
           onUpload={handleUploadDocuments}
           onAnalyze={handleAnalyzeDocuments}
-          loading={loading}
-          loadingMessage={loadingMessage}
+          loading={busy}
+          isUploading={isUploadingDocuments}
+          isAnalyzing={isAnalyzingDocuments}
+          loadingMessage={inputWorkflow.message}
+          uploadSummary={uploadSummary}
+          analysisSummary={analysisSummary}
+          setupFlowEnabled={setupFlowEnabled}
         />
       </div>
 
-      <DocumentsList documents={documents} />
+      <DocumentsList documents={documents} onOpenDocument={onOpenDocument} />
     </div>
   );
 }
@@ -95,13 +147,46 @@ function TextRequirementsSection({
   );
 }
 
+interface UploadResultsSectionProps {
+  readonly setupFlowEnabled: boolean;
+  readonly uploadSummary: UploadSummary | null;
+  readonly analysisSummary: AnalysisSummary | null | undefined;
+  readonly loadingMessage: string;
+}
+
+function UploadResultsSection({
+  setupFlowEnabled,
+  uploadSummary,
+  analysisSummary,
+  loadingMessage,
+}: UploadResultsSectionProps) {
+  return (
+    <>
+      {setupFlowEnabled && uploadSummary !== null && (
+        <UploadSummaryPanel summary={uploadSummary} />
+      )}
+      {setupFlowEnabled && analysisSummary !== null && analysisSummary !== undefined && (
+        <AnalysisSummaryPanel summary={analysisSummary} />
+      )}
+      {loadingMessage !== "" && (
+        <p className="text-xs text-dim">{loadingMessage}</p>
+      )}
+    </>
+  );
+}
+
 interface UploadDocumentsSectionProps {
   readonly files: FileList | null;
   readonly onFilesChange: (files: FileList | null) => void;
-  readonly onUpload: (event: React.FormEvent) => Promise<void>;
+  readonly onUpload: (event: React.SyntheticEvent) => Promise<void>;
   readonly onAnalyze: () => Promise<void>;
   readonly loading: boolean;
+  readonly isUploading: boolean;
+  readonly isAnalyzing: boolean;
   readonly loadingMessage: string;
+  readonly uploadSummary: UploadSummary | null;
+  readonly analysisSummary: AnalysisSummary | null | undefined;
+  readonly setupFlowEnabled: boolean;
 }
 
 function UploadDocumentsSection({
@@ -110,13 +195,19 @@ function UploadDocumentsSection({
   onUpload,
   onAnalyze,
   loading,
+  isUploading,
+  isAnalyzing,
   loadingMessage,
+  uploadSummary,
+  analysisSummary,
+  setupFlowEnabled,
 }: UploadDocumentsSectionProps) {
   return (
     <form
       onSubmit={(e) => {
         void onUpload(e);
       }}
+      data-upload-area
       className="space-y-2"
     >
       <label className="text-xs font-semibold text-secondary uppercase tracking-wide">
@@ -143,7 +234,7 @@ function UploadDocumentsSection({
           className="inline-flex items-center gap-2 rounded-md bg-brand px-3 py-1.5 text-xs font-semibold text-inverse hover:bg-brand-strong disabled:opacity-50"
         >
           <UploadCloud className="h-3.5 w-3.5" />
-          Upload
+          {isUploading ? "Uploading..." : "Upload"}
         </button>
         <button
           type="button"
@@ -154,64 +245,16 @@ function UploadDocumentsSection({
           className="inline-flex items-center gap-2 rounded-md border border-border-stronger bg-card px-3 py-1.5 text-xs font-semibold text-secondary hover:bg-surface disabled:opacity-50"
         >
           <Sparkles className="h-3.5 w-3.5" />
-          Analyze
+          {isAnalyzing ? "Analyzing..." : "Analyze"}
         </button>
       </div>
-      {loadingMessage !== "" && (
-        <p className="text-xs text-dim">{loadingMessage}</p>
-      )}
+      <UploadResultsSection
+        setupFlowEnabled={setupFlowEnabled}
+        uploadSummary={uploadSummary}
+        analysisSummary={analysisSummary}
+        loadingMessage={loadingMessage}
+      />
     </form>
   );
 }
-
-function DocumentsList({ documents }: DocumentsTabProps) {
-  if (documents.length === 0) {
-    return (
-      <div className="p-4 text-center text-sm text-dim">
-        No reference documents found for this architecture.
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex-1">
-      <Virtuoso
-        data={documents}
-        className="panel-scroll"
-        itemContent={(_index, doc) => (
-          <div className="px-4 py-1">
-            <div
-              key={doc.id}
-              className="flex items-start gap-2 p-3 bg-card rounded-lg border border-border hover:bg-surface transition-colors cursor-pointer"
-              onClick={() => {
-                if (doc.url !== undefined) {
-                  window.open(doc.url, "_blank");
-                }
-              }}
-            >
-              <File className="h-4 w-4 text-secondary shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-foreground truncate">
-                  {doc.title}
-                </div>
-                <div className="text-xs text-dim mt-1">
-                  <span className="capitalize">{doc.category}</span>
-                  {doc.accessedAt !== undefined && (
-                    <>
-                      {" • "}
-                      {new Date(doc.accessedAt).toLocaleDateString()}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        style={{ height: "100%" }}
-      />
-    </div>
-  );
-}
-
-
 

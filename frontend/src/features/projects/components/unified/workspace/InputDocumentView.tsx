@@ -5,8 +5,46 @@ interface InputDocumentViewProps {
   readonly document: ReferenceDocument;
 }
 
+interface PreviewDetails {
+  readonly hasUrl: boolean;
+  readonly isPdf: boolean;
+  readonly previewUrl: string | undefined;
+}
+
+function resolvePreviewDetails(document: ReferenceDocument): PreviewDetails {
+  const normalizedUrl =
+    typeof document.url === "string" ? document.url.trim() : "";
+  const rawUrlIsValid =
+    normalizedUrl !== "" &&
+    normalizedUrl.toLowerCase() !== "null" &&
+    normalizedUrl.toLowerCase() !== "undefined";
+  const resolvedUrl = rawUrlIsValid ? resolveDocumentUrl(normalizedUrl) : undefined;
+  const hasUrl = resolvedUrl !== undefined;
+  const isPdf =
+    (document.mimeType ?? "").toLowerCase().includes("pdf") ||
+    document.title.toLowerCase().endsWith(".pdf");
+  const previewUrl = hasUrl
+    ? isPdf
+      ? withPdfViewerHash(resolvedUrl)
+      : resolvedUrl
+    : undefined;
+  return { hasUrl, isPdf, previewUrl };
+}
+
+function getParseError(document: ReferenceDocument): string | null {
+  if (
+    document.parseError !== undefined &&
+    document.parseError !== null &&
+    document.parseError !== ""
+  ) {
+    return document.parseError;
+  }
+  return null;
+}
+
 export function InputDocumentView({ document }: InputDocumentViewProps) {
-  const hasUrl = document.url !== undefined && document.url !== "";
+  const { hasUrl, isPdf, previewUrl } = resolvePreviewDetails(document);
+  const parseError = getParseError(document);
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center gap-3">
@@ -19,22 +57,57 @@ export function InputDocumentView({ document }: InputDocumentViewProps) {
         </div>
       </div>
       <div className="rounded-lg border border-border bg-surface p-4 text-sm text-secondary">
-        Document content is stored remotely. Use the action below to open it in a new tab.
+        {hasUrl
+          ? isPdf
+            ? "PDF preview is rendered directly in the workspace pane."
+            : "Document source is available and displayed in this pane when embedding is allowed by the source."
+          : "Document preview is unavailable for this record."}
       </div>
-      <button
-        type="button"
-        onClick={() => {
-          if (hasUrl) {
-            window.open(document.url, "_blank");
-          }
-        }}
-        disabled={!hasUrl}
-        className="inline-flex items-center gap-2 rounded-md border border-border-stronger bg-card px-4 py-2 text-xs font-semibold text-secondary hover:bg-surface disabled:opacity-60"
-      >
-        Open source document
-      </button>
+      <div className="text-xs text-secondary">
+        Parse status: {document.parseStatus ?? "unknown"} | Analysis status:{" "}
+        {document.analysisStatus ?? "unknown"}
+      </div>
+      {parseError !== null && (
+        <div className="text-xs text-danger-strong">{parseError}</div>
+      )}
+      {hasUrl && isPdf && (
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <iframe
+            title={`pdf-preview-${document.id}`}
+            src={previewUrl}
+            className="w-full h-[70vh]"
+          />
+        </div>
+      )}
+      {hasUrl && !isPdf && (
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <iframe
+            title={`preview-${document.id}`}
+            src={previewUrl}
+            className="w-full h-[60vh]"
+          />
+        </div>
+      )}
     </div>
   );
+}
+
+function resolveDocumentUrl(url: string): string {
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  if (url.startsWith("/")) {
+    return url;
+  }
+  return `/${url}`;
+}
+
+function withPdfViewerHash(url: string): string {
+  if (url.includes("#")) {
+    return url;
+  }
+  return `${url}#view=FitH`;
 }
 
 

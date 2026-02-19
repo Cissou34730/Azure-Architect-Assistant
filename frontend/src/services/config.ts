@@ -2,8 +2,11 @@
  * API Configuration
  */
 
-const envBackendVal = import.meta.env.BACKEND_URL;
-const envBackendUrl = typeof envBackendVal === "string" ? envBackendVal : "";
-const BACKEND_URL =
-  envBackendUrl !== "" ? envBackendUrl : "http://localhost:8000";
-export const API_BASE = `${BACKEND_URL}/api`;
+const envApiBaseVal = import.meta.env.VITE_API_BASE;
+const envApiBase = typeof envApiBaseVal === "string" ? envApiBaseVal.trim() : "";
+
+if (envApiBase === "") {
+  throw new Error("VITE_API_BASE is required in .env");
+}
+
+export const API_BASE = envApiBase;

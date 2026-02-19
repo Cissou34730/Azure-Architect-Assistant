@@ -5,17 +5,19 @@ Clean routing layer - business logic delegated to operations.py
 
 import json
 import logging
+import mimetypes
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ProjectState
+from app.models import ProjectDocument, ProjectState
 from app.models.diagram import Diagram, DiagramSet, DiagramType
 from app.projects_database import get_db
 from app.services.diagram.database import get_diagram_session
@@ -23,9 +25,11 @@ from app.services.diagram.diagram_generator import DiagramGenerator
 from app.services.diagram.llm_client import DiagramLLMClient
 
 from .project_models import (
+    BulkDeleteProjectsRequest,
     ChatMessageRequest,
     ChatResponse,
     CreateProjectRequest,
+    DeleteResponse,
     DocumentsResponse,
     MessagesResponse,
     ProjectResponse,
@@ -120,6 +124,55 @@ async def update_requirements(
         ) from e
 
 
+@router.delete("/projects/{project_id}", response_model=DeleteResponse)
+async def delete_project(
+    project_id: str, db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """Soft delete a project (sets deleted_at timestamp)"""
+    try:
+        await project_service.soft_delete_project(project_id, db)
+        return {
+            "message": "Project deleted successfully",
+            "deletedCount": 1,
+            "projectIds": [project_id],
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
+        ) from e
+    except Exception as e:
+        logger.error(f"Failed to delete project: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete project: {e!s}"
+        ) from e
+
+
+@router.post("/projects/bulk-delete", response_model=DeleteResponse)
+async def bulk_delete_projects(
+    request: BulkDeleteProjectsRequest, db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """Bulk soft delete multiple projects"""
+    try:
+        result = await project_service.bulk_soft_delete_projects(
+            request.project_ids, db
+        )
+        message = (
+            f"Successfully deleted {result['deleted_count']} project(s)"
+            if result["deleted_count"] > 0
+            else "No projects were deleted"
+        )
+        return {
+            "message": message,
+            "deletedCount": result["deleted_count"],
+            "projectIds": result["project_ids"],
+        }
+    except Exception as e:
+        logger.error(f"Failed to bulk delete projects: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to bulk delete projects: {e!s}"
+        ) from e
+
+
 # ============================================================================
 # Document Management Endpoints
 # ============================================================================
@@ -139,8 +192,13 @@ async def upload_documents(
         if not selected_files:
             raise HTTPException(status_code=400, detail="No files uploaded")
 
-        saved = await document_service.upload_documents(project_id, selected_files, db)
-        return {"documents": saved}
+        upload_result = await document_service.upload_documents(
+            project_id, selected_files, db
+        )
+        return {
+            "documents": upload_result.get("documents", []),
+            "uploadSummary": upload_result.get("uploadSummary", {}),
+        }
     except ValueError as e:
         raise HTTPException(
             status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
@@ -150,6 +208,46 @@ async def upload_documents(
         raise HTTPException(
             status_code=500, detail=f"Failed to upload documents: {e!s}"
         ) from e
+
+
+@router.get("/projects/{project_id}/documents/{document_id}/content")
+async def get_document_content(
+    project_id: str,
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    result = await db.execute(
+        select(ProjectDocument).where(
+            ProjectDocument.id == document_id,
+            ProjectDocument.project_id == project_id,
+        )
+    )
+    document = result.scalar_one_or_none()
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    stored_path = (document.stored_path or "").strip()
+    if stored_path == "":
+        raise HTTPException(status_code=404, detail="Document content unavailable")
+
+    resolved_path = Path(stored_path)
+    if not resolved_path.is_file():
+        raise HTTPException(status_code=404, detail="Document file missing")
+
+    media_type = (document.mime_type or "").strip()
+    if media_type == "" or media_type == "application/octet-stream":
+        guessed_media_type, _ = mimetypes.guess_type(document.file_name or "")
+        if guessed_media_type:
+            media_type = guessed_media_type
+    if media_type == "":
+        media_type = "application/octet-stream"
+
+    return FileResponse(
+        path=resolved_path,
+        media_type=media_type,
+        filename=document.file_name,
+        content_disposition_type="inline",
+    )
 
 
 @router.post("/projects/{project_id}/analyze-docs", response_model=StateResponse)

@@ -1,8 +1,10 @@
+import { Card, Button } from "../common";
+
 interface Props {
   readonly question: string;
   readonly isLoading: boolean;
   readonly onQuestionChange: (value: string) => void;
-  readonly onSubmit: (e: React.FormEvent) => void;
+  readonly onSubmit: (e: React.SyntheticEvent) => void;
   readonly onRefresh: () => void;
 }
 
@@ -15,7 +17,7 @@ export function KBQueryForm({
 }: Props) {
   return (
     <form onSubmit={onSubmit} className="mb-8">
-      <div className="bg-card rounded-lg shadow-md p-6">
+      <Card className="p-6">
         <label className="block text-sm font-medium text-secondary mb-2">
           Your Question
         </label>
@@ -26,24 +28,18 @@ export function KBQueryForm({
           }}
           placeholder="E.g., What are the best practices for securing Azure SQL databases?"
           rows={3}
-          className="w-full px-4 py-2 border border-border-stronger rounded-lg focus:ring-2 focus:ring-brand focus:border-transparent"
+          className="w-full px-4 py-2 border border-border-stronger rounded-lg focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
           disabled={isLoading}
         />
         <div className="flex justify-between items-center mt-4">
-          <button
+          <Button
             type="submit"
+            variant="primary"
             disabled={isLoading || question.trim() === ""}
-            className="bg-brand text-inverse px-6 py-2 rounded-lg hover:bg-brand-strong disabled:bg-border-stronger disabled:cursor-not-allowed flex items-center"
+            isLoading={isLoading}
           >
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-inverse mr-2" />
-                Searching...
-              </>
-            ) : (
-              "Search Knowledge Bases"
-            )}
-          </button>
+            {isLoading ? "Searching..." : "Search Knowledge Bases"}
+          </Button>
           <button
             type="button"
             onClick={onRefresh}
@@ -52,7 +48,7 @@ export function KBQueryForm({
             🔄 Refresh Status
           </button>
         </div>
-      </div>
+      </Card>
     </form>
   );
 }

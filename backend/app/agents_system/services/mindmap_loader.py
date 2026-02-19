@@ -68,11 +68,13 @@ class MindMapCache:
 
 def load_mindmap(mindmap_path: Path) -> MindMapLoadResult:
     """Load and validate the architecture mind map from disk."""
-    if not mindmap_path.exists():
-        raise MindMapValidationError(f"Mind map file not found: {mindmap_path}")
+    data = _load_json_file(mindmap_path)
 
-    with open(mindmap_path, encoding="utf-8") as f:
-        data = json.load(f)
+    pointer_status = data.get("status")
+    moved_to = data.get("movedTo")
+    if pointer_status == "pointer" and isinstance(moved_to, str):
+        redirected_path = (mindmap_path.parent / moved_to).resolve()
+        data = _load_json_file(redirected_path)
 
     if not isinstance(data, dict):
         raise MindMapValidationError("Mind map JSON root must be an object")
@@ -88,6 +90,20 @@ def load_mindmap(mindmap_path: Path) -> MindMapLoadResult:
     return MindMapLoadResult(
         mindmap=data, top_level_topics=root, missing_top_level_keys=missing
     )
+
+
+def _load_json_file(file_path: Path) -> dict[str, Any]:
+    """Load and return a JSON object from disk."""
+    if not file_path.exists():
+        raise MindMapValidationError(f"Mind map file not found: {file_path}")
+
+    with open(file_path, encoding="utf-8") as file_handle:
+        loaded = json.load(file_handle)
+
+    if not isinstance(loaded, dict):
+        raise MindMapValidationError("Mind map JSON root must be an object")
+
+    return loaded
 
 
 def initialize_mindmap(mindmap_path: Path) -> None:

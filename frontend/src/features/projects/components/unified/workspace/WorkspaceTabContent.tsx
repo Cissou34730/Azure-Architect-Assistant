@@ -1,4 +1,3 @@
-import { useProjectContext } from "../../../context/useProjectContext";
 import { useProjectStateContext } from "../../../context/useProjectStateContext";
 import type { ReferenceDocument } from "../../../../../types/api";
 import { DocumentsTab } from "../LeftContextPanel/DocumentsTab";
@@ -10,6 +9,7 @@ interface WorkspaceTabContentProps {
   readonly tab: WorkspaceTab;
   readonly documents: readonly ReferenceDocument[];
   readonly hasArtifacts: boolean;
+  readonly onOpenTab: (tab: WorkspaceTab) => void;
 }
 
 function getDocumentById(
@@ -23,9 +23,9 @@ export function WorkspaceTabContent({
   tab,
   documents,
   hasArtifacts,
+  onOpenTab,
 }: WorkspaceTabContentProps) {
   const { projectState } = useProjectStateContext();
-  const { handleAnalyzeDocuments, loading } = useProjectContext();
 
   if (projectState === null) {
     return (
@@ -38,7 +38,24 @@ export function WorkspaceTabContent({
   if (tab.kind === "input-overview") {
     return (
       <div className="h-full">
-        <DocumentsTab documents={documents} />
+        <DocumentsTab
+          documents={documents}
+          onOpenDocument={(documentId) => {
+            const document = getDocumentById(documents, documentId);
+            if (document === undefined) {
+              return;
+            }
+            onOpenTab({
+              id: `input-document-${document.id}`,
+              kind: "input-document",
+              title: document.title,
+              group: "input",
+              documentId: document.id,
+              pinned: false,
+              dirty: false,
+            });
+          }}
+        />
       </div>
     );
   }
@@ -61,8 +78,6 @@ export function WorkspaceTabContent({
         tabKind={tab.kind}
         projectState={projectState}
         hasArtifacts={hasArtifacts}
-        onGenerate={handleAnalyzeDocuments}
-        loading={loading}
       />
     );
   }

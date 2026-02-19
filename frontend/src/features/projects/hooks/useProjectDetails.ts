@@ -30,6 +30,7 @@ export function useProjectDetails(projectId: string | undefined) {
   const operations = useProjectOperations({
     selectedProject,
     setSelectedProject,
+    projectState: stateHook.projectState,
     files: projectData.files,
     setFiles: projectData.setFiles,
     textRequirements,
@@ -54,6 +55,10 @@ export function useProjectDetails(projectId: string | undefined) {
     () => ({
       ...projectData,
       loading,
+      loadingProject: projectData.loadingProject,
+      loadingState: stateHook.loading,
+      loadingChat: chatHook.loading,
+      loadingProposal: proposalHook.loading,
       loadingMessage: chatHook.loadingMessage,
       projectState: stateHook.projectState,
       messages: chatHook.messages,

@@ -5,16 +5,12 @@ interface EmptyArtifactStateProps {
   readonly icon: LucideIcon;
   readonly title: string;
   readonly description: string;
-  readonly onGenerate: () => Promise<void>;
-  readonly loading: boolean;
 }
 
 export function EmptyArtifactState({
   icon,
   title,
   description,
-  onGenerate,
-  loading,
 }: EmptyArtifactStateProps) {
   const iconComponent = icon;
   return (
@@ -27,14 +23,9 @@ export function EmptyArtifactState({
           <p className="text-sm font-semibold text-foreground">{title}</p>
           <p className="text-xs text-dim">{description}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => { void onGenerate(); }}
-          disabled={loading}
-          className="inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-xs font-semibold text-inverse hover:bg-brand-strong disabled:opacity-60"
-        >
-          Generate Analysis
-        </button>
+        <p className="text-xs text-secondary">
+          Open Inputs setup to upload documents and run analysis.
+        </p>
       </div>
     </div>
   );

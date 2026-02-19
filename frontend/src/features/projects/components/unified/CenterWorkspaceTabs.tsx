@@ -3,12 +3,17 @@ import { Pin } from "lucide-react";
 import { useProjectStateContext } from "../../context/useProjectStateContext";
 import type { WorkspaceTab } from "./workspace/types";
 import { WorkspaceTabContent } from "./workspace/WorkspaceTabContent";
+import {
+  handleTabShortcut,
+  shouldHandleTabShortcut,
+} from "./CenterWorkspaceTabsKeyboard";
 
 interface CenterWorkspaceTabsProps {
   readonly tabs: readonly WorkspaceTab[];
   readonly activeTabId: string;
   readonly onTabChange: (tabId: string) => void;
   readonly onCloseTab: (tabId: string) => void;
+  readonly onOpenTab: (tab: WorkspaceTab) => void;
   readonly onTogglePin: (tabId: string) => void;
   readonly onReorderTab: (sourceId: string, targetId: string) => void;
 }
@@ -33,6 +38,7 @@ export function CenterWorkspaceTabs({
   activeTabId,
   onTabChange,
   onCloseTab,
+  onOpenTab,
   onTogglePin,
   onReorderTab,
 }: CenterWorkspaceTabsProps) {
@@ -88,7 +94,12 @@ export function CenterWorkspaceTabs({
 
       <div className="flex-1 overflow-hidden bg-card">
         {hasActiveTab ? (
-          <WorkspaceTabContent tab={activeTab} documents={documents} hasArtifacts={hasArtifacts} />
+          <WorkspaceTabContent
+            tab={activeTab}
+            documents={documents}
+            hasArtifacts={hasArtifacts}
+            onOpenTab={onOpenTab}
+          />
         ) : (
           <div className="h-full flex items-center justify-center text-sm text-dim">
             Select an input or artifact from the left panel.
@@ -168,7 +179,7 @@ function TabStrip({
               >
                 <span className={`h-2 w-2 rounded-full ${tab.group === "input" ? "bg-info-soft0" : "bg-brand"}`} />
                 <TabBadge group={tab.group} />
-                <span className={`truncate max-w-[14rem] ${titleClass}`}>{tab.title}</span>
+                <span className={`truncate max-w-56 ${titleClass}`}>{tab.title}</span>
               </button>
               <button
                 type="button"
@@ -233,93 +244,6 @@ function useTabKeyboardNavigation({
     };
   }, [handleKeyDown]);
 }
-
-function shouldIgnoreKeyEvent(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-  const tag = target.tagName.toLowerCase();
-  return tag === "input" || tag === "textarea" || target.isContentEditable;
-}
-
-function shouldHandleTabShortcut(event: KeyboardEvent): boolean {
-  const isCmdOrCtrl = event.metaKey || event.ctrlKey;
-  if (!isCmdOrCtrl) return false;
-  return !shouldIgnoreKeyEvent(event.target);
-}
-
-function handleTabShortcut({
-  event,
-  tabs,
-  activeTabId,
-  onCloseTab,
-  onTabChange,
-}: {
-  readonly event: KeyboardEvent;
-  readonly tabs: readonly WorkspaceTab[];
-  readonly activeTabId: string;
-  readonly onCloseTab: (tabId: string) => void;
-  readonly onTabChange: (tabId: string) => void;
-}) {
-  const key = event.key.toLowerCase();
-  if (key === "w") {
-    event.preventDefault();
-    if (activeTabId !== "") {
-      onCloseTab(activeTabId);
-    }
-    return;
-  }
-
-  if (event.key === "Tab") {
-    event.preventDefault();
-    cycleTab({ tabs, activeTabId, onTabChange, reverse: event.shiftKey });
-    return;
-  }
-
-  if (/^[1-9]$/.test(event.key)) {
-    event.preventDefault();
-    focusTabIndex({ tabs, index: Number(event.key) - 1, onTabChange });
-  }
-}
-
-function cycleTab({
-  tabs,
-  activeTabId,
-  onTabChange,
-  reverse,
-}: {
-  readonly tabs: readonly WorkspaceTab[];
-  readonly activeTabId: string;
-  readonly onTabChange: (tabId: string) => void;
-  readonly reverse: boolean;
-}) {
-  if (tabs.length === 0) return;
-  const currentIndex = tabs.findIndex((tab) => tab.id === activeTabId);
-  const nextIndex = getNextTabIndex(currentIndex, tabs.length, reverse);
-  onTabChange(tabs[nextIndex].id);
-}
-
-function focusTabIndex({
-  tabs,
-  index,
-  onTabChange,
-}: {
-  readonly tabs: readonly WorkspaceTab[];
-  readonly index: number;
-  readonly onTabChange: (tabId: string) => void;
-}) {
-  if (index < 0 || index >= tabs.length) return;
-  onTabChange(tabs[index].id);
-}
-
-function getNextTabIndex(currentIndex: number, total: number, reverse: boolean): number {
-  if (total === 0) return 0;
-  if (currentIndex < 0) return 0;
-  const direction = reverse ? -1 : 1;
-  return (currentIndex + direction + total) % total;
-}
-
-
 
 
 

@@ -16,6 +16,18 @@ export const featureFlags = Object.freeze({
 
   // Cap in-memory chat messages (uses messageArchive utility)
   enableChatArchiving: import.meta.env.VITE_ENABLE_CHAT_ARCHIVING !== "false", // Enabled by default
+
+  // Unified upload + analysis frontend workflow state
+  enableUnifiedInputWorkflow:
+    import.meta.env.VITE_ENABLE_UNIFIED_INPUT_WORKFLOW !== "false",
+
+  // Inline initialization flow (Inputs -> Upload -> Analyze -> Complete)
+  enableUnifiedProjectInitialization:
+    import.meta.env.VITE_ENABLE_UNIFIED_PROJECT_INITIALIZATION !== "false",
+
+  // Per-document parse/analyze status in left panel traces
+  enableDocumentStatusTrace:
+    import.meta.env.VITE_ENABLE_DOCUMENT_STATUS_TRACE !== "false",
 });
 
 /**

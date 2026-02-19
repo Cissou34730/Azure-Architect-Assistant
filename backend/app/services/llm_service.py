@@ -9,6 +9,7 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from app.core.app_settings import get_app_settings
 from app.services.ai import ChatMessage, get_ai_service
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,7 @@ class LLMService:
 
     def __init__(self):
         self.ai_service = get_ai_service()
+        self.app_settings = get_app_settings()
         self.model = self.ai_service.get_llm_model()
         logger.info(f"LLMService ready with model: {self.model}")
 
@@ -105,11 +107,18 @@ Notes:
 
         try:
             project_state = await self._complete_json(
-                system_prompt, user_prompt, max_tokens=3000
+                system_prompt,
+                user_prompt,
+                max_tokens=self.app_settings.llm_analyze_max_tokens,
             )
-        except Exception:  # noqa: BLE001
+        except Exception as e:
             # Fallback to legacy parsing if JSON mode fails for any reason
-            response = await self._complete(system_prompt, user_prompt, max_tokens=3000)
+            logger.warning(f"JSON mode failed, falling back to legacy parsing: {e}")
+            response = await self._complete(
+                system_prompt,
+                user_prompt,
+                max_tokens=self.app_settings.llm_analyze_max_tokens,
+            )
             project_state = self._parse_project_state(response)
 
         return project_state
@@ -120,24 +129,101 @@ Notes:
         """Make an LLM call requesting JSON-only output and parse it.
 
         Uses OpenAI JSON mode via response_format when supported by the provider.
+        Falls back to regular mode if not supported.
         """
         messages = [
             ChatMessage(role="system", content=system_prompt),
             ChatMessage(role="user", content=user_prompt),
         ]
 
-        response = await self.ai_service.chat(
-            messages=messages,
-            temperature=self.ai_service.config.default_temperature,
-            max_tokens=max_tokens,
-            response_format={"type": "json_object"},
-        )
+        try:
+            response = await self.ai_service.chat(
+                messages=messages,
+                temperature=self.ai_service.config.default_temperature,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+            )
+        except Exception as e:
+            # If response_format not supported, retry without it
+            logger.warning(f"JSON mode failed, retrying without response_format: {e}")
+            response = await self.ai_service.chat(
+                messages=messages,
+                temperature=self.ai_service.config.default_temperature,
+                max_tokens=max_tokens,
+            )
 
         content = response.content
         if not content:
             raise ValueError("LLM returned empty response")
 
-        return json.loads(content)
+        # Log first 500 chars for debugging
+        logger.debug(
+            "LLM response preview: %s...",
+            content[: self.app_settings.llm_response_preview_log_chars],
+        )
+        
+        return await self._parse_json_with_repair(content, max_tokens=max_tokens)
+
+    async def _parse_json_with_repair(
+        self,
+        content: str,
+        max_tokens: int,
+    ) -> dict[str, Any]:
+        """Parse JSON content and attempt one repair pass on decode failure."""
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode failed: {e}")
+            logger.error(
+                "Response content: %s",
+                content[: self.app_settings.llm_response_error_log_chars],
+            )
+
+            repaired_content = await self._repair_json_content(
+                invalid_json=content,
+                max_tokens=max(
+                    self.app_settings.llm_json_repair_min_tokens,
+                    max_tokens // self.app_settings.llm_json_repair_token_divisor,
+                ),
+            )
+            return json.loads(repaired_content)
+
+    async def _repair_json_content(self, invalid_json: str, max_tokens: int) -> str:
+        """Ask the model to repair malformed/truncated JSON and return valid JSON only."""
+        repair_system_prompt = (
+            "You are a strict JSON repair assistant. "
+            "You receive malformed or truncated JSON. "
+            "Return ONLY valid JSON with the same top-level structure and keys. "
+            "Do not use markdown, comments, or code fences."
+        )
+
+        repair_user_prompt = (
+            "Repair this invalid JSON and return valid JSON only.\n\n"
+            f"{invalid_json}"
+        )
+
+        repaired = await self._complete(
+            repair_system_prompt,
+            repair_user_prompt,
+            max_tokens=max_tokens,
+        )
+
+        repaired_candidate = self._extract_json_candidate(repaired)
+        if repaired_candidate is None:
+            logger.error("JSON repair failed: no JSON object found in repaired response")
+            raise ValueError("JSON repair failed: no JSON object found")
+
+        logger.info("Successfully repaired malformed JSON response")
+        return repaired_candidate
+
+    @staticmethod
+    def _extract_json_candidate(response_text: str) -> str | None:
+        """Extract the outer JSON object from text if present."""
+        start = response_text.find("{")
+        end = response_text.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            return None
+        return response_text[start : end + 1]
 
     async def process_chat_message(
         self,
@@ -263,13 +349,26 @@ Use clear headings, bullet points, and technical details. Reference Azure Well-A
     def _parse_project_state(self, response: str) -> dict[str, Any]:
         """Parse ProjectState from LLM response."""
         # Extract JSON from response
-        json_match = re.search(r"\{[\s\S]*\}", response)
-        if not json_match:
+        json_candidate = self._extract_json_candidate(response)
+        if json_candidate is None:
             logger.error("Failed to extract JSON from LLM response")
+            logger.error(
+                "Response content (first %s chars): %s",
+                self.app_settings.llm_response_error_log_chars,
+                response[: self.app_settings.llm_response_error_log_chars],
+            )
             raise ValueError("Failed to extract JSON from LLM response")
 
-        parsed = json.loads(json_match.group(0))
-        return parsed
+        try:
+            parsed = json.loads(json_candidate)
+            return parsed
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode failed in _parse_project_state: {e}")
+            logger.error(
+                "Extracted JSON string: %s",
+                json_candidate[: self.app_settings.llm_response_error_log_chars],
+            )
+            raise
 
     def _parse_chat_response(
         self, response: str, current_state: dict[str, Any]

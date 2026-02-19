@@ -7,12 +7,22 @@ import type { WorkspaceTab, ArtifactTab } from "../workspace/types";
 interface InputsSectionProps {
   readonly documents: readonly ReferenceDocument[];
   readonly textRequirements: string;
+  readonly uploadState: "idle" | "running" | "success" | "error";
+  readonly analysisState: "idle" | "running" | "success" | "error";
+  readonly workflowMessage: string;
+  readonly showStatusTrace: boolean;
+  readonly showWorkflowTrace: boolean;
   readonly onOpenTab: (tab: WorkspaceTab) => void;
 }
 
 export function InputsSection({
   documents,
   textRequirements,
+  uploadState,
+  analysisState,
+  workflowMessage,
+  showStatusTrace,
+  showWorkflowTrace,
   onOpenTab,
 }: InputsSectionProps) {
   const inputsCount = documents.length + (textRequirements.trim() !== "" ? 1 : 0);
@@ -45,6 +55,19 @@ export function InputsSection({
               key={doc.id}
               icon={FileText}
               label={doc.title}
+              meta={
+                showStatusTrace ? (
+                  <DocumentStatusBadge
+                    parseStatus={doc.parseStatus}
+                    analysisStatus={doc.analysisStatus}
+                    hasParseError={
+                      doc.parseError !== undefined &&
+                      doc.parseError !== null &&
+                      doc.parseError !== ""
+                    }
+                  />
+                ) : undefined
+              }
               onClick={() => {
                 onOpenTab({
                   id: `input-document-${doc.id}`,
@@ -77,6 +100,14 @@ export function InputsSection({
           });
         }}
       />
+
+      {showWorkflowTrace && (
+        <TreeGroup label="Processing">
+          <EmptyRow text={`Upload: ${toWorkflowLabel(uploadState)}`} />
+          <EmptyRow text={`Analysis: ${toWorkflowLabel(analysisState)}`} />
+          {workflowMessage.trim() !== "" && <EmptyRow text={workflowMessage} />}
+        </TreeGroup>
+      )}
     </div>
   );
 }
@@ -221,3 +252,55 @@ const artifactItems: readonly ArtifactItem[] = [
     badgeKey: "mcpQueries",
   },
 ];
+
+function toWorkflowLabel(state: "idle" | "running" | "success" | "error"): string {
+  switch (state) {
+    case "running":
+      return "In progress";
+    case "success":
+      return "Done";
+    case "error":
+      return "Failed";
+    case "idle":
+      return "Not started";
+  }
+}
+
+function DocumentStatusBadge({
+  parseStatus,
+  analysisStatus,
+  hasParseError,
+}: {
+  readonly parseStatus?: ReferenceDocument["parseStatus"];
+  readonly analysisStatus?: ReferenceDocument["analysisStatus"];
+  readonly hasParseError: boolean;
+}) {
+  const statusText =
+    analysisStatus === "analyzed"
+      ? "Analyzed"
+      : analysisStatus === "analyzing"
+      ? "Analyzing"
+      : parseStatus === "parsed"
+      ? "Parsed"
+      : parseStatus === "parse_failed"
+      ? "Parse failed"
+      : "Unknown";
+
+  const statusClass =
+    analysisStatus === "analyzed"
+      ? "border-success-line bg-success-soft text-success"
+      : analysisStatus === "analyzing"
+      ? "border-brand-line bg-brand-soft text-brand-strong"
+      : parseStatus === "parsed"
+      ? "border-info-line bg-info-soft text-info-strong"
+      : "border-danger-line bg-danger-soft text-danger-strong";
+
+  return (
+    <span
+      className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold ${statusClass}`}
+      title={hasParseError ? "Document has parse errors" : statusText}
+    >
+      {hasParseError ? "Issue" : statusText}
+    </span>
+  );
+}

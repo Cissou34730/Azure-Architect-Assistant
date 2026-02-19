@@ -4,13 +4,11 @@ import { KeyboardShortcut } from "./ProjectHeaderShortcuts";
 
 interface UseProjectHeaderKeyboardProps {
   onUploadClick?: () => void;
-  onGenerateClick?: () => void;
   projectSelectorRef: RefObject<ProjectSelectorDropdownRef | null>;
 }
 
 export function useProjectHeaderKeyboard({
   onUploadClick,
-  onGenerateClick,
   projectSelectorRef,
 }: UseProjectHeaderKeyboardProps) {
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -32,21 +30,16 @@ export function useProjectHeaderKeyboard({
         e.preventDefault();
         onUploadClick();
       }
-      if (key === "g" && onGenerateClick !== undefined) {
-        e.preventDefault();
-        onGenerateClick();
-      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onUploadClick, onGenerateClick, projectSelectorRef]);
+  }, [onUploadClick, projectSelectorRef]);
 
   const shortcuts: KeyboardShortcut[] = getShortcuts({
     onUploadClick,
-    onGenerateClick,
     projectSelectorRef,
     setShowShortcuts,
   });
@@ -60,7 +53,6 @@ interface GetShortcutsProps extends UseProjectHeaderKeyboardProps {
 
 function getShortcuts({
   onUploadClick,
-  onGenerateClick,
   projectSelectorRef,
   setShowShortcuts,
 }: GetShortcutsProps): KeyboardShortcut[] {
@@ -74,19 +66,11 @@ function getShortcuts({
     },
     {
       key: "⌘U",
-      label: "Upload",
+      label: "Open Inputs Setup",
       action: () => {
         onUploadClick?.();
       },
       visible: onUploadClick !== undefined,
-    },
-    {
-      key: "⌘G",
-      label: "Generate Analysis",
-      action: () => {
-        onGenerateClick?.();
-      },
-      visible: onGenerateClick !== undefined,
     },
     {
       key: "⌘K",

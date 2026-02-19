@@ -163,7 +163,7 @@ export function AgentChatPanel({
             }
             rows={2}
             disabled={isLoading}
-            className="flex-1 resize-none rounded-lg border border-border-stronger px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent disabled:bg-surface disabled:text-dim"
+            className="flex-1 resize-none rounded-lg border border-border-stronger px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent disabled:bg-surface disabled:text-dim"
           />
           <button
             onClick={onSendMessage}

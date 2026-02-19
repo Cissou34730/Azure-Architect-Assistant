@@ -8,6 +8,7 @@ Tech stack & tooling
 - Tests: unit tests required for logic changes; run the test suite before submitting PRs.
 
 TailwindCSS 4.1 policy (IMPORTANT)
+- NEVER EVER MODIFY THE .env file. 
 - This repository uses Tailwind 4.1 in CSS-first mode.
 - The authoritative Tailwind configuration lives in the global CSS entrypoint using:
   - `@import "tailwindcss";`

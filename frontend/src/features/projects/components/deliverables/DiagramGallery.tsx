@@ -3,6 +3,8 @@ import { VirtuosoGrid } from "react-virtuoso";
 import { Network, X, Download, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { Card, CardContent, Badge, EmptyState } from "../../../../components/common";
 import MermaidRenderer from "../../../../components/diagrams/MermaidRenderer";
+import { useToastContext } from "../../../../contexts/ToastContext";
+import { useFocusTrap } from "../../../../hooks/useFocusTrap";
 import type { DiagramData } from "../../../../types/api";
 
 const VIRTUALIZE_THRESHOLD = 9;
@@ -104,6 +106,7 @@ function DiagramCard({ diagram, onClick }: DiagramCardProps) {
 interface DiagramModalProps {
   readonly diagram: DiagramData;
   readonly onClose: () => void;
+  readonly onShowToast: (message: string) => void;
 }
 
 function useZoomControls() {
@@ -124,18 +127,100 @@ function useZoomControls() {
   return { zoom, handleZoomIn, handleZoomOut, handleResetZoom };
 }
 
-function DiagramModal({ diagram, onClose }: DiagramModalProps) {
+interface DiagramModalControlsProps {
+  readonly zoom: number;
+  readonly onZoomIn: () => void;
+  readonly onZoomOut: () => void;
+  readonly onResetZoom: () => void;
+  readonly onDownloadSVG: () => void;
+  readonly onClose: () => void;
+}
+
+function DiagramModalControls({
+  zoom,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+  onDownloadSVG,
+  onClose,
+}: DiagramModalControlsProps) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={onZoomOut}
+        disabled={zoom <= 50}
+        className="p-2 hover:bg-muted rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        aria-label="Zoom Out"
+      >
+        <ZoomOut className="h-5 w-5 text-secondary" />
+      </button>
+      <span className="text-sm font-medium text-secondary min-w-12 text-center">
+        {zoom}%
+      </span>
+      <button
+        type="button"
+        onClick={onZoomIn}
+        disabled={zoom >= 300}
+        className="p-2 hover:bg-muted rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        aria-label="Zoom In"
+      >
+        <ZoomIn className="h-5 w-5 text-secondary" />
+      </button>
+      <button
+        type="button"
+        onClick={onResetZoom}
+        className="p-2 hover:bg-muted rounded-lg transition-colors"
+        aria-label="Reset Zoom"
+      >
+        <Maximize2 className="h-5 w-5 text-secondary" />
+      </button>
+      <div className="w-px h-6 bg-border-stronger mx-1" />
+      <button
+        type="button"
+        onClick={onDownloadSVG}
+        className="p-2 hover:bg-muted rounded-lg transition-colors"
+        aria-label="Download"
+      >
+        <Download className="h-5 w-5 text-secondary" />
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        className="p-2 hover:bg-muted rounded-lg transition-colors"
+        aria-label="Close"
+      >
+        <X className="h-5 w-5 text-secondary" />
+      </button>
+    </div>
+  );
+}
+
+function DiagramModal({ diagram, onClose, onShowToast }: DiagramModalProps) {
   const safeSource = getSafeString(diagram.sourceCode).trim();
   const { zoom, handleZoomIn, handleZoomOut, handleResetZoom } = useZoomControls();
-  
+  const trapRef = useFocusTrap<HTMLDivElement>();
+
   const handleDownloadSVG = () => {
-    // Implementation would export the rendered SVG
-    alert("Download SVG - Feature coming soon");
+    onShowToast("Download SVG - Feature coming soon");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      onClose();
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay/75 p-4">
-      <div className="bg-card rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col">
+      <div
+        ref={trapRef}
+        className="bg-card rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col"
+        onKeyDown={handleKeyDown}
+        role="dialog"
+        aria-modal="true"
+        aria-label={diagram.diagramType}
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
           <div>
@@ -146,60 +231,20 @@ function DiagramModal({ diagram, onClose }: DiagramModalProps) {
               Version: {diagram.version}
             </Badge>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleZoomOut}
-              disabled={zoom <= 50}
-              className="p-2 hover:bg-muted rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              aria-label="Zoom Out"
-            >
-              <ZoomOut className="h-5 w-5 text-secondary" />
-            </button>
-            <span className="text-sm font-medium text-secondary min-w-12 text-center">
-              {zoom}%
-            </span>
-            <button
-              type="button"
-              onClick={handleZoomIn}
-              disabled={zoom >= 300}
-              className="p-2 hover:bg-muted rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              aria-label="Zoom In"
-            >
-              <ZoomIn className="h-5 w-5 text-secondary" />
-            </button>
-            <button
-              type="button"
-              onClick={handleResetZoom}
-              className="p-2 hover:bg-muted rounded-lg transition-colors"
-              aria-label="Reset Zoom"
-            >
-              <Maximize2 className="h-5 w-5 text-secondary" />
-            </button>
-            <div className="w-px h-6 bg-border-stronger mx-1" />
-            <button
-              type="button"
-              onClick={handleDownloadSVG}
-              className="p-2 hover:bg-muted rounded-lg transition-colors"
-              aria-label="Download"
-            >
-              <Download className="h-5 w-5 text-secondary" />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 hover:bg-muted rounded-lg transition-colors"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5 text-secondary" />
-            </button>
-          </div>
+          <DiagramModalControls
+            zoom={zoom}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onResetZoom={handleResetZoom}
+            onDownloadSVG={handleDownloadSVG}
+            onClose={onClose}
+          />
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-auto bg-card">
           {safeSource !== "" ? (
-            <div 
+            <div
               className="w-full h-full flex items-center justify-center p-6"
               style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center', transition: 'transform 0.2s ease' }}
             >
@@ -224,6 +269,7 @@ function DiagramModal({ diagram, onClose }: DiagramModalProps) {
 export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
   const [filter, setFilter] = useState<DiagramFilter>("all");
   const [selectedDiagram, setSelectedDiagram] = useState<DiagramData | null>(null);
+  const { info } = useToastContext();
 
   const filteredDiagrams = useMemo(() => {
     return diagrams.filter((diagram) => {
@@ -300,6 +346,7 @@ export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
           onClose={() => {
             setSelectedDiagram(null);
           }}
+          onShowToast={info}
         />
       )}
     </div>

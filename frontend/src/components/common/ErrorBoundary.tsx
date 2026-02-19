@@ -1,5 +1,6 @@
 import React, { ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
+import { Button } from "./Button";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -55,18 +56,18 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               </div>
             )}
             <div className="flex gap-3 justify-center">
-              <button
+              <Button
+                variant="primary"
                 onClick={this.handleReset}
-                className="px-4 py-2 bg-brand text-inverse rounded-lg hover:bg-brand-strong transition-colors"
               >
                 Try Again
-              </button>
-              <button
-                onClick={() => window.location.href = "/"}
-                className="px-4 py-2 border border-border-stronger text-secondary rounded-lg hover:bg-surface transition-colors"
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => { window.location.href = "/"; }}
               >
                 Go Home
-              </button>
+              </Button>
             </div>
           </div>
         </div>

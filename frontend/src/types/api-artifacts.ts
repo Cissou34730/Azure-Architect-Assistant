@@ -58,48 +58,6 @@ export interface WafChecklist {
   readonly items: readonly WafChecklistItem[];
 }
 
-export interface ChecklistSummary {
-  readonly id: string;
-  readonly projectId: string;
-  readonly templateId: string | null;
-  readonly templateSlug?: string | null;
-  readonly title: string;
-  readonly version?: string | null;
-  readonly status: "open" | "archived";
-  readonly itemsCount: number;
-  readonly lastSyncedAt: string | null;
-}
-
-export interface ChecklistItemDetail {
-  readonly id: string;
-  readonly templateItemId: string;
-  readonly title: string;
-  readonly description: string | null;
-  readonly pillar: string | null;
-  readonly severity: "low" | "medium" | "high" | "critical";
-  readonly guidance: Record<string, unknown> | null;
-  readonly itemMetadata: Record<string, unknown> | null;
-  readonly latestEvaluation: {
-    readonly status: string;
-    readonly evaluator: string;
-    readonly timestamp: string | null;
-  } | null;
-}
-
-export interface ChecklistDetail extends ChecklistSummary {
-  readonly items: readonly ChecklistItemDetail[];
-}
-
-export interface ProgressResponse {
-  readonly totalItems: number;
-  readonly completedItems: number;
-  readonly percentComplete: number;
-  readonly severityBreakdown: Record<string, { readonly total: number; readonly completed: number }>;
-  readonly statusBreakdown: Record<string, number>;
-  readonly lastUpdated: string;
-  readonly nextActions: readonly Record<string, unknown>[];
-}
-
 export interface IacFile {
   readonly path: string;
   readonly format: "bicep" | "terraform" | "arm" | "yaml" | "json" | "other";
@@ -164,8 +122,36 @@ export interface ReferenceDocument {
   readonly id: string;
   readonly category: string;
   readonly title: string;
-  readonly url?: string;
+  readonly url?: string | null;
+  readonly mimeType?: string;
   readonly accessedAt?: string;
+  readonly parseStatus?: "parsed" | "parse_failed";
+  readonly analysisStatus?: "not_started" | "analyzing" | "analyzed" | "analysis_failed" | "skipped";
+  readonly parseError?: string | null;
+  readonly uploadedAt?: string;
+  readonly analyzedAt?: string | null;
+}
+
+export interface UploadFailure {
+  readonly documentId: string | null;
+  readonly fileName: string;
+  readonly reason: string;
+}
+
+export interface UploadSummary {
+  readonly attemptedDocuments: number;
+  readonly parsedDocuments: number;
+  readonly failedDocuments: number;
+  readonly failures: readonly UploadFailure[];
+}
+
+export interface AnalysisSummary {
+  readonly runId: string;
+  readonly startedAt: string;
+  readonly completedAt: string;
+  readonly status: "success" | "failed";
+  readonly analyzedDocuments: number;
+  readonly skippedDocuments: number;
 }
 
 export interface MCPQuery {
@@ -181,11 +167,7 @@ export interface IterationEvent {
   readonly id: string;
   readonly kind: "propose" | "challenge";
   readonly text: string;
-  readonly citations: readonly {
-    readonly kind?: string;
-    readonly url?: string;
-    readonly note?: string;
-  }[];
+  readonly citations: readonly SourceCitation[];
   readonly architectResponseMessageId?: string;
   readonly createdAt: string;
   readonly relatedArtifactIds: readonly string[];

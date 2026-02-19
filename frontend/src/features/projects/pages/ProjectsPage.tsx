@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProjectList } from "../components/ProjectList";
 import { useProjects } from "../hooks/useProjects";
+import { Card } from "../../../components/common";
 
 export default function ProjectsPage() {
   const { projects, createProject, loading, fetchProjects } = useProjects();
@@ -12,7 +13,7 @@ export default function ProjectsPage() {
     void fetchProjects();
   }, [fetchProjects]);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     try {
       const project = await createProject(newProjectName);
@@ -29,7 +30,7 @@ export default function ProjectsPage() {
         <h1 className="text-3xl font-bold mb-8 text-foreground">
           Architecture Projects
         </h1>
-        <div className="bg-card rounded-lg shadow p-6">
+        <Card className="p-6">
           <ProjectList
             projects={projects}
             selectedProject={null}
@@ -39,7 +40,7 @@ export default function ProjectsPage() {
             onCreateProject={handleCreate}
             loading={loading}
           />
-        </div>
+        </Card>
       </div>
     </div>
   );

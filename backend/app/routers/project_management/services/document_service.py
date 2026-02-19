@@ -1,7 +1,9 @@
 import json
 import logging
+import mimetypes
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, cast
 
 from sqlalchemy import select
@@ -16,6 +18,17 @@ from .document_parsing import extract_text_from_upload
 logger = logging.getLogger(__name__)
 
 
+PARSE_STATUS_PARSED = "parsed"
+PARSE_STATUS_FAILED = "parse_failed"
+ANALYSIS_STATUS_NOT_STARTED = "not_started"
+ANALYSIS_STATUS_ANALYZING = "analyzing"
+ANALYSIS_STATUS_ANALYZED = "analyzed"
+ANALYSIS_STATUS_FAILED = "analysis_failed"
+ANALYSIS_STATUS_SKIPPED = "skipped"
+BACKEND_ROOT = Path(__file__).resolve().parents[4]
+DOCUMENT_STORE_DIR = BACKEND_ROOT / "data" / "project_documents"
+
+
 class DocumentService:
     """Handles document upload and analysis for projects."""
 
@@ -24,7 +37,7 @@ class DocumentService:
         project_id: str,
         files: list[Any],
         db: AsyncSession,
-    ) -> list[dict[str, Any]]:
+    ) -> dict[str, Any]:
         result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
         if not project:
@@ -38,31 +51,57 @@ class DocumentService:
         for file in files:
             attempted_documents += 1
             content = await file.read()
+            document_id = str(uuid.uuid4())
+            safe_file_name = Path(file.filename or "document").name
+            uploaded_mime_type = (getattr(file, "content_type", None) or "").strip()
+            if (
+                uploaded_mime_type == ""
+                or uploaded_mime_type == "application/octet-stream"
+            ):
+                guessed_mime_type, _ = mimetypes.guess_type(safe_file_name)
+                if guessed_mime_type:
+                    uploaded_mime_type = guessed_mime_type
+            if uploaded_mime_type == "":
+                uploaded_mime_type = "application/octet-stream"
+            storage_dir = DOCUMENT_STORE_DIR / project_id
+            storage_dir.mkdir(parents=True, exist_ok=True)
+            stored_path = storage_dir / f"{document_id}_{safe_file_name}"
+            stored_path.write_bytes(content)
 
             extracted_text, failure_reason = extract_text_from_upload(
-                file_name=file.filename,
-                mime_type=getattr(file, "content_type", None),
+                file_name=safe_file_name,
+                mime_type=uploaded_mime_type,
                 content=content,
             )
 
             if extracted_text is None:
+                parse_status = PARSE_STATUS_FAILED
+                parse_error = failure_reason or "unknown parse failure"
+                analysis_status = ANALYSIS_STATUS_SKIPPED
                 failures.append(
                     {
-                        "documentId": None,
+                        "documentId": document_id,
                         "fileName": file.filename,
-                        "reason": failure_reason or "unknown parse failure",
+                        "reason": parse_error,
                     }
                 )
                 extracted_text = ""  # Persist empty text but keep the document record
             else:
+                parse_status = PARSE_STATUS_PARSED
+                parse_error = None
+                analysis_status = ANALYSIS_STATUS_NOT_STARTED
                 parsed_documents += 1
 
             doc = ProjectDocument(
-                id=str(uuid.uuid4()),
+                id=document_id,
                 project_id=project_id,
-                file_name=file.filename,
-                mime_type=getattr(file, "content_type", "application/octet-stream"),
+                file_name=safe_file_name,
+                mime_type=uploaded_mime_type,
                 raw_text=extracted_text,
+                stored_path=str(stored_path),
+                parse_status=parse_status,
+                analysis_status=analysis_status,
+                parse_error=parse_error,
                 uploaded_at=datetime.now(timezone.utc).isoformat(),
             )
 
@@ -71,16 +110,18 @@ class DocumentService:
 
         await db.commit()
 
-        # Persist ingestion stats into ProjectState (SC-004) without blocking upload.
+        upload_summary = {
+            "attemptedDocuments": attempted_documents,
+            "parsedDocuments": parsed_documents,
+            "failedDocuments": max(attempted_documents - parsed_documents, 0),
+            "failures": failures,
+        }
+
+        # Persist document stats + reference docs into ProjectState without blocking upload.
         try:
-            stats_payload = {
-                "ingestionStats": {
-                    "attemptedDocuments": attempted_documents,
-                    "parsedDocuments": parsed_documents,
-                    "failedDocuments": max(attempted_documents - parsed_documents, 0),
-                    "failures": failures,
-                }
-            }
+            all_documents = await self._fetch_project_documents(project_id, db)
+            computed_stats = self._compute_ingestion_stats(all_documents)
+            reference_documents = self._build_reference_documents(all_documents)
 
             state_result = await db.execute(
                 select(ProjectState).where(ProjectState.project_id == project_id)
@@ -89,15 +130,26 @@ class DocumentService:
 
             if state_record:
                 current_state = json.loads(state_record.state)
-                current_state.update(stats_payload)
+                merged_reference_documents = self._merge_reference_documents(
+                    current_state.get("referenceDocuments"),
+                    reference_documents,
+                )
+                current_state["projectDocumentStats"] = computed_stats
+                # Backward compatibility for existing consumers/tests.
+                current_state["ingestionStats"] = computed_stats
+                current_state["referenceDocuments"] = merged_reference_documents
                 current_state = ensure_aaa_defaults(current_state)
                 state_record.state = json.dumps(current_state)
                 state_record.updated_at = datetime.now(timezone.utc).isoformat()
             else:
+                seed_state = ensure_aaa_defaults({})
+                seed_state["projectDocumentStats"] = computed_stats
+                seed_state["ingestionStats"] = computed_stats
+                seed_state["referenceDocuments"] = reference_documents
                 db.add(
                     ProjectState(
                         project_id=project_id,
-                        state=json.dumps(ensure_aaa_defaults(stats_payload)),
+                        state=json.dumps(seed_state),
                         updated_at=datetime.now(timezone.utc).isoformat(),
                     )
                 )
@@ -105,12 +157,15 @@ class DocumentService:
             await db.commit()
         except Exception:
             logger.exception(
-                "Failed to persist ingestionStats for project %s",
+                "Failed to persist projectDocumentStats/referenceDocuments for project %s",
                 project_id,
             )
 
         logger.info(f"Uploaded {len(saved_docs)} documents for project: {project_id}")
-        return [doc.to_dict() for doc in saved_docs]
+        return {
+            "documents": [doc.to_dict() for doc in saved_docs],
+            "uploadSummary": upload_summary,
+        }
 
     def _prepare_document_texts(
         self, project: Project, documents: list[ProjectDocument]
@@ -132,14 +187,19 @@ class DocumentService:
         parsed = 0
         failures = []
         for doc in documents:
-            if (doc.raw_text or "").strip():
+            parse_status = (
+                doc.parse_status
+                if doc.parse_status is not None
+                else PARSE_STATUS_PARSED if (doc.raw_text or "").strip() else PARSE_STATUS_FAILED
+            )
+            if parse_status == PARSE_STATUS_PARSED:
                 parsed += 1
             else:
                 failures.append(
                     {
                         "documentId": doc.id,
                         "fileName": doc.file_name,
-                        "reason": "no extractable text",
+                        "reason": doc.parse_error or "no extractable text",
                     }
                 )
 
@@ -150,6 +210,113 @@ class DocumentService:
             "failures": failures,
         }
 
+    async def _fetch_project_documents(
+        self, project_id: str, db: AsyncSession
+    ) -> list[ProjectDocument]:
+        result = await db.execute(
+            select(ProjectDocument).where(ProjectDocument.project_id == project_id)
+        )
+        return result.scalars().all()
+
+    def _build_reference_documents(
+        self, documents: list[ProjectDocument]
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": doc.id,
+                "category": "uploaded",
+                "title": doc.file_name,
+                "url": f"/api/projects/{doc.project_id}/documents/{doc.id}/content"
+                if doc.stored_path
+                else None,
+                "mimeType": doc.mime_type,
+                "accessedAt": doc.uploaded_at,
+                "parseStatus": doc.parse_status
+                or (
+                    PARSE_STATUS_PARSED
+                    if (doc.raw_text or "").strip()
+                    else PARSE_STATUS_FAILED
+                ),
+                "analysisStatus": doc.analysis_status
+                or (
+                    ANALYSIS_STATUS_NOT_STARTED
+                    if (doc.raw_text or "").strip()
+                    else ANALYSIS_STATUS_SKIPPED
+                ),
+                "parseError": doc.parse_error,
+                "uploadedAt": doc.uploaded_at,
+                "analyzedAt": doc.analyzed_at,
+            }
+            for doc in documents
+        ]
+
+    def _merge_reference_documents(
+        self,
+        current_reference_documents: Any,
+        uploaded_reference_documents: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        merged_by_id: dict[str, dict[str, Any]] = {}
+        if isinstance(current_reference_documents, list):
+            for item in current_reference_documents:
+                if isinstance(item, dict):
+                    item_id = str(item.get("id") or "").strip()
+                    if item_id != "":
+                        merged_by_id[item_id] = dict(item)
+
+        for uploaded_doc in uploaded_reference_documents:
+            merged_by_id[uploaded_doc["id"]] = uploaded_doc
+
+        return list(merged_by_id.values())
+
+    def _apply_analysis_status_start(
+        self, documents: list[ProjectDocument], run_id: str
+    ) -> None:
+        for doc in documents:
+            parse_status = doc.parse_status or (
+                PARSE_STATUS_PARSED
+                if (doc.raw_text or "").strip()
+                else PARSE_STATUS_FAILED
+            )
+            doc.last_analysis_run_id = run_id
+            if parse_status == PARSE_STATUS_PARSED:
+                doc.analysis_status = ANALYSIS_STATUS_ANALYZING
+            else:
+                doc.analysis_status = ANALYSIS_STATUS_SKIPPED
+
+    def _apply_analysis_status_success(
+        self, documents: list[ProjectDocument], run_id: str, completed_at: str
+    ) -> tuple[int, int]:
+        analyzed_documents = 0
+        skipped_documents = 0
+        for doc in documents:
+            parse_status = doc.parse_status or (
+                PARSE_STATUS_PARSED
+                if (doc.raw_text or "").strip()
+                else PARSE_STATUS_FAILED
+            )
+            doc.last_analysis_run_id = run_id
+            if parse_status == PARSE_STATUS_PARSED:
+                analyzed_documents += 1
+                doc.analysis_status = ANALYSIS_STATUS_ANALYZED
+                doc.analyzed_at = completed_at
+            else:
+                skipped_documents += 1
+                doc.analysis_status = ANALYSIS_STATUS_SKIPPED
+        return analyzed_documents, skipped_documents
+
+    def _apply_analysis_status_failed(
+        self, documents: list[ProjectDocument], run_id: str
+    ) -> None:
+        for doc in documents:
+            parse_status = doc.parse_status or (
+                PARSE_STATUS_PARSED
+                if (doc.raw_text or "").strip()
+                else PARSE_STATUS_FAILED
+            )
+            doc.last_analysis_run_id = run_id
+            if parse_status == PARSE_STATUS_PARSED:
+                doc.analysis_status = ANALYSIS_STATUS_FAILED
+
     async def analyze_documents(
         self, project_id: str, db: AsyncSession
     ) -> dict[str, Any]:
@@ -159,10 +326,11 @@ class DocumentService:
         if not project:
             raise ValueError("Project not found")
 
-        result = await db.execute(
-            select(ProjectDocument).where(ProjectDocument.project_id == project_id)
-        )
-        documents = result.scalars().all()
+        documents = await self._fetch_project_documents(project_id, db)
+        analysis_run_id = str(uuid.uuid4())
+        started_at = datetime.now(timezone.utc).isoformat()
+        self._apply_analysis_status_start(documents, analysis_run_id)
+        await db.flush()
 
         texts = self._prepare_document_texts(project, documents)
         if not texts:
@@ -171,12 +339,38 @@ class DocumentService:
         logger.info(f"Analyzing {len(texts)} content blocks for project: {project_id}")
 
         service = llm_service.get_llm_service()
-        state_data = await service.analyze_documents(texts)
+        try:
+            state_data = await service.analyze_documents(texts)
+        except Exception:
+            self._apply_analysis_status_failed(documents, analysis_run_id)
+            await db.commit()
+            raise
 
         _normalize_aaa_requirements_and_questions(state_data)
+        completed_at = datetime.now(timezone.utc).isoformat()
+        analyzed_documents, skipped_documents = self._apply_analysis_status_success(
+            documents,
+            analysis_run_id,
+            completed_at,
+        )
 
-        # Append telemetry/stats (SC-004)
-        state_data["ingestionStats"] = self._compute_ingestion_stats(documents)
+        # Append telemetry/stats and setup summary.
+        stats = self._compute_ingestion_stats(documents)
+        state_data["projectDocumentStats"] = stats
+        # Backward compatibility for existing consumers/tests.
+        state_data["ingestionStats"] = stats
+        state_data["analysisSummary"] = {
+            "runId": analysis_run_id,
+            "startedAt": started_at,
+            "completedAt": completed_at,
+            "status": "success",
+            "analyzedDocuments": analyzed_documents,
+            "skippedDocuments": skipped_documents,
+        }
+        state_data["referenceDocuments"] = self._merge_reference_documents(
+            state_data.get("referenceDocuments"),
+            self._build_reference_documents(documents),
+        )
 
         # Ensure AAA default keys exist even if the LLM omitted them.
         state_data = ensure_aaa_defaults(state_data)
