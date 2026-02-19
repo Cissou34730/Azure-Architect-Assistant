@@ -1,0 +1,60 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "react",
+    "typescript",
+    "unicorn",
+    "oxc"
+  ],
+  "categories": {},
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/no-unsafe-argument": "error",
+    "typescript/no-unsafe-assignment": "error",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-return": "error",
+    "typescript/no-unsafe-type-assertion": "off",
+    "typescript/restrict-plus-operands": "error",
+    "typescript/restrict-template-expressions": "error",
+    "typescript/strict-boolean-expressions": "error",
+    "typescript/switch-exhaustiveness-check": "error",
+    "react/exhaustive-deps": "warn",
+    "react/jsx-no-useless-fragment": "error",
+    "react/no-array-index-key": "off",
+    "react/no-unknown-property": "off",
+    "react/react-in-jsx-scope": "off",
+    "react/rules-of-hooks": "error",
+    "react/self-closing-comp": "error",
+    "no-unused-vars": "off",
+    "no-unused-expressions": "off",
+    "complexity": "off",
+    "max-lines": "off",
+    "max-lines-per-function": "off",
+    "max-params": "off"
+  },
+  "settings": {
+    "react": {
+      "version": "19"
+    }
+  },
+  "env": {
+    "builtin": true,
+    "browser": true
+  },
+  "ignorePatterns": [
+    "dist",
+    "**/dist",
+    "node_modules",
+    "**/node_modules",
+    "backend/**",
+    "archive/**",
+    "backups/**",
+    ".github/**",
+    "**/*.md",
+    "**/*.json",
+    "**/*.py"
+  ]
+}

@@ -7,6 +7,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import checkFile from "eslint-plugin-check-file";
 import tseslint from "typescript-eslint";
 import react from "eslint-plugin-react";
+import oxlint from "eslint-plugin-oxlint";
 
 const strictTsCoreRules = {
   // Disable core versions when TS versions are used
@@ -17,20 +18,14 @@ const strictTsCoreRules = {
   "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
   "@typescript-eslint/no-unused-expressions": "error",
 
-  // TypeScript: no any, no unsafe operations
-  "@typescript-eslint/no-explicit-any": [
-    "error",
-    {
-      fixToUnknown: true,
-      ignoreRestArgs: false,
-    },
-  ],
-  "@typescript-eslint/no-unsafe-assignment": "error",
-  "@typescript-eslint/no-unsafe-member-access": "error",
-  "@typescript-eslint/no-unsafe-call": "error",
-  "@typescript-eslint/no-unsafe-argument": "error",
-  "@typescript-eslint/no-unsafe-return": "error",
-  "@typescript-eslint/no-non-null-assertion": "error",
+  // Owned by Oxlint to avoid duplicate checks in ESLint.
+  "@typescript-eslint/no-explicit-any": "off",
+  "@typescript-eslint/no-unsafe-assignment": "off",
+  "@typescript-eslint/no-unsafe-member-access": "off",
+  "@typescript-eslint/no-unsafe-call": "off",
+  "@typescript-eslint/no-unsafe-argument": "off",
+  "@typescript-eslint/no-unsafe-return": "off",
+  "@typescript-eslint/no-non-null-assertion": "off",
   "@typescript-eslint/consistent-type-definitions": ["error", "interface"],
 
   // TypeScript: ban unsafe and unnecessary assertions
@@ -53,45 +48,11 @@ const strictTsCoreRules = {
   ],
 
   // Hardened boolean, arithmetic, template usage
-  "@typescript-eslint/strict-boolean-expressions": [
-    "error",
-    {
-      allowAny: false,
-      allowNumber: false,
-      allowString: false,
-      allowNullableBoolean: true,
-      allowNullableEnum: false,
-      allowNullableNumber: false,
-      allowNullableObject: false,
-      allowNullableString: false,
-      allowRuleToRunWithoutStrictNullChecksIKnowWhatIAmDoing: false,
-    },
-  ],
-  "@typescript-eslint/restrict-plus-operands": [
-    "error",
-    {
-      allowAny: false,
-      allowBoolean: false,
-      allowNullish: false,
-      allowNumberAndString: false,
-      allowRegExp: false,
-      skipCompoundAssignments: false,
-    },
-  ],
-  "@typescript-eslint/restrict-template-expressions": [
-    "error",
-    {
-      allowNumber: true,
-      allowBoolean: false,
-      allowNullish: false,
-      allowAny: false,
-      allowArray: false,
-      allowRegExp: false,
-      allowNever: false,
-    },
-  ],
-  "@typescript-eslint/no-floating-promises": "error",
-  "@typescript-eslint/switch-exhaustiveness-check": "error",
+  "@typescript-eslint/strict-boolean-expressions": "off",
+  "@typescript-eslint/restrict-plus-operands": "off",
+  "@typescript-eslint/restrict-template-expressions": "off",
+  "@typescript-eslint/no-floating-promises": "off",
+  "@typescript-eslint/switch-exhaustiveness-check": "off",
 
   // Restrict some types: discourage unknown internally, ban React.FC
   "@typescript-eslint/no-restricted-types": [
@@ -153,8 +114,8 @@ const strictTsCoreRules = {
   ],
   "react/react-in-jsx-scope": "off",
   "react/no-unknown-property": "off",
-  "react/jsx-no-useless-fragment": "error",
-  "react/self-closing-comp": "error",
+  "react/jsx-no-useless-fragment": "off",
+  "react/self-closing-comp": "off",
   "react/no-array-index-key": "warn",
   "react/prop-types": "off",
   "react/function-component-definition": [
@@ -309,4 +270,7 @@ export default [
       ],
     },
   },
+
+  // 5. Disable duplicate ESLint rules that are enforced by Oxlint.
+  ...oxlint.buildFromOxlintConfigFile("./.oxlintrc.json"),
 ];
