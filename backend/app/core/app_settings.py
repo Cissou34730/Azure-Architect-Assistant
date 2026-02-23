@@ -123,7 +123,7 @@ class AppSettings(BaseSettings):
 
     # LLM extraction and JSON repair settings
     llm_analyze_max_tokens: int = Field(
-        default=6000,
+        default=12000,
         ge=512,
         le=32768,
         description="Max completion tokens used for document analysis extraction",
