@@ -34,9 +34,8 @@ try {
         }
     }
     
-    Write-Host "Starting uvicorn server on port $port..." -ForegroundColor Cyan
-    # Activate venv and run directly (much faster than uv run)
-    & "$PSScriptRoot\.venv\Scripts\python.exe" -m uvicorn app.main:app --port $port --app-dir backend 
+    Write-Host "Starting uvicorn server on port $port via uv..." -ForegroundColor Cyan
+    uv run uvicorn app.main:app --port $port --app-dir backend
 }
 catch {
     Write-Host "Error: $_" -ForegroundColor Red

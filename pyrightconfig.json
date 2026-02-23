@@ -1,7 +1,15 @@
 {
-  "include": [],
-  "exclude": ["**/*"],
-  "typeCheckingMode": "off",
-  "reportMissingImports": "none",
+  "include": ["backend"],
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    "**/venv",
+    "archive",
+    "backups"
+  ],
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
   "reportMissingTypeStubs": "none"
 }

@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - archchatbot
+
+jobs:
+  frontend-quality:
+    name: Frontend lint + typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Frontend typecheck
+        run: npm run typecheck --workspace=frontend
+
+      - name: Frontend lint
+        run: npm run lint
+
+  backend-quality:
+    name: Backend lint + tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install backend dependencies
+        run: uv sync
+
+      - name: Backend lint (ruff)
+        run: uv run ruff check backend
+
+      - name: Backend unit tests
+        run: uv run pytest backend/tests -q
+
+  backend-type-advisory:
+    name: Backend type check (pyright advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run pyright (advisory)
+        run: npx pyright backend
+
+  docs-integrity:
+    name: Docs lane integrity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate docs governance and lane structure
+        shell: pwsh
+        run: ./scripts/check-docs-governance.ps1
+
+  ts-no-any-phase1-advisory:
+    name: TypeScript no-any phase 1 (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: No-any phase 1 domains
+        run: >
+          npx eslint
+          --no-error-on-unmatched-pattern
+          "frontend/src/{services,hooks,types}/**/*.{ts,tsx}"
+          --rule "@typescript-eslint/no-explicit-any:error"
+          --max-warnings=0

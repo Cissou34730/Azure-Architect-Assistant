@@ -13,6 +13,10 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 
 - Documentation policy and update rules: [`/docs/operations/DOCUMENTATION_GOVERNANCE.md`](./operations/DOCUMENTATION_GOVERNANCE.md)
 - Migration tracker and move/archive status: [`/docs/operations/DOC_MIGRATION_INDEX.md`](./operations/DOC_MIGRATION_INDEX.md)
+- Policy ownership and precedence: [`/docs/operations/SOURCE_OF_TRUTH_MATRIX.md`](./operations/SOURCE_OF_TRUTH_MATRIX.md)
+- Workflow and traceability policy: [`/docs/operations/WORKFLOW_TRACEABILITY_RUNBOOK.md`](./operations/WORKFLOW_TRACEABILITY_RUNBOOK.md)
+- Agent/prompt/skill registry: [`/docs/operations/ACTIVE_ASSET_REGISTRY.md`](./operations/ACTIVE_ASSET_REGISTRY.md)
+- CI check matrix and strictness policy: [`/docs/operations/CI_QUALITY_GATES.md`](./operations/CI_QUALITY_GATES.md)
 
 ## Domain Index (Human Lane)
 
