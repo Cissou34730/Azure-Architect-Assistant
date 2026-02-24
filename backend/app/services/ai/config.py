@@ -18,10 +18,12 @@ class AIConfig(BaseSettings):
 
     # OpenAI Configuration
     openai_api_key: str = ""
+    openai_project: str = ""
+    openai_organization: str = ""
     openai_llm_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
-    openai_timeout: float = 90.0
-    openai_max_retries: int = 3
+    openai_timeout: float = 600.0
+    openai_max_retries: int = 0  # no SDK-level retries; callers own retry strategy
 
     # Azure OpenAI Configuration (optional)
     azure_openai_endpoint: str = ""

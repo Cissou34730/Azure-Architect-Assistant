@@ -9,6 +9,8 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from openai import APIError, APITimeoutError, BadRequestError, RateLimitError
+
 from app.core.app_settings import get_app_settings
 from app.services.ai import ChatMessage, get_ai_service
 
@@ -123,8 +125,11 @@ EXTRACTION RULES (mandatory):
                 user_prompt,
                 max_tokens=self.app_settings.llm_analyze_max_tokens,
             )
+        except (APITimeoutError, RateLimitError, APIError):
+            # Network/server-level failure — no point retrying with the legacy path
+            raise
         except Exception as e:
-            # Fallback to legacy parsing if JSON mode fails for any reason
+            # Content-level failure (bad JSON, empty response, etc.) — try legacy parser
             logger.warning(f"JSON mode failed, falling back to legacy parsing: {e}")
             response = await self._complete(
                 system_prompt,
@@ -154,14 +159,16 @@ EXTRACTION RULES (mandatory):
                 temperature=self.ai_service.config.default_temperature,
                 max_tokens=max_tokens,
                 response_format={"type": "json_object"},
+                timeout=self.app_settings.llm_request_timeout_seconds,
             )
-        except Exception as e:
-            # If response_format not supported, retry without it
+        except BadRequestError as e:
+            # response_format not supported by this model — retry without it
             logger.warning(f"JSON mode failed, retrying without response_format: {e}")
             response = await self.ai_service.chat(
                 messages=messages,
                 temperature=self.ai_service.config.default_temperature,
                 max_tokens=max_tokens,
+                timeout=self.app_settings.llm_request_timeout_seconds,
             )
 
         content = response.content
@@ -354,6 +361,7 @@ Use clear headings, bullet points, and technical details. Reference Azure Well-A
             messages=messages,
             temperature=self.ai_service.config.default_temperature,
             max_tokens=max_tokens,
+            timeout=self.app_settings.llm_request_timeout_seconds,
         )
 
         return response.content

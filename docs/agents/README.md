@@ -28,6 +28,7 @@ Use template: `/docs/agents/AGENT_DOC_TEMPLATE.md`.
 - `/docs/agents/project-overview.agent.md`
 - `/docs/agents/system-architecture.agent.md`
 - `/docs/agents/multi-agent-architecture.agent.md`
+- `/docs/agents/data-root-storage.agent.md`
 
 ---
 

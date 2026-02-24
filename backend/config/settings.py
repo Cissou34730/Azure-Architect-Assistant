@@ -173,7 +173,9 @@ def get_kb_storage_root(raw: bool = False) -> Path | str:
     """
     if SettingsContainer.kb_storage_root is None or SettingsContainer.kb_storage_root_raw is None:
         backend_root = Path(__file__).resolve().parent.parent
-        kb_root_env = os.getenv("KNOWLEDGE_BASES_ROOT", "data/knowledge_bases")
+        data_root_env = os.getenv("DATA_ROOT", "data")
+        default_kb_root = str(Path(data_root_env) / "knowledge_bases")
+        kb_root_env = os.getenv("KNOWLEDGE_BASES_ROOT", default_kb_root)
         kb_root_path = Path(kb_root_env)
         if not kb_root_path.is_absolute():
             kb_root_path = backend_root / kb_root_path

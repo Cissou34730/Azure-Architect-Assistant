@@ -18,6 +18,7 @@ When rules conflict, follow the highest item above.
 - Do not apply unsolicited fixes outside requested scope.
 - Never modify `.env`.
 - Ask approval before major dependencies/frameworks/architecture shifts.
+- At the end of the execution before summarizing changes, run linter command, lint:fast:strict:fix and lint:fix or uvx ruff
 
 ## 3) Delivery Quality Standards (Global)
 
@@ -53,7 +54,7 @@ Execution constraint:
 - Lane model is mandatory:
   - Agent lane: `/docs/agents`
   - Human lane: `/docs/<domain>`
-- For significant changes, update relevant docs and keep `/docs/README.md` accurate.
+- Always update relevant docs and keep `/docs/README.md` accurate.
 
 ## 7) Escalation
 

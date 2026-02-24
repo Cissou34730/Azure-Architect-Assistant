@@ -4,6 +4,7 @@ Centralized settings loader with .env support.
 """
 
 import json
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,34 @@ from config import (
 def _default_env_path() -> Path:
     """Return the repository-level .env path (one level above backend)."""
     return Path(__file__).resolve().parents[3] / ".env"
+
+
+def _default_data_root() -> Path:
+    """Resolve default persistent data root from env, with safe repo-local fallback."""
+    repo_root = Path(__file__).resolve().parents[3]
+
+    data_root_env = os.getenv("DATA_ROOT")
+    if data_root_env:
+        p = Path(data_root_env)
+        if not p.is_absolute():
+            p = (repo_root / p).resolve()
+        return p
+
+    projects_db_env = os.getenv("PROJECTS_DATABASE")
+    if projects_db_env:
+        p = Path(projects_db_env)
+        if not p.is_absolute():
+            p = (repo_root / p).resolve()
+        return p.parent
+
+    knowledge_bases_root_env = os.getenv("KNOWLEDGE_BASES_ROOT")
+    if knowledge_bases_root_env:
+        p = Path(knowledge_bases_root_env)
+        if not p.is_absolute():
+            p = (repo_root / p).resolve()
+        return p.parent
+
+    return Path(__file__).resolve().parents[2] / "data"
 
 
 class AppSettings(BaseSettings):
@@ -71,18 +100,22 @@ class AppSettings(BaseSettings):
         return self
 
     # Diagram generation settings
-    diagrams_database: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parents[2]
-        / "data"
-        / "diagrams.db",
+    data_root: Path = Field(
+        default_factory=_default_data_root,
+        description="Canonical root directory for all persisted backend runtime data",
     )
+
+    diagrams_database: Path | None = Field(default=None)
     
     # Models cache settings
-    models_cache_path: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parents[2]
-        / "data"
-        / "openai_models_cache.json",
+    models_cache_path: Path | None = Field(
+        default=None,
         description="Disk cache for OpenAI models list with 7-day TTL"
+    )
+
+    project_documents_root: Path | None = Field(
+        default=None,
+        description="Root directory where uploaded project documents are stored"
     )
 
     # WAF Checklist Normalization Settings
@@ -96,10 +129,8 @@ class AppSettings(BaseSettings):
         description="Namespace UUID for deterministic checklist item IDs (UUID v5)"
     )
 
-    waf_template_cache_dir: Path = Field(
-        default_factory=lambda: Path(__file__).resolve().parents[2]
-        / "config"
-        / "checklists",
+    waf_template_cache_dir: Path | None = Field(
+        default=None,
         description="Local directory for cached WAF template files"
     )
 
@@ -152,6 +183,12 @@ class AppSettings(BaseSettings):
         le=20000,
         description="Max chars for error response snippets",
     )
+    llm_request_timeout_seconds: float = Field(
+        default=600.0,
+        ge=10.0,
+        le=3600.0,
+        description="Timeout in seconds for LLM requests (SDK default is 10 minutes)",
+    )
 
     # Explicitly model commonly-present env keys to avoid extras in .env
     frontend_port: int | None = None
@@ -183,6 +220,8 @@ class AppSettings(BaseSettings):
     @classmethod
     def _normalize_diagrams_db(cls, value):
         repo_root = Path(__file__).resolve().parents[3]
+        if value is None:
+            return None
         if isinstance(value, Path):
             return value if value.is_absolute() else (repo_root / value).resolve()
         if isinstance(value, str):
@@ -196,6 +235,82 @@ class AppSettings(BaseSettings):
             p = Path(v)
             return p if p.is_absolute() else (repo_root / p).resolve()
         return value
+
+    @field_validator(
+        "data_root",
+        "models_cache_path",
+        "project_documents_root",
+        "waf_template_cache_dir",
+        "projects_database",
+        "ingestion_database",
+        "knowledge_bases_root",
+        mode="before",
+    )
+    @classmethod
+    def _normalize_storage_paths(cls, value):
+        repo_root = Path(__file__).resolve().parents[3]
+        if value is None:
+            return None
+        if isinstance(value, Path):
+            return value if value.is_absolute() else (repo_root / value).resolve()
+        if isinstance(value, str):
+            v = value.strip()
+            if not v:
+                return None
+            p = Path(v)
+            return p if p.is_absolute() else (repo_root / p).resolve()
+        return value
+
+    @model_validator(mode="after")
+    def _derive_and_validate_storage_paths(self):
+        data_root = self.data_root
+        if data_root is None:
+            raise ValueError("DATA_ROOT could not be resolved")
+
+        data_root = data_root.resolve()
+        data_root.mkdir(parents=True, exist_ok=True)
+        self.data_root = data_root
+
+        if self.projects_database is None:
+            self.projects_database = data_root / "projects.db"
+        if self.ingestion_database is None:
+            self.ingestion_database = data_root / "ingestion.db"
+        if self.diagrams_database is None:
+            self.diagrams_database = data_root / "diagrams.db"
+        if self.models_cache_path is None:
+            self.models_cache_path = data_root / "openai_models_cache.json"
+        if self.knowledge_bases_root is None:
+            self.knowledge_bases_root = data_root / "knowledge_bases"
+        if self.project_documents_root is None:
+            self.project_documents_root = data_root / "project_documents"
+        if self.waf_template_cache_dir is None:
+            self.waf_template_cache_dir = data_root / "waf_template_cache"
+
+        storage_paths = {
+            "PROJECTS_DATABASE": self.projects_database,
+            "INGESTION_DATABASE": self.ingestion_database,
+            "DIAGRAMS_DATABASE": self.diagrams_database,
+            "MODELS_CACHE_PATH": self.models_cache_path,
+            "KNOWLEDGE_BASES_ROOT": self.knowledge_bases_root,
+            "PROJECT_DOCUMENTS_ROOT": self.project_documents_root,
+            "WAF_TEMPLATE_CACHE_DIR": self.waf_template_cache_dir,
+        }
+
+        for name, path in storage_paths.items():
+            resolved = path.resolve()
+            try:
+                resolved.relative_to(data_root)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{name} must be under DATA_ROOT ({data_root}), got {resolved}"
+                ) from exc
+            if name.endswith("_DATABASE") or name.endswith("_PATH"):
+                resolved.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                resolved.mkdir(parents=True, exist_ok=True)
+            setattr(self, name.lower(), resolved)
+
+        return self
 
     # Pydantic v2 config is defined via model_config above.
 

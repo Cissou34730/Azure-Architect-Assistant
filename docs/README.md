@@ -32,6 +32,7 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 
 - [`backend/README.md`](./backend/README.md)
 - [`backend/BACKEND_REFERENCE.md`](./backend/BACKEND_REFERENCE.md)
+- [`backend/DATA_ROOT_STORAGE_POLICY.md`](./backend/DATA_ROOT_STORAGE_POLICY.md)
 - [`backend/TESTING_DEPENDENCY_INJECTION.md`](./backend/TESTING_DEPENDENCY_INJECTION.md)
 
 ### Frontend
@@ -55,6 +56,7 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 - [`agents/project-overview.agent.md`](./agents/project-overview.agent.md)
 - [`agents/system-architecture.agent.md`](./agents/system-architecture.agent.md)
 - [`agents/multi-agent-architecture.agent.md`](./agents/multi-agent-architecture.agent.md)
+- [`agents/data-root-storage.agent.md`](./agents/data-root-storage.agent.md)
 
 ## Historical / In-Progress Material
 

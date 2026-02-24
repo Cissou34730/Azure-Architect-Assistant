@@ -14,6 +14,8 @@ import requests
 from llama_index.core import Document
 from llama_index.readers.file import PyMuPDFReader
 
+from app.core.app_settings import get_app_settings
+
 from .handler_base import BaseSourceHandler
 
 logger = logging.getLogger(__name__)
@@ -121,8 +123,14 @@ class PDFSourceHandler(BaseSourceHandler):
             response = requests.get(pdf_url, timeout=60)
             response.raise_for_status()
 
-            # Save to temp file
-            with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+            # Save to temp file inside configured data root
+            temp_dir = get_app_settings().project_documents_root / "_tmp"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                suffix='.pdf',
+                delete=False,
+                dir=temp_dir,
+            ) as tmp:
                 tmp.write(response.content)
                 tmp_path = tmp.name
 

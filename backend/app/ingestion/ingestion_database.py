@@ -18,7 +18,7 @@ from app.ingestion import ingestion_schema
 
 # Point to consolidated data directory at backend/data
 BACKEND_ROOT = Path(__file__).parent.parent.parent
-DATA_ROOT = BACKEND_ROOT / 'data'
+DATA_ROOT = Path(os.getenv('DATA_ROOT', str(BACKEND_ROOT / 'data')))
 DATA_ROOT.mkdir(exist_ok=True)
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ try:
     app_settings = get_app_settings()
 except (ValidationError, SettingsError, FileNotFoundError) as exc:
     logger.warning(
-        'App settings could not be loaded; falling back to INGESTION_DATABASE/data/ingestion.db',
+        'App settings could not be loaded; falling back to INGESTION_DATABASE/DATA_ROOT/ingestion.db',
         exc_info=exc,
     )
     app_settings = None

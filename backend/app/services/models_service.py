@@ -10,9 +10,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from openai import AsyncOpenAI
-
-from app.core.app_settings import get_app_settings, get_openai_settings
+from app.core.app_settings import get_app_settings
+from app.services.ai.config import AIConfig
+from app.services.ai.providers import get_openai_client
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +72,10 @@ class ModelsService:
             cache_path: Path to cache file (defaults to app settings)
         """
         app_settings = get_app_settings()
-        openai_settings = get_openai_settings()
 
         self.cache_path = cache_path or app_settings.models_cache_path
         self.ttl_days = 7
-        self.client = AsyncOpenAI(api_key=openai_settings.api_key)
+        self.client = get_openai_client(AIConfig())
 
         # Ensure cache directory exists
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -159,8 +158,7 @@ class ModelsService:
         response = await self.client.models.list()
         all_models = list(response.data)
 
-        # Only exclude known non-chat model types
-        # Be permissive - include everything except models we know are NOT for chat
+        # Exclude model families that are never used for chat completions
         excluded_prefixes = (
             "text-embedding",    # Embedding models
             "text-similarity",   # Similarity models
@@ -175,7 +173,7 @@ class ModelsService:
             "babbage-",          # Legacy completion models
             "ada-",              # Legacy completion models
         )
-        
+
         chat_models = [
             model
             for model in all_models

@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents_system.services.aaa_state_models import ensure_aaa_defaults
+from app.core.app_settings import get_app_settings
 from app.models import Project, ProjectDocument, ProjectState
 from app.services import llm_service
 
@@ -25,12 +26,13 @@ ANALYSIS_STATUS_ANALYZING = "analyzing"
 ANALYSIS_STATUS_ANALYZED = "analyzed"
 ANALYSIS_STATUS_FAILED = "analysis_failed"
 ANALYSIS_STATUS_SKIPPED = "skipped"
-BACKEND_ROOT = Path(__file__).resolve().parents[4]
-DOCUMENT_STORE_DIR = BACKEND_ROOT / "data" / "project_documents"
 
 
 class DocumentService:
     """Handles document upload and analysis for projects."""
+
+    def __init__(self) -> None:
+        self.document_store_dir = get_app_settings().project_documents_root
 
     async def upload_documents(
         self,
@@ -63,7 +65,7 @@ class DocumentService:
                     uploaded_mime_type = guessed_mime_type
             if uploaded_mime_type == "":
                 uploaded_mime_type = "application/octet-stream"
-            storage_dir = DOCUMENT_STORE_DIR / project_id
+            storage_dir = self.document_store_dir / project_id
             storage_dir.mkdir(parents=True, exist_ok=True)
             stored_path = storage_dir / f"{document_id}_{safe_file_name}"
             stored_path.write_bytes(content)

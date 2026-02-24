@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -8,12 +8,12 @@ from app.services.ai.interfaces import ChatMessage
 from app.services.ai.providers.openai_llm import OpenAILLMProvider
 
 
-class _FakeAsyncEventStream:
-    def __init__(self, events: list[SimpleNamespace]) -> None:
-        self._events = events
+class _FakeAsyncChunkStream:
+    def __init__(self, chunks: list[SimpleNamespace]) -> None:
+        self._chunks = chunks
 
     def __aiter__(self):
-        self._iterator = iter(self._events)
+        self._iterator = iter(self._chunks)
         return self
 
     async def __anext__(self):
@@ -25,31 +25,37 @@ class _FakeAsyncEventStream:
 
 @pytest.fixture
 def provider(monkeypatch: pytest.MonkeyPatch) -> OpenAILLMProvider:
-    """Create provider with mocked AsyncOpenAI client."""
-    mock_responses = MagicMock()
-    mock_client = SimpleNamespace(responses=mock_responses)
+    """Create provider with mocked AsyncOpenAI client (Chat Completions)."""
+    mock_completions = MagicMock()
+    mock_chat = SimpleNamespace(completions=mock_completions)
+    mock_client = SimpleNamespace(chat=mock_chat)
 
-    mock_async_openai = MagicMock(return_value=mock_client)
     monkeypatch.setattr(
-        "app.services.ai.providers.openai_llm.AsyncOpenAI",
-        mock_async_openai,
+        "app.services.ai.providers.openai_client._client",
+        mock_client,
     )
 
     config = AIConfig(openai_api_key="test-key", openai_llm_model="gpt-5.2")
     return OpenAILLMProvider(config)
 
 
+def _make_completion(content: str, model: str = "gpt-5.2", prompt_tokens: int = 10, completion_tokens: int = 5) -> SimpleNamespace:
+    usage = SimpleNamespace(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=prompt_tokens + completion_tokens,
+    )
+    message = SimpleNamespace(content=content)
+    choice = SimpleNamespace(message=message, finish_reason="stop")
+    return SimpleNamespace(choices=[choice], model=model, usage=usage)
+
+
 @pytest.mark.asyncio
-async def test_chat_uses_responses_api_with_json_mapping(
+async def test_chat_uses_chat_completions_with_json_format(
     provider: OpenAILLMProvider,
 ) -> None:
-    usage = SimpleNamespace(input_tokens=10, output_tokens=5, total_tokens=15)
-    fake_response = SimpleNamespace(
-        output_text='{"ok": true}',
-        model="gpt-5.2",
-        usage=usage,
-    )
-    provider.client.responses.create = AsyncMock(return_value=fake_response)
+    fake_response = _make_completion('{"ok": true}')
+    provider.client.chat.completions.create = AsyncMock(return_value=fake_response)
 
     messages = [
         ChatMessage(role="system", content="You are helpful"),
@@ -70,29 +76,22 @@ async def test_chat_uses_responses_api_with_json_mapping(
         "total_tokens": 15,
     }
 
-    provider.client.responses.create.assert_awaited_once()
-    call_kwargs = provider.client.responses.create.await_args.kwargs
+    provider.client.chat.completions.create.assert_awaited_once()
+    call_kwargs = provider.client.chat.completions.create.await_args.kwargs
     assert call_kwargs["model"] == "gpt-5.2"
-    assert call_kwargs["max_output_tokens"] == 120
-    assert call_kwargs["text"] == {"format": {"type": "json_object"}}
-    assert isinstance(call_kwargs["input"], list)
-    assert call_kwargs["input"][0]["role"] == "system"
-    assert call_kwargs["input"][1]["content"][0]["text"] == "Return JSON"
+    assert call_kwargs["max_tokens"] == 120
+    assert call_kwargs["response_format"] == {"type": "json_object"}
+    assert isinstance(call_kwargs["messages"], list)
+    assert call_kwargs["messages"][0] == {"role": "system", "content": "You are helpful"}
+    assert call_kwargs["messages"][1] == {"role": "user", "content": "Return JSON"}
 
 
 @pytest.mark.asyncio
-async def test_chat_extracts_text_from_structured_output(
+async def test_chat_returns_plain_text_content(
     provider: OpenAILLMProvider,
 ) -> None:
-    content_item = SimpleNamespace(text=SimpleNamespace(value="hello world"))
-    output_item = SimpleNamespace(content=[content_item])
-    fake_response = SimpleNamespace(
-        output_text="",
-        output=[output_item],
-        model="gpt-5.2",
-        usage=None,
-    )
-    provider.client.responses.create = AsyncMock(return_value=fake_response)
+    fake_response = _make_completion("hello world")
+    provider.client.chat.completions.create = AsyncMock(return_value=fake_response)
 
     result = await provider.chat(messages=[ChatMessage(role="user", content="hi")])
 
@@ -100,16 +99,20 @@ async def test_chat_extracts_text_from_structured_output(
 
 
 @pytest.mark.asyncio
-async def test_stream_yields_single_chunk_from_responses_api(
+async def test_stream_yields_delta_chunks(
     provider: OpenAILLMProvider,
 ) -> None:
-    fake_stream = _FakeAsyncEventStream(
-        [
-            SimpleNamespace(type="response.output_text.delta", delta="streamed "),
-            SimpleNamespace(type="response.output_text.delta", delta="answer"),
-        ]
-    )
-    provider.client.responses.create = AsyncMock(return_value=fake_stream)
+    def _make_chunk(delta_content: str | None) -> SimpleNamespace:
+        delta = SimpleNamespace(content=delta_content)
+        choice = SimpleNamespace(delta=delta)
+        return SimpleNamespace(choices=[choice])
+
+    fake_stream = _FakeAsyncChunkStream([
+        _make_chunk("streamed "),
+        _make_chunk("answer"),
+        _make_chunk(None),
+    ])
+    provider.client.chat.completions.create = AsyncMock(return_value=fake_stream)
 
     chunks = []
     async for chunk in await provider.chat(

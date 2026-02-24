@@ -158,15 +158,28 @@ async def set_model(request: SetModelRequest) -> SetModelResponse:
 
         logger.info(f"PUT /model - Attempting to change model to: {model_id}")
 
-        # Validate model exists (optional but recommended)
-        models_service = ModelsService()
-        models, _ = await models_service.get_available_models()
-        available_ids = {m.id for m in models}
+        # Probe using the same provider logic used at runtime so endpoint/model
+        # compatibility checks are identical during validation and inference.
+        from app.services.ai.config import AIConfig  # noqa: PLC0415
+        from app.services.ai.interfaces import ChatMessage  # noqa: PLC0415
+        from app.services.ai.providers.openai_llm import OpenAILLMProvider  # noqa: PLC0415
 
-        if model_id not in available_ids:
-            logger.warning(
-                f"Model {model_id} not in available models list, but allowing change as fallback"
+        probe_provider = OpenAILLMProvider(AIConfig(openai_llm_model=model_id))
+        try:
+            await probe_provider.chat(
+                messages=[ChatMessage(role="user", content="Reply with: ok")],
+                temperature=0,
+                max_tokens=64,
+                timeout=20.0,
             )
+        except Exception as probe_error:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Model '{model_id}' is not usable with current provider compatibility strategy: "
+                    f"{probe_error}"
+                ),
+            ) from probe_error
 
         # Reinitialize AIService with new model
         logger.info(f"Calling reinitialize_with_model({model_id})")
@@ -196,6 +209,8 @@ async def set_model(request: SetModelRequest) -> SetModelResponse:
                 message="Model change verification failed",
             )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to change model: {e}")
         raise HTTPException(
