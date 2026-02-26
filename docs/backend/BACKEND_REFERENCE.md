@@ -84,6 +84,7 @@
 - `backend/config/mcp/mcp_config.json` configures MCP servers.
 - `backend/config/prompts/agent_prompts.yaml` defines agent prompts.
 - Agent runtime is LangGraph-only (legacy LangChain ReAct backend paths were removed).
+- AI provider routing and fallback behavior is documented in `docs/backend/AI_PROVIDER_ROUTING.md`.
 
 ## Singleton Pattern Usage
 

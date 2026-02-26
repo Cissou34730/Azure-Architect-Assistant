@@ -16,10 +16,10 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.tools import BaseTool, Tool
-from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph, add_messages
 from langgraph.prebuilt import ToolNode
 
+from app.services.ai.ai_service import get_ai_service
 from config.settings import OpenAISettings
 
 from ....services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
@@ -220,11 +220,12 @@ async def run_stage_aware_agent(
     project_id = state.get("project_id", "")
     tools = await _build_tools(mcp_client, project_id=project_id)
 
-    base_llm = ChatOpenAI(
-        model=openai_settings.model,
-        temperature=0.1,
-        openai_api_key=openai_settings.api_key,
-    )
+    ai_service = get_ai_service()
+    chat_llm_overrides: dict[str, Any] = {"temperature": 0.1}
+    if ai_service.config.llm_provider == "openai":
+        chat_llm_overrides["model"] = openai_settings.model
+        chat_llm_overrides["openai_api_key"] = openai_settings.api_key
+    base_llm = ai_service.create_chat_llm(**chat_llm_overrides)
     llm = base_llm.bind_tools(tools)
 
     agent_graph = _compile_agent_graph(llm, tools, base_llm)

@@ -11,7 +11,13 @@ from typing import Any
 
 from .config import AIConfig
 from .interfaces import ChatMessage, EmbeddingProvider, LLMProvider, LLMResponse
-from .providers import OpenAIEmbeddingProvider, OpenAILLMProvider
+from .providers import (
+    AzureOpenAIEmbeddingProvider,
+    AzureOpenAILLMProvider,
+    OpenAIEmbeddingProvider,
+    OpenAILLMProvider,
+)
+from .router import AIRouter
 
 logger = logging.getLogger(__name__)
 
@@ -32,40 +38,62 @@ class AIService:
         self.config = config or AIConfig()
         self.config.validate_provider_config()
 
-        self._llm_provider = self._create_llm_provider()
-        self._embedding_provider = self._create_embedding_provider()
-
-        logger.info(
-            f"AIService initialized - LLM: {self.config.llm_provider}, "
-            f"Embedding: {self.config.embedding_provider}"
+        self._llm_provider = self._create_llm_provider(self.config.llm_provider)
+        self._embedding_provider = self._create_embedding_provider(
+            self.config.embedding_provider
+        )
+        self._fallback_llm_provider = self._create_fallback_llm_provider()
+        self._fallback_embedding_provider = self._create_fallback_embedding_provider()
+        self._router = AIRouter(
+            primary_llm=self._llm_provider,
+            primary_embedding=self._embedding_provider,
+            fallback_llm=self._fallback_llm_provider,
+            fallback_embedding=self._fallback_embedding_provider,
+            fallback_enabled=self.config.fallback_enabled,
+            fallback_on_transient_only=self.config.fallback_on_transient_only,
         )
 
-    def _create_llm_provider(self) -> LLMProvider:
+        logger.info(
+            "AIService initialized - LLM: %s, Embedding: %s, fallback: %s",
+            self.config.llm_provider,
+            self.config.embedding_provider,
+            self.config.fallback_provider if self.config.fallback_enabled else "disabled",
+        )
+
+    def _create_llm_provider(self, provider_name: str) -> LLMProvider:
         """Factory method to create LLM provider based on config."""
-        if self.config.llm_provider == "openai":
+        if provider_name == "openai":
             return OpenAILLMProvider(self.config)
-        elif self.config.llm_provider == "azure":
-            # TODO: Implement AzureOpenAILLMProvider
-            raise NotImplementedError("Azure OpenAI LLM provider not yet implemented")
-        elif self.config.llm_provider == "anthropic":
+        elif provider_name == "azure":
+            return AzureOpenAILLMProvider(self.config)
+        elif provider_name == "anthropic":
             # TODO: Implement AnthropicLLMProvider
             raise NotImplementedError("Anthropic LLM provider not yet implemented")
         else:
-            raise ValueError(f"Unknown LLM provider: {self.config.llm_provider}")
+            raise ValueError(f"Unknown LLM provider: {provider_name}")
 
-    def _create_embedding_provider(self) -> EmbeddingProvider:
+    def _create_embedding_provider(self, provider_name: str) -> EmbeddingProvider:
         """Factory method to create embedding provider based on config."""
-        if self.config.embedding_provider == "openai":
+        if provider_name == "openai":
             return OpenAIEmbeddingProvider(self.config)
-        elif self.config.embedding_provider == "azure":
-            # TODO: Implement AzureOpenAIEmbeddingProvider
-            raise NotImplementedError(
-                "Azure OpenAI embedding provider not yet implemented"
-            )
+        elif provider_name == "azure":
+            return AzureOpenAIEmbeddingProvider(self.config)
         else:
-            raise ValueError(
-                f"Unknown embedding provider: {self.config.embedding_provider}"
-            )
+            raise ValueError(f"Unknown embedding provider: {provider_name}")
+
+    def _create_fallback_llm_provider(self) -> LLMProvider | None:
+        if not self.config.fallback_enabled or self.config.fallback_provider == "none":
+            return None
+        if self.config.fallback_provider == self.config.llm_provider:
+            return None
+        return self._create_llm_provider(self.config.fallback_provider)
+
+    def _create_fallback_embedding_provider(self) -> EmbeddingProvider | None:
+        if not self.config.fallback_enabled or self.config.fallback_provider == "none":
+            return None
+        if self.config.fallback_provider == self.config.embedding_provider:
+            return None
+        return self._create_embedding_provider(self.config.fallback_provider)
 
     # ============ LLM Methods ============
 
@@ -103,7 +131,7 @@ class AIService:
             max_tokens if max_tokens is not None else self.config.default_max_tokens
         )
 
-        return await self._llm_provider.chat(
+        return await self._router.chat(
             messages=messages,
             temperature=temp,
             max_tokens=tokens,
@@ -137,7 +165,7 @@ class AIService:
             max_tokens if max_tokens is not None else self.config.default_max_tokens
         )
 
-        return await self._llm_provider.complete(
+        return await self._router.complete(
             prompt=prompt, temperature=temp, max_tokens=tokens, **kwargs
         )
 
@@ -155,10 +183,21 @@ class AIService:
         """
         # Lazy import to avoid hard dependency at module import time
         try:
-            from langchain_openai import ChatOpenAI  # noqa: PLC0415
+            from langchain_openai import AzureChatOpenAI, ChatOpenAI  # noqa: PLC0415
         except Exception as err:
             # If LangChain's ChatOpenAI isn't available, raise a clear error.
             raise RuntimeError("ChatOpenAI (langchain_openai) is required to create a chat LLM") from err
+
+        if self.config.llm_provider == "azure":
+            params = {
+                "azure_deployment": getattr(self.config, "azure_llm_deployment", None),
+                "api_version": getattr(self.config, "azure_openai_api_version", None),
+                "azure_endpoint": getattr(self.config, "azure_openai_endpoint", None),
+                "api_key": getattr(self.config, "azure_openai_api_key", None),
+                "temperature": getattr(self.config, "default_temperature", 0.1),
+            }
+            params.update(overrides)
+            return AzureChatOpenAI(**{k: v for k, v in params.items() if v is not None})
 
         params = {
             "model": getattr(self.config, "openai_llm_model", None),
@@ -180,7 +219,7 @@ class AIService:
         Returns:
             Embedding vector
         """
-        return await self._embedding_provider.embed_text(text)
+        return await self._router.embed_text(text)
 
     async def embed_batch(
         self, texts: list[str], batch_size: int | None = None
@@ -196,7 +235,7 @@ class AIService:
             List of embedding vectors
         """
         batch_size = batch_size or 100
-        return await self._embedding_provider.embed_batch(texts, batch_size)
+        return await self._router.embed_batch(texts, batch_size)
 
     def get_embedding_dimension(self) -> int:
         """Get embedding dimension."""

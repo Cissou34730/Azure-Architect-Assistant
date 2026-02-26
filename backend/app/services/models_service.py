@@ -1,6 +1,8 @@
 """
-Models Service - Disk-Cached OpenAI Models Management
-Fetches and caches available OpenAI chat completion models with 7-day TTL.
+Models Service - Provider-aware models listing strategy.
+
+- OpenAI: disk-cached model listing with 7-day TTL
+- Azure OpenAI: deployment metadata-backed model list
 """
 
 import asyncio
@@ -54,17 +56,17 @@ class ModelInfo:
 
 class ModelsService:
     """
-    Service for managing OpenAI models with disk-based caching.
+    Service for managing available models with provider-aware strategy.
     
     Cache Strategy:
-    - Fetch from OpenAI API on first request
+    - OpenAI: fetch from API on first request
     - Persist to disk (backend/data/openai_models_cache.json)
     - Reload from disk on subsequent requests
     - 7-day TTL - re-fetch if cache expired
     - Manual refresh via force_refresh parameter
     """
 
-    def __init__(self, cache_path: Path | None = None):
+    def __init__(self, cache_path: Path | None = None, config: AIConfig | None = None):
         """
         Initialize models service.
 
@@ -75,7 +77,12 @@ class ModelsService:
 
         self.cache_path = cache_path or app_settings.models_cache_path
         self.ttl_days = 7
-        self.client = get_openai_client(AIConfig())
+        self.config = config or AIConfig()
+        self.client = (
+            get_openai_client(self.config)
+            if self.config.llm_provider == "openai"
+            else None
+        )
 
         # Ensure cache directory exists
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -96,6 +103,9 @@ class ModelsService:
         Returns:
             Tuple of (models list, cached_at timestamp)
         """
+        if self.config.llm_provider == "azure":
+            return self._get_azure_models()
+
         if force_refresh:
             logger.info("Force refresh requested, bypassing cache")
             return await self._fetch_and_cache()
@@ -136,6 +146,12 @@ class ModelsService:
 
         except Exception as e:
             logger.error(f"Failed to fetch models from OpenAI: {e}")
+            if (
+                self.config.fallback_enabled
+                and self.config.fallback_provider == "azure"
+            ):
+                logger.warning("Using Azure deployment metadata fallback for model listing")
+                return self._get_azure_models()
             # Try to return stale cache if available
             cached_data = await self._load_from_disk()
             if cached_data:
@@ -153,6 +169,9 @@ class ModelsService:
             List of ModelInfo objects
         """
         logger.info("Fetching models from OpenAI API")
+
+        if self.client is None:
+            raise RuntimeError("OpenAI client is not configured for model listing")
 
         # Fetch all models
         response = await self.client.models.list()
@@ -216,6 +235,52 @@ class ModelsService:
         model_infos.sort(key=lambda m: m.id, reverse=True)
 
         return model_infos
+
+    def _get_azure_models(self) -> tuple[list[ModelInfo], datetime]:
+        """Return model list from Azure deployment metadata.
+
+        Azure OpenAI does not provide OpenAI-equivalent model listing behavior.
+        We expose configured deployment names as model IDs.
+        """
+        deployments = self._azure_llm_deployments()
+        if not deployments:
+            return [], datetime.now(timezone.utc)
+
+        model_infos = [
+            ModelInfo(
+                id=deployment,
+                name=self._format_model_name(deployment),
+                context_window=self._extract_context_window(
+                    self.config.openai_llm_model or deployment
+                ),
+                pricing=None,
+            )
+            for deployment in deployments
+        ]
+        return model_infos, datetime.now(timezone.utc)
+
+    def _azure_llm_deployments(self) -> list[str]:
+        deployments: list[str] = []
+
+        if self.config.azure_llm_deployment:
+            deployments.append(self.config.azure_llm_deployment)
+
+        if self.config.azure_llm_deployments:
+            additional = [
+                item.strip()
+                for item in self.config.azure_llm_deployments.split(",")
+                if item.strip()
+            ]
+            deployments.extend(additional)
+
+        seen: set[str] = set()
+        unique_deployments: list[str] = []
+        for deployment in deployments:
+            if deployment not in seen:
+                unique_deployments.append(deployment)
+                seen.add(deployment)
+
+        return unique_deployments
 
     def _extract_context_window(self, model_id: str) -> int:
         """

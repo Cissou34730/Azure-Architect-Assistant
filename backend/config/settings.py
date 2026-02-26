@@ -172,13 +172,14 @@ def get_kb_storage_root(raw: bool = False) -> Path | str:
         Absolute Path to the storage root by default, or the raw string value when requested.
     """
     if SettingsContainer.kb_storage_root is None or SettingsContainer.kb_storage_root_raw is None:
-        backend_root = Path(__file__).resolve().parent.parent
+        repo_root = Path(__file__).resolve().parents[2]
         data_root_env = os.getenv("DATA_ROOT", "data")
         default_kb_root = str(Path(data_root_env) / "knowledge_bases")
         kb_root_env = os.getenv("KNOWLEDGE_BASES_ROOT", default_kb_root)
         kb_root_path = Path(kb_root_env)
         if not kb_root_path.is_absolute():
-            kb_root_path = backend_root / kb_root_path
+            kb_root_path = repo_root / kb_root_path
+        kb_root_path = kb_root_path.resolve()
 
         SettingsContainer.kb_storage_root = kb_root_path
         SettingsContainer.kb_storage_root_raw = kb_root_env

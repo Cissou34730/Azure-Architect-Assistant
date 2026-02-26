@@ -32,6 +32,8 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 
 - [`backend/README.md`](./backend/README.md)
 - [`backend/BACKEND_REFERENCE.md`](./backend/BACKEND_REFERENCE.md)
+- [`backend/AI_PROVIDER_ROUTING.md`](./backend/AI_PROVIDER_ROUTING.md)
+- [`backend/AZURE_OPENAI_SETUP.md`](./backend/AZURE_OPENAI_SETUP.md)
 - [`backend/DATA_ROOT_STORAGE_POLICY.md`](./backend/DATA_ROOT_STORAGE_POLICY.md)
 - [`backend/TESTING_DEPENDENCY_INJECTION.md`](./backend/TESTING_DEPENDENCY_INJECTION.md)
 
