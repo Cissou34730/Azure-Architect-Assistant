@@ -13,6 +13,11 @@ from openai import APIError, APITimeoutError, BadRequestError, RateLimitError
 
 from app.core.app_settings import get_app_settings
 from app.services.ai import ChatMessage, get_ai_service
+from app.services.ai.json_repair import (
+    extract_json_candidate,
+    parse_json_with_repair,
+    repair_json_content,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -189,60 +194,37 @@ EXTRACTION RULES (mandatory):
         max_tokens: int,
     ) -> dict[str, Any]:
         """Parse JSON content and attempt one repair pass on decode failure."""
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON decode failed: {e}")
-            logger.error(
-                "Response content: %s",
-                content[: self.app_settings.llm_response_error_log_chars],
+        async def _repair(invalid_json: str, repair_tokens: int) -> str:
+            return await self._repair_json_content(
+                invalid_json=invalid_json,
+                max_tokens=repair_tokens,
             )
 
-            repaired_content = await self._repair_json_content(
-                invalid_json=content,
-                max_tokens=max(
-                    self.app_settings.llm_json_repair_min_tokens,
-                    max_tokens // self.app_settings.llm_json_repair_token_divisor,
-                ),
-            )
-            return json.loads(repaired_content)
+        return await parse_json_with_repair(
+            content,
+            max_tokens=max(
+                self.app_settings.llm_json_repair_min_tokens,
+                max_tokens // self.app_settings.llm_json_repair_token_divisor,
+            ),
+            repair_fn=_repair,
+            preview_chars=self.app_settings.llm_response_error_log_chars,
+        )
 
     async def _repair_json_content(self, invalid_json: str, max_tokens: int) -> str:
         """Ask the model to repair malformed/truncated JSON and return valid JSON only."""
-        repair_system_prompt = (
-            "You are a strict JSON repair assistant. "
-            "You receive malformed or truncated JSON. "
-            "Return ONLY valid JSON with the same top-level structure and keys. "
-            "Do not use markdown, comments, or code fences."
+        async def _complete(system: str, user: str, tokens: int) -> str:
+            return await self._complete(system, user, max_tokens=tokens)
+
+        return await repair_json_content(
+            invalid_json,
+            max_tokens,
+            complete_fn=_complete,
         )
-
-        repair_user_prompt = (
-            "Repair this invalid JSON and return valid JSON only.\n\n"
-            f"{invalid_json}"
-        )
-
-        repaired = await self._complete(
-            repair_system_prompt,
-            repair_user_prompt,
-            max_tokens=max_tokens,
-        )
-
-        repaired_candidate = self._extract_json_candidate(repaired)
-        if repaired_candidate is None:
-            logger.error("JSON repair failed: no JSON object found in repaired response")
-            raise ValueError("JSON repair failed: no JSON object found")
-
-        logger.info("Successfully repaired malformed JSON response")
-        return repaired_candidate
 
     @staticmethod
     def _extract_json_candidate(response_text: str) -> str | None:
         """Extract the outer JSON object from text if present."""
-        start = response_text.find("{")
-        end = response_text.rfind("}")
-        if start == -1 or end == -1 or end <= start:
-            return None
-        return response_text[start : end + 1]
+        return extract_json_candidate(response_text)
 
     async def process_chat_message(
         self,

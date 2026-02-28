@@ -18,11 +18,9 @@ from llama_index.core import (
     load_index_from_storage,
 )
 
-from app.ingestion.domain.phase_tracker import IngestionPhase
+from app.ingestion.domain.enums import IngestionPhase
 from app.services.ai import get_ai_service
 from app.services.ai.adapters import AIServiceLLM
-
-from .builder_base import BaseIndexBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +32,11 @@ INDEX_P_BATCH = 50
 INDEX_P_COMPLETE = 100
 
 
-class VectorIndexBuilder(BaseIndexBuilder):
+class VectorIndexBuilder:
     """
     Vector index builder using LlamaIndex.
     Builds searchable index from PRE-EMBEDDED documents.
-    Does NOT handle embedding generation - that's done by EmbedderFactory.
+    Does NOT handle embedding generation - that's done separately.
     """
 
     def __init__(
@@ -48,18 +46,40 @@ class VectorIndexBuilder(BaseIndexBuilder):
         embedding_model: str | None = None,
         generation_model: str | None = None,
     ) -> None:
-        """
-        Initialize vector index builder.
-        """
+        """Initialize vector index builder."""
         ai_service = get_ai_service()
-        emb_model = embedding_model or ai_service.config.openai_embedding_model
-        gen_model = generation_model or ai_service.config.openai_llm_model
-
-        super().__init__(kb_id, storage_dir, emb_model, gen_model)
+        self.kb_id = kb_id
+        self.storage_dir = storage_dir
+        self.embedding_model = embedding_model or ai_service.config.openai_embedding_model
+        self.generation_model = generation_model or ai_service.config.openai_llm_model
+        self.logger = logging.getLogger(f'{__name__}.{self.__class__.__name__}')
 
         # Initialize LlamaIndex LLM using AIService adapter
-        Settings.llm = AIServiceLLM(ai_service, model_name=gen_model)
+        Settings.llm = AIServiceLLM(ai_service, model_name=self.generation_model)
         self.logger.info(f"VectorIndexBuilder ready KB={kb_id} storage={storage_dir}")
+
+    def _load_state(self) -> dict[str, Any]:
+        """Load processing state from disk."""
+        state_file = os.path.join(self.storage_dir, 'state.json')
+        if not os.path.exists(state_file):
+            return {}
+        try:
+            with open(state_file, encoding='utf-8') as f:
+                state = json.load(f)
+                return cast(dict[str, Any], state)
+        except (OSError, json.JSONDecodeError) as e:
+            self.logger.warning(f'Could not load state file {state_file}: {e}')
+            return {}
+
+    def _save_state(self, state: dict[str, Any]) -> None:
+        """Save processing state to disk."""
+        os.makedirs(self.storage_dir, exist_ok=True)
+        state_file = os.path.join(self.storage_dir, 'state.json')
+        try:
+            with open(state_file, 'w', encoding='utf-8') as f:
+                json.dump(state, f, indent=2)
+        except OSError as e:
+            self.logger.error(f'Could not save state file {state_file}: {e}')
 
     def build_index(
         self,

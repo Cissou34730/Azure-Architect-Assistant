@@ -309,7 +309,11 @@ class AIServiceManager:
             
             try:
                 # Create new config with updated model
-                new_config = AIConfig(openai_llm_model=new_model)
+                new_config = AIConfig()
+                if new_config.llm_provider == "azure":
+                    new_config.azure_llm_deployment = new_model
+                else:
+                    new_config.openai_llm_model = new_model
                 new_config.validate_provider_config()
                 
                 # Create new AIService instance

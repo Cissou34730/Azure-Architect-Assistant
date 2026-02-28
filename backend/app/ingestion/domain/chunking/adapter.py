@@ -10,8 +10,8 @@ from typing import Any
 
 from llama_index.core import Document
 
-from .chunker_base import BaseChunker
 from .factory import ChunkerFactory
+from .semantic import SemanticChunker
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ def compute_content_hash(text: str, kb_id: str, source_id: str) -> str:
     return hashlib.sha256(composite.encode('utf-8')).hexdigest()
 
 
-def create_chunker_from_config(kb_config: dict[str, Any]) -> BaseChunker:
+def create_chunker_from_config(kb_config: dict[str, Any]) -> SemanticChunker:
     """
     Create chunker instance from KB configuration.
 
@@ -79,7 +79,7 @@ def create_chunker_from_config(kb_config: dict[str, Any]) -> BaseChunker:
 
 
 def chunk_documents_to_chunks(
-    documents: list[Document], chunker: BaseChunker, kb_id: str
+    documents: list[Document], chunker: SemanticChunker, kb_id: str
 ) -> list[Chunk]:
     """
     Chunk documents and produce Chunk dataclass instances with content_hash.

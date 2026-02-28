@@ -16,9 +16,9 @@ from __future__ import annotations
 import argparse
 import logging
 
-from backend.app.ingestion.infrastructure import repository as ingestion_repo
-from backend.app.ingestion.models import IngestionJob
-from backend.config.settings import get_engine
+from app.ingestion.infrastructure import repository as ingestion_repo
+from app.ingestion.models import IngestionJob
+from config.settings import get_engine
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

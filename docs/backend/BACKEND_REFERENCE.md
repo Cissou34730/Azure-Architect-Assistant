@@ -8,13 +8,14 @@
 - Services: `backend/app/services/`
 - Ingestion pipeline: `backend/app/ingestion/`
 - Agent system: `backend/app/agents_system/`
+- Agent nodes: `backend/app/agents_system/langgraph/nodes/` (core), `nodes/routing/` (per-agent routing)
 - Diagram generation: `backend/app/services/diagram/`
 - SQLAlchemy models: `backend/app/models/`
 
 ## Router conventions
 
 - `kb_management/` and `kb_query/` use a models + operations + router pattern.
-- `project_management/` uses a router with services in `project_management/services/`.
+- `project_management/` uses a router with canonical services in `app/services/project/` (re-exported via `routers/project_management/services/__init__.py`).
 - `ingestion.py` is a dedicated router because it owns background tasks.
 - Diagram routes live under `routers/diagram_generation/` with a `/api/v1` prefix.
 
@@ -165,6 +166,16 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - Add a source handler in `backend/app/ingestion/domain/sources/` and register it in `factory.py`.
 - Update KB configuration to include the new source type.
 - If the UI needs new fields, update `frontend/src/utils/ingestionConfig.ts`.
+
+## Agent system module layout
+
+- `nodes/stage_routing.py` — Core stage enum, classification, retry logic.
+- `nodes/routing/` — Per-agent routing subpackage (architecture_planner, iac_generator, saas_advisor, cost_estimator, `_helpers.py` for shared utils).
+- `nodes/agent.py` — Main agent node entry (`run_agent_node`).
+- `nodes/scope_guard.py` — Scope-detection patterns and guardrails.
+- `nodes/waf_shortcuts.py` — Deterministic WAF-checklist shortcut handlers.
+- `services/diagram/project_diagram_helpers.py` — Diagram business logic extracted from project_router.
+- `services/project/document_normalization.py` — Requirements/questions normalization helpers.
 
 ## Extending the agent system
 

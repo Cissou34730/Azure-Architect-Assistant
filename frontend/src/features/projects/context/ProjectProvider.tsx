@@ -1,6 +1,6 @@
 import { useMemo, useEffect } from "react";
 import type { ProjectContextType } from "./types";
-import { projectContextInstance } from "./ProjectContextInstance";
+import { projectInputContext } from "./ProjectInputContext";
 import { projectChatContext } from "./ProjectChatContext";
 import { projectStateContext } from "./ProjectStateContext";
 import { projectMetaContext } from "./ProjectMetaContext";
@@ -65,11 +65,39 @@ export function ProjectProvider({
     value.retrySendMessage,
   ]);
 
+  const inputValue = useMemo(() => ({
+    textRequirements: value.textRequirements,
+    setTextRequirements: value.setTextRequirements,
+    files: value.files,
+    setFiles: value.setFiles,
+    inputWorkflow: value.inputWorkflow,
+    isUploadingDocuments: value.isUploadingDocuments,
+    isAnalyzingDocuments: value.isAnalyzingDocuments,
+    clearInputWorkflowMessage: value.clearInputWorkflowMessage,
+    handleUploadDocuments: value.handleUploadDocuments,
+    handleAnalyzeDocuments: value.handleAnalyzeDocuments,
+    handleSaveTextRequirements: value.handleSaveTextRequirements,
+    handleGenerateProposal: value.handleGenerateProposal,
+  }), [
+    value.textRequirements,
+    value.setTextRequirements,
+    value.files,
+    value.setFiles,
+    value.inputWorkflow,
+    value.isUploadingDocuments,
+    value.isAnalyzingDocuments,
+    value.clearInputWorkflowMessage,
+    value.handleUploadDocuments,
+    value.handleAnalyzeDocuments,
+    value.handleSaveTextRequirements,
+    value.handleGenerateProposal,
+  ]);
+
   return (
     <ErrorBoundary>
       <projectMetaContext.Provider value={metaValue}>
         <ErrorBoundary>
-          <projectContextInstance.Provider value={value}>
+          <projectInputContext.Provider value={inputValue}>
             <ErrorBoundary>
               <projectStateContext.Provider value={stateValue}>
                 <ErrorBoundary>
@@ -79,7 +107,7 @@ export function ProjectProvider({
                 </ErrorBoundary>
               </projectStateContext.Provider>
             </ErrorBoundary>
-          </projectContextInstance.Provider>
+          </projectInputContext.Provider>
         </ErrorBoundary>
       </projectMetaContext.Provider>
     </ErrorBoundary>

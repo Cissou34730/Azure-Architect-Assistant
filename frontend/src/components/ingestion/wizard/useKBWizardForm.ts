@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { SourceType, CreateKBRequest } from "../../../types/ingestion";
 import { createKB, startIngestion } from "../../../services/ingestionApi";
-import { buildSourceConfig } from "../../../utils/ingestionConfig";
+import { buildSourceConfig } from "./ingestionConfig";
 import {
   SourceInputValues,
   SubmitParams,

@@ -1,0 +1,363 @@
+
+> azure-architect-assistant@4.0.0 lint:fast:strict:fix
+> oxlint --config .oxlintrc.json --tsconfig frontend/tsconfig.json --type-aware --type-check --fix frontend/src
+
+
+  x typescript-eslint(no-non-null-assertion): Forbidden non-null assertion.
+    ,-[frontend/src/hooks/useToast.test.ts:43:28]
+ 42 |     act(() => {
+ 43 |       result.current.close(id!);
+    :                            ^^^
+ 44 |     });
+    `----
+  help: Consider using the optional chain operator `?.` instead. This operator includes runtime checks, so it is safer than the compile-only non-null assertion operator.
+
+  ! eslint-plugin-react-hooks(exhaustive-deps): React Hook useCallback received a function whose dependencies are unknown.
+    ,-[frontend/src/features/projects/hooks/useWorkspaceTabs.ts:18:19]
+ 17 | 
+ 18 |   const openTab = useCallback(createOpenTab(setTabs, setActiveTabId), []);
+    :                   ^^^^^^^^^^^
+ 19 |   const closeTab = useCallback(
+    `----
+  help: Pass an inline function instead.
+
+  ! eslint-plugin-react-hooks(exhaustive-deps): React Hook useCallback received a function whose dependencies are unknown.
+    ,-[frontend/src/features/projects/hooks/useWorkspaceTabs.ts:19:20]
+ 18 |   const openTab = useCallback(createOpenTab(setTabs, setActiveTabId), []);
+ 19 |   const closeTab = useCallback(
+    :                    ^^^^^^^^^^^
+ 20 |     createCloseTab(setTabs, setActiveTabId, activeTabId),
+    `----
+  help: Pass an inline function instead.
+
+  ! eslint-plugin-react-hooks(exhaustive-deps): React Hook useCallback received a function whose dependencies are unknown.
+    ,-[frontend/src/features/projects/hooks/useWorkspaceTabs.ts:23:21]
+ 22 |   );
+ 23 |   const togglePin = useCallback(createTogglePin(setTabs), []);
+    :                     ^^^^^^^^^^^
+ 24 |   const setDirty = useCallback(createSetDirty(setTabs), []);
+    `----
+  help: Pass an inline function instead.
+
+  ! eslint-plugin-react-hooks(exhaustive-deps): React Hook useCallback received a function whose dependencies are unknown.
+    ,-[frontend/src/features/projects/hooks/useWorkspaceTabs.ts:24:20]
+ 23 |   const togglePin = useCallback(createTogglePin(setTabs), []);
+ 24 |   const setDirty = useCallback(createSetDirty(setTabs), []);
+    :                    ^^^^^^^^^^^
+ 25 |   const reorderTabs = useCallback(createReorderTabs(setTabs), []);
+    `----
+  help: Pass an inline function instead.
+
+  ! eslint-plugin-react-hooks(exhaustive-deps): React Hook useCallback received a function whose dependencies are unknown.
+    ,-[frontend/src/features/projects/hooks/useWorkspaceTabs.ts:25:23]
+ 24 |   const setDirty = useCallback(createSetDirty(setTabs), []);
+ 25 |   const reorderTabs = useCallback(createReorderTabs(setTabs), []);
+    :                       ^^^^^^^^^^^
+ 26 | 
+    `----
+  help: Pass an inline function instead.
+
+  ! eslint(no-irregular-whitespace): Unexpected irregular whitespace
+   ,-[frontend/src/components/agent/hooks/useAgentChat.ts:1:1]
+ 1 | ∩╗┐import { useEffect, type Dispatch, type SetStateAction } from "react";
+   : ^
+ 2 | import type { ProjectState } from "../../../types/agent";
+   `----
+  help: Try to remove the irregular whitespace
+
+  ! eslint-plugin-react-hooks(exhaustive-deps): React Hook useCallback has a missing dependency: 'mermaidRef.current'
+    ,-[frontend/src/components/diagrams/hooks/useMermaidRenderer.ts:74:6]
+ 43 |   const renderCurrentDiagram = useCallback(async () => {
+ 44 |     const container = mermaidRef.current;
+    :                       ^^^^^|^^^^
+    :                            `-- useCallback uses `mermaidRef.current` here
+ 45 |     if (container === null || !hasBeenVisible) return;
+ 46 |     if (safeSource === "") {
+ 47 |       setRenderError("Diagram source is empty.");
+ 48 |       container.innerHTML = "";
+ 49 |       return;
+ 50 |     }
+ 51 | 
+ 52 |     const cachedSvg = diagramCache.get(cacheKey);
+ 53 |     if (cachedSvg !== null) {
+ 54 |       container.innerHTML = cachedSvg;
+ 55 |       setIsRendered(true);
+ 56 |       return;
+ 57 |     }
+ 58 | 
+ 59 |     try {
+ 60 |       setRenderError(null);
+ 61 |       container.innerHTML = "";
+ 62 |       const { svg } = await (
+ 63 |         await getMermaid()
+ 64 |       ).render(`mermaid-${domId}`, safeSource);
+ 65 |       diagramCache.set(cacheKey, svg);
+ 66 |       container.innerHTML = svg;
+ 67 |       setIsRendered(true);
+ 68 |     } catch (err) {
+ 69 |       const errorMessage =
+ 70 |         err instanceof Error ? err.message : "Mermaid rendering failed";
+ 71 |       setRenderError(errorMessage);
+ 72 |       console.error("Mermaid Render Error:", err);
+ 73 |     }
+ 74 |   }, [safeSource, domId, cacheKey, hasBeenVisible]);
+    :      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 75 | 
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint-plugin-react-hooks(exhaustive-deps): React Hook useCallback has missing dependencies: 'stateHook', and 'chatHook'
+    ,-[frontend/src/features/projects/hooks/useProjectDetails.ts:27:5]
+ 21 |     async (message: string, onStateUpdate?: (state: ProjectState) => void) => {
+ 22 |       return chatHook.sendMessage(message, (nextState) => {
+    :              ^^^^^^^^
+ 23 |         stateHook.setProjectState(nextState);
+    :         ^^^^^^^^^
+ 24 |         onStateUpdate?.(nextState);
+ 25 |       });
+ 26 |     },
+ 27 |     [chatHook.sendMessage, stateHook.setProjectState],
+    :     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 28 |   );
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint-plugin-react-hooks(exhaustive-deps): React Hook useCallback has unnecessary dependency: stateHook.setProjectState
+    ,-[frontend/src/features/projects/hooks/useProjectDetails.ts:27:5]
+ 26 |     },
+ 27 |     [chatHook.sendMessage, stateHook.setProjectState],
+    :     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 28 |   );
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint-plugin-react-hooks(exhaustive-deps): React Hook useCallback has unnecessary dependency: chatHook.sendMessage
+    ,-[frontend/src/features/projects/hooks/useProjectDetails.ts:27:5]
+ 26 |     },
+ 27 |     [chatHook.sendMessage, stateHook.setProjectState],
+    :     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 28 |   );
+    `----
+  help: Either include it or remove the dependency array.
+
+  ! eslint-plugin-react-hooks(exhaustive-deps): React Hook useMemo has missing dependencies: 'proposalHook.loading', 'chatHook.loading', and 'stateHook.loading'
+    ,-[frontend/src/features/projects/hooks/useProjectDetails.ts:79:5]
+ 58 |           loadingProject: projectData.loadingProject,
+ 59 |           loadingState: stateHook.loading,
+    :                         ^^^^^^^^^
+ 60 |           loadingChat: chatHook.loading,
+    :                        ^^^^^^^^
+ 61 |           loadingProposal: proposalHook.loading,
+    :                            ^^^^^^^^^^^^
+ 62 |           loadingMessage: chatHook.loadingMessage,
+ 63 |           projectState: stateHook.projectState,
+ 64 |           messages: chatHook.messages,
+ 65 |           chatInput: chatHook.chatInput,
+ 66 |           setChatInput: chatHook.setChatInput,
+ 67 |           sendMessage,
+ 68 |           fetchOlderMessages: chatHook.fetchOlderMessages,
+ 69 |           failedMessages: chatHook.failedMessages,
+ 70 |           retrySendMessage: chatHook.retrySendMessage,
+ 71 |           architectureProposal: proposalHook.architectureProposal,
+ 72 |           proposalStage: proposalHook.proposalStage,
+ 73 |           ...operations,
+ 74 |           handleSendChatMessage,
+ 75 |           refreshState: stateHook.refreshState,
+ 76 |           refreshMessages: chatHook.refreshMessages,
+ 77 |           analyzeDocuments: stateHook.analyzeDocuments,
+ 78 |         }),
+ 79 | ,->     [
+ 80 | |         projectData,
+ 81 | |         loading,
+ 82 | |         chatHook.loadingMessage,
+ 83 | |         stateHook.projectState,
+ 84 | |         chatHook.messages,
+ 85 | |         chatHook.chatInput,
+ 86 | |         chatHook.setChatInput,
+ 87 | |         sendMessage,
+ 88 | |         chatHook.refreshMessages,
+ 89 | |         chatHook.fetchOlderMessages,
+ 90 | |         chatHook.failedMessages,
+ 91 | |         chatHook.retrySendMessage,
+ 92 | |         proposalHook.architectureProposal,
+ 93 | |         proposalHook.proposalStage,
+ 94 | |         operations,
+ 95 | |         handleSendChatMessage,
+ 96 | |         stateHook.refreshState,
+ 97 | |         stateHook.analyzeDocuments,
+ 98 | `->     ],
+ 99 |       );
+    `----
+  help: Either include it or remove the dependency array.
+
+  x typescript(TS2322): Type '{ textRequirements: string; setTextRequirements: React.Dispatch<React.SetStateAction<string>>; files: FileList | null; setFiles: React.Dispatch<React.SetStateAction<FileList | null>>; ... 7 more ...; handleGenerateProposal: () => void; }' is not assignable to type 'ProjectInputContextType'.
+     ,-[frontend/src/features/projects/context/ProjectProvider.tsx:100:41]
+  99 |         <ErrorBoundary>
+ 100 |           <projectInputContext.Provider value={inputValue}>
+     :                                         ^^^^^
+ 101 |             <ErrorBoundary>
+     `----
+
+  x typescript(TS2322): Type 'Mock<Constructable | Procedure>' is not assignable to type '(msg: string) => Promise<SendMessageResponse>'.
+    ,-[frontend/src/features/projects/hooks/useChatHandlers.test.ts:31:42]
+ 30 |     const { result } = renderHook(() =>
+ 31 |       useChatHandlers({ chatInput: "  ", sendMessage: mockSendMessage }),
+    :                                          ^^^^^^^^^^^
+ 32 |     );
+    `----
+
+  x typescript(TS2322): Type 'Mock<Constructable | Procedure>' is not assignable to type '(msg: string) => Promise<SendMessageResponse>'.
+    ,-[frontend/src/features/projects/hooks/useChatHandlers.test.ts:44:45]
+ 43 |     const { result } = renderHook(() =>
+ 44 |       useChatHandlers({ chatInput: "hello", sendMessage: mockSendMessage }),
+    :                                             ^^^^^^^^^^^
+ 45 |     );
+    `----
+
+  x typescript(TS2322): Type 'Mock<Constructable | Procedure>' is not assignable to type '(msg: string) => Promise<SendMessageResponse>'.
+    ,-[frontend/src/features/projects/hooks/useChatHandlers.test.ts:58:42]
+ 57 |     const { result } = renderHook(() =>
+ 58 |       useChatHandlers({ chatInput: "hi", sendMessage: mockSendMessage }),
+    :                                          ^^^^^^^^^^^
+ 59 |     );
+    `----
+
+  x typescript(TS2322): Type 'Mock<Constructable | Procedure>' is not assignable to type '(msg: string) => Promise<SendMessageResponse>'.
+    ,-[frontend/src/features/projects/hooks/useChatHandlers.test.ts:73:42]
+ 72 |     const { result } = renderHook(() =>
+ 73 |       useChatHandlers({ chatInput: "hi", sendMessage: mockSendMessage }),
+    :                                          ^^^^^^^^^^^
+ 74 |     );
+    `----
+
+  x typescript(TS2322): Type 'Mock<Constructable | Procedure>' is not assignable to type '(msg: string) => Promise<SendMessageResponse>'.
+    ,-[frontend/src/features/projects/hooks/useChatHandlers.test.ts:86:42]
+ 85 |     const { result } = renderHook(() =>
+ 86 |       useChatHandlers({ chatInput: "hi", sendMessage: mockSendMessage }),
+    :                                          ^^^^^^^^^^^
+ 87 |     );
+    `----
+
+  x typescript(TS6133): 'act' is declared but its value is never read.
+   ,-[frontend/src/features/projects/hooks/useChatMessaging.test.ts:1:22]
+ 1 | import { renderHook, act } from "@testing-library/react";
+   :                      ^^^
+ 2 | import { describe, it, expect, vi, beforeEach } from "vitest";
+   `----
+
+  x typescript(TS2739): Type '{ status: string; }' is missing the following properties from type 'AnalysisSummary': runId, startedAt, completedAt, analyzedDocuments, skippedDocuments
+    ,-[frontend/src/features/projects/hooks/useInputAnalysisWorkflow.test.ts:74:42]
+ 73 |     act(() => {
+ 74 |       result.current.markAnalysisSuccess(summary);
+    :                                          ^^^^^^^
+ 75 |     });
+    `----
+
+  x typescript(TS6133): 'result' is declared but its value is never read.
+    ,-[frontend/src/features/projects/hooks/useProjectState.test.ts:35:13]
+ 34 |   it("does not fetch when projectId is null", async () => {
+ 35 |     const { result } = renderHook(() => useProjectState(null));
+    :             ^^^^^^
+ 36 |     // Wait a tick for any potential effects
+    `----
+
+  x typescript(TS6133): 'result' is declared but its value is never read.
+    ,-[frontend/src/features/projects/hooks/useProjectState.test.ts:42:13]
+ 41 |   it("does not fetch when projectId is empty", async () => {
+ 42 |     const { result } = renderHook(() => useProjectState(""));
+    :             ^^^^^^
+ 43 |     await act(async () => {});
+    `----
+
+  x typescript(TS6133): 'result' is declared but its value is never read.
+    ,-[frontend/src/features/projects/hooks/useProjectState.test.ts:59:13]
+ 58 |     mockFetchState.mockResolvedValue(fakeState);
+ 59 |     const { result, rerender } = renderHook(
+    :             ^^^^^^
+ 60 |       ({ id }) => useProjectState(id),
+    `----
+
+  x typescript(TS6133): 'waitFor' is declared but its value is never read.
+   ,-[frontend/src/features/projects/hooks/useProjects.test.ts:1:27]
+ 1 | import { renderHook, act, waitFor } from "@testing-library/react";
+   :                           ^^^^^^^
+ 2 | import { describe, it, expect, vi, beforeEach } from "vitest";
+   `----
+
+  x typescript(TS6133): 'vi' is declared but its value is never read.
+   ,-[frontend/src/features/projects/hooks/useSidePanelState.test.ts:2:32]
+ 1 | import { renderHook, act } from "@testing-library/react";
+ 2 | import { describe, it, expect, vi, beforeEach } from "vitest";
+   :                                ^^
+ 3 | import { useSidePanelState } from "./useSidePanelState";
+   `----
+
+  x typescript-eslint(strict-boolean-expressions): Unexpected nullable boolean value in conditional. Please handle the nullish case explicitly.
+    ,-[frontend/src/hooks/useKBList.ts:6:10]
+  5 |     function getAutoSelectedKBs(kbs: readonly KbInfo[]): string[] {
+  6 | ,->   return kbs
+  7 | |       .filter(
+  8 | |         (kb) =>
+  9 | |           kb.status === "active" &&
+ 10 | |           kb.profiles.includes("kb-query") &&
+ 11 | |           kb.indexReady
+ 12 | `->     )
+ 13 |         .map((kb) => kb.id);
+    `----
+
+  ! typescript-eslint(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+    ,-[frontend/src/features/projects/hooks/useProjectData.test.ts:27:27]
+ 26 | 
+ 27 | const mockGet = vi.mocked(projectApi.get);
+    :                           ^^^^^^^^^^^^^^
+ 28 | 
+    `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript-eslint(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+    ,-[frontend/src/features/projects/hooks/useProjectState.test.ts:17:34]
+ 16 | 
+ 17 | const mockFetchState = vi.mocked(stateApi.fetch);
+    :                                  ^^^^^^^^^^^^^^
+ 18 | const mockAnalyze = vi.mocked(projectApi.analyzeDocuments);
+    `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript-eslint(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+    ,-[frontend/src/features/projects/hooks/useProjectState.test.ts:18:31]
+ 17 | const mockFetchState = vi.mocked(stateApi.fetch);
+ 18 | const mockAnalyze = vi.mocked(projectApi.analyzeDocuments);
+    :                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 19 | 
+    `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript-eslint(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+    ,-[frontend/src/features/projects/hooks/useProjects.test.ts:15:32]
+ 14 | 
+ 15 | const mockFetchAll = vi.mocked(projectApi.fetchAll);
+    :                                ^^^^^^^^^^^^^^^^^^^
+ 16 | const mockCreate = vi.mocked(projectApi.create);
+    `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript-eslint(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+    ,-[frontend/src/features/projects/hooks/useProjects.test.ts:16:30]
+ 15 | const mockFetchAll = vi.mocked(projectApi.fetchAll);
+ 16 | const mockCreate = vi.mocked(projectApi.create);
+    :                              ^^^^^^^^^^^^^^^^^
+ 17 | 
+    `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+  ! typescript-eslint(unbound-method): Avoid referencing unbound methods which may cause unintentional scoping of `this`.
+     ,-[frontend/src/features/projects/hooks/useProjectOperations.test.ts:131:12]
+ 130 | 
+ 131 |     expect(ev.preventDefault).toHaveBeenCalled();
+     :            ^^^^^^^^^^^^^^^^^
+ 132 |   });
+     `----
+  help: If your function does not access `this`, you can annotate it with `this: void`, or consider using an arrow function instead.
+
+Found 17 warnings and 15 errors.
+Finished in 17.5s on 276 files with 136 rules using 12 threads.

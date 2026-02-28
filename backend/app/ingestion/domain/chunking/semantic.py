@@ -8,12 +8,10 @@ from typing import Any
 
 from llama_index.core.node_parser import SentenceSplitter
 
-from .chunker_base import BaseChunker
-
 logger = logging.getLogger(__name__)
 
 
-class SemanticChunker(BaseChunker):
+class SemanticChunker:
     """
     Semantic chunker that respects sentence boundaries.
     Uses LlamaIndex SentenceSplitter for intelligent text splitting.
@@ -27,7 +25,8 @@ class SemanticChunker(BaseChunker):
             chunk_size: Target size for chunks (in tokens/characters)
             chunk_overlap: Overlap between chunks for context preservation
         """
-        super().__init__(chunk_size, chunk_overlap)
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
         self.splitter = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
         logger.info(f'SemanticChunker initialized: size={chunk_size}, overlap={chunk_overlap}')
 

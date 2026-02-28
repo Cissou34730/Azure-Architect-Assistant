@@ -1,16 +1,16 @@
 """Unit tests for the scope-detection guardrail in agent.py.
 
-Validates that _is_probably_in_scope, _is_scope_refusal, _is_out_of_scope_request,
+Validates that is_probably_in_scope, is_scope_refusal, is_out_of_scope_request,
 and the word-boundary matching correctly distinguish legitimate project requests
 from genuinely off-topic messages — without false positives or negatives.
 """
 
 import pytest
 
-from app.agents_system.langgraph.nodes.agent import (
-    _is_out_of_scope_request,
-    _is_probably_in_scope,
-    _is_scope_refusal,
+from app.agents_system.langgraph.nodes.scope_guard import (
+    is_out_of_scope_request,
+    is_probably_in_scope,
+    is_scope_refusal,
 )
 
 # ── In-scope: domain keywords ────────────────────────────────────────────────
@@ -48,7 +48,7 @@ from app.agents_system.langgraph.nodes.agent import (
     ids=lambda m: m[:50],
 )
 def test_legitimate_requests_are_in_scope(message: str) -> None:
-    assert _is_probably_in_scope(message) is True, f"Should be in-scope: {message}"
+    assert is_probably_in_scope(message) is True, f"Should be in-scope: {message}"
 
 
 # ── In-scope: action verbs without off-topic ──────────────────────────────────
@@ -66,7 +66,7 @@ def test_legitimate_requests_are_in_scope(message: str) -> None:
     ids=lambda m: m[:50],
 )
 def test_action_verbs_without_off_topic_are_in_scope(message: str) -> None:
-    assert _is_probably_in_scope(message) is True
+    assert is_probably_in_scope(message) is True
 
 
 # ── In-scope: tricky messages that must NOT be blocked ────────────────────────
@@ -90,7 +90,7 @@ def test_action_verbs_without_off_topic_are_in_scope(message: str) -> None:
     ids=lambda m: m[:50],
 )
 def test_previously_blocked_legitimate_requests_now_pass(message: str) -> None:
-    assert _is_probably_in_scope(message) is True
+    assert is_probably_in_scope(message) is True
 
 
 # ── Off-topic: genuinely irrelevant messages ──────────────────────────────────
@@ -110,7 +110,7 @@ def test_previously_blocked_legitimate_requests_now_pass(message: str) -> None:
     ids=lambda m: m[:50],
 )
 def test_off_topic_messages_are_not_in_scope(message: str) -> None:
-    assert _is_probably_in_scope(message) is False, f"Should be off-topic: {message}"
+    assert is_probably_in_scope(message) is False, f"Should be off-topic: {message}"
 
 
 # ── Substring false-positive protection ───────────────────────────────────────
@@ -128,7 +128,7 @@ def test_off_topic_messages_are_not_in_scope(message: str) -> None:
     ids=lambda m: m[:50],
 )
 def test_substring_false_positives_are_prevented(message: str) -> None:
-    assert _is_probably_in_scope(message) is False
+    assert is_probably_in_scope(message) is False
 
 
 # ── Scope refusal detection ───────────────────────────────────────────────────
@@ -146,38 +146,38 @@ def test_substring_false_positives_are_prevented(message: str) -> None:
     ],
 )
 def test_scope_refusal_detection(text: str, expected: bool) -> None:
-    assert _is_scope_refusal(text) is expected
+    assert is_scope_refusal(text) is expected
 
 
 # ── Edge cases ────────────────────────────────────────────────────────────────
 
 
 def test_empty_message_is_not_in_scope() -> None:
-    assert _is_probably_in_scope("") is False
+    assert is_probably_in_scope("") is False
 
 
 def test_whitespace_only_not_in_scope() -> None:
-    assert _is_probably_in_scope("   ") is False
+    assert is_probably_in_scope("   ") is False
 
 
 def test_mixed_case_domain_keyword() -> None:
-    assert _is_probably_in_scope("AZURE architecture REVIEW") is True
+    assert is_probably_in_scope("AZURE architecture REVIEW") is True
 
 
 def test_action_verb_with_single_weak_off_topic_and_long_message() -> None:
     """A long message with an action verb and only 1 off-topic hint should pass."""
     msg = "Create a story about how our microservices architecture handles failover scenarios in production"
-    assert _is_probably_in_scope(msg) is True
+    assert is_probably_in_scope(msg) is True
 
 
 def test_pure_off_topic_even_with_action_verb() -> None:
     """A short message with action verb + off-topic should be blocked."""
     msg = "tell me a joke"
-    assert _is_probably_in_scope(msg) is False
+    assert is_probably_in_scope(msg) is False
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Pre-filter: _is_out_of_scope_request — blocks before the LLM runs
+# Pre-filter: is_out_of_scope_request — blocks before the LLM runs
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
@@ -227,7 +227,7 @@ def test_pure_off_topic_even_with_action_verb() -> None:
     ids=lambda m: m[:50],
 )
 def test_prefilter_blocks_out_of_scope_requests(message: str) -> None:
-    assert _is_out_of_scope_request(message) is True, f"Should be blocked: {message}"
+    assert is_out_of_scope_request(message) is True, f"Should be blocked: {message}"
 
 
 # ── Should NOT be blocked (in scope — has domain signal) ──────────────────────
@@ -271,7 +271,7 @@ def test_prefilter_blocks_out_of_scope_requests(message: str) -> None:
     ids=lambda m: m[:50],
 )
 def test_prefilter_allows_in_scope_requests(message: str) -> None:
-    assert _is_out_of_scope_request(message) is False, f"Should NOT be blocked: {message}"
+    assert is_out_of_scope_request(message) is False, f"Should NOT be blocked: {message}"
 
 
 # ── Edge cases for pre-filter ─────────────────────────────────────────────────
@@ -279,20 +279,20 @@ def test_prefilter_allows_in_scope_requests(message: str) -> None:
 
 def test_prefilter_empty_message_not_blocked() -> None:
     """Empty message should not be blocked — let the agent handle it."""
-    assert _is_out_of_scope_request("") is False
+    assert is_out_of_scope_request("") is False
 
 
 def test_prefilter_ambiguous_message_not_blocked() -> None:
     """Ambiguous message with no clear pattern should pass through to agent."""
-    assert _is_out_of_scope_request("Can you help me with something?") is False
+    assert is_out_of_scope_request("Can you help me with something?") is False
 
 
 def test_prefilter_generic_greeting_not_blocked() -> None:
     """Simple greetings should pass — the agent can handle them contextually."""
-    assert _is_out_of_scope_request("Hello, how are you?") is False
+    assert is_out_of_scope_request("Hello, how are you?") is False
 
 
 def test_prefilter_mixed_scope_favors_in_scope() -> None:
     """A message mentioning both a generic task and Azure should be allowed."""
     msg = "Write a python script that sorts our Azure resource list by cost"
-    assert _is_out_of_scope_request(msg) is False
+    assert is_out_of_scope_request(msg) is False
