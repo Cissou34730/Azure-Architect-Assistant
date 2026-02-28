@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -28,7 +29,7 @@ from app.models.project import Base, Project, ProjectDocument, ProjectState
 
 
 @pytest_asyncio.fixture
-async def db() -> AsyncSession:
+async def db() -> AsyncGenerator[AsyncSession]:
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         connect_args={"check_same_thread": False},

@@ -34,7 +34,7 @@ async def test_execute_project_chat_uses_unified_advanced_graph(monkeypatch):
         return DummyGraph()
 
     monkeypatch.setattr(
-        adapter_module, "build_advanced_project_chat_graph", fake_build_advanced
+        adapter_module, "build_project_chat_graph", fake_build_advanced
     )
 
     result = await adapter_module.execute_project_chat(

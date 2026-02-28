@@ -54,10 +54,9 @@ jobs:
       - name: Backend unit tests
         run: uv run pytest backend/tests -q
 
-  backend-type-advisory:
-    name: Backend type check (pyright advisory)
+  backend-type-check:
+    name: Backend type check (pyright)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,7 +70,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run pyright (advisory)
+      - name: Run pyright
         run: npx pyright backend
 
   docs-integrity:

@@ -28,15 +28,23 @@ Route navigation is defined in `frontend/src/components/common/Navigation.tsx`.
 
 ## Project workspace
 
-- Pages: `frontend/src/features/projects/pages/ProjectsPage.tsx` and `ProjectDetailPage.tsx`.
-- Context: `frontend/src/features/projects/context/ProjectContext.tsx`.
+- Pages: `frontend/src/features/projects/pages/UnifiedProjectPage.tsx` (main workspace).
+  - Tab factories and route helpers: `pages/workspaceHelpers.tsx`.
+  - Workspace hooks (dirty indicator, quick-open, route intent): `pages/workspaceHooks.ts`.
+- Context (split into focused providers, composed in `ProjectProvider.tsx`):
+  - `projectMetaContext` — project metadata (name, id).
+  - `projectInputContext` — input/workflow state (text requirements, file uploads, analysis).
+  - `projectStateContext` — project state (requirements, ADRs, diagrams, etc.).
+  - `projectChatContext` — chat messages and send actions.
 - State + orchestration: `frontend/src/features/projects/hooks/useProjectDetails.ts`.
 
-Tabs are registered in `frontend/src/features/projects/tabs/`:
-- definitions in `tabs/definitions/*.tsx`
-- registration in `tabs/index.ts`
+### Workspace components
 
-Note: the diagrams tab currently uses a hardcoded diagram set id in `frontend/src/features/projects/tabs/definitions/diagrams.tsx`.
+- `CenterWorkspaceTabs.tsx` — Tab container + content rendering.
+- `TabStrip.tsx` — Tab strip UI with drag-reorder, pin, close.
+- `ChatPanel.tsx` — Chat sidebar (composed from `ChatListHeader`, `ChatListFooter`, `ChatInputForm`, `ChatMessagesList`).
+- `ArtifactViews.tsx` — Artifact renderer dispatch (delegates to viewers in `ArtifactViewRenderers.tsx`).
+- `WafChecklistView.tsx` — WAF checklist tab.
 
 ## Knowledge base UI
 

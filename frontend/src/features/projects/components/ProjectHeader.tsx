@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, memo } from "react";
 import { Command } from "lucide-react";
-import { ProjectSelectorDropdown, ProjectSelectorDropdownRef } from "../../../components/common/ProjectSelectorDropdown";
-import { DeleteProjectModal } from "../../../components/common/DeleteProjectModal";
+import { ProjectSelectorDropdown, DeleteProjectModal } from "./selectors";
+import type { ProjectSelectorDropdownRef } from "./selectors";
 import { useProjectSelector } from "../../../hooks/useProjectSelector";
 import { Project } from "../../../types/api";
 import { useProjectHeaderKeyboard } from "./useProjectHeaderKeyboard";

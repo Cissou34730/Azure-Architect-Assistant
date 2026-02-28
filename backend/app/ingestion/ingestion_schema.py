@@ -6,6 +6,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
 from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 
@@ -35,10 +36,19 @@ def run_migrations(engine: Engine) -> None:
         cfg.attributes['connection'] = connection
 
         inspector = inspect(connection)
-        has_alembic_version = inspector.has_table('alembic_version')
         has_ingestion_tables = inspector.has_table('ingestion_jobs')
+        has_alembic_version = inspector.has_table('alembic_version')
 
-        if not has_alembic_version and has_ingestion_tables:
+        current_revision = None
+        if has_alembic_version:
+            migration_context = MigrationContext.configure(connection)
+            current_revision = migration_context.get_current_revision()
+
+        # Legacy or partially initialized DB cases:
+        # - ingestion tables already exist
+        # - Alembic has no current revision (no table or empty version table)
+        # In this state, stamp head before upgrade to avoid replaying initial DDL.
+        if has_ingestion_tables and current_revision is None:
             command.stamp(cfg, 'head')
 
         command.upgrade(cfg, 'head')

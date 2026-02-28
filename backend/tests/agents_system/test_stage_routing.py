@@ -2,14 +2,16 @@
 Tests for Phase 5: Stage routing and retry logic.
 """
 
+from app.agents_system.langgraph.nodes.routing import (
+    should_route_to_architecture_planner,
+    should_route_to_cost_estimator,
+)
 from app.agents_system.langgraph.nodes.stage_routing import (
     ProjectStage,
     build_retry_prompt,
     check_for_retry,
     classify_next_stage,
     propose_next_step,
-    should_route_to_architecture_planner,
-    should_route_to_cost_estimator,
 )
 from app.agents_system.langgraph.state import GraphState
 

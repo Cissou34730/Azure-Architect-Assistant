@@ -9,7 +9,9 @@ import type {
   ReferenceDocument,
   UploadSummary,
 } from "../../../../../types/api";
-import { useProjectContext } from "../../../context/useProjectContext";
+import { useProjectInputContext } from "../../../context/useProjectInputContext";
+import { useProjectMetaContext } from "../../../context/useProjectMetaContext";
+import { useProjectStateContext } from "../../../context/useProjectStateContext";
 import {
   InitializationSetupPanel,
   UploadSummaryPanel,
@@ -23,19 +25,30 @@ interface DocumentsTabProps {
 }
 
 function useDocumentsTabDerivedState(documents: readonly ReferenceDocument[]) {
-  const ctx = useProjectContext();
-  const busy = ctx.isUploadingDocuments || ctx.isAnalyzingDocuments;
-  const hasTextInput = ctx.textRequirements.trim() !== "";
+  const inputCtx = useProjectInputContext();
+  const { selectedProject } = useProjectMetaContext();
+  const { projectState } = useProjectStateContext();
+  const busy = inputCtx.isUploadingDocuments || inputCtx.isAnalyzingDocuments;
+  const hasTextInput = inputCtx.textRequirements.trim() !== "";
   const hasUploadedDocuments = documents.length > 0;
-  const hasPendingFiles = ctx.files !== null && ctx.files.length > 0;
+  const hasPendingFiles = inputCtx.files !== null && inputCtx.files.length > 0;
   const hasInputs = hasTextInput || hasUploadedDocuments || hasPendingFiles;
   const uploadSummary =
-    ctx.inputWorkflow.uploadSummary ?? ctx.projectState?.projectDocumentStats ?? null;
+    inputCtx.inputWorkflow.uploadSummary ?? projectState?.projectDocumentStats ?? null;
   const analysisSummary =
-    ctx.projectState?.analysisSummary ?? ctx.inputWorkflow.analysisSummary;
+    projectState?.analysisSummary ?? inputCtx.inputWorkflow.analysisSummary;
   const setupCompleted =
-    ctx.inputWorkflow.setupCompleted || analysisSummary?.status === "success";
-  return { ...ctx, busy, hasInputs, uploadSummary, analysisSummary, setupCompleted };
+    inputCtx.inputWorkflow.setupCompleted || analysisSummary?.status === "success";
+  return {
+    ...inputCtx,
+    selectedProject,
+    projectState,
+    busy,
+    hasInputs,
+    uploadSummary,
+    analysisSummary,
+    setupCompleted,
+  };
 }
 
 export function DocumentsTab({ documents, onOpenDocument }: DocumentsTabProps) {

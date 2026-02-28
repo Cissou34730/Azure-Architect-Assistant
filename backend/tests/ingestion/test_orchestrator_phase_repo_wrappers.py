@@ -1,8 +1,8 @@
 import logging
 
 import pytest
-from backend.app.ingestion.application.orchestrator import IngestionOrchestrator
-from backend.app.ingestion.domain.errors import PhaseNotFoundError, PhaseRepositoryError
+from app.ingestion.application.orchestrator import IngestionOrchestrator
+from app.ingestion.domain.errors import PhaseNotFoundError, PhaseRepositoryError
 
 
 class _RepoStub:

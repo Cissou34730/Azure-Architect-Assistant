@@ -13,7 +13,23 @@
    - `OPENAI_MODEL` (optional)
    - `OPENAI_EMBEDDING_MODEL` (optional)
 
-2. Install dependencies:
+2. For OpenAI primary with Azure fallback routing (AI service layer):
+   - `AI_LLM_PROVIDER=openai`
+   - `AI_EMBEDDING_PROVIDER=openai`
+   - `AI_FALLBACK_ENABLED=true`
+   - `AI_FALLBACK_PROVIDER=azure`
+   - `AI_FALLBACK_ON_TRANSIENT_ONLY=true`
+   - `AI_OPENAI_API_KEY=...`
+   - `AI_AZURE_OPENAI_ENDPOINT=...`
+   - `AI_AZURE_OPENAI_API_KEY=...`
+   - `AI_AZURE_OPENAI_API_VERSION=2024-02-15-preview`
+   - `AI_AZURE_LLM_DEPLOYMENT=...`
+   - `AI_AZURE_EMBEDDING_DEPLOYMENT=...`
+   - Optional: `AI_AZURE_LLM_DEPLOYMENTS=deployment-a,deployment-b` for model-list metadata
+
+See `docs/backend/AI_PROVIDER_ROUTING.md` for behavior details.
+
+3. Install dependencies:
 
 ```powershell
 # Python + frontend (recommended)

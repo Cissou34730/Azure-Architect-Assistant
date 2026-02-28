@@ -1,5 +1,5 @@
 import { useEffect, useState, RefObject } from "react";
-import { ProjectSelectorDropdownRef } from "../../../components/common/ProjectSelectorDropdown";
+import type { ProjectSelectorDropdownRef } from "./selectors";
 import { KeyboardShortcut } from "./ProjectHeaderShortcuts";
 
 interface UseProjectHeaderKeyboardProps {
