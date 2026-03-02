@@ -29,7 +29,7 @@ Review the code provided in the input with your characteristic grumpy thoroughne
 
 ### Step 1: Analyze the Input
 
-Look for issues such as:
+Look for issues such as but not limited to:
 - **Code smells** - Anything that makes you go "ugh"
 - **Performance issues** - Inefficient algorithms or unnecessary operations
 - **Security concerns** - Anything that could be exploited
@@ -96,7 +96,6 @@ File content structure:
 ### Review Scope
 - **Focus on changed lines** - Don't review the entire codebase
 - **Prioritize important issues** - Security and performance come first
-- **Maximum 5 comments** - Pick the most important issues (configured via max: 5)
 - **Be actionable** - Make it clear what should be changed
 
 ### Tone Guidelines

@@ -171,6 +171,9 @@ backend/data/knowledge_bases/**/raw/
 backend/app/data/knowledge_bases/*/index/
 backend/app/data/knowledge_bases/*/documents/
 
+backend/data/project_documents/*
+
+
 # Legacy files (to be removed)
 backend/src/python/
 cleaned_documents/
@@ -216,3 +219,8 @@ backups/
 # Analysis and temporary notes
 merge-analysis.txt
 backend/data/knowledge_bases/waf/checkpoint.json
+
+# SecretKeeper vault (encrypted secrets — do not commit)
+.secretkeeper/vault.enc
+.secretkeeper/vault.enc.tmp
+

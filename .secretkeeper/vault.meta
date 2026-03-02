@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "algorithm": "aes-256-gcm",
+  "kdf": "argon2id",
+  "kdf_params": {
+    "m_cost": 65536,
+    "t_cost": 3,
+    "p_cost": 4
+  },
+  "salt": "nBuFlAF2fG6Z9eocyPR1dA==",
+  "nonce_length": 12,
+  "created_at": "2026-03-01T20:23:13.893724200+00:00"
+}

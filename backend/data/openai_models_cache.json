@@ -153,6 +153,12 @@
       "pricing": null
     },
     {
+      "id": "gpt-realtime-1.5",
+      "name": "Gpt-realtime 1.5",
+      "context_window": 8192,
+      "pricing": null
+    },
+    {
       "id": "gpt-realtime",
       "name": "Gpt-realtime",
       "context_window": 8192,
@@ -201,8 +207,20 @@
       "pricing": null
     },
     {
+      "id": "gpt-audio-1.5",
+      "name": "Gpt-audio 1.5",
+      "context_window": 8192,
+      "pricing": null
+    },
+    {
       "id": "gpt-audio",
       "name": "Gpt-audio",
+      "context_window": 8192,
+      "pricing": null
+    },
+    {
+      "id": "gpt-5.3-codex",
+      "name": "Gpt-5.3 Codex",
       "context_window": 8192,
       "pricing": null
     },
@@ -825,18 +843,8 @@
       "name": "Chatgpt Image Latest",
       "context_window": 8192,
       "pricing": null
-    },
-    {
-      "id": "chatgpt-4o-latest",
-      "name": "Chatgpt 4o Latest",
-      "context_window": 128000,
-      "pricing": {
-        "input": 0.0025,
-        "output": 0.01,
-        "currency": "USD"
-      }
     }
   ],
-  "fetched_at": "2026-02-16T20:40:45.971776+00:00",
+  "fetched_at": "2026-02-25T11:09:45.468622+00:00",
   "ttl_days": 7
 }
