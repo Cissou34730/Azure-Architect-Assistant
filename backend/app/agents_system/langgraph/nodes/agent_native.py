@@ -16,10 +16,10 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.tools import BaseTool, Tool
-from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph, add_messages
 from langgraph.prebuilt import ToolNode
 
+from app.services.ai.ai_service import get_ai_service
 from config.settings import OpenAISettings
 
 from ....services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
@@ -135,7 +135,9 @@ def _build_system_directives(state: GraphState) -> str:
         "- Treat WAF checklist as first-class: when analysis supports a status change, proactively persist checklist updates (covered/partial/notCovered) without waiting for explicit user wording.\n"
         "- If evidence is insufficient for a status change, ask a focused status/evidence clarification and propose the next checklist completion step.\n"
         "- Persist decisions: Whenever a design choice is made, use the appropriate AAA tool and include the 'AAA_STATE_UPDATE' block in your response to confirm it reached the system.\n"
-        "- Proactive driving: Drive the project forward. If requirements are clear, propose the architecture; if architecture is clear, move to ADRs."
+        "- Proactive driving: Drive the project forward. If requirements are clear, propose the architecture; if architecture is clear, move to ADRs.\n"
+        "- Document recall: When discussing specific details from uploaded documents, use the project_document_search tool to retrieve exact excerpts. "
+        "Do not rely solely on the context summary — original documents contain details that the summary may not fully capture."
     )
 
     context_summary = state.get("context_summary")
@@ -175,13 +177,24 @@ def _normalize_tool(tool: Any) -> BaseTool | None:
     )
 
 
-async def _build_tools(mcp_client: MicrosoftLearnMCPClient) -> list[BaseTool]:
+async def _build_tools(mcp_client: MicrosoftLearnMCPClient, project_id: str = "") -> list[BaseTool]:
     """Build a list of tools safe for ChatOpenAI.bind_tools + ToolNode."""
     mcp_tools = await create_mcp_tools(mcp_client)
     kb_tools_any = create_kb_tools()
     aaa_tools = create_aaa_tools()
 
     tools_any: list[Any] = [*mcp_tools, *kb_tools_any, *aaa_tools]
+
+    # Add project document search tool when running in project context
+    if project_id:
+        from app.agents_system.tools.project_document_tool import ProjectDocumentSearchTool
+        from app.projects_database import AsyncSessionLocal
+
+        doc_tool = ProjectDocumentSearchTool(
+            db_factory=AsyncSessionLocal, project_id=project_id
+        )
+        tools_any.append(doc_tool)
+
     normalized: list[BaseTool] = []
 
     for t in tools_any:
@@ -204,13 +217,15 @@ async def run_stage_aware_agent(
 
     user_message = state["user_message"]
     system_directives = _build_system_directives(state)
-    tools = await _build_tools(mcp_client)
+    project_id = state.get("project_id", "")
+    tools = await _build_tools(mcp_client, project_id=project_id)
 
-    base_llm = ChatOpenAI(
-        model=openai_settings.model,
-        temperature=0.1,
-        openai_api_key=openai_settings.api_key,
-    )
+    ai_service = get_ai_service()
+    chat_llm_overrides: dict[str, Any] = {"temperature": 0.1}
+    if ai_service.config.llm_provider == "openai":
+        chat_llm_overrides["model"] = openai_settings.model
+        chat_llm_overrides["openai_api_key"] = openai_settings.api_key
+    base_llm = ai_service.create_chat_llm(**chat_llm_overrides)
     llm = base_llm.bind_tools(tools)
 
     agent_graph = _compile_agent_graph(llm, tools, base_llm)

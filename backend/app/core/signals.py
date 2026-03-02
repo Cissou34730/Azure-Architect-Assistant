@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 import logging
 import signal
 from typing import TYPE_CHECKING, Any
@@ -10,21 +9,22 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _get_loop() -> asyncio.AbstractEventLoop | None:
-    """Safe retrieval of the current event loop."""
-    with contextlib.suppress(RuntimeError):
-        return asyncio.get_event_loop()
-    return None
+def _cancel_running_tasks(ingestion_router) -> None:
+    """Cancel all tasks currently managed by the ingestion router.
 
+    Resolves the running event loop at call time (inside the signal handler)
+    so we always target uvicorn's loop, not a stale one captured at startup.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return  # No running loop — nothing to cancel
 
-def _cancel_running_tasks(ingestion_router, loop) -> None:
-    """Cancel all tasks currently managed by the ingestion router."""
     running_tasks = getattr(ingestion_router, "_running_tasks", {})
     for job_id, task in list(running_tasks.items()):
-        # Note: repository access might be through the router or orchestrator
         if hasattr(ingestion_router, "repo"):
             ingestion_router.repo.set_job_status(job_id, status="paused")
-        if loop and not task.done():
+        if not task.done():
             loop.call_soon_threadsafe(task.cancel)
 
 
@@ -52,7 +52,6 @@ def _chain_signal_handler(sig, frame, prev_handlers, current_handler) -> None:
 def _handle_ingestion_shutdown(
     sig: int,
     frame: Any,
-    loop: asyncio.AbstractEventLoop | None,
     ingestion_router: "ingestion",
     prev_handlers: dict[int, Any],
 ) -> None:
@@ -62,7 +61,7 @@ def _handle_ingestion_shutdown(
 
     # Mark jobs paused and cancel running tasks promptly
     try:
-        _cancel_running_tasks(ingestion_router, loop)
+        _cancel_running_tasks(ingestion_router)
     except Exception as exc:  # noqa: BLE001
         logger.warning(f"Failed to cancel running ingestion tasks on signal: {exc}")
 
@@ -77,11 +76,10 @@ def install_ingestion_signal_handlers():
     """
     from app.routers import ingestion  # noqa: PLC0415
 
-    loop = _get_loop()
     prev_handlers = {}
 
     def _handler(sig, frame):
-        _handle_ingestion_shutdown(sig, frame, loop, ingestion, prev_handlers)
+        _handle_ingestion_shutdown(sig, frame, ingestion, prev_handlers)
 
     signals_to_install = [signal.SIGINT]
     if hasattr(signal, "SIGTERM"):

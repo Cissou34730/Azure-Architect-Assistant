@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { initMermaid } from "./utils/mermaidConfig";
+import { initMermaid } from "./components/diagrams/config/mermaidConfig";
 import { initializeTheme } from "./hooks/useTheme";
 
 // Initialize mermaid once at app startup

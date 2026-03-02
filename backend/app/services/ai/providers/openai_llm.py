@@ -1,52 +1,112 @@
 """
 OpenAI LLM Provider Implementation
+
+Uses Chat Completions by default and automatically falls back to Responses API
+when a model is not compatible with chat completions.
 """
 
 import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
-from openai import AsyncOpenAI, BadRequestError
+from openai import APITimeoutError, BadRequestError, NotFoundError
 
 from ..config import AIConfig
 from ..interfaces import ChatMessage, LLMProvider, LLMResponse
+from .openai_client import get_openai_client
 
 logger = logging.getLogger(__name__)
 
 
 class OpenAILLMProvider(LLMProvider):
-    """
-    OpenAI implementation of LLM provider.
-
-    Uses OpenAI Responses API as the single inference interface to support
-    modern model families consistently.
-    """
+    """OpenAI implementation of LLM provider using Chat Completions API."""
+    _preferred_api_by_model: dict[str, str] = {}
 
     def __init__(self, config: AIConfig):
-        """
-        Initialize OpenAI LLM provider.
-
-        Args:
-            config: AI configuration
-        """
         self.config = config
-        self.client = AsyncOpenAI(
-            api_key=config.openai_api_key,
-            timeout=config.openai_timeout,
-            max_retries=config.openai_max_retries,
-        )
+        self.client = get_openai_client(config)
         self.model = config.openai_llm_model
         logger.info(f"OpenAI LLM Provider initialized with model: {self.model}")
 
-    def _to_response_input(self, messages: list[ChatMessage]) -> list[dict[str, Any]]:
-        """Convert internal chat messages to OpenAI Responses API input format."""
+    @classmethod
+    def _set_preferred_api(cls, model: str, api: str) -> None:
+        if api not in {"chat", "responses"}:
+            return
+        cls._preferred_api_by_model[model] = api
+
+    def _ordered_apis(self) -> list[str]:
+        preferred = self._preferred_api_by_model.get(self.model)
+        if preferred == "responses":
+            return ["responses", "chat"]
+        if preferred == "chat":
+            return ["chat", "responses"]
+        return ["chat", "responses"]
+
+    @staticmethod
+    def _to_messages(messages: list[ChatMessage]) -> list[dict[str, str]]:
+        return [{"role": m.role, "content": m.content} for m in messages]
+
+    @staticmethod
+    def _to_response_input(messages: list[ChatMessage]) -> list[dict[str, Any]]:
         return [
             {
-                "role": msg.role,
-                "content": [{"type": "input_text", "text": msg.content}],
+                "role": message.role,
+                "content": [{"type": "input_text", "text": message.content}],
             }
-            for msg in messages
+            for message in messages
         ]
+
+    @staticmethod
+    def _extract_usage(response: Any) -> dict[str, int] | None:
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return None
+        pt = getattr(usage, "prompt_tokens", None)
+        ct = getattr(usage, "completion_tokens", None)
+        tt = getattr(usage, "total_tokens", None)
+        if not isinstance(pt, int):
+            pt = getattr(usage, "input_tokens", None)
+        if not isinstance(ct, int):
+            ct = getattr(usage, "output_tokens", None)
+        if isinstance(pt, int) and isinstance(ct, int) and isinstance(tt, int):
+            return {"prompt_tokens": pt, "completion_tokens": ct, "total_tokens": tt}
+        return None
+
+    def _build_params(
+        self,
+        messages: list[ChatMessage],
+        temperature: float,
+        max_tokens: int,
+        token_limit_param: str = "max_tokens",
+        include_temperature: bool = True,
+        response_format: dict | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {
+            "model": self.model,
+            "messages": self._to_messages(messages),
+            token_limit_param: max_tokens,
+        }
+        if include_temperature:
+            params["temperature"] = temperature
+        if isinstance(response_format, dict):
+            params["response_format"] = response_format
+        return params
+
+    @staticmethod
+    def _requires_max_completion_tokens(error: BadRequestError) -> bool:
+        """Return True when API indicates max_tokens is unsupported for the model."""
+        message = str(error).lower()
+        return "max_tokens" in message and "max_completion_tokens" in message
+
+    @staticmethod
+    def _is_not_chat_model_error(error: Exception) -> bool:
+        """Detect endpoint mismatch when model cannot be used with chat completions."""
+        message = str(error).lower()
+        return (
+            "not a chat model" in message
+            or "chat/completions endpoint" in message
+            or "v1/chat/completions" in message
+        )
 
     def _build_responses_params(
         self,
@@ -56,9 +116,8 @@ class OpenAILLMProvider(LLMProvider):
         include_temperature: bool = True,
         include_text_format: bool = True,
         stream: bool = False,
-        **kwargs,
+        response_format: dict | None = None,
     ) -> dict[str, Any]:
-        """Build parameters for the OpenAI Responses API call."""
         params: dict[str, Any] = {
             "model": self.model,
             "input": self._to_response_input(messages),
@@ -68,7 +127,6 @@ class OpenAILLMProvider(LLMProvider):
         if include_temperature:
             params["temperature"] = temperature
 
-        response_format = kwargs.pop("response_format", None)
         if include_text_format and isinstance(response_format, dict):
             format_type = response_format.get("type")
             if format_type == "json_object":
@@ -77,27 +135,107 @@ class OpenAILLMProvider(LLMProvider):
         if stream:
             params["stream"] = True
 
-        params.update(kwargs)
         return params
 
-    def _build_attempts(
+    async def _chat_via_chat_completions(
         self,
+        client: Any,
         messages: list[ChatMessage],
         temperature: float,
         max_tokens: int,
-        stream: bool,
-        **kwargs,
-    ) -> list[dict[str, Any]]:
-        """Build a deterministic sequence of compatible parameter attempts."""
-        return [
+        response_format: dict | None,
+    ) -> LLMResponse:
+        """Run inference via chat completions with compatibility fallbacks."""
+        last_error: Exception | None = None
+        token_limit_param = "max_tokens"
+
+        for compatibility_pass in range(2):
+            attempts: list[dict[str, Any]] = [
+                self._build_params(
+                    messages,
+                    temperature,
+                    max_tokens,
+                    token_limit_param=token_limit_param,
+                    include_temperature=True,
+                    response_format=response_format,
+                ),
+                self._build_params(
+                    messages,
+                    temperature,
+                    max_tokens,
+                    token_limit_param=token_limit_param,
+                    include_temperature=False,
+                    response_format=response_format,
+                ),
+                self._build_params(
+                    messages,
+                    temperature,
+                    max_tokens,
+                    token_limit_param=token_limit_param,
+                    include_temperature=False,
+                    response_format=None,
+                ),
+            ]
+
+            should_retry_with_max_completion_tokens = False
+            for index, params in enumerate(attempts, start=1):
+                try:
+                    response = await client.chat.completions.create(**params)
+                    content = response.choices[0].message.content or ""
+                    return LLMResponse(
+                        content=content,
+                        model=getattr(response, "model", self.model),
+                        usage=self._extract_usage(response),
+                        finish_reason=response.choices[0].finish_reason,
+                    )
+                except BadRequestError as error:
+                    last_error = error
+                    if (
+                        token_limit_param == "max_tokens"
+                        and self._requires_max_completion_tokens(error)
+                    ):
+                        logger.info(
+                            "Model %s requires max_completion_tokens; retrying with compatible token parameter",
+                            self.model,
+                        )
+                        should_retry_with_max_completion_tokens = True
+                        break
+
+                    logger.warning(
+                        "Chat completions attempt %s/3 failed for model %s: %s",
+                        index,
+                        self.model,
+                        error,
+                    )
+                    continue
+
+            if should_retry_with_max_completion_tokens and compatibility_pass == 0:
+                token_limit_param = "max_completion_tokens"
+                continue
+
+            break
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Chat completions failed without explicit error")
+
+    async def _chat_via_responses(
+        self,
+        client: Any,
+        messages: list[ChatMessage],
+        temperature: float,
+        max_tokens: int,
+        response_format: dict | None,
+    ) -> LLMResponse:
+        """Run inference via Responses API with compatibility fallbacks."""
+        attempts: list[dict[str, Any]] = [
             self._build_responses_params(
                 messages,
                 temperature,
                 max_tokens,
                 include_temperature=True,
                 include_text_format=True,
-                stream=stream,
-                **kwargs,
+                response_format=response_format,
             ),
             self._build_responses_params(
                 messages,
@@ -105,8 +243,7 @@ class OpenAILLMProvider(LLMProvider):
                 max_tokens,
                 include_temperature=False,
                 include_text_format=True,
-                stream=stream,
-                **kwargs,
+                response_format=response_format,
             ),
             self._build_responses_params(
                 messages,
@@ -114,64 +251,34 @@ class OpenAILLMProvider(LLMProvider):
                 max_tokens,
                 include_temperature=False,
                 include_text_format=False,
-                stream=stream,
-                **kwargs,
+                response_format=response_format,
             ),
         ]
 
-    def _extract_response_text(self, response: Any) -> str:
-        """Extract response text from Responses API result."""
-        output_text = getattr(response, "output_text", None)
-        if output_text:
-            return output_text
+        last_error: Exception | None = None
+        for index, params in enumerate(attempts, start=1):
+            try:
+                response = await client.responses.create(**params)
+                content = getattr(response, "output_text", None) or ""
+                return LLMResponse(
+                    content=content,
+                    model=getattr(response, "model", self.model),
+                    usage=self._extract_usage(response),
+                    finish_reason=None,
+                )
+            except BadRequestError as error:
+                last_error = error
+                logger.warning(
+                    "Responses attempt %s/3 failed for model %s: %s",
+                    index,
+                    self.model,
+                    error,
+                )
+                continue
 
-        outputs = getattr(response, "output", None)
-        if not outputs:
-            return ""
-
-        text_fragments: list[str] = []
-        for item in outputs:
-            content_items = getattr(item, "content", None) or []
-            for content in content_items:
-                text_value = getattr(content, "text", None)
-                if isinstance(text_value, str):
-                    text_fragments.append(text_value)
-                    continue
-
-                if text_value is not None:
-                    maybe_value = getattr(text_value, "value", None)
-                    if isinstance(maybe_value, str):
-                        text_fragments.append(maybe_value)
-
-                maybe_value = getattr(content, "value", None)
-                if isinstance(maybe_value, str):
-                    text_fragments.append(maybe_value)
-
-        return "".join(text_fragments)
-
-    @staticmethod
-    def _extract_usage(response: Any) -> dict[str, int] | None:
-        """Extract usage fields from Responses API result if available."""
-        usage = getattr(response, "usage", None)
-        if usage is None:
-            return None
-
-        prompt_tokens = getattr(usage, "input_tokens", None)
-        completion_tokens = getattr(usage, "output_tokens", None)
-        total_tokens = getattr(usage, "total_tokens", None)
-
-        if (
-            isinstance(prompt_tokens, int)
-            and isinstance(completion_tokens, int)
-            and isinstance(total_tokens, int)
-        ):
-            return {
-                "prompt_tokens": prompt_tokens,
-                "completion_tokens": completion_tokens,
-                "total_tokens": total_tokens,
-            }
-
-        return None
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Responses API failed without explicit error")
 
     async def chat(
         self,
@@ -181,49 +288,74 @@ class OpenAILLMProvider(LLMProvider):
         stream: bool = False,
         **kwargs,
     ) -> LLMResponse | AsyncIterator[str]:
-        """
-        Generate chat completion using OpenAI.
+        """Generate chat completion using Chat Completions API."""
+        if stream:
+            return self._stream_chat(messages, temperature, max_tokens, **kwargs)
 
-        Automatically adapts to model requirements by handling API errors
-        and retrying with compatible parameters.
-        """
+        request_timeout = kwargs.pop("timeout", None)
+        if isinstance(request_timeout, (int, float)):
+            client = self.client.with_options(timeout=float(request_timeout))
+        else:
+            client = self.client
+
+        response_format: dict | None = kwargs.pop("response_format", None)
+
         try:
-            if stream:
-                return self._stream_chat(messages, temperature, max_tokens, **kwargs)
-
-            attempts = self._build_attempts(
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=False,
-                **kwargs,
-            )
-
+            ordered_apis = self._ordered_apis()
             last_error: Exception | None = None
-            for index, params in enumerate(attempts, start=1):
-                try:
-                    response = await self.client.responses.create(**params)
-                    content = self._extract_response_text(response)
 
-                    return LLMResponse(
-                        content=content,
-                        model=getattr(response, "model", self.model),
-                        usage=self._extract_usage(response),
-                        finish_reason=None,
+            for api in ordered_apis:
+                try:
+                    if api == "chat":
+                        response = await self._chat_via_chat_completions(
+                            client,
+                            messages,
+                            temperature,
+                            max_tokens,
+                            response_format,
+                        )
+                        self._set_preferred_api(self.model, "chat")
+                        return response
+
+                    response = await self._chat_via_responses(
+                        client,
+                        messages,
+                        temperature,
+                        max_tokens,
+                        response_format,
                     )
-                except BadRequestError as bad_request_error:
-                    last_error = bad_request_error
+                    self._set_preferred_api(self.model, "responses")
+                    return response
+
+                except APITimeoutError as timeout_error:
+                    last_error = timeout_error
                     logger.warning(
-                        "Responses API attempt %s/3 failed for model %s: %s",
-                        index,
+                        "%s API timed out for model %s; trying alternate API",
+                        api,
                         self.model,
-                        bad_request_error,
                     )
+                    continue
+                except (NotFoundError, BadRequestError) as endpoint_error:
+                    last_error = endpoint_error
+                    if api == "chat" and self._is_not_chat_model_error(endpoint_error):
+                        logger.info(
+                            "Model %s is not usable with chat completions; trying Responses API",
+                            self.model,
+                        )
+                        self._set_preferred_api(self.model, "responses")
+                        continue
+                    if api == "responses" and self._is_not_chat_model_error(endpoint_error):
+                        logger.info(
+                            "Model %s is not usable with Responses API; trying chat completions",
+                            self.model,
+                        )
+                        self._set_preferred_api(self.model, "chat")
+                        continue
                     continue
 
             if last_error is not None:
                 raise last_error
-            raise RuntimeError("Responses API failed without explicit error")
+            raise RuntimeError("OpenAI inference failed without explicit error")
 
         except Exception as e:
             logger.error(f"OpenAI chat error: {e}")
@@ -236,56 +368,84 @@ class OpenAILLMProvider(LLMProvider):
         max_tokens: int,
         **kwargs,
     ) -> AsyncIterator[str]:
-        """Stream chat completion via Responses API server-sent events."""
+        """Stream chat completion via Chat Completions API."""
+        request_timeout = kwargs.pop("timeout", None)
+        if isinstance(request_timeout, (int, float)):
+            client = self.client.with_options(timeout=float(request_timeout))
+        else:
+            client = self.client
+
+        response_format: dict | None = kwargs.pop("response_format", None)
         try:
-            attempts = self._build_attempts(
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=True,
-                **kwargs,
-            )
+            token_limit_param = "max_tokens"
+            for compatibility_pass in range(2):
+                params = self._build_params(
+                    messages,
+                    temperature,
+                    max_tokens,
+                    token_limit_param=token_limit_param,
+                    include_temperature=True,
+                    response_format=response_format,
+                )
+                params["stream"] = True
 
-            last_error: Exception | None = None
-            for index, params in enumerate(attempts, start=1):
                 try:
-                    stream = await self.client.responses.create(**params)
-                    async for event in stream:
-                        event_type = getattr(event, "type", "")
-                        if event_type == "response.output_text.delta":
-                            delta = getattr(event, "delta", None)
-                            if isinstance(delta, str) and delta:
-                                yield delta
+                    stream = await client.chat.completions.create(**params)
+                    async for chunk in stream:
+                        delta = chunk.choices[0].delta.content if chunk.choices else None
+                        if delta:
+                            yield delta
                     return
-                except BadRequestError as bad_request_error:
-                    last_error = bad_request_error
-                    logger.warning(
-                        "Responses stream attempt %s/3 failed for model %s: %s",
-                        index,
-                        self.model,
-                        bad_request_error,
-                    )
-                    continue
+                except (NotFoundError, BadRequestError) as error:
+                    if (
+                        token_limit_param == "max_tokens"
+                        and isinstance(error, BadRequestError)
+                        and self._requires_max_completion_tokens(error)
+                        and compatibility_pass == 0
+                    ):
+                        logger.info(
+                            "Model %s requires max_completion_tokens for streaming; retrying with compatible token parameter",
+                            self.model,
+                        )
+                        token_limit_param = "max_completion_tokens"
+                        continue
 
-            # Final fallback: non-stream response emitted as a single chunk
-            if last_error is not None:
-                logger.warning(
-                    "Streaming unavailable for model %s, falling back to non-stream response",
-                    self.model,
-                )
-                response = await self.chat(
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    stream=False,
-                    **kwargs,
-                )
-                if isinstance(response, LLMResponse) and response.content:
-                    yield response.content
-                return
+                    if self._is_not_chat_model_error(error):
+                        logger.info(
+                            "Model %s is not usable with chat completions for streaming; falling back to Responses API",
+                            self.model,
+                        )
+                        response_params = self._build_responses_params(
+                            messages,
+                            temperature,
+                            max_tokens,
+                            include_temperature=True,
+                            include_text_format=True,
+                            stream=True,
+                            response_format=response_format,
+                        )
+                        try:
+                            stream = await client.responses.create(**response_params)
+                        except BadRequestError:
+                            response_params.pop("temperature", None)
+                            stream = await client.responses.create(**response_params)
 
-            raise RuntimeError("Responses stream failed without explicit error")
+                        async for event in stream:
+                            event_type = getattr(event, "type", "")
+                            if event_type == "response.output_text.delta":
+                                delta = getattr(event, "delta", None)
+                                if isinstance(delta, str) and delta:
+                                    yield delta
+                        return
 
+                    # Retry without temperature for reasoning models
+                    params.pop("temperature", None)
+                    stream = await client.chat.completions.create(**params)
+                    async for chunk in stream:
+                        delta = chunk.choices[0].delta.content if chunk.choices else None
+                        if delta:
+                            yield delta
+                    return
         except Exception as e:
             logger.error(f"OpenAI stream error: {e}")
             raise
@@ -293,12 +453,10 @@ class OpenAILLMProvider(LLMProvider):
     async def complete(
         self, prompt: str, temperature: float = 0.7, max_tokens: int = 1000, **kwargs
     ) -> str:
-        """Simple text completion."""
         messages = [ChatMessage(role="user", content=prompt)]
         response = await self.chat(messages, temperature, max_tokens, **kwargs)
-        return response.content
+        return response.content  # type: ignore[union-attr]
 
     def get_model_name(self) -> str:
-        """Get current model name."""
         return self.model
 

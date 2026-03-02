@@ -10,10 +10,9 @@ from typing import Any
 
 from llama_index.core import Document as LlamaDocument
 
-from app.ingestion.domain.phase_tracker import IngestionPhase
+from app.core.app_settings import get_openai_settings
+from app.ingestion.domain.enums import IngestionPhase
 from app.services.ai import get_ai_service
-
-from .embedder_base import BaseEmbedder
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,7 @@ EMBEDDING_P_SPAN = 50
 EMBEDDING_P_END = 75
 
 
-class OpenAIEmbedder(BaseEmbedder):
+class OpenAIEmbedder:
     """
     Generate embeddings using OpenAI embedding models.
     Uses unified AIService for consistent configuration and monitoring.
@@ -38,9 +37,25 @@ class OpenAIEmbedder(BaseEmbedder):
         Args:
             model_name: OpenAI embedding model name
         """
-        super().__init__(model_name)
+        if model_name is None:
+            model_name = get_openai_settings().embedding_model
+        self.model_name = model_name
+        self.logger = logging.getLogger(f'{__name__}.{self.__class__.__name__}')
         self.ai_service = get_ai_service()
         self.logger.info(f'OpenAIEmbedder initialized with model: {model_name}')
+
+    def validate_documents(self, documents: list[dict[str, Any]]) -> bool:
+        """Validate document structure."""
+        if not documents:
+            self.logger.error('No documents provided')
+            return False
+        for i, doc in enumerate(documents):
+            if 'content' not in doc:
+                self.logger.error(f"Document {i} missing 'content' field")
+                return False
+            if not doc['content']:
+                self.logger.warning(f'Document {i} has empty content')
+        return True
 
     def _to_llama_document(self, index: int, doc: dict[str, Any]) -> LlamaDocument | None:
         """Convert raw document dictionary to LlamaIndex Document with metadata."""

@@ -31,46 +31,24 @@ from app.ingestion.infrastructure import (
 )
 from app.kb import KBManager
 from app.service_registry import get_kb_manager
+from app.services.ingestion_metrics_service import (
+    IngestionMetrics,
+    JobCounters,
+    JobStatus,
+    QueueMetrics,
+    apply_counter_overrides,
+    augment_with_phase_data,
+    build_queue_based_metrics,
+    derive_job_status,
+    get_job_counters,
+    get_phase_item_count,
+    get_status_message,
+    normalize_job_metrics,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/ingestion", tags=["ingestion"])
-
-
-# Domain types for structured data
-class IngestionMetrics(TypedDict, total=False):
-    """Typed metrics structure for ingestion jobs."""
-
-    chunks_pending: int
-    chunks_processing: int
-    chunks_embedded: int
-    chunks_failed: int
-    chunks_queued: int
-    documents_crawled: int
-    documents_cleaned: int
-    chunks_created: int
-
-
-class QueueMetrics(TypedDict, total=False):
-    """Raw queue statistics."""
-
-    pending: int
-    processing: int
-    done: int
-    error: int
-
-
-class JobCounters(TypedDict, total=False):
-    """Job-level counters."""
-
-    docs_seen: int
-    chunks_seen: int
-    chunks_processed: int
-
-
-JobStatus = Literal[
-    "not_started", "pending", "running", "paused", "completed", "failed", "canceled"
-]
 
 
 # Request/Response models
@@ -210,6 +188,8 @@ async def start_ingestion(
             started_at=datetime.now(timezone.utc),
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Failed to start ingestion for KB {kb_id}: {e}")
         raise HTTPException(
@@ -270,6 +250,8 @@ async def pause_ingestion(kb_id: str) -> dict[str, Any]:
             "message": "Job paused successfully",
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Failed to pause job for KB {kb_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to pause job: {e}") from e
@@ -488,122 +470,6 @@ async def get_kb_ingestion_details(kb_id: str) -> dict[str, Any]:
         ) from e
 
 
-def _get_phase_item_count(
-    phase_details: list[dict[str, Any]], phase_name: str, key: str = "items_processed"
-) -> int:
-    """Extract item count from phase details."""
-    for phase in phase_details:
-        if phase.get("name") == phase_name:
-            return phase.get(key, 0) or 0
-    return 0
-
-
-def _build_queue_based_metrics(queue_metrics: QueueMetrics) -> IngestionMetrics:
-    """Build metrics from queue statistics."""
-    pending = queue_metrics.get("pending", 0)
-    processing = queue_metrics.get("processing", 0)
-    done = queue_metrics.get("done", 0)
-    error = queue_metrics.get("error", 0)
-
-    return IngestionMetrics(
-        chunks_pending=pending,
-        chunks_processing=processing,
-        chunks_embedded=done,
-        chunks_failed=error,
-        chunks_queued=pending + processing + done + error,
-        documents_crawled=0,
-        documents_cleaned=0,
-        chunks_created=0,
-    )
-
-
-def _augment_with_phase_data(
-    metrics: IngestionMetrics, phase_details: list[dict[str, Any]]
-) -> None:
-    """Augment metrics with phase detail fallbacks."""
-    if metrics["chunks_embedded"] == 0:
-        metrics["chunks_embedded"] = _get_phase_item_count(phase_details, "indexing")
-
-    if metrics["chunks_queued"] == 0:
-        metrics["chunks_queued"] = _get_phase_item_count(
-            phase_details, "chunking", "items_total"
-        )
-
-    metrics["documents_crawled"] = _get_phase_item_count(phase_details, "loading")
-    metrics["documents_cleaned"] = _get_phase_item_count(phase_details, "chunking")
-    metrics["chunks_created"] = _get_phase_item_count(phase_details, "chunking")
-
-
-def _apply_counter_overrides(
-    metrics: IngestionMetrics, counters: JobCounters
-) -> None:
-    """Override metrics with job counters if available."""
-    if "docs_seen" in counters:
-        metrics["documents_crawled"] = counters["docs_seen"]
-    if "chunks_seen" in counters:
-        metrics["chunks_created"] = counters["chunks_seen"]
-    if "chunks_processed" in counters:
-        metrics["chunks_embedded"] = counters["chunks_processed"]
-
-
-def _normalize_job_metrics(
-    status: KBPersistedStatus,
-    raw_queue_metrics: QueueMetrics,
-    counters: JobCounters,
-) -> IngestionMetrics:
-    """Consolidate metrics from queue stats, phase details, and job counters."""
-    metrics = _build_queue_based_metrics(raw_queue_metrics)
-    _augment_with_phase_data(metrics, status.phase_details)
-    _apply_counter_overrides(metrics, counters)
-    return metrics
-
-
-def _derive_job_status(
-    latest_job_state: Any, kb_status: KBPersistedStatus
-) -> JobStatus:
-    """Determine job status from database state and KB status."""
-    if not latest_job_state:
-        return "not_started"
-
-    job_status = str(latest_job_state.status)
-    if job_status in ("running", "paused", "failed", "canceled", "completed"):
-        return job_status  # type: ignore[return-value]
-
-    # Fallback to KB status
-    if kb_status.status == "ready":
-        return "completed"
-    if kb_status.status == "pending":
-        return "pending"
-
-    return "not_started"
-
-
-def _get_status_message(status: JobStatus) -> str:
-    """Map job status to user-friendly message."""
-    return {
-        "running": "Ingestion in progress",
-        "completed": "Ingestion complete",
-        "failed": "Ingestion failed",
-        "paused": "Ingestion paused",
-        "canceled": "Ingestion canceled",
-        "not_started": "Waiting to start",
-        "pending": "Waiting to start",
-    }[status]
-
-
-def _get_job_counters(job_view: Any) -> JobCounters:
-    """Extract typed counters from job view."""
-    if not job_view or not job_view.counters:
-        return JobCounters()
-    # Use dict() to ensure proper TypedDict compatibility
-    raw_counters = dict(job_view.counters) if job_view.counters else {}
-    return JobCounters(
-        docs_seen=raw_counters.get("docs_seen", 0),
-        chunks_seen=raw_counters.get("chunks_seen", 0),
-        chunks_processed=raw_counters.get("chunks_processed", 0),
-    )
-
-
 @router.get("/kb/{kb_id}/job-view", response_model=JobViewResponse)
 async def get_kb_job_view(kb_id: str) -> JobViewResponse:
     """Return a combined ingestion job view for a KB (single frontend call)."""
@@ -644,12 +510,12 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
         )
 
     # Normalize metrics from all sources
-    counters = _get_job_counters(latest_job_view)
-    metrics = _normalize_job_metrics(kb_status, raw_metrics, counters)
+    counters = get_job_counters(latest_job_view)
+    metrics = normalize_job_metrics(kb_status, raw_metrics, counters)
 
     # Derive status and message
-    job_status = _derive_job_status(latest_job_state, kb_status)
-    message = _get_status_message(job_status)
+    job_status = derive_job_status(latest_job_state, kb_status)
+    message = get_status_message(job_status)
 
     return JobViewResponse(
         job_id=job_id,

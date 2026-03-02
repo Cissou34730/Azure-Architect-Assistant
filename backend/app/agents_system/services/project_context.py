@@ -381,6 +381,9 @@ async def get_project_context_summary(project_id: str, db: AsyncSession) -> str:
     """
     Get formatted summary of project context for agent prompts.
 
+    Includes: context, NFRs, requirements, technical constraints, data compliance,
+    application structure, open questions, clarification questions, and document excerpts.
+
     Args:
         project_id: Project ID
         db: Database session
@@ -399,12 +402,27 @@ async def get_project_context_summary(project_id: str, db: AsyncSession) -> str:
     if not state:
         return f"PROJECT: {project.name}\nNo architecture state available yet."
 
+    # Load uploaded document texts for excerpt inclusion
+    docs_result = await db.execute(
+        select(ProjectDocument).where(ProjectDocument.project_id == project_id)
+    )
+    project_documents = docs_result.scalars().all()
+    documents_text: dict[str, str] = {}
+    for doc in project_documents:
+        if (doc.raw_text or "").strip() and doc.parse_status == "parsed":
+            documents_text[doc.id] = doc.raw_text
+
     summary_parts = [f"PROJECT: {project.name}", f"Created: {project.created_at}", ""]
 
     _add_project_context_section(summary_parts, state)
     _add_nfr_section(summary_parts, state)
+    _add_requirements_section(summary_parts, state)
+    _add_technical_constraints_section(summary_parts, state)
+    _add_data_compliance_section(summary_parts, state)
     _add_application_structure_section(summary_parts, state)
     _add_open_questions_section(summary_parts, state)
+    _add_clarification_questions_section(summary_parts, state)
+    _add_document_excerpts_section(summary_parts, state, documents_text)
 
     return "\n".join(summary_parts).strip()
 
@@ -475,5 +493,152 @@ def _add_open_questions_section(parts: list[str], state: dict[str, Any]) -> None
     parts.append("OPEN QUESTIONS:")
     for q in questions[:5]:
         parts.append(f"  - {q}")
+    parts.append("")
+
+
+# Maximum characters per document excerpt included in context summary
+_DOCUMENT_EXCERPT_MAX_CHARS = 2000
+
+
+def _add_requirements_section(parts: list[str], state: dict[str, Any]) -> None:
+    """Add extracted requirements with category, ambiguity, and sources to summary."""
+    requirements = state.get("requirements")
+    if not requirements:
+        return
+
+    parts.append("REQUIREMENTS:")
+    for req in requirements:
+        if not isinstance(req, dict):
+            continue
+        category = req.get("category", "unknown")
+        text = req.get("text", "")
+        if not text:
+            continue
+
+        line = f"  [{category}] {text}"
+
+        ambiguity = req.get("ambiguity")
+        if isinstance(ambiguity, dict) and ambiguity.get("isAmbiguous"):
+            notes = ambiguity.get("notes", "")
+            line += f" [AMBIGUOUS: {notes}]" if notes else " [AMBIGUOUS]"
+
+        parts.append(line)
+
+        sources = req.get("sources")
+        if isinstance(sources, list):
+            for src in sources:
+                if isinstance(src, dict):
+                    file_name = src.get("fileName", "")
+                    excerpt = src.get("excerpt", "")
+                    if file_name:
+                        src_line = f"    Source: {file_name}"
+                        if excerpt:
+                            src_line += f" — \"{excerpt}\""
+                        parts.append(src_line)
+
+    parts.append("")
+
+
+def _add_technical_constraints_section(
+    parts: list[str], state: dict[str, Any]
+) -> None:
+    """Add technical constraints and assumptions to summary."""
+    tc = state.get("technicalConstraints")
+    if not tc:
+        return
+
+    constraints = tc.get("constraints", [])
+    assumptions = tc.get("assumptions", [])
+    if not constraints and not assumptions:
+        return
+
+    parts.append("TECHNICAL CONSTRAINTS:")
+    for c in constraints:
+        parts.append(f"  - {c}")
+
+    if assumptions:
+        parts.append("  Assumptions:")
+        for a in assumptions:
+            parts.append(f"    - {a}")
+    parts.append("")
+
+
+def _add_data_compliance_section(parts: list[str], state: dict[str, Any]) -> None:
+    """Add data compliance, data types, and residency to summary."""
+    dc = state.get("dataCompliance")
+    if not dc:
+        return
+
+    data_types = dc.get("dataTypes", [])
+    compliance_reqs = dc.get("complianceRequirements", [])
+    residency = dc.get("dataResidency")
+    if not data_types and not compliance_reqs and not residency:
+        return
+
+    parts.append("DATA COMPLIANCE:")
+    if data_types:
+        parts.append(f"  Data Types: {', '.join(str(d) for d in data_types)}")
+    if compliance_reqs:
+        parts.append(f"  Compliance: {', '.join(str(r) for r in compliance_reqs)}")
+    if residency:
+        parts.append(f"  Data Residency: {residency}")
+    parts.append("")
+
+
+def _add_clarification_questions_section(
+    parts: list[str], state: dict[str, Any]
+) -> None:
+    """Add clarification questions from the analysis to summary."""
+    questions = state.get("clarificationQuestions")
+    if not questions:
+        return
+
+    parts.append("CLARIFICATION QUESTIONS:")
+    for q in questions:
+        if isinstance(q, dict):
+            text = q.get("question", "")
+            priority = q.get("priority")
+            if text:
+                prefix = f"  [P{priority}]" if priority else "  -"
+                parts.append(f"{prefix} {text}")
+        elif isinstance(q, str):
+            parts.append(f"  - {q}")
+    parts.append("")
+
+
+def _add_document_excerpts_section(
+    parts: list[str],
+    state: dict[str, Any],
+    documents_text: dict[str, str],
+) -> None:
+    """Add excerpts from uploaded project documents to summary."""
+    ref_docs = state.get("referenceDocuments")
+    if not ref_docs or not documents_text:
+        return
+
+    uploaded = [
+        d
+        for d in ref_docs
+        if isinstance(d, dict)
+        and d.get("category") == "uploaded"
+        and d.get("parseStatus") == "parsed"
+    ]
+    if not uploaded:
+        return
+
+    parts.append("UPLOADED DOCUMENTS:")
+    for doc_ref in uploaded:
+        doc_id = doc_ref.get("id", "")
+        title = doc_ref.get("title", "Unknown")
+        text = documents_text.get(doc_id, "")
+        if not text:
+            parts.append(f"  [{title}] (no text available)")
+            continue
+
+        excerpt = text[:_DOCUMENT_EXCERPT_MAX_CHARS]
+        if len(text) > _DOCUMENT_EXCERPT_MAX_CHARS:
+            excerpt += "..."
+        parts.append(f"  [{title}]")
+        parts.append(f"    {excerpt}")
     parts.append("")
 

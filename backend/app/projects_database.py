@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Database path from central AppSettings or environment variable
 BACKEND_ROOT = Path(__file__).parent.parent
 DATA_DIR = BACKEND_ROOT / "data"
+DATA_ROOT = Path(os.getenv("DATA_ROOT", str(DATA_DIR)))
 app_settings = None
 try:
     app_settings = get_app_settings()
@@ -28,7 +29,7 @@ except Exception:  # noqa: BLE001
 if app_settings and app_settings.projects_database:
     DB_PATH = Path(app_settings.projects_database)
 else:
-    DB_PATH = Path(os.getenv("PROJECTS_DATABASE", str(DATA_DIR / "projects.db")))
+    DB_PATH = Path(os.getenv("PROJECTS_DATABASE", str(DATA_ROOT / "projects.db")))
 
 # Handle relative paths
 if not DB_PATH.is_absolute():

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { getMermaid } from "../../../utils/mermaidConfig";
+import { getMermaid } from "../config/mermaidConfig";
 import { useIntersectionObserver } from "../../../hooks/useIntersectionObserver";
 import { diagramCache } from "../../../utils/diagramCache";
 

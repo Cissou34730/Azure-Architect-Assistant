@@ -33,6 +33,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added implementation handoff document:
   - `docs/refactor/mindmap-guidance-waf-implementation-handoff.md`
 
+- Added professional development process governance artifacts:
+  - `docs/operations/SOURCE_OF_TRUTH_MATRIX.md`
+  - `docs/operations/WORKFLOW_TRACEABILITY_RUNBOOK.md`
+  - `docs/operations/ACTIVE_ASSET_REGISTRY.md`
+
+- Added issue-first workflow templates:
+  - `.github/ISSUE_TEMPLATE/bug_report.md`
+  - `.github/ISSUE_TEMPLATE/feature_request.md`
+  - `.github/ISSUE_TEMPLATE/tech_debt.md`
+  - `.github/ISSUE_TEMPLATE/docs_policy_change.md`
+  - `.github/ISSUE_TEMPLATE/config.yml`
+
+- Added CI governance and quality gate artifacts:
+  - `.github/workflows/ci.yml`
+  - `docs/operations/CI_QUALITY_GATES.md`
+  - `scripts/check-docs-governance.ps1`
+
+- Standardized backend execution path to `uv` in key scripts/tasks:
+  - `.vscode/tasks.json`
+  - `start-backend.ps1`
+  - `package.json` (`test:backend`)
+
+- Introduced phased strictness baselines:
+  - `pyrightconfig.json` now targets backend analysis in basic mode
+  - `package.json` added `lint:ts-no-any:phase1`
+
 - **Documentation governance and IA reorganization**
   - Established dual-lane documentation policy (agent-focused + human-focused) and governance artifacts.
   - Added agent documentation lane under `docs/agents/` with compact architecture summaries and authoring template.

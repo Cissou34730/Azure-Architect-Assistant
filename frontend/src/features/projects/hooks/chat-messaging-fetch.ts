@@ -5,7 +5,7 @@ import { Message } from "../../../types/api";
 import {
   restoreLastBatchFromArchive,
   archiveOldMessages,
-} from "../../../utils/messageArchive";
+} from "../utils/messageArchive";
 import { isFeatureEnabled } from "../../../config/featureFlags";
 import {
   findLastNonOptimisticId,

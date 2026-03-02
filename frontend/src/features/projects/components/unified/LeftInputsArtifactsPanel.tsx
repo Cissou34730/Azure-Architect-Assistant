@@ -1,7 +1,7 @@
 import { memo, useMemo } from "react";
 import { ChevronLeft } from "lucide-react";
 import { featureFlags } from "../../../../config/featureFlags";
-import { useProjectContext } from "../../context/useProjectContext";
+import { useProjectInputContext } from "../../context/useProjectInputContext";
 import { useProjectStateContext } from "../../context/useProjectStateContext";
 import type { WorkspaceTab } from "./workspace/types";
 import { InputsSection, ArtifactsSection } from "./LeftInputsArtifactsPanel/Sections";
@@ -17,7 +17,7 @@ function LeftInputsArtifactsPanelBase({
   onOpenTab,
 }: LeftInputsArtifactsPanelProps) {
   const { projectState } = useProjectStateContext();
-  const { textRequirements, inputWorkflow } = useProjectContext();
+  const { textRequirements, inputWorkflow } = useProjectInputContext();
 
   const documents = useMemo(
     () => projectState?.referenceDocuments ?? [],

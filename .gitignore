@@ -45,6 +45,9 @@ frontend/playwright-report/
 frontend/test-results/
 frontend/blob-report/
 
+# Frontend test outputs
+vitest-*.txt
+
 # PyInstaller
 *.manifest
 *.spec
@@ -66,6 +69,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.mypy_cache/
 coverage/
 .nyc_output/
 
@@ -224,3 +228,7 @@ backend/data/knowledge_bases/waf/checkpoint.json
 .secretkeeper/vault.enc
 .secretkeeper/vault.enc.tmp
 
+
+
+tests/
+__tests__/

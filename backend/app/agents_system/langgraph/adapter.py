@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..runner import get_agent_runner
 from ..services.response_sanitizer import sanitize_agent_output
-from .graph_factory_advanced import build_advanced_project_chat_graph
+from .graph_factory import build_project_chat_graph
 from .nodes.agent_native import run_stage_aware_agent
 from .state import GraphState
 
@@ -93,7 +93,7 @@ async def execute_project_chat(
         # Unified LangGraph path: always run the advanced workflow with
         # stage routing enabled and a single agent execution path.
         logger.info("Building unified LangGraph workflow (stage_routing=True, multi_agent=False)")
-        graph = build_advanced_project_chat_graph(
+        graph = build_project_chat_graph(
             db,
             response_message_id,
             enable_stage_routing=True,

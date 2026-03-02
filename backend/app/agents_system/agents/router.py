@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...models.project import ConversationMessage
 from ...projects_database import get_db
 from ..langgraph.adapter import execute_chat, execute_project_chat
+from ..runner import get_agent_runner
 from ..services.iteration_logging import (
     build_iteration_event_update,
     derive_mcp_query_updates_from_steps,

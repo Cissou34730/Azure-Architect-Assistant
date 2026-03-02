@@ -1,6 +1,8 @@
 """
-Models Service - Disk-Cached OpenAI Models Management
-Fetches and caches available OpenAI chat completion models with 7-day TTL.
+Models Service - Provider-aware models listing strategy.
+
+- OpenAI: disk-cached model listing with 7-day TTL
+- Azure OpenAI: deployment metadata-backed model list
 """
 
 import asyncio
@@ -10,9 +12,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from openai import AsyncOpenAI
+import httpx
 
-from app.core.app_settings import get_app_settings, get_openai_settings
+from app.core.app_settings import get_app_settings
+from app.services.ai.config import AIConfig
+from app.services.ai.providers import get_azure_openai_client, get_openai_client
 
 logger = logging.getLogger(__name__)
 
@@ -54,17 +58,17 @@ class ModelInfo:
 
 class ModelsService:
     """
-    Service for managing OpenAI models with disk-based caching.
+    Service for managing available models with provider-aware strategy.
     
     Cache Strategy:
-    - Fetch from OpenAI API on first request
+    - OpenAI: fetch from API on first request
     - Persist to disk (backend/data/openai_models_cache.json)
     - Reload from disk on subsequent requests
     - 7-day TTL - re-fetch if cache expired
     - Manual refresh via force_refresh parameter
     """
 
-    def __init__(self, cache_path: Path | None = None):
+    def __init__(self, cache_path: Path | None = None, config: AIConfig | None = None):
         """
         Initialize models service.
 
@@ -72,11 +76,15 @@ class ModelsService:
             cache_path: Path to cache file (defaults to app settings)
         """
         app_settings = get_app_settings()
-        openai_settings = get_openai_settings()
 
         self.cache_path = cache_path or app_settings.models_cache_path
         self.ttl_days = 7
-        self.client = AsyncOpenAI(api_key=openai_settings.api_key)
+        self.config = config or AIConfig()
+        self.client = (
+            get_openai_client(self.config)
+            if self.config.llm_provider == "openai"
+            else None
+        )
 
         # Ensure cache directory exists
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -97,6 +105,9 @@ class ModelsService:
         Returns:
             Tuple of (models list, cached_at timestamp)
         """
+        if self.config.llm_provider == "azure":
+            return await self._get_azure_models()
+
         if force_refresh:
             logger.info("Force refresh requested, bypassing cache")
             return await self._fetch_and_cache()
@@ -137,6 +148,12 @@ class ModelsService:
 
         except Exception as e:
             logger.error(f"Failed to fetch models from OpenAI: {e}")
+            if (
+                self.config.fallback_enabled
+                and self.config.fallback_provider == "azure"
+            ):
+                logger.warning("Using Azure deployment metadata fallback for model listing")
+                return await self._get_azure_models()
             # Try to return stale cache if available
             cached_data = await self._load_from_disk()
             if cached_data:
@@ -155,12 +172,14 @@ class ModelsService:
         """
         logger.info("Fetching models from OpenAI API")
 
+        if self.client is None:
+            raise RuntimeError("OpenAI client is not configured for model listing")
+
         # Fetch all models
         response = await self.client.models.list()
         all_models = list(response.data)
 
-        # Only exclude known non-chat model types
-        # Be permissive - include everything except models we know are NOT for chat
+        # Exclude model families that are never used for chat completions
         excluded_prefixes = (
             "text-embedding",    # Embedding models
             "text-similarity",   # Similarity models
@@ -175,7 +194,7 @@ class ModelsService:
             "babbage-",          # Legacy completion models
             "ada-",              # Legacy completion models
         )
-        
+
         chat_models = [
             model
             for model in all_models
@@ -218,6 +237,136 @@ class ModelsService:
         model_infos.sort(key=lambda m: m.id, reverse=True)
 
         return model_infos
+
+    async def _get_azure_models(self) -> tuple[list[ModelInfo], datetime]:
+        """Return model list from Azure deployment metadata.
+
+        Strategy:
+        1) Try Azure OpenAI data-plane deployment listing (live account state)
+        2) Fall back to configured deployment metadata from env
+        """
+        deployment_entries = await self._fetch_azure_deployments_data_plane()
+
+        if deployment_entries:
+            model_infos = [
+                ModelInfo(
+                    id=entry["deployment"],
+                    name=self._format_azure_display_name(
+                        deployment=entry["deployment"], model=entry["model"]
+                    ),
+                    context_window=self._extract_context_window(entry["model"]),
+                    pricing=None,
+                )
+                for entry in deployment_entries
+            ]
+            return model_infos, datetime.now(timezone.utc)
+
+        deployments = self._azure_llm_deployments()
+        if not deployments:
+            return [], datetime.now(timezone.utc)
+
+        model_infos = [
+            ModelInfo(
+                id=deployment,
+                name=self._format_model_name(deployment),
+                context_window=self._extract_context_window(
+                    self.config.openai_llm_model or deployment
+                ),
+                pricing=None,
+            )
+            for deployment in deployments
+        ]
+        return model_infos, datetime.now(timezone.utc)
+
+    async def _fetch_azure_deployments_data_plane(self) -> list[dict[str, str]]:
+        """Fetch Azure OpenAI deployments from the data-plane endpoint.
+
+        Returns list entries shaped as:
+            {"deployment": "<deployment-name>", "model": "<base-model-name>"}
+        """
+        endpoint = (self.config.azure_openai_endpoint or "").rstrip("/")
+        api_key = self.config.azure_openai_api_key
+        api_version = self.config.azure_openai_api_version
+
+        if not endpoint or not api_key or not api_version:
+            return []
+
+        # Ensure Azure client initialization pattern remains consistent.
+        # The returned client isn't used directly for deployment listing.
+        get_azure_openai_client(self.config)
+
+        url = f"{endpoint}/openai/deployments"
+        params = {"api-version": api_version}
+        headers = {"api-key": api_key}
+
+        try:
+            timeout = float(self.config.openai_timeout)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                payload = response.json()
+        except Exception as error:  # noqa: BLE001
+            logger.warning("Azure deployment listing failed, falling back to config metadata: %s", error)
+            return []
+
+        data = payload.get("data", []) if isinstance(payload, dict) else []
+        if not isinstance(data, list):
+            return []
+
+        deployment_entries: list[dict[str, str]] = []
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+
+            deployment_name = item.get("id")
+            model_name = item.get("model") or ""
+
+            if not isinstance(deployment_name, str) or not deployment_name.strip():
+                continue
+
+            # Keep chat-capable deployments in the model picker.
+            lower_model = model_name.lower() if isinstance(model_name, str) else ""
+            if lower_model.startswith("text-embedding"):
+                continue
+
+            deployment_entries.append(
+                {
+                    "deployment": deployment_name.strip(),
+                    "model": model_name.strip() if isinstance(model_name, str) else deployment_name.strip(),
+                }
+            )
+
+        deployment_entries.sort(key=lambda entry: entry["deployment"])
+        return deployment_entries
+
+    @staticmethod
+    def _format_azure_display_name(deployment: str, model: str) -> str:
+        if model and model != deployment:
+            return f"{model} ({deployment})"
+        return deployment
+
+    def _azure_llm_deployments(self) -> list[str]:
+        deployments: list[str] = []
+
+        if self.config.azure_llm_deployment:
+            deployments.append(self.config.azure_llm_deployment)
+
+        if self.config.azure_llm_deployments:
+            additional = [
+                item.strip()
+                for item in self.config.azure_llm_deployments.split(",")
+                if item.strip()
+            ]
+            deployments.extend(additional)
+
+        seen: set[str] = set()
+        unique_deployments: list[str] = []
+        for deployment in deployments:
+            if deployment not in seen:
+                unique_deployments.append(deployment)
+                seen.add(deployment)
+
+        return unique_deployments
 
     def _extract_context_window(self, model_id: str) -> int:
         """

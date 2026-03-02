@@ -5,7 +5,7 @@
 import { useState, useEffect } from "react";
 import { Message } from "../../../types/api";
 import { useChatMessaging } from "./useChatMessaging";
-import { archiveOldMessages } from "../../../utils/messageArchive";
+import { archiveOldMessages } from "../utils/messageArchive";
 
 export const useChat = (projectId: string | null) => {
   const [messages, setMessages] = useState<readonly Message[]>([]);

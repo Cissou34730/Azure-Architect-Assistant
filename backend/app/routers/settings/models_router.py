@@ -9,7 +9,9 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.services.ai.ai_service import AIServiceManager
+from app.services.ai.ai_service import AIService, AIServiceManager
+from app.services.ai.config import AIConfig
+from app.services.ai.interfaces import ChatMessage
 from app.services.models_service import ModelsService
 
 logger = logging.getLogger(__name__)
@@ -66,20 +68,20 @@ class SetModelResponse(BaseModel):
 @router.get("/available-models", response_model=AvailableModelsResponse)
 async def get_available_models(
     refresh: bool = Query(
-        default=False, description="Force refresh from OpenAI API, bypassing cache"
+        default=False, description="Force refresh from primary provider strategy, bypassing cache"
     )
 ) -> AvailableModelsResponse:
     """
-    Get list of available OpenAI chat completion models.
-    
-    Models are cached to disk with a 7-day TTL. Use refresh=true to bypass cache.
-    
+    Get list of available models for the active provider strategy.
+
+    OpenAI listings are cached to disk with a 7-day TTL. Use refresh=true to bypass cache.
+
     Args:
         refresh: Force refresh from API, ignoring cache
-    
+
     Returns:
         List of available models with pricing information
-    
+
     Raises:
         HTTPException: If failed to fetch models
     """
@@ -116,7 +118,7 @@ async def get_available_models(
 async def get_current_model() -> CurrentModelResponse:
     """
     Get the currently active LLM model.
-    
+
     Returns:
         Current model ID
     """
@@ -140,16 +142,16 @@ async def get_current_model() -> CurrentModelResponse:
 async def set_model(request: SetModelRequest) -> SetModelResponse:
     """
     Change the active LLM model.
-    
+
     This will reinitialize the AIService with the new model.
     All subsequent requests will use the new model.
-    
+
     Args:
         request: Model ID to set
-    
+
     Returns:
         Success status and current model
-    
+
     Raises:
         HTTPException: If model change failed
     """
@@ -158,15 +160,28 @@ async def set_model(request: SetModelRequest) -> SetModelResponse:
 
         logger.info(f"PUT /model - Attempting to change model to: {model_id}")
 
-        # Validate model exists (optional but recommended)
-        models_service = ModelsService()
-        models, _ = await models_service.get_available_models()
-        available_ids = {m.id for m in models}
+        # Probe using the same provider logic used at runtime so endpoint/model
+        # compatibility checks are identical during validation and inference.
+        probe_config = AIConfig()
+        if probe_config.llm_provider == "openai":
+            probe_config.openai_llm_model = model_id
 
-        if model_id not in available_ids:
-            logger.warning(
-                f"Model {model_id} not in available models list, but allowing change as fallback"
+        probe_service = AIService(probe_config)
+        try:
+            await probe_service.chat(
+                messages=[ChatMessage(role="user", content="Reply with: ok")],
+                temperature=0,
+                max_tokens=64,
+                timeout=20.0,
             )
+        except Exception as probe_error:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Model '{model_id}' is not usable with current provider compatibility strategy: "
+                    f"{probe_error}"
+                ),
+            ) from probe_error
 
         # Reinitialize AIService with new model
         logger.info(f"Calling reinitialize_with_model({model_id})")
@@ -196,6 +211,8 @@ async def set_model(request: SetModelRequest) -> SetModelResponse:
                 message="Model change verification failed",
             )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to change model: {e}")
         raise HTTPException(

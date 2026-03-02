@@ -9,8 +9,15 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from openai import APIError, APITimeoutError, BadRequestError, RateLimitError
+
 from app.core.app_settings import get_app_settings
 from app.services.ai import ChatMessage, get_ai_service
+from app.services.ai.json_repair import (
+    extract_json_candidate,
+    parse_json_with_repair,
+    repair_json_content,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,66 +45,78 @@ class LLMService:
 
         combined_text = "\n\n---\n\n".join(document_texts)
 
-        system_prompt = """You are an Azure Architecture Assistant.
+        system_prompt = """You are an Azure Architecture Assistant performing thorough document analysis.
 
-Analyze the provided project documents and extract:
-1) A baseline Architecture Sheet (context/NFRs/constraints)
-2) Structured requirements for the Azure Architect Assistant (AAA)
-3) Prioritized clarification questions based on gaps/ambiguities
+Your task: Extract a comprehensive, exhaustive inventory of ALL information from the provided project documents.
+Do NOT summarize or condense — capture every requirement, constraint, stakeholder mention, integration point,
+scale/volume indicator, and implicit expectation found in the text.
 
 Return JSON ONLY (no markdown, no code fences) with this structure:
 {
     "context": {
-        "summary": "Brief project summary",
-        "objectives": ["objective1"],
-        "targetUsers": "Description of target users",
-        "scenarioType": "Type of scenario (e.g., web app, IoT, data analytics)"
+        "summary": "Detailed project summary covering purpose, scope, and key business drivers",
+        "objectives": ["objective1", "objective2"],
+        "targetUsers": "Description of all target users, user roles, and stakeholders mentioned",
+        "scenarioType": "Type of scenario (e.g., web app, IoT, data analytics, migration, modernization)",
+        "stakeholders": ["stakeholder1", "stakeholder2"],
+        "businessDrivers": ["driver1", "driver2"]
     },
     "nfrs": {
-        "availability": "Availability requirements",
-        "security": "Security requirements",
-        "performance": "Performance requirements",
-        "costConstraints": "Cost constraints"
+        "availability": "Availability/uptime requirements with specific SLA targets if mentioned",
+        "security": "All security requirements: authentication, authorization, encryption, compliance frameworks",
+        "performance": "Performance targets: latency, throughput, response times, concurrent users/scale/volume",
+        "costConstraints": "Budget, cost model (CapEx/OpEx), optimization priorities",
+        "scalability": "Growth projections, expected scale, peak load characteristics",
+        "operationalExcellence": "Monitoring, alerting, deployment, maintenance requirements"
     },
     "applicationStructure": {
-        "components": [{"name": "component name", "description": "component description"}],
-        "integrations": ["integration1"]
+        "components": [{"name": "component name", "description": "detailed component description including responsibilities"}],
+        "integrations": ["all external systems, APIs, third-party services mentioned"],
+        "dataFlows": ["description of data flow between components"]
     },
     "dataCompliance": {
-        "dataTypes": ["data type1"],
-        "complianceRequirements": ["requirement1"],
-        "dataResidency": "Data residency requirements"
+        "dataTypes": ["every data type mentioned: PII, financial, health, etc."],
+        "complianceRequirements": ["all regulatory/compliance frameworks: GDPR, HIPAA, SOC 2, PCI DSS, ISO 27001, etc."],
+        "dataResidency": "Data residency/sovereignty requirements with specific regions if mentioned"
     },
     "technicalConstraints": {
-        "constraints": ["constraint1"],
-        "assumptions": ["assumption1"]
+        "constraints": ["every technical constraint: platform limits, legacy systems, required technologies, deployment restrictions"],
+        "assumptions": ["every assumption: implicit or explicit, about technology, team, timeline, etc."]
     },
-    "openQuestions": ["question1"],
+    "openQuestions": ["critical gaps or missing information that block architecture decisions"],
 
     "requirements": [
         {
             "category": "business | functional | nfr",
-            "text": "Requirement text",
-            "ambiguity": {"isAmbiguous": false, "notes": ""},
+            "text": "Full requirement text — be specific and detailed, not summarized",
+            "priority": "high | medium | low",
+            "ambiguity": {"isAmbiguous": false, "notes": "explain what is unclear if ambiguous"},
             "sources": [
-                {"documentId": "<if present in input>", "fileName": "<if present>", "excerpt": "short quote"}
+                {"documentId": "<from input if present>", "fileName": "<from input if present>", "excerpt": "verbatim short quote from the source"}
             ]
         }
     ],
     "clarificationQuestions": [
         {
-            "question": "Clarification question",
+            "question": "Specific clarification question tied to a gap or ambiguity",
             "priority": 1,
-            "relatedRequirementIndexes": [0]
+            "relatedRequirementIndexes": [0],
+            "impact": "Why this answer matters for architecture decisions"
         }
     ]
 }
 
-Notes:
-- Requirement categories must be exactly one of: business, functional, nfr
-- Mark ambiguities explicitly using ambiguity.isAmbiguous + ambiguity.notes
-- If you cannot determine sources, return an empty sources array
-- Prioritize clarificationQuestions: priority=1 is highest
+EXTRACTION RULES (mandatory):
+- Be EXHAUSTIVE: extract every explicit AND implicit requirement. A mention of "users in Europe" implies a data residency requirement.
+- Cross-reference across documents: if Document A mentions a component and Document B mentions its constraints, link them.
+- Capture scale indicators: any mention of user counts, data volumes, transaction rates, concurrent sessions, growth projections.
+- Capture integration points: every external system, API, service, or data source mentioned.
+- Capture stakeholders: every person, role, team, or department mentioned.
+- Preserve DocumentId references: when input contains "DocumentId: X" headers, use that X in sources[].documentId.
+- Mark ambiguities: if a requirement could be interpreted multiple ways, set isAmbiguous=true with notes explaining the ambiguity.
+- Priority assessment: assign priority based on business impact (explicit "must" = high, "should" = medium, "nice to have" = low).
+- Do NOT invent requirements not supported by the text — but DO surface implicit requirements that logically follow from explicit ones.
+- If documents are contradictory, capture both versions and flag the contradiction in openQuestions.
 """
 
         user_prompt = (
@@ -111,8 +130,11 @@ Notes:
                 user_prompt,
                 max_tokens=self.app_settings.llm_analyze_max_tokens,
             )
+        except (APITimeoutError, RateLimitError, APIError):
+            # Network/server-level failure — no point retrying with the legacy path
+            raise
         except Exception as e:
-            # Fallback to legacy parsing if JSON mode fails for any reason
+            # Content-level failure (bad JSON, empty response, etc.) — try legacy parser
             logger.warning(f"JSON mode failed, falling back to legacy parsing: {e}")
             response = await self._complete(
                 system_prompt,
@@ -142,14 +164,16 @@ Notes:
                 temperature=self.ai_service.config.default_temperature,
                 max_tokens=max_tokens,
                 response_format={"type": "json_object"},
+                timeout=self.app_settings.llm_request_timeout_seconds,
             )
-        except Exception as e:
-            # If response_format not supported, retry without it
+        except BadRequestError as e:
+            # response_format not supported by this model — retry without it
             logger.warning(f"JSON mode failed, retrying without response_format: {e}")
             response = await self.ai_service.chat(
                 messages=messages,
                 temperature=self.ai_service.config.default_temperature,
                 max_tokens=max_tokens,
+                timeout=self.app_settings.llm_request_timeout_seconds,
             )
 
         content = response.content
@@ -170,60 +194,37 @@ Notes:
         max_tokens: int,
     ) -> dict[str, Any]:
         """Parse JSON content and attempt one repair pass on decode failure."""
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON decode failed: {e}")
-            logger.error(
-                "Response content: %s",
-                content[: self.app_settings.llm_response_error_log_chars],
+        async def _repair(invalid_json: str, repair_tokens: int) -> str:
+            return await self._repair_json_content(
+                invalid_json=invalid_json,
+                max_tokens=repair_tokens,
             )
 
-            repaired_content = await self._repair_json_content(
-                invalid_json=content,
-                max_tokens=max(
-                    self.app_settings.llm_json_repair_min_tokens,
-                    max_tokens // self.app_settings.llm_json_repair_token_divisor,
-                ),
-            )
-            return json.loads(repaired_content)
+        return await parse_json_with_repair(
+            content,
+            max_tokens=max(
+                self.app_settings.llm_json_repair_min_tokens,
+                max_tokens // self.app_settings.llm_json_repair_token_divisor,
+            ),
+            repair_fn=_repair,
+            preview_chars=self.app_settings.llm_response_error_log_chars,
+        )
 
     async def _repair_json_content(self, invalid_json: str, max_tokens: int) -> str:
         """Ask the model to repair malformed/truncated JSON and return valid JSON only."""
-        repair_system_prompt = (
-            "You are a strict JSON repair assistant. "
-            "You receive malformed or truncated JSON. "
-            "Return ONLY valid JSON with the same top-level structure and keys. "
-            "Do not use markdown, comments, or code fences."
+        async def _complete(system: str, user: str, tokens: int) -> str:
+            return await self._complete(system, user, max_tokens=tokens)
+
+        return await repair_json_content(
+            invalid_json,
+            max_tokens,
+            complete_fn=_complete,
         )
-
-        repair_user_prompt = (
-            "Repair this invalid JSON and return valid JSON only.\n\n"
-            f"{invalid_json}"
-        )
-
-        repaired = await self._complete(
-            repair_system_prompt,
-            repair_user_prompt,
-            max_tokens=max_tokens,
-        )
-
-        repaired_candidate = self._extract_json_candidate(repaired)
-        if repaired_candidate is None:
-            logger.error("JSON repair failed: no JSON object found in repaired response")
-            raise ValueError("JSON repair failed: no JSON object found")
-
-        logger.info("Successfully repaired malformed JSON response")
-        return repaired_candidate
 
     @staticmethod
     def _extract_json_candidate(response_text: str) -> str | None:
         """Extract the outer JSON object from text if present."""
-        start = response_text.find("{")
-        end = response_text.rfind("}")
-        if start == -1 or end == -1 or end <= start:
-            return None
-        return response_text[start : end + 1]
+        return extract_json_candidate(response_text)
 
     async def process_chat_message(
         self,
@@ -342,6 +343,7 @@ Use clear headings, bullet points, and technical details. Reference Azure Well-A
             messages=messages,
             temperature=self.ai_service.config.default_temperature,
             max_tokens=max_tokens,
+            timeout=self.app_settings.llm_request_timeout_seconds,
         )
 
         return response.content

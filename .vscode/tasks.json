@@ -4,14 +4,14 @@
 		{
 			"label": "Run backend unit tests",
 			"type": "shell",
-			"command": "& \"${workspaceFolder}\\.venv\\Scripts\\python.exe\" -m pytest backend\\tests -q",
+			"command": "uv run pytest backend/tests -q",
 			"group": "test"
 		}
 		,
 		{
 			"label": "Run full backend tests",
 			"type": "shell",
-			"command": "& \"${workspaceFolder}\\.venv\\Scripts\\python.exe\" -m pytest backend -q",
+			"command": "uv run pytest backend -q",
 			"group": "test"
 		}
 	]

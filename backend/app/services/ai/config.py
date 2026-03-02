@@ -15,19 +15,25 @@ class AIConfig(BaseSettings):
     # Provider selection
     llm_provider: Literal["openai", "azure", "anthropic", "local"] = "openai"
     embedding_provider: Literal["openai", "azure", "local"] = "openai"
+    fallback_provider: Literal["openai", "azure", "none"] = "none"
+    fallback_enabled: bool = False
+    fallback_on_transient_only: bool = True
 
     # OpenAI Configuration
     openai_api_key: str = ""
+    openai_project: str = ""
+    openai_organization: str = ""
     openai_llm_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
-    openai_timeout: float = 90.0
-    openai_max_retries: int = 3
+    openai_timeout: float = 600.0
+    openai_max_retries: int = 0  # no SDK-level retries; callers own retry strategy
 
     # Azure OpenAI Configuration (optional)
     azure_openai_endpoint: str = ""
     azure_openai_api_key: str = ""
     azure_openai_api_version: str = "2024-02-15-preview"
     azure_llm_deployment: str = ""
+    azure_llm_deployments: str = ""
     azure_embedding_deployment: str = ""
 
     # Model Parameters
@@ -60,10 +66,23 @@ class AIConfig(BaseSettings):
 
     def validate_provider_config(self) -> None:
         """Validate that required config for selected provider is present."""
-        if self.llm_provider == "openai" and not self.openai_api_key:
+        openai_required_for_llm = self.llm_provider == "openai" or (
+            self.fallback_enabled and self.fallback_provider == "openai"
+        )
+        openai_required_for_embedding = self.embedding_provider == "openai" or (
+            self.fallback_enabled and self.fallback_provider == "openai"
+        )
+        azure_required_for_llm = self.llm_provider == "azure" or (
+            self.fallback_enabled and self.fallback_provider == "azure"
+        )
+        azure_required_for_embedding = self.embedding_provider == "azure" or (
+            self.fallback_enabled and self.fallback_provider == "azure"
+        )
+
+        if openai_required_for_llm and not self.openai_api_key:
             raise ValueError("OpenAI API key is required for OpenAI LLM provider")
 
-        if self.llm_provider == "azure" and not all(
+        if azure_required_for_llm and not all(
             [
                 self.azure_openai_endpoint,
                 self.azure_openai_api_key,
@@ -74,10 +93,10 @@ class AIConfig(BaseSettings):
                 "Azure endpoint, API key, and deployment name required for Azure provider"
             )
 
-        if self.embedding_provider == "openai" and not self.openai_api_key:
+        if openai_required_for_embedding and not self.openai_api_key:
             raise ValueError("OpenAI API key is required for OpenAI embedding provider")
 
-        if self.embedding_provider == "azure" and not all(
+        if azure_required_for_embedding and not all(
             [
                 self.azure_openai_endpoint,
                 self.azure_openai_api_key,

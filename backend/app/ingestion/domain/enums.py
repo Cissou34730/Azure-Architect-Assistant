@@ -5,6 +5,16 @@ from __future__ import annotations
 import enum
 
 
+class IngestionPhase(str, enum.Enum):
+    """Phases of the ingestion process."""
+
+    NOT_STARTED = 'not_started'
+    LOADING = 'loading'
+    CHUNKING = 'chunking'
+    EMBEDDING = 'embedding'
+    INDEXING = 'indexing'
+
+
 class JobPhase(str, enum.Enum):
     """Execution phases within a running job."""
 

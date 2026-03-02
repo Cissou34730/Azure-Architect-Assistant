@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 
 from ..config import AIConfig
 from ..interfaces import EmbeddingProvider
+from .openai_client import get_openai_client
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +31,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             config: AI configuration
         """
         self.config = config
-        self.client = AsyncOpenAI(
-            api_key=config.openai_api_key,
-            timeout=config.openai_timeout,
-            max_retries=config.openai_max_retries,
-        )
+        self.client = get_openai_client(config)
         self.model = config.openai_embedding_model
         logger.info(f"OpenAI Embedding Provider initialized with model: {self.model}")
 
