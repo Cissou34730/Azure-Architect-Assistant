@@ -220,3 +220,7 @@ backups/
 # Analysis and temporary notes
 merge-analysis.txt
 backend/data/knowledge_bases/waf/checkpoint.json
+
+
+tests/
+__tests__/
