@@ -6,6 +6,7 @@ Orchestrates LLM-powered diagram generation with validation pipeline.
 import logging
 from dataclasses import dataclass
 
+from app.core.app_settings import get_app_settings
 from app.models.diagram import DiagramType
 
 from .llm_client import DiagramLLMClient
@@ -30,7 +31,9 @@ class GenerationResult:
 class DiagramGenerator:
     """Generates diagrams from text descriptions with validation and retry."""
 
-    MAX_RETRIES = 3  # Per FR-021
+    @property
+    def MAX_RETRIES(self) -> int:  # noqa: N802
+        return get_app_settings().diagram_max_retries
 
     def __init__(self, llm_client: DiagramLLMClient) -> None:
         """Initialize diagram generator.
@@ -149,7 +152,7 @@ class DiagramGenerator:
 
             # Generate diagram via LLM
             diagram_source = await self.llm_client.generate_diagram(
-                prompt=prompt, temperature=0.3
+                prompt=prompt, temperature=get_app_settings().diagram_temperature
             )
 
             if not diagram_source:
@@ -245,6 +248,9 @@ class DiagramGenerator:
             if error:
                 previous_error = error
                 continue
+            if diagram_source is None:
+                previous_error = "Generation returned no source without explicit error"
+                continue
 
             # Validate generated diagram
             is_valid, result, retry_feedback = await self._validate_and_create_result(
@@ -252,6 +258,13 @@ class DiagramGenerator:
             )
 
             if is_valid:
+                if result is None:
+                    return GenerationResult(
+                        success=False,
+                        diagram_type=diagram_type,
+                        attempts=attempt,
+                        error="Validation marked diagram valid but returned no result",
+                    )
                 return result
 
             previous_error = retry_feedback

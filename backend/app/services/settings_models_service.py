@@ -7,6 +7,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from app.core.app_settings import get_app_settings
 from app.services.ai.ai_service import AIService, AIServiceManager
 from app.services.ai.config import AIConfig
 from app.services.ai.interfaces import ChatMessage
@@ -39,19 +40,20 @@ class SettingsModelsService:
         return ai_service.get_llm_model()
 
     async def set_model(self, *, model_id: str) -> dict[str, Any]:
-        probe_config = AIConfig()
+        probe_config = AIConfig.default()
         if probe_config.llm_provider == "openai":
             probe_config.openai_llm_model = model_id
 
         probe_service = AIService(probe_config)
+        _s = get_app_settings()
         try:
             await probe_service.chat(
                 messages=[ChatMessage(role="user", content="Reply with: ok")],
-                temperature=0,
-                max_tokens=64,
+                temperature=_s.models_probe_temperature,
+                max_tokens=_s.models_probe_max_tokens,
                 timeout=20.0,
             )
-        except Exception as probe_error:  # noqa: BLE001
+        except Exception as probe_error:
             raise HTTPException(
                 status_code=400,
                 detail=(

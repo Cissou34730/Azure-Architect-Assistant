@@ -13,6 +13,7 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from app.core.app_settings import get_app_settings
 from app.ingestion.application.orchestrator import (
     IngestionOrchestrator,
     RetryPolicy,
@@ -96,7 +97,7 @@ class IngestionRuntimeService:
 
         task.cancel()
         try:
-            await asyncio.wait_for(task, timeout=5.0)
+            await asyncio.wait_for(task, timeout=get_app_settings().ingestion_shutdown_timeout)
         except asyncio.TimeoutError:
             logger.warning("Task for job %s did not stop within 5 seconds", job_id)
         except asyncio.CancelledError:
@@ -163,7 +164,7 @@ class IngestionRuntimeService:
             if task and not task.done():
                 task.cancel()
                 with suppress(asyncio.CancelledError, asyncio.TimeoutError):
-                    await asyncio.wait_for(task, timeout=2.0)
+                    await asyncio.wait_for(task, timeout=get_app_settings().ingestion_cancel_timeout)
 
             indexer = Indexer(kb_id=kb_id)
             indexer.delete_by_job(job_id, kb_id)
@@ -174,7 +175,7 @@ class IngestionRuntimeService:
                 last_error="Canceled by user",
             )
             self.repo.update_job(job_id, checkpoint=None, counters=None)
-        except Exception as cleanup_error:  # noqa: BLE001
+        except Exception as cleanup_error:
             logger.error("Cleanup failed for job %s: %s", job_id, cleanup_error, exc_info=True)
 
         return {"status": "canceled", "job_id": job_id, "kb_id": kb_id}
@@ -197,7 +198,7 @@ class IngestionRuntimeService:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Could not mark job %s as paused: %s", job_id, exc)
 
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(get_app_settings().ingestion_drain_sleep)
 
         pending: list[tuple[str, asyncio.Task[Any]]] = []
         for job_id, task in tasks_snapshot:

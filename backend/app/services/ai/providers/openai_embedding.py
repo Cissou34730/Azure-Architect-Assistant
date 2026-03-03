@@ -4,8 +4,6 @@ OpenAI Embedding Provider Implementation
 
 import logging
 
-from openai import AsyncOpenAI
-
 from ..config import AIConfig
 from ..interfaces import EmbeddingProvider
 from .openai_client import get_openai_client

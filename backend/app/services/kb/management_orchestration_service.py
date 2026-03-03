@@ -1,58 +1,58 @@
-"""
-Business Logic for KB Management Operations
-Service layer handling KB listing, health checks, and KB CRUD.
-"""
+"""Orchestration layer for KB management API endpoints."""
 
 import asyncio
 import logging
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, cast
 
 from fastapi import HTTPException
 
-from app.ingestion.infrastructure import create_job_repository
+from app.core.app_settings import get_app_settings
+from app.ingestion.application.status_query_service import StatusQueryService
+from app.ingestion.infrastructure import create_job_repository, create_queue_repository
 from app.kb import KBManager
 from app.kb.service import KnowledgeBaseService, clear_index_cache
-from app.service_registry import invalidate_kb_manager
-
-from .management_models import CreateKBRequest
+from app.service_registry import ServiceRegistry
 
 logger = logging.getLogger(__name__)
 
 
-class KBManagementService:
-    """Stateless service layer for KB management operations."""
+@dataclass(frozen=True)
+class CreateKnowledgeBaseInput:
+    kb_id: str
+    name: str
+    description: str
+    source_type: str
+    source_config: dict[str, Any]
+    embedding_model: str
+    chunk_size: int
+    chunk_overlap: int
+    profiles: list[str] | None
+    priority: int
 
-    def __init__(self) -> None:
-        """Initialize the service."""
-        pass
+
+class KBManagementService:
+    """Stateless orchestration for KB CRUD and health endpoints."""
+
+    def __init__(
+        self,
+        invalidate_kb_cache: Callable[[], None] = ServiceRegistry.invalidate_kb_manager,
+    ) -> None:
+        self._invalidate_kb_cache = invalidate_kb_cache
 
     def create_knowledge_base(
-        self, request: CreateKBRequest, manager: KBManager
+        self, request: CreateKnowledgeBaseInput, manager: KBManager
     ) -> dict[str, str]:
-        """
-        Create a new knowledge base.
-
-        Args:
-            request: KB creation request
-            manager: KB manager instance
-
-        Returns:
-            Dict with kb_id, kb_name, message
-
-        Raises:
-            ValueError: If KB already exists or validation fails
-        """
-        # Check if KB already exists
         if manager.kb_exists(request.kb_id):
             raise ValueError(f"Knowledge base '{request.kb_id}' already exists")
 
-        # Build KB configuration
         kb_config = {
             "id": request.kb_id,
             "name": request.name,
-            "description": request.description or "",
+            "description": request.description,
             "status": "active",
-            "source_type": request.source_type.value,
+            "source_type": request.source_type,
             "source_config": request.source_config,
             "embedding_model": request.embedding_model,
             "chunk_size": request.chunk_size,
@@ -62,11 +62,9 @@ class KBManagementService:
             "indexed": False,
         }
 
-        # Create KB
         manager.create_kb(request.kb_id, kb_config)
-        invalidate_kb_manager()
-
-        logger.info(f"KB created id={request.kb_id} name='{request.name}'")
+        self._invalidate_kb_cache()
+        logger.info("KB created id=%s name=%s", request.kb_id, request.name)
 
         return {
             "message": f"Knowledge base '{request.name}' created successfully",
@@ -75,29 +73,9 @@ class KBManagementService:
         }
 
     def list_knowledge_bases(self, manager: KBManager) -> list[dict[str, Any]]:
-        """
-        List all available knowledge bases.
-
-        Args:
-            manager: KB manager instance
-
-        Returns:
-            List of KB information dictionaries
-        """
-        kbs_info = manager.list_kbs()
-        return cast(list[dict[str, Any]], kbs_info)  # Listing log suppressed
+        return cast(list[dict[str, Any]], manager.list_kbs())
 
     def check_health(self, manager: KBManager) -> dict[str, Any]:
-        """
-        Check health status of all knowledge bases.
-
-        Args:
-            service: Multi-source query service instance
-
-        Returns:
-            Dictionary with overall status and per-KB health info
-        """
-        # Build health by checking index readiness per KB via KB service
         health_dict: dict[str, dict[str, Any]] = {}
         for kb in manager.knowledge_bases.values():
             try:
@@ -109,8 +87,7 @@ class KBManagementService:
                     }
                     continue
 
-                svc = KnowledgeBaseService(kb)
-                ready = svc.is_index_ready()
+                ready = KnowledgeBaseService(kb).is_index_ready()
                 status = "ready" if ready else "not-indexed"
                 health_dict[kb.id] = {"name": kb.name, "status": status, "error": None}
             except Exception as exc:
@@ -121,10 +98,8 @@ class KBManagementService:
                     "error": str(exc),
                 }
 
-        # Process health information
         kb_health = []
         all_ready = True
-
         for kb_id, kb_info in health_dict.items():
             index_ready = kb_info.get("status") == "ready"
             if not index_ready:
@@ -147,12 +122,44 @@ class KBManagementService:
             if len(kb_health) > 0
             else "unavailable"
         )
-
-        logger.info(f"KB health status={overall_status}")
+        logger.info("KB health status=%s", overall_status)
         return {"overall_status": overall_status, "knowledge_bases": kb_health}
 
-    async def delete_knowledge_base(self, kb_id: str, manager: KBManager) -> dict[str, str]:
-        """Delete a knowledge base and related runtime/cache state."""
+    def get_persisted_status(
+        self, kb_id: str, manager: KBManager
+    ) -> dict[str, str | dict[str, int] | None]:
+        """Return persisted KB status and best-effort queue metrics."""
+        if not manager.kb_exists(kb_id):
+            raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+
+        status = StatusQueryService().get_status(kb_id)
+        metrics: dict[str, int] | None = None
+
+        try:
+            queue_repo = create_queue_repository()
+            job_repo = create_job_repository()
+            job_id = job_repo.get_latest_job_id(kb_id)
+            if job_id:
+                stats = queue_repo.get_queue_stats(job_id)
+                metrics = {
+                    "pending": int(stats.get("pending", 0)),
+                    "processing": int(stats.get("processing", 0)),
+                    "done": int(stats.get("done", 0)),
+                    "error": int(stats.get("error", 0)),
+                }
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Unable to retrieve queue metrics for kb_id=%s: %s",
+                kb_id,
+                exc,
+                exc_info=True,
+            )
+
+        return {"kb_id": kb_id, "status": status.status, "metrics": metrics}
+
+    async def delete_knowledge_base(
+        self, kb_id: str, manager: KBManager
+    ) -> dict[str, str]:
         if not manager.kb_exists(kb_id):
             raise HTTPException(
                 status_code=404, detail=f"Knowledge base '{kb_id}' not found"
@@ -172,10 +179,10 @@ class KBManagementService:
 
         if storage_dir:
             clear_index_cache(kb_id=kb_id, storage_dir=storage_dir)
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(get_app_settings().kb_operation_sleep)
 
         manager.delete_kb(kb_id)
-        invalidate_kb_manager()
+        self._invalidate_kb_cache()
         logger.info("Deleted KB: %s", kb_id)
         return {
             "message": f"Knowledge base '{kb_id}' deleted successfully",
@@ -183,7 +190,9 @@ class KBManagementService:
         }
 
 
-def get_management_service() -> KBManagementService:
-    """Get singleton management service instance"""
-    return KBManagementService()
+_management_service = KBManagementService()
 
+
+def get_management_service() -> KBManagementService:
+    """Get KB management orchestration service instance."""
+    return _management_service

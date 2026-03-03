@@ -11,7 +11,6 @@ from typing_extensions import TypedDict
 
 from app.ingestion.application.status_query_service import KBPersistedStatus
 
-
 # ── Domain types ──────────────────────────────────────────────────────────
 
 class IngestionMetrics(TypedDict, total=False):

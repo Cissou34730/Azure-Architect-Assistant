@@ -52,7 +52,7 @@ async def async_client(diagram_db_session: AsyncSession):
 async def test_create_diagram_set_validation(async_client: AsyncClient) -> None:
     # Too short description
     response = await async_client.post(
-        "/api/v1/diagram-sets",
+        "/api/diagram-sets",
         json={"input_description": "short"},
     )
     assert response.status_code == 422
@@ -61,5 +61,5 @@ async def test_create_diagram_set_validation(async_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_get_diagram_set_not_found(async_client: AsyncClient) -> None:
     fake_id = str(uuid.uuid4())
-    response = await async_client.get(f"/api/v1/diagram-sets/{fake_id}")
+    response = await async_client.get(f"/api/diagram-sets/{fake_id}")
     assert response.status_code == 404

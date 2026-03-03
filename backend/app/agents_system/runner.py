@@ -1,7 +1,8 @@
 """Agent system runner for shared runtime resources."""
 
 import logging
-from config.settings import OpenAISettings
+
+from app.core.app_settings import get_app_settings
 
 from ..services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
@@ -30,17 +31,14 @@ class AgentRunner:
 
     def __init__(
         self,
-        openai_settings: OpenAISettings | None = None,
         mcp_client: MicrosoftLearnMCPClient | None = None,
     ):
         """
         Initialize the agent runner.
 
         Args:
-            openai_settings: OpenAI configuration (defaults to env-based settings)
             mcp_client: MCP client instance
         """
-        self.openai_settings = openai_settings or OpenAISettings()
         self.mcp_client = mcp_client
 
         logger.info("AgentRunner initialized")
@@ -56,7 +54,7 @@ class AgentRunner:
         if not self.mcp_client:
             raise ValueError("MCP client must be provided to AgentRunner")
 
-        if not self.openai_settings.api_key:
+        if not get_app_settings().openai_api_key:
             raise ValueError("OPENAI_API_KEY not set in environment")
 
         logger.info("Agent system initialization complete")
@@ -76,12 +74,13 @@ class AgentRunner:
         Returns:
             Dictionary with health status
         """
-        status = "healthy" if self.mcp_client and self.openai_settings.api_key else "not_initialized"
+        openai_configured = bool(get_app_settings().openai_api_key)
+        status = "healthy" if self.mcp_client and openai_configured else "not_initialized"
         health = {"status": status}
         health.update(
             {
                 "mcp_client_connected": self.mcp_client is not None,
-                "openai_configured": bool(self.openai_settings.api_key),
+                "openai_configured": openai_configured,
             }
         )
         return health

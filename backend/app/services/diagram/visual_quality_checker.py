@@ -35,7 +35,11 @@ class VisualQualityChecker:
     MAX_DEPTH = 5  # Avoid deep nesting
 
     def _validate_thresholds(
-        self, nodes: list[str], edges: list[str], orphans: set[str], depth: int
+        self,
+        nodes: set[str],
+        edges: list[tuple[str, str]],
+        orphans: set[str],
+        depth: int,
     ) -> tuple[list[str], list[str]]:
         """Validate calculated metrics against visual quality thresholds."""
         issues = []

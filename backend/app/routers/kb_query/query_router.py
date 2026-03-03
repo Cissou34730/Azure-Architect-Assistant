@@ -4,14 +4,20 @@ FastAPI endpoints for knowledge base queries.
 """
 
 import logging
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends
 
-from app.dependencies import get_kb_manager
+from app.dependencies import (
+    get_kb_manager,
+    get_kb_query_service_dependency,
+    get_multi_query_service_dependency,
+)
 from app.kb import KBManager
 from app.kb.service import KnowledgeBaseService
 from app.routers.error_utils import internal_server_error
 from app.services.kb import MultiKBQueryService, QueryProfile
+from app.services.kb.query_orchestration_service import KBQueryService
 
 from .query_models import (
     KBQueryRequest,
@@ -20,7 +26,6 @@ from .query_models import (
     QueryResponse,
     SourceInfo,
 )
-from .query_operations import KBQueryService, get_query_service
 
 logger = logging.getLogger(__name__)
 
@@ -35,16 +40,16 @@ router = APIRouter(prefix="/api/query", tags=["query"])
 
 def get_multi_query_service_dep() -> MultiKBQueryService:
     """Dependency for Multi Query Service."""
-    from app.service_registry import get_multi_query_service
-    return get_multi_query_service()
+    return get_multi_query_service_dependency()
 
 
 def get_query_service_dep() -> KBQueryService:
     """Dependency for Query Service."""
-    return get_query_service()
+    return get_kb_query_service_dependency()
 
 
 def _to_query_response(result: dict[str, str | list | bool | None]) -> QueryResponse:
+    raw_sources = cast(list[dict[str, Any]], result.get("sources") or [])
     sources = [
         SourceInfo(
             url=source.get("url", ""),
@@ -54,7 +59,7 @@ def _to_query_response(result: dict[str, str | list | bool | None]) -> QueryResp
             kb_id=source.get("kb_id"),
             kb_name=source.get("kb_name"),
         )
-        for source in result.get("sources") or []
+        for source in raw_sources
         if isinstance(source, dict)
     ]
     return QueryResponse(

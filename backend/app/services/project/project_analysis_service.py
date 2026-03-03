@@ -36,7 +36,7 @@ class ProjectAnalysisService:
                 state = await append_diagram_reference_to_project_state(
                     project_id, state, diagram_ref, db
                 )
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.exception(
                 "C4 context diagram generation skipped for project %s",
                 project_id,

@@ -20,7 +20,6 @@ from langgraph.graph import END, StateGraph, add_messages
 from langgraph.prebuilt import ToolNode
 
 from app.services.ai.ai_service import get_ai_service
-from config.settings import OpenAISettings
 
 from ....services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from ...config.react_prompts import SYSTEM_PROMPT
@@ -209,11 +208,11 @@ async def run_stage_aware_agent(
     state: GraphState,
     *,
     mcp_client: MicrosoftLearnMCPClient,
-    openai_settings: OpenAISettings,
+    openai_settings: object = None,  # kept for call-site compat; no longer used
 ) -> dict[str, Any]:
     """Execute a stage-aware agent using LangGraph ToolNode."""
-    if mcp_client is None or openai_settings is None:
-        raise RuntimeError("Missing MCP client or OpenAI settings for agent execution")
+    if mcp_client is None:
+        raise RuntimeError("Missing MCP client for agent execution")
 
     user_message = state["user_message"]
     system_directives = _build_system_directives(state)
@@ -221,10 +220,11 @@ async def run_stage_aware_agent(
     tools = await _build_tools(mcp_client, project_id=project_id)
 
     ai_service = get_ai_service()
-    chat_llm_overrides: dict[str, Any] = {"temperature": 0.1}
+    from app.core.app_settings import get_app_settings  # noqa: PLC0415
+    chat_llm_overrides: dict[str, Any] = {"temperature": get_app_settings().chat_temperature}
     if ai_service.config.llm_provider == "openai":
-        chat_llm_overrides["model"] = openai_settings.model
-        chat_llm_overrides["openai_api_key"] = openai_settings.api_key
+        chat_llm_overrides["model"] = ai_service.config.openai_llm_model
+        chat_llm_overrides["openai_api_key"] = ai_service.config.openai_api_key
     base_llm = ai_service.create_chat_llm(**chat_llm_overrides)
     llm = base_llm.bind_tools(tools)
 

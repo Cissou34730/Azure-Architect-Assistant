@@ -11,7 +11,6 @@ from app.main import app
 from app.projects_database import get_db
 from app.routers.kb_management.management_router import (
     get_management_service_dep,
-    get_multi_query_service_dep,
 )
 
 
@@ -47,7 +46,6 @@ async def async_client(test_db_session: AsyncSession, mock_kb_manager, mock_mana
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_kb_manager] = lambda: mock_kb_manager
     app.dependency_overrides[get_management_service_dep] = lambda: mock_management_service
-    app.dependency_overrides[get_multi_query_service_dep] = lambda: Mock()
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

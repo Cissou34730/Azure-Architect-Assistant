@@ -17,9 +17,11 @@ from app.core.app_settings import get_app_settings
 from app.models import Project
 from app.models.diagram import DiagramSet
 from app.models.project import ProjectState
+from app.routers.project_management.project_models import (
+    CreateProjectRequest,
+    UpdateRequirementsRequest,
+)
 from app.services.diagram.database import get_diagram_session
-
-from app.routers.project_management.project_models import CreateProjectRequest, UpdateRequirementsRequest
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +103,7 @@ class ProjectService:
 
     async def soft_delete_project(self, project_id: str, db: AsyncSession) -> None:
         """Soft delete a project by setting deleted_at timestamp.
-        
+
         Also cleans up associated diagrams from the diagrams database.
         """
         result = await db.execute(
@@ -132,7 +134,7 @@ class ProjectService:
         self, project_ids: list[str], db: AsyncSession
     ) -> dict[str, Any]:
         """Bulk soft delete multiple projects.
-        
+
         Returns dict with deleted_count and project_ids.
         """
         if not project_ids:
@@ -175,7 +177,7 @@ class ProjectService:
         self, project_id: str, db: AsyncSession
     ) -> None:
         """Delete diagram sets associated with a project from diagrams database.
-        
+
         Diagrams are linked to projects via ProjectState.state JSON field which
         contains diagram references with diagramSetId.
         """

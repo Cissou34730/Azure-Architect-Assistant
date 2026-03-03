@@ -6,7 +6,7 @@ Eliminates unnecessary type checking and response normalization.
 """
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from ..learn_mcp_client import MicrosoftLearnMCPClient
 
@@ -83,16 +83,18 @@ async def search_microsoft_docs(
     meta = response.get("meta") if isinstance(response, dict) else None
 
     # Normalize content to a list of result dicts
-    content = response.get("content")
+    content: Any = response.get("content")
+    items: list[Any]
     if isinstance(content, list):
         items = content
     elif isinstance(content, dict):
         # Some servers return { results: [...] }
-        items = (
+        maybe_items = (
             content.get("results")
             if isinstance(content.get("results"), list)
             else [content]
         )
+        items = cast(list[Any], maybe_items)
     else:
         items = []
 
@@ -199,18 +201,20 @@ async def search_code_samples(
     meta = response.get("meta") if isinstance(response, dict) else None
 
     # Normalize content to a list of sample dicts
-    content = response.get("content")
+    content: Any = response.get("content")
+    items: list[Any]
     if isinstance(content, list):
         items = content
     elif isinstance(content, dict):
         # Some servers return { samples: [...] } or { results: [...] }
-        items = (
+        maybe_items = (
             content.get("samples")
             if isinstance(content.get("samples"), list)
             else content.get("results")
             if isinstance(content.get("results"), list)
             else [content]
         )
+        items = cast(list[Any], maybe_items)
     else:
         items = []
 
@@ -260,7 +264,7 @@ async def get_azure_guidance(
     # Search documentation
     docs = await search_microsoft_docs(client, topic, max_results=5)
 
-    result = {
+    result: dict[str, Any] = {
         "topic": topic,
         "documentation": docs,
         "code_samples": None,
@@ -278,11 +282,10 @@ async def get_azure_guidance(
 
     # Generate summary
     doc_count = len(docs.get("results", []))
-    sample_count = (
-        len(result["code_samples"].get("samples", []))
-        if result["code_samples"] and not result["code_samples"].get("error")
-        else 0
-    )
+    code_samples = result.get("code_samples")
+    sample_count = 0
+    if isinstance(code_samples, dict) and not code_samples.get("error"):
+        sample_count = len(cast(list[Any], code_samples.get("samples", [])))
 
     result["summary"] = (
         f"Found {doc_count} documentation pages and {sample_count} code samples for '{topic}'"

@@ -19,12 +19,6 @@ class UpdateRequirementsRequest(BaseModel):
     text_requirements: str = Field(alias="textRequirements")
 
 
-class ChatMessageRequest(BaseModel):
-    """Request to send a chat message"""
-
-    message: str
-
-
 class ProjectResponse(BaseModel):
     """Single project response"""
 

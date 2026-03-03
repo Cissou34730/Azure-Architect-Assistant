@@ -7,12 +7,13 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.dependencies import get_kb_manager
-from app.ingestion.application.status_query_service import StatusQueryService
-from app.ingestion.infrastructure import create_job_repository, create_queue_repository
+from app.dependencies import get_kb_management_service_dependency, get_kb_manager
 from app.kb import KBManager
 from app.routers.error_utils import internal_server_error, map_value_error
-from app.services.kb import MultiKBQueryService
+from app.services.kb.management_orchestration_service import (
+    CreateKnowledgeBaseInput,
+    KBManagementService,
+)
 
 from .management_models import (
     CreateKBRequest,
@@ -23,28 +24,15 @@ from .management_models import (
     KBListResponse,
     KBStatusResponse,
 )
-from .management_operations import KBManagementService, get_management_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/kb", tags=["knowledge-bases"])
 
 
-# ============================================================================
-# Dependency Injection
-# Note: Using centralized dependencies from app.dependencies for consistency
-# ============================================================================
-
-
-def get_multi_query_service_dep() -> MultiKBQueryService:
-    """Dependency for Multi Query Service."""
-    from app.service_registry import get_multi_query_service
-    return get_multi_query_service()
-
-
 def get_management_service_dep() -> KBManagementService:
     """Dependency for Management Service."""
-    return get_management_service()
+    return get_kb_management_service_dependency()
 
 
 # ============================================================================
@@ -60,7 +48,21 @@ async def create_kb(
 ) -> CreateKBResponse:
     """Create a new knowledge base"""
     try:
-        result = operations.create_knowledge_base(request, kb_manager)
+        result = operations.create_knowledge_base(
+            CreateKnowledgeBaseInput(
+                kb_id=request.kb_id,
+                name=request.name,
+                description=request.description or "",
+                source_type=request.source_type.value,
+                source_config=request.source_config,
+                embedding_model=request.embedding_model,
+                chunk_size=request.chunk_size,
+                chunk_overlap=request.chunk_overlap,
+                profiles=request.profiles,
+                priority=request.priority,
+            ),
+            kb_manager,
+        )
         return CreateKBResponse(**result)
     except ValueError as e:
         raise map_value_error(e, default_status=400) from e
@@ -174,35 +176,12 @@ async def check_kb_health(
 async def get_kb_status(
     kb_id: str,
     kb_manager: KBManager = Depends(get_kb_manager),
+    operations: KBManagementService = Depends(get_management_service_dep),
 ) -> KBStatusResponse:
     """Persisted-only KB status derived from phase rows; no runtime calls."""
     try:
-        if not kb_manager.kb_exists(kb_id):
-            raise HTTPException(
-                status_code=404, detail=f"Knowledge base '{kb_id}' not found"
-            )
-
-        status_service = StatusQueryService()
-        status = status_service.get_status(kb_id)
-
-        # Minimal persisted counters from queue using correct job_id
-        metrics = None
-        try:
-            queue_repo = create_queue_repository()
-            job_repo = create_job_repository()
-            job_id = job_repo.get_latest_job_id(kb_id)
-            if job_id:
-                qs = queue_repo.get_queue_stats(job_id)
-                metrics = {
-                    "pending": qs.get("pending", 0),
-                    "processing": qs.get("processing", 0),
-                    "done": qs.get("done", 0),
-                    "error": qs.get("error", 0),
-                }
-        except Exception:  # noqa: BLE001
-            metrics = None
-
-        return KBStatusResponse(kb_id=kb_id, status=status.status, metrics=metrics)
+        payload = operations.get_persisted_status(kb_id, kb_manager)
+        return KBStatusResponse.model_validate(payload)
     except HTTPException:
         raise
     except Exception as e:

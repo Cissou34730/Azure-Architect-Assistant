@@ -5,10 +5,11 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents_system.checklists.service import ChecklistService, get_checklist_service
+from app.core.app_settings import get_app_settings
 from app.projects_database import get_db
 from app.routers.checklists.schemas import (
     ChecklistDetail,
@@ -18,6 +19,7 @@ from app.routers.checklists.schemas import (
     ProgressResponse,
     ResyncResponse,
 )
+from app.routers.error_utils import internal_server_error, map_value_error
 from app.services.checklists_api_service import ChecklistsApiService
 
 logger = logging.getLogger(__name__)
@@ -71,10 +73,14 @@ async def evaluate_checklist_item(
             evaluation_payload=request.model_dump(exclude_none=True),
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise map_value_error(exc, default_status=404) from exc
     except Exception as exc:
-        logger.error("Failed to evaluate checklist item %s: %s", item_id, exc, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to create checklist evaluation") from exc
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to evaluate checklist item {item_id}: {exc!s}",
+            exc=exc,
+            detail_prefix="Failed to create checklist evaluation",
+        ) from exc
     return EvaluateItemResponse(status="success", evaluation_id=str(evaluation.id))
 
 
@@ -86,7 +92,7 @@ async def get_checklist_progress(
 ) -> ProgressResponse:
     """Return progress metrics for checklist completion."""
     progress = await service.get_progress(project_id, checklist_id)
-    next_actions = await service.list_next_actions(project_id, limit=10)
+    next_actions = await service.list_next_actions(project_id, limit=get_app_settings().checklist_next_actions_limit)
     return ProgressResponse(
         total_items=progress.get("total_items", 0),
         completed_items=progress.get("completed_items", 0),

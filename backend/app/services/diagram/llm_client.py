@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 
 from openai import APIError, APITimeoutError, RateLimitError
 from tenacity import (
@@ -14,7 +14,7 @@ from tenacity import (
 
 from app.core.app_settings import get_app_settings
 from app.services.ai.ai_service import AIService, AIServiceManager
-from app.services.ai.interfaces import ChatMessage
+from app.services.ai.interfaces import ChatMessage, LLMResponse
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class DiagramLLMClient:
     def __init__(self, ai_service: AIService | None = None) -> None:
         """
         Initialize diagram LLM client with AIService.
-        
+
         Args:
             ai_service: Optional AIService instance (uses singleton if None)
         """
@@ -89,6 +89,7 @@ class DiagramLLMClient:
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
+            response = cast(LLMResponse, response)
 
             content = response.content
             if not content:
@@ -143,6 +144,7 @@ class DiagramLLMClient:
                 temperature=temperature,
                 max_tokens=1000,
             )
+            response = cast(LLMResponse, response)
 
             content = response.content
             if not content:
@@ -212,6 +214,7 @@ Focus on:
                 temperature=temperature,
                 max_tokens=2000,
             )
+            response = cast(LLMResponse, response)
 
             content = response.content
             if not content:

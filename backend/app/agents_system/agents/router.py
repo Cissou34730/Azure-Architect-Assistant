@@ -7,7 +7,7 @@ import logging
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Any, cast
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -19,16 +19,8 @@ from ...projects_database import get_db
 from ..langgraph.adapter import execute_chat, execute_project_chat
 from ..runner import get_agent_runner
 from ..services.iteration_logging import (
-    build_iteration_event_update,
-    derive_mcp_query_updates_from_steps,
     derive_uncovered_topic_questions,
 )
-from ..services.project_context import (
-    get_project_context_summary,
-    read_project_state,
-    update_project_state,
-)
-from ..services.state_update_parser import extract_state_updates
 
 logger = logging.getLogger(__name__)
 

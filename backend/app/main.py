@@ -17,6 +17,7 @@ from app import lifecycle
 from app.agents_system.agents.router import router as agent_router
 from app.core.app_logging import configure_logging
 from app.core.app_settings import get_app_settings
+from app.core.router_guardrails import enforce_router_guardrails
 from app.core.signals import install_ingestion_signal_handlers
 
 # Import routers
@@ -41,6 +42,7 @@ settings = get_app_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 logger.info("Loaded application settings via get_app_settings()")
+API_BASE_PREFIX = "/api"
 
 
 @asynccontextmanager
@@ -89,8 +91,9 @@ app.include_router(kb_management_router)  # KB health/list endpoints
 app.include_router(ingestion_router)  # Orchestrator-based ingestion
 app.include_router(agent_router)  # Agent chat endpoints
 app.include_router(checklist_router)  # New normalized checklists
-app.include_router(diagram_generation_router, prefix="/api/v1")  # Diagram generation
-app.include_router(settings_router, prefix="/api/settings", tags=["settings"])  # Settings endpoints
+app.include_router(diagram_generation_router, prefix=API_BASE_PREFIX)  # Diagram generation
+app.include_router(settings_router, prefix=f"{API_BASE_PREFIX}/settings", tags=["settings"])  # Settings endpoints
+enforce_router_guardrails(app)
 
 # Health check
 class HealthResponse(BaseModel):

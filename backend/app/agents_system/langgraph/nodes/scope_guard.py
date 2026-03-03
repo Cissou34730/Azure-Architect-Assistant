@@ -3,7 +3,6 @@
 Detects out-of-scope requests and over-refusal recovery.
 """
 
-import re
 
 from ...config.scope_patterns import (
     ACTION_PATTERNS,

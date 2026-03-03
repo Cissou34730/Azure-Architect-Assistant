@@ -41,7 +41,7 @@ class DocumentContentService:
             raise HTTPException(status_code=404, detail="Document file missing")
 
         media_type = (document.mime_type or "").strip()
-        if media_type == "" or media_type == "application/octet-stream":
+        if media_type in {"", "application/octet-stream"}:
             guessed_media_type, _ = mimetypes.guess_type(document.file_name or "")
             if guessed_media_type:
                 media_type = guessed_media_type

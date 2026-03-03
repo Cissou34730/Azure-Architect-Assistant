@@ -16,11 +16,12 @@ from __future__ import annotations
 import argparse
 import logging
 
-from app.ingestion.infrastructure import repository as ingestion_repo
-from app.ingestion.models import IngestionJob
-from config.settings import get_engine
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from app.ingestion.infrastructure import repository as ingestion_repo
+from app.ingestion.ingestion_database import engine
+from app.ingestion.models import IngestionJob
 
 
 def setup_logging(verbose: bool) -> None:
@@ -39,7 +40,6 @@ def recompute_all_jobs(
     Returns a tuple of (updated_count, messages).
     """
     setup_logging(verbose)
-    engine = get_engine()
     messages: list[str] = []
     updated_count = 0
 

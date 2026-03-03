@@ -17,6 +17,7 @@ from app.services.diagram.diagram_generator import DiagramGenerator, GenerationR
 from app.services.diagram.llm_client import DiagramLLMClient
 
 logger = logging.getLogger(__name__)
+SEMVER_PART_COUNT = 3
 
 
 class DiagramSetService:
@@ -175,7 +176,7 @@ class DiagramSetService:
         prefix = "v" if version.startswith("v") else ""
         core = version[1:] if prefix else version
         parts = core.split(".")
-        if len(parts) != 3:
+        if len(parts) != SEMVER_PART_COUNT:
             return f"{prefix}1.0.0"
         major, minor, patch = parts
         try:

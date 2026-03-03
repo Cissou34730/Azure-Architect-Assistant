@@ -6,13 +6,14 @@ Transport layer only - business logic delegated to project services.
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.routers.error_utils import internal_server_error, map_value_error
+from app.core.app_settings import get_app_settings
 from app.projects_database import get_db
+from app.routers.error_utils import internal_server_error, map_value_error
 from app.services.project.chat_service import ChatService
 from app.services.project.document_content_service import DocumentContentService
 from app.services.project.document_service import DocumentService
@@ -308,10 +309,12 @@ async def get_messages(
     project_id: str,
     before_id: str | None = None,
     since_id: str | None = None,
-    limit: int = 50,
+    limit: int | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get conversation history with pagination support"""
+    if limit is None:
+        limit = get_app_settings().messages_pagination_limit
     try:
         messages = await chat_service.get_conversation_messages(
             project_id, db, before_id=before_id, since_id=since_id, limit=limit

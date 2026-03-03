@@ -8,6 +8,8 @@ import time
 import requests
 import trafilatura
 
+from app.core.app_settings import get_app_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,7 +60,7 @@ class ContentFetcher:
             except requests.exceptions.RequestException as e:
                 if attempt < self.max_retries - 1:
                     logger.warning(f'Request failed: {e}, retrying in 2 seconds...')
-                    time.sleep(2)
+                    time.sleep(get_app_settings().web_crawl_politeness_delay)
                 else:
                     logger.error(f'Failed to fetch {url} after {self.max_retries} attempts: {e}')
                     return None
