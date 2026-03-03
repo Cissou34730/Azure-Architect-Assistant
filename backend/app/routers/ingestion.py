@@ -33,15 +33,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ingestion", tags=["ingestion"])
 
 
-class StartIngestionRequest(BaseModel):
-    """Request to start ingestion for a KB."""
-
-    source_type: str
-    source_config: dict[str, Any]
-    embedding_model: str | None = "text-embedding-3-small"
-    chunking: dict[str, Any] | None = None
-
-
 class JobStatusResponse(BaseModel):
     """Job status response."""
 

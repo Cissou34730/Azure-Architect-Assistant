@@ -1,34 +1,27 @@
 """
 FastAPI Router for Project Management Endpoints
-Clean routing layer - business logic delegated to operations.py
+Transport layer only - business logic delegated to project services.
 """
 
 import logging
-import mimetypes
-from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ProjectDocument
 from app.projects_database import get_db
 from app.services.project.chat_service import ChatService
+from app.services.project.document_content_service import DocumentContentService
 from app.services.project.document_service import DocumentService
+from app.services.project.project_analysis_service import ProjectAnalysisService
 from app.services.project.project_service import ProjectService
 from app.services.project.proposal_stream_service import stream_architecture_proposal
 from app.services.project.state_edit_service import ProjectStateEditService
-from app.services.diagram.project_diagram_helpers import (
-    append_diagram_reference_to_project_state,
-    ensure_initial_c4_context_diagram,
-)
 
 from .project_models import (
     BulkDeleteProjectsRequest,
-    ChatMessageRequest,
     ChatResponse,
     CreateProjectRequest,
     DeleteResponse,
@@ -45,6 +38,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["projects"])
 project_service = ProjectService()
 document_service = DocumentService()
+document_content_service = DocumentContentService()
+project_analysis_service = ProjectAnalysisService(document_service)
 chat_service = ChatService()
 project_state_edit_service = ProjectStateEditService()
 
@@ -218,36 +213,16 @@ async def get_document_content(
     document_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> FileResponse:
-    result = await db.execute(
-        select(ProjectDocument).where(
-            ProjectDocument.id == document_id,
-            ProjectDocument.project_id == project_id,
-        )
+    payload = await document_content_service.resolve_content(
+        project_id=project_id,
+        document_id=document_id,
+        db=db,
     )
-    document = result.scalar_one_or_none()
-    if document is None:
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    stored_path = (document.stored_path or "").strip()
-    if stored_path == "":
-        raise HTTPException(status_code=404, detail="Document content unavailable")
-
-    resolved_path = Path(stored_path)
-    if not resolved_path.is_file():
-        raise HTTPException(status_code=404, detail="Document file missing")
-
-    media_type = (document.mime_type or "").strip()
-    if media_type == "" or media_type == "application/octet-stream":
-        guessed_media_type, _ = mimetypes.guess_type(document.file_name or "")
-        if guessed_media_type:
-            media_type = guessed_media_type
-    if media_type == "":
-        media_type = "application/octet-stream"
 
     return FileResponse(
-        path=resolved_path,
-        media_type=media_type,
-        filename=document.file_name,
+        path=payload["path"],
+        media_type=str(payload["media_type"]),
+        filename=str(payload["file_name"]),
         content_disposition_type="inline",
     )
 
@@ -256,23 +231,10 @@ async def get_document_content(
 async def analyze_documents(project_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Analyze documents and generate initial ProjectState"""
     try:
-        state = await document_service.analyze_documents(project_id, db)
-
-        # US1/T016: Generate/store initial C4 Level 1 diagram link via existing diagram flow.
-        try:
-            diagram_ref = await ensure_initial_c4_context_diagram(project_id, state)
-            if diagram_ref is not None:
-                state = await append_diagram_reference_to_project_state(
-                    project_id, state, diagram_ref, db
-                )
-        except Exception:
-            # Best-effort: do not block requirement extraction if diagram generation
-            # fails due to missing credentials/timeouts.
-            logger.exception(
-                "C4 context diagram generation skipped for project %s",
-                project_id,
-            )
-
+        state = await project_analysis_service.analyze_documents_with_bootstrap(
+            project_id=project_id,
+            db=db,
+        )
         return {"projectState": state}
     except ValueError as e:
         raise HTTPException(
@@ -291,9 +253,13 @@ async def analyze_documents(project_id: str, db: AsyncSession = Depends(get_db))
 # ============================================================================
 
 
-@router.post("/projects/{project_id}/chat", response_model=ChatResponse)
+@router.post(
+    "/projects/{project_id}/chat",
+    response_model=ChatResponse,
+    include_in_schema=False,
+)
 async def chat_message(
-    project_id: str, request: ChatMessageRequest, db: AsyncSession = Depends(get_db)
+    project_id: str,
 ) -> dict[str, Any]:
     """Legacy endpoint (disabled).
 

@@ -43,6 +43,35 @@ def get_query_service_dep() -> KBQueryService:
     return get_query_service()
 
 
+def _to_query_response(result: dict[str, str | list | bool | None]) -> QueryResponse:
+    sources = [
+        SourceInfo(
+            url=source.get("url", ""),
+            title=source.get("title", ""),
+            section=source.get("section", ""),
+            score=source.get("score", 0.0),
+            kb_id=source.get("kb_id"),
+            kb_name=source.get("kb_name"),
+        )
+        for source in result.get("sources") or []
+        if isinstance(source, dict)
+    ]
+    return QueryResponse(
+        answer=str(result["answer"]),
+        sources=sources,
+        hasResults=result.get("has_results", True),
+        suggestedFollowUps=result.get("suggested_follow_ups"),
+    )
+
+
+def _ready_kbs_for_profile(kb_manager: KBManager, profile: QueryProfile) -> list[object]:
+    return [
+        kb
+        for kb in kb_manager.get_kbs_for_profile(profile.value)
+        if KnowledgeBaseService(kb).is_index_ready()
+    ]
+
+
 # ============================================================================
 # Query Endpoints
 # ============================================================================
@@ -63,25 +92,7 @@ async def query_legacy(
         result = operations.query_with_profile(
             multi_query_service, request.question, QueryProfile.CHAT, request.top_k
         )
-
-        sources = [
-            SourceInfo(
-                url=source.get("url", ""),
-                title=source.get("title", ""),
-                section=source.get("section", ""),
-                score=source.get("score", 0.0),
-                kb_id=source.get("kb_id"),
-                kb_name=source.get("kb_name"),
-            )
-            for source in result.get("sources", [])
-        ]
-
-        return QueryResponse(
-            answer=result["answer"],
-            sources=sources,
-            has_results=result.get("has_results", True),
-            suggested_follow_ups=result.get("suggested_follow_ups"),
-        )
+        return _to_query_response(result)
 
     except Exception as e:
         logger.error(f"Legacy query failed: {e!s}", exc_info=True)
@@ -100,12 +111,7 @@ async def query_chat(
     Returns answer with sources from chat-enabled knowledge bases.
     """
     try:
-        # Filter to ready KBs only
-        ready_kbs = [
-            kb
-            for kb in kb_manager.get_kbs_for_profile(QueryProfile.CHAT.value)
-            if KnowledgeBaseService(kb).is_index_ready()
-        ]
+        ready_kbs = _ready_kbs_for_profile(kb_manager, QueryProfile.CHAT)
         if not ready_kbs:
             return QueryResponse(
                 answer="No indexed knowledge bases available for chat yet.",
@@ -120,25 +126,7 @@ async def query_chat(
             QueryProfile.CHAT,
             request.top_k_per_kb,
         )
-
-        sources = [
-            SourceInfo(
-                url=source.get("url", ""),
-                title=source.get("title", ""),
-                section=source.get("section", ""),
-                score=source.get("score", 0.0),
-                kb_id=source.get("kb_id"),
-                kb_name=source.get("kb_name"),
-            )
-            for source in result.get("sources", [])
-        ]
-
-        return QueryResponse(
-            answer=result["answer"],
-            sources=sources,
-            has_results=result.get("has_results", True),
-            suggested_follow_ups=result.get("suggested_follow_ups"),
-        )
+        return _to_query_response(result)
 
     except Exception as e:
         logger.error(f"Chat query failed: {e!s}", exc_info=True)
@@ -159,11 +147,7 @@ async def query_proposal(
     Returns answer with sources from proposal-enabled knowledge bases.
     """
     try:
-        ready_kbs = [
-            kb
-            for kb in kb_manager.get_kbs_for_profile(QueryProfile.PROPOSAL.value)
-            if KnowledgeBaseService(kb).is_index_ready()
-        ]
+        ready_kbs = _ready_kbs_for_profile(kb_manager, QueryProfile.PROPOSAL)
         if not ready_kbs:
             return QueryResponse(
                 answer="No indexed knowledge bases available for proposal yet.",
@@ -178,25 +162,7 @@ async def query_proposal(
             QueryProfile.PROPOSAL,
             request.top_k_per_kb,
         )
-
-        sources = [
-            SourceInfo(
-                url=source.get("url", ""),
-                title=source.get("title", ""),
-                section=source.get("section", ""),
-                score=source.get("score", 0.0),
-                kb_id=source.get("kb_id"),
-                kb_name=source.get("kb_name"),
-            )
-            for source in result.get("sources", [])
-        ]
-
-        return QueryResponse(
-            answer=result["answer"],
-            sources=sources,
-            has_results=result.get("has_results", True),
-            suggested_follow_ups=result.get("suggested_follow_ups"),
-        )
+        return _to_query_response(result)
 
     except Exception as e:
         logger.error(f"Proposal query failed: {e!s}", exc_info=True)
@@ -235,25 +201,7 @@ async def query_kb_manual(
         result = operations.query_specific_kbs(
             multi_query_service, request.question, kb_ids, request.top_k_per_kb
         )
-
-        sources = [
-            SourceInfo(
-                url=source.get("url", ""),
-                title=source.get("title", ""),
-                section=source.get("section", ""),
-                score=source.get("score", 0.0),
-                kb_id=source.get("kb_id"),
-                kb_name=source.get("kb_name"),
-            )
-            for source in result.get("sources", [])
-        ]
-
-        return QueryResponse(
-            answer=result["answer"],
-            sources=sources,
-            has_results=result.get("has_results", True),
-            suggested_follow_ups=result.get("suggested_follow_ups"),
-        )
+        return _to_query_response(result)
 
     except Exception as e:
         logger.error(f"KB Query failed: {e!s}", exc_info=True)

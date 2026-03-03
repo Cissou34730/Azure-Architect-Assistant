@@ -31,7 +31,7 @@ async def test_get_available_models(async_client: AsyncClient) -> None:
     mock_model.context_window = 128000
     mock_model.pricing = None
 
-    with patch("app.routers.settings.models_router.ModelsService") as MockService:
+    with patch("app.services.settings_models_service.ModelsService") as MockService:
         instance = MockService.return_value
         instance.get_available_models = AsyncMock(
             return_value=([mock_model], datetime.now(timezone.utc))
@@ -52,7 +52,7 @@ async def test_get_current_model(async_client: AsyncClient) -> None:
     mock_instance.get_llm_model.return_value = "gpt-4o-mini"
     mock_manager.get_instance.return_value = mock_instance
 
-    with patch("app.routers.settings.models_router.AIServiceManager", mock_manager):
+    with patch("app.services.settings_models_service.AIServiceManager", mock_manager):
         response = await async_client.get("/api/settings/current-model")
 
     assert response.status_code == 200

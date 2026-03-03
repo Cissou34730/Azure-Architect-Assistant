@@ -9,14 +9,12 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.services.ai.ai_service import AIService, AIServiceManager
-from app.services.ai.config import AIConfig
-from app.services.ai.interfaces import ChatMessage
-from app.services.models_service import ModelsService
+from app.services.settings_models_service import SettingsModelsService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+settings_models_service = SettingsModelsService()
 
 
 # Response Models
@@ -86,20 +84,21 @@ async def get_available_models(
         HTTPException: If failed to fetch models
     """
     try:
-        models_service = ModelsService()
-        models, cached_at = await models_service.get_available_models(
-            force_refresh=refresh
+        models, cached_at = await settings_models_service.get_available_models(
+            refresh=refresh
         )
 
-        response_models = [
-            ModelResponse(
-                id=m.id,
-                name=m.name,
-                context_window=m.context_window,
-                pricing=PricingInfo(**m.pricing) if m.pricing else None,
+        response_models = []
+        for model in models:
+            pricing = model.get("pricing")
+            response_models.append(
+                ModelResponse(
+                    id=str(model["id"]),
+                    name=str(model["name"]),
+                    context_window=int(model["context_window"]),
+                    pricing=PricingInfo(**pricing) if isinstance(pricing, dict) else None,
+                )
             )
-            for m in models
-        ]
 
         logger.info(
             f"Returning {len(response_models)} models (cached_at={cached_at}, refresh={refresh})"
@@ -123,11 +122,9 @@ async def get_current_model() -> CurrentModelResponse:
         Current model ID
     """
     try:
-        ai_service = AIServiceManager.get_instance()
-        current_model = ai_service.get_llm_model()
+        current_model = settings_models_service.get_current_model()
 
         logger.info(f"GET /current-model returning: {current_model}")
-        logger.debug(f"AIService instance ID: {id(ai_service)}")
 
         return CurrentModelResponse(model=current_model)
 
@@ -159,57 +156,8 @@ async def set_model(request: SetModelRequest) -> SetModelResponse:
         model_id = request.model_id
 
         logger.info(f"PUT /model - Attempting to change model to: {model_id}")
-
-        # Probe using the same provider logic used at runtime so endpoint/model
-        # compatibility checks are identical during validation and inference.
-        probe_config = AIConfig()
-        if probe_config.llm_provider == "openai":
-            probe_config.openai_llm_model = model_id
-
-        probe_service = AIService(probe_config)
-        try:
-            await probe_service.chat(
-                messages=[ChatMessage(role="user", content="Reply with: ok")],
-                temperature=0,
-                max_tokens=64,
-                timeout=20.0,
-            )
-        except Exception as probe_error:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Model '{model_id}' is not usable with current provider compatibility strategy: "
-                    f"{probe_error}"
-                ),
-            ) from probe_error
-
-        # Reinitialize AIService with new model
-        logger.info(f"Calling reinitialize_with_model({model_id})")
-        await AIServiceManager.reinitialize_with_model(model_id)
-        logger.info("Reinitialization completed")
-
-        # Verify change
-        ai_service = AIServiceManager.get_instance()
-        current_model = ai_service.get_llm_model()
-        logger.info(f"Verification: AIService now reports model as {current_model}")
-        logger.debug(f"AIService instance ID after reinit: {id(ai_service)}")
-
-        if current_model == model_id:
-            logger.info(f"✅ Successfully changed model to: {model_id}")
-            return SetModelResponse(
-                success=True,
-                current_model=current_model,
-                message=f"Model changed to {model_id}",
-            )
-        else:
-            logger.error(
-                f"❌ Model change verification failed: expected {model_id}, got {current_model}"
-            )
-            return SetModelResponse(
-                success=False,
-                current_model=current_model,
-                message="Model change verification failed",
-            )
+        payload = await settings_models_service.set_model(model_id=model_id)
+        return SetModelResponse.model_validate(payload)
 
     except HTTPException:
         raise
