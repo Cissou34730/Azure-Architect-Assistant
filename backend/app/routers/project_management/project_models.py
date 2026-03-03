@@ -50,14 +50,6 @@ class MessagesResponse(BaseModel):
     messages: list[dict[str, Any]]
 
 
-class ChatResponse(BaseModel):
-    """Chat response with updated state"""
-
-    message: str
-    project_state: dict[str, Any] = Field(alias="projectState")
-    waf_sources: list[dict[str, Any]] = Field(default_factory=list, alias="wafSources")
-
-
 class BulkDeleteProjectsRequest(BaseModel):
     """Request to bulk delete multiple projects"""
 

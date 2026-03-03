@@ -7,31 +7,16 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.diagram import AmbiguityReport, DiagramSet
+from app.services.diagram.ambiguity_service import ambiguity_service
 from app.services.diagram.database import get_diagram_session
+
+from .schemas import AmbiguityReportResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/diagram-sets", tags=["Ambiguities"])
-
-
-# --- Request/Response Schemas ---
-
-
-class AmbiguityReportResponse(BaseModel):
-    """Response model for ambiguity report."""
-
-    id: str
-    diagram_set_id: str
-    ambiguous_text: str
-    suggested_clarification: str | None = None
-    resolved: bool = False
-    created_at: str
-
-    model_config = {"from_attributes": True}
 
 
 class ResolveAmbiguityRequest(BaseModel):
@@ -74,31 +59,18 @@ async def get_ambiguities(
         diagram_set_id,
         resolved,
     )
-
-    # Verify diagram set exists
-    stmt = select(DiagramSet).where(DiagramSet.id == diagram_set_id)
-    result = await session.execute(stmt)
-    diagram_set = result.scalar_one_or_none()
-
-    if not diagram_set:
+    try:
+        ambiguities = await ambiguity_service.list_ambiguities(
+            diagram_set_id=diagram_set_id,
+            session=session,
+            resolved=resolved,
+        )
+    except ValueError as exc:
         logger.warning("Diagram set not found: %s", diagram_set_id)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Diagram set {diagram_set_id} not found",
-        )
-
-    # Build query for ambiguities
-    stmt = select(AmbiguityReport).where(
-        AmbiguityReport.diagram_set_id == diagram_set_id
-    )
-
-    if resolved is not None:
-        stmt = stmt.where(AmbiguityReport.resolved == resolved)
-
-    stmt = stmt.order_by(AmbiguityReport.created_at)
-
-    result = await session.execute(stmt)
-    ambiguities = result.scalars().all()
+        ) from exc
 
     logger.info(
         "Found %d ambiguities for diagram_set_id=%s", len(ambiguities), diagram_set_id
@@ -149,28 +121,21 @@ async def resolve_ambiguity(
         ambiguity_id,
         request.resolved,
     )
-
-    # Fetch ambiguity
-    stmt = select(AmbiguityReport).where(
-        AmbiguityReport.id == ambiguity_id,
-        AmbiguityReport.diagram_set_id == diagram_set_id,
-    )
-    result = await session.execute(stmt)
-    ambiguity = result.scalar_one_or_none()
-
-    if not ambiguity:
+    try:
+        ambiguity = await ambiguity_service.resolve_ambiguity(
+            diagram_set_id=diagram_set_id,
+            ambiguity_id=ambiguity_id,
+            resolved=request.resolved,
+            session=session,
+        )
+    except ValueError as exc:
         logger.warning(
             "Ambiguity not found: %s (diagram_set_id=%s)", ambiguity_id, diagram_set_id
         )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Ambiguity {ambiguity_id} not found in diagram set {diagram_set_id}",
-        )
-
-    # Update resolution status
-    ambiguity.resolved = request.resolved
-    await session.commit()
-    await session.refresh(ambiguity)
+        ) from exc
 
     logger.info("Ambiguity %s marked as resolved=%s", ambiguity_id, request.resolved)
 

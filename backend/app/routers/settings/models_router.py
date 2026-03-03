@@ -6,10 +6,9 @@ Provides endpoints to list, get, and change the active LLM model.
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
-from app.routers.error_utils import internal_server_error
 from app.services.settings_models_service import SettingsModelsService
 
 logger = logging.getLogger(__name__)
@@ -84,36 +83,23 @@ async def get_available_models(
     Raises:
         HTTPException: If failed to fetch models
     """
-    try:
-        models, cached_at = await settings_models_service.get_available_models(
-            refresh=refresh
-        )
-
-        response_models = []
-        for model in models:
-            pricing = model.get("pricing")
-            response_models.append(
-                ModelResponse(
-                    id=str(model["id"]),
-                    name=str(model["name"]),
-                    context_window=int(model["context_window"]),
-                    pricing=PricingInfo(**pricing) if isinstance(pricing, dict) else None,
-                )
+    models, cached_at = await settings_models_service.get_available_models(refresh=refresh)
+    response_models = []
+    for model in models:
+        pricing = model.get("pricing")
+        response_models.append(
+            ModelResponse(
+                id=str(model["id"]),
+                name=str(model["name"]),
+                context_window=int(model["context_window"]),
+                pricing=PricingInfo(**pricing) if isinstance(pricing, dict) else None,
             )
-
-        logger.info(
-            f"Returning {len(response_models)} models (cached_at={cached_at}, refresh={refresh})"
         )
 
-        return AvailableModelsResponse(models=response_models, cached_at=cached_at)
-
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to get available models: {e}",
-            exc=e,
-            detail_prefix="Failed to fetch available models",
-        ) from e
+    logger.info(
+        f"Returning {len(response_models)} models (cached_at={cached_at}, refresh={refresh})"
+    )
+    return AvailableModelsResponse(models=response_models, cached_at=cached_at)
 
 
 @router.get("/current-model", response_model=CurrentModelResponse)
@@ -124,20 +110,9 @@ async def get_current_model() -> CurrentModelResponse:
     Returns:
         Current model ID
     """
-    try:
-        current_model = settings_models_service.get_current_model()
-
-        logger.info(f"GET /current-model returning: {current_model}")
-
-        return CurrentModelResponse(model=current_model)
-
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to get current model: {e}",
-            exc=e,
-            detail_prefix="Failed to get current model",
-        ) from e
+    current_model = settings_models_service.get_current_model()
+    logger.info(f"GET /current-model returning: {current_model}")
+    return CurrentModelResponse(model=current_model)
 
 
 @router.put("/model", response_model=SetModelResponse)
@@ -157,19 +132,7 @@ async def set_model(request: SetModelRequest) -> SetModelResponse:
     Raises:
         HTTPException: If model change failed
     """
-    try:
-        model_id = request.model_id
-
-        logger.info(f"PUT /model - Attempting to change model to: {model_id}")
-        payload = await settings_models_service.set_model(model_id=model_id)
-        return SetModelResponse.model_validate(payload)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to change model: {e}",
-            exc=e,
-            detail_prefix="Failed to change model",
-        ) from e
+    model_id = request.model_id
+    logger.info(f"PUT /model - Attempting to change model to: {model_id}")
+    payload = await settings_models_service.set_model(model_id=model_id)
+    return SetModelResponse.model_validate(payload)

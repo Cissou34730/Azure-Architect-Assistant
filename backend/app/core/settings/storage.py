@@ -17,23 +17,16 @@ def get_default_env_path() -> Path:
 
 
 def _default_data_root() -> Path:
-    """Resolve default data root from env, with safe repo-local fallback."""
+    """Resolve default data root from env, with safe backend-local fallback.
+
+    Uses os.getenv for DATA_ROOT only — values that live solely in .env are
+    not visible here (pydantic-settings loads them later). The fallback is
+    backend/data, which is where all runtime databases live.
+    """
     data_root_env = os.getenv("DATA_ROOT")
     if data_root_env:
         p = Path(data_root_env)
-        return p if p.is_absolute() else (_REPO_ROOT / p).resolve()
-
-    projects_db_env = os.getenv("PROJECTS_DATABASE")
-    if projects_db_env:
-        p = Path(projects_db_env)
-        p = p if p.is_absolute() else (_REPO_ROOT / p).resolve()
-        return p.parent
-
-    knowledge_bases_root_env = os.getenv("KNOWLEDGE_BASES_ROOT")
-    if knowledge_bases_root_env:
-        p = Path(knowledge_bases_root_env)
-        p = p if p.is_absolute() else (_REPO_ROOT / p).resolve()
-        return p.parent
+        return p if p.is_absolute() else (_BACKEND_ROOT / p).resolve()
 
     return _BACKEND_ROOT / "data"
 
@@ -66,15 +59,15 @@ class StorageSettingsMixin(BaseModel):
         if value is None:
             return None
         if isinstance(value, Path):
-            return value if value.is_absolute() else (_REPO_ROOT / value).resolve()
+            return value if value.is_absolute() else (_BACKEND_ROOT / value).resolve()
         if isinstance(value, str):
             v = value.strip()
             if v.startswith("sqlite+aiosqlite:///"):
                 path_str = v.replace("sqlite+aiosqlite:///", "", 1)
                 p = Path(path_str)
-                return p if p.is_absolute() else (_REPO_ROOT / p).resolve()
+                return p if p.is_absolute() else (_BACKEND_ROOT / p).resolve()
             p = Path(v)
-            return p if p.is_absolute() else (_REPO_ROOT / p).resolve()
+            return p if p.is_absolute() else (_BACKEND_ROOT / p).resolve()
         return value  # type: ignore[return-value]
 
     @field_validator(
@@ -92,13 +85,13 @@ class StorageSettingsMixin(BaseModel):
         if value is None:
             return None
         if isinstance(value, Path):
-            return value if value.is_absolute() else (_REPO_ROOT / value).resolve()
+            return value if value.is_absolute() else (_BACKEND_ROOT / value).resolve()
         if isinstance(value, str):
             v = value.strip()
             if not v:
                 return None
             p = Path(v)
-            return p if p.is_absolute() else (_REPO_ROOT / p).resolve()
+            return p if p.is_absolute() else (_BACKEND_ROOT / p).resolve()
         return value  # type: ignore[return-value]
 
     @model_validator(mode="after")

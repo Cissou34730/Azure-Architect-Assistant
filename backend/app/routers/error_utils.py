@@ -11,19 +11,10 @@ def map_value_error(
     exc: ValueError,
     *,
     default_status: int = 400,
-    not_found_hint: str | None = None,
 ) -> HTTPException:
-    """Map ValueError to HTTPException using explicit router intent.
-
-    Heuristic mapping from error text to 404 is opt-in only via ``not_found_hint``.
-    """
+    """Map ValueError to HTTPException using explicit router intent."""
     message = str(exc)
-    status_code = (
-        404
-        if not_found_hint is not None and not_found_hint in message.lower()
-        else default_status
-    )
-    return HTTPException(status_code=status_code, detail=message)
+    return HTTPException(status_code=default_status, detail=message)
 
 
 def internal_server_error(

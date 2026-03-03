@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -19,10 +18,8 @@ from app.routers.checklists.schemas import (
     ProgressResponse,
     ResyncResponse,
 )
-from app.routers.error_utils import internal_server_error, map_value_error
+from app.routers.error_utils import map_value_error
 from app.services.checklists_api_service import ChecklistsApiService
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/projects/{project_id}/checklists", tags=["checklists"])
 checklists_api_service = ChecklistsApiService()
@@ -74,13 +71,6 @@ async def evaluate_checklist_item(
         )
     except ValueError as exc:
         raise map_value_error(exc, default_status=404) from exc
-    except Exception as exc:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to evaluate checklist item {item_id}: {exc!s}",
-            exc=exc,
-            detail_prefix="Failed to create checklist evaluation",
-        ) from exc
     return EvaluateItemResponse(status="success", evaluation_id=str(evaluation.id))
 
 

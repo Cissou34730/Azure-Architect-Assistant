@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.diagram.database import get_diagram_session
 from app.services.diagram.diagram_set_service import DiagramSetService
 
+from .schemas import AmbiguityReportResponse
+
 router = APIRouter(prefix="/diagram-sets", tags=["Diagrams"])
 diagram_set_service = DiagramSetService()
 
@@ -37,17 +39,6 @@ class DiagramResponse(BaseModel):
     diagram_type: str
     source_code: str
     version: str
-    created_at: str
-
-
-class AmbiguityReportResponse(BaseModel):
-    """Response model for ambiguity report."""
-
-    id: str
-    diagram_set_id: str
-    ambiguous_text: str
-    suggested_clarification: str | None = None
-    resolved: bool = False
     created_at: str
 
 
@@ -100,4 +91,3 @@ async def get_diagram_set(
         diagram_set_id=diagram_set_id,
     )
     return DiagramSetResponse.model_validate(result)
-

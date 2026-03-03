@@ -3,7 +3,6 @@ KB Query Router
 FastAPI endpoints for knowledge base queries.
 """
 
-import logging
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends
@@ -15,7 +14,6 @@ from app.dependencies import (
 )
 from app.kb import KBManager
 from app.kb.service import KnowledgeBaseService
-from app.routers.error_utils import internal_server_error
 from app.services.kb import MultiKBQueryService, QueryProfile
 from app.services.kb.query_orchestration_service import KBQueryService
 
@@ -26,8 +24,6 @@ from .query_models import (
     QueryResponse,
     SourceInfo,
 )
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/query", tags=["query"])
 
@@ -78,13 +74,22 @@ def _ready_kbs_for_profile(kb_manager: KBManager, profile: QueryProfile) -> list
     ]
 
 
+def _ready_selected_kb_ids(kb_manager: KBManager, kb_ids: list[str]) -> list[str]:
+    """Filter user-selected KB ids to those with a ready index."""
+    return [
+        kb_id
+        for kb_id in kb_ids
+        if (kb_config := kb_manager.get_kb(kb_id))
+        and KnowledgeBaseService(kb_config).is_index_ready()
+    ]
+
+
 # ============================================================================
 # Query Endpoints
 # ============================================================================
 
 
 @router.post("", response_model=QueryResponse)
-@router.post("/", response_model=QueryResponse, include_in_schema=False)
 async def query_legacy(
     request: QueryRequest,
     multi_query_service: MultiKBQueryService = Depends(get_multi_query_service_dep),
@@ -94,19 +99,10 @@ async def query_legacy(
     Legacy query endpoint - queries all active KBs using CHAT profile.
     Maintained for backward compatibility.
     """
-    try:
-        result = operations.query_with_profile(
-            multi_query_service, request.question, QueryProfile.CHAT, request.top_k
-        )
-        return _to_query_response(result)
-
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Legacy query failed: {e!s}",
-            exc=e,
-            detail_prefix="Query failed",
-        ) from e
+    result = operations.query_with_profile(
+        multi_query_service, request.question, QueryProfile.CHAT, request.top_k
+    )
+    return _to_query_response(result)
 
 
 @router.post("/chat", response_model=QueryResponse)
@@ -120,31 +116,22 @@ async def query_chat(
     Query knowledge bases using CHAT profile (fast, targeted responses).
     Returns answer with sources from chat-enabled knowledge bases.
     """
-    try:
-        ready_kbs = _ready_kbs_for_profile(kb_manager, QueryProfile.CHAT)
-        if not ready_kbs:
-            return QueryResponse(
-                answer="No indexed knowledge bases available for chat yet.",
-                sources=[],
-                has_results=False,
-                suggested_follow_ups=None,
-            )
-
-        result = operations.query_with_profile(
-            multi_query_service,
-            request.question,
-            QueryProfile.CHAT,
-            request.top_k_per_kb,
+    ready_kbs = _ready_kbs_for_profile(kb_manager, QueryProfile.CHAT)
+    if not ready_kbs:
+        return QueryResponse(
+            answer="No indexed knowledge bases available for chat yet.",
+            sources=[],
+            has_results=False,
+            suggested_follow_ups=None,
         )
-        return _to_query_response(result)
 
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Chat query failed: {e!s}",
-            exc=e,
-            detail_prefix="Chat query failed",
-        ) from e
+    result = operations.query_with_profile(
+        multi_query_service,
+        request.question,
+        QueryProfile.CHAT,
+        request.top_k_per_kb,
+    )
+    return _to_query_response(result)
 
 
 @router.post("/proposal", response_model=QueryResponse)
@@ -158,31 +145,22 @@ async def query_proposal(
     Query knowledge bases using PROPOSAL profile (comprehensive, detailed responses).
     Returns answer with sources from proposal-enabled knowledge bases.
     """
-    try:
-        ready_kbs = _ready_kbs_for_profile(kb_manager, QueryProfile.PROPOSAL)
-        if not ready_kbs:
-            return QueryResponse(
-                answer="No indexed knowledge bases available for proposal yet.",
-                sources=[],
-                has_results=False,
-                suggested_follow_ups=None,
-            )
-
-        result = operations.query_with_profile(
-            multi_query_service,
-            request.question,
-            QueryProfile.PROPOSAL,
-            request.top_k_per_kb,
+    ready_kbs = _ready_kbs_for_profile(kb_manager, QueryProfile.PROPOSAL)
+    if not ready_kbs:
+        return QueryResponse(
+            answer="No indexed knowledge bases available for proposal yet.",
+            sources=[],
+            has_results=False,
+            suggested_follow_ups=None,
         )
-        return _to_query_response(result)
 
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Proposal query failed: {e!s}",
-            exc=e,
-            detail_prefix="Proposal query failed",
-        ) from e
+    result = operations.query_with_profile(
+        multi_query_service,
+        request.question,
+        QueryProfile.PROPOSAL,
+        request.top_k_per_kb,
+    )
+    return _to_query_response(result)
 
 
 @router.post("/kb-query", response_model=QueryResponse)
@@ -196,32 +174,17 @@ async def query_kb_manual(
     Query specific knowledge bases manually selected by user.
     Used in KB Query tab for manual KB selection.
     """
-    try:
-        # Filter input kb_ids to those with ready indexes
-        kb_ids: list[str] = []
-        for kb_id in request.kb_ids:
-            kb_config = kb_manager.get_kb(kb_id)
-            if kb_config and KnowledgeBaseService(kb_config).is_index_ready():
-                kb_ids.append(kb_id)
-
-        if not kb_ids:
-            return QueryResponse(
-                answer="Selected KBs have no built index yet.",
-                sources=[],
-                has_results=False,
-                suggested_follow_ups=None,
-            )
-
-        result = operations.query_specific_kbs(
-            multi_query_service, request.question, kb_ids, request.top_k_per_kb
+    ready_kb_ids = _ready_selected_kb_ids(kb_manager, request.kb_ids)
+    if not ready_kb_ids:
+        return QueryResponse(
+            answer="Selected KBs have no built index yet.",
+            sources=[],
+            has_results=False,
+            suggested_follow_ups=None,
         )
-        return _to_query_response(result)
 
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"KB Query failed: {e!s}",
-            exc=e,
-            detail_prefix="KB Query failed",
-        ) from e
+    result = operations.query_specific_kbs(
+        multi_query_service, request.question, ready_kb_ids, request.top_k_per_kb
+    )
+    return _to_query_response(result)
 

@@ -3,7 +3,6 @@ FastAPI Router for Project Management Endpoints
 Transport layer only - business logic delegated to project services.
 """
 
-import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -13,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.app_settings import get_app_settings
 from app.projects_database import get_db
-from app.routers.error_utils import internal_server_error, map_value_error
+from app.routers.error_utils import map_value_error
 from app.services.project.chat_service import ChatService
 from app.services.project.document_content_service import DocumentContentService
 from app.services.project.document_service import DocumentService
@@ -24,7 +23,6 @@ from app.services.project.state_edit_service import ProjectStateEditService
 
 from .project_models import (
     BulkDeleteProjectsRequest,
-    ChatResponse,
     CreateProjectRequest,
     DeleteResponse,
     DocumentsResponse,
@@ -34,8 +32,6 @@ from .project_models import (
     StateResponse,
     UpdateRequirementsRequest,
 )
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["projects"])
 project_service = ProjectService()
@@ -64,50 +60,25 @@ async def create_project(
     """Create a new project"""
     try:
         project = await project_service.create_project(request, db)
-        return {"project": project}
     except ValueError as e:
         raise map_value_error(e, default_status=400) from e
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to create project: {e}",
-            exc=e,
-            detail_prefix="Failed to create project",
-        ) from e
+    return {"project": project}
 
 
 @router.get("/projects", response_model=ProjectsListResponse)
 async def list_projects(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """List all projects"""
-    try:
-        projects = await project_service.list_projects(db)
-        return {"projects": projects}
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to list projects: {e}",
-            exc=e,
-            detail_prefix="Failed to list projects",
-        ) from e
+    projects = await project_service.list_projects(db)
+    return {"projects": projects}
 
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
 async def get_project(project_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Get project details"""
-    try:
-        project = await project_service.get_project(project_id, db)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-        return {"project": project}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to get project: {e}",
-            exc=e,
-            detail_prefix="Failed to get project",
-        ) from e
+    project = await project_service.get_project(project_id, db)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {"project": project}
 
 
 @router.put("/projects/{project_id}/requirements", response_model=ProjectResponse)
@@ -119,16 +90,9 @@ async def update_requirements(
     """Update project requirements"""
     try:
         project = await project_service.update_requirements(project_id, request, db)
-        return {"project": project}
     except ValueError as e:
         raise map_value_error(e, default_status=400) from e
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to update requirements: {e}",
-            exc=e,
-            detail_prefix="Failed to update requirements",
-        ) from e
+    return {"project": project}
 
 
 @router.delete("/projects/{project_id}", response_model=DeleteResponse)
@@ -138,20 +102,13 @@ async def delete_project(
     """Soft delete a project (sets deleted_at timestamp)"""
     try:
         await project_service.soft_delete_project(project_id, db)
-        return {
-            "message": "Project deleted successfully",
-            "deletedCount": 1,
-            "projectIds": [project_id],
-        }
     except ValueError as e:
         raise map_value_error(e, default_status=400) from e
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to delete project: {e}",
-            exc=e,
-            detail_prefix="Failed to delete project",
-        ) from e
+    return {
+        "message": "Project deleted successfully",
+        "deletedCount": 1,
+        "projectIds": [project_id],
+    }
 
 
 @router.post("/projects/bulk-delete", response_model=DeleteResponse)
@@ -159,27 +116,17 @@ async def bulk_delete_projects(
     request: BulkDeleteProjectsRequest, db: AsyncSession = Depends(get_db)
 ) -> dict[str, Any]:
     """Bulk soft delete multiple projects"""
-    try:
-        result = await project_service.bulk_soft_delete_projects(
-            request.project_ids, db
-        )
-        message = (
-            f"Successfully deleted {result['deleted_count']} project(s)"
-            if result["deleted_count"] > 0
-            else "No projects were deleted"
-        )
-        return {
-            "message": message,
-            "deletedCount": result["deleted_count"],
-            "projectIds": result["project_ids"],
-        }
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to bulk delete projects: {e}",
-            exc=e,
-            detail_prefix="Failed to bulk delete projects",
-        ) from e
+    result = await project_service.bulk_soft_delete_projects(request.project_ids, db)
+    message = (
+        f"Successfully deleted {result['deleted_count']} project(s)"
+        if result["deleted_count"] > 0
+        else "No projects were deleted"
+    )
+    return {
+        "message": message,
+        "deletedCount": result["deleted_count"],
+        "projectIds": result["project_ids"],
+    }
 
 
 # ============================================================================
@@ -196,27 +143,17 @@ async def upload_documents(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Upload documents for a project"""
+    selected_files = documents or files
+    if not selected_files:
+        raise HTTPException(status_code=400, detail="No files uploaded")
     try:
-        selected_files = documents or files
-        if not selected_files:
-            raise HTTPException(status_code=400, detail="No files uploaded")
-
-        upload_result = await document_service.upload_documents(
-            project_id, selected_files, db
-        )
-        return {
-            "documents": upload_result.get("documents", []),
-            "uploadSummary": upload_result.get("uploadSummary", {}),
-        }
+        upload_result = await document_service.upload_documents(project_id, selected_files, db)
     except ValueError as e:
         raise map_value_error(e, default_status=400) from e
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to upload documents: {e}",
-            exc=e,
-            detail_prefix="Failed to upload documents",
-        ) from e
+    return {
+        "documents": upload_result.get("documents", []),
+        "uploadSummary": upload_result.get("uploadSummary", {}),
+    }
 
 
 @router.get("/projects/{project_id}/documents/{document_id}/content")
@@ -247,16 +184,9 @@ async def analyze_documents(project_id: str, db: AsyncSession = Depends(get_db))
             project_id=project_id,
             db=db,
         )
-        return {"projectState": state}
     except ValueError as e:
         raise map_value_error(e, default_status=400) from e
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to analyze documents: {e}",
-            exc=e,
-            detail_prefix="Failed to analyze documents",
-        ) from e
+    return {"projectState": state}
 
 
 
@@ -265,43 +195,14 @@ async def analyze_documents(project_id: str, db: AsyncSession = Depends(get_db))
 # ============================================================================
 
 
-@router.post(
-    "/projects/{project_id}/chat",
-    response_model=ChatResponse,
-    include_in_schema=False,
-)
-async def chat_message(
-    project_id: str,
-) -> dict[str, Any]:
-    """Legacy endpoint (disabled).
-
-    The application uses the LangGraph agent chat endpoint:
-      POST /api/agent/projects/{project_id}/chat
-    """
-    raise HTTPException(
-        status_code=410,
-        detail=(
-            "Project chat endpoint is disabled. Use POST /api/agent/projects/{project_id}/chat "
-            "(LangGraph) instead."
-        ),
-    )
-
-
 @router.get("/projects/{project_id}/state", response_model=StateResponse)
 async def get_project_state(project_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Get current project state"""
     try:
         state = await chat_service.get_project_state(project_id, db)
-        return {"projectState": state}
     except ValueError as e:
         raise map_value_error(e, default_status=400) from e
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to get project state: {e}",
-            exc=e,
-            detail_prefix="Failed to get project state",
-        ) from e
+    return {"projectState": state}
 
 
 @router.get("/projects/{project_id}/messages", response_model=MessagesResponse)
@@ -319,16 +220,9 @@ async def get_messages(
         messages = await chat_service.get_conversation_messages(
             project_id, db, before_id=before_id, since_id=since_id, limit=limit
         )
-        return {"messages": messages}
     except ValueError as e:
         raise map_value_error(e, default_status=404) from e
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to get messages: {e}",
-            exc=e,
-            detail_prefix="Failed to get messages",
-        ) from e
+    return {"messages": messages}
 
 
 @router.patch("/projects/{project_id}/adrs/{adr_id}/append", response_model=StateResponse)
@@ -343,25 +237,14 @@ async def append_to_adr(
     This is used by E2E validation to simulate an authoritative human edit
     (US7) so the agent merge rules can surface conflicts instead of overwriting.
     """
-    try:
-        state = await project_state_edit_service.append_to_adr(
-            project_id=project_id,
-            adr_id=adr_id,
-            adr_field=request.adr_field,
-            append_text=request.append_text,
-            db=db,
-        )
-        return {"projectState": state}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise internal_server_error(
-            logger=logger,
-            message=f"Failed to append to ADR: {e}",
-            exc=e,
-            detail_prefix="Failed to append to ADR",
-        ) from e
+    state = await project_state_edit_service.append_to_adr(
+        project_id=project_id,
+        adr_id=adr_id,
+        adr_field=request.adr_field,
+        append_text=request.append_text,
+        db=db,
+    )
+    return {"projectState": state}
 
 
 # ============================================================================
@@ -384,4 +267,3 @@ async def generate_proposal(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
-
