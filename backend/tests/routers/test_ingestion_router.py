@@ -1,8 +1,7 @@
 """Tests for ingestion router endpoints."""
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -10,6 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
 from app.projects_database import get_db
+from app.routers.ingestion import (
+    get_ingestion_runtime_service_dep,
+    get_job_repository_dep,
+)
 from app.service_registry import get_kb_manager as sr_get_kb_manager
 
 
@@ -44,14 +47,17 @@ async def test_start_ingestion_success(async_client: AsyncClient, mock_kb_manage
         "source_config": {"url": "https://example.com"},
     }
 
-    with patch("app.routers.ingestion.repo") as mock_repo:
-        mock_repo.create_job.return_value = "job-123"
-        with patch(
-            "app.services.ingestion_runtime.asyncio.create_task"
-        ) as mock_create_task:
-            mock_task = Mock()
-            mock_create_task.return_value = mock_task
-            response = await async_client.post("/api/ingestion/kb/test-kb/start")
+    mock_runtime_service = Mock()
+    mock_runtime_service.start_ingestion = AsyncMock(
+        return_value={
+            "job_id": "job-123",
+            "kb_id": "test-kb",
+            "status": "running",
+            "started_at": datetime.now(timezone.utc),
+        }
+    )
+    app.dependency_overrides[get_ingestion_runtime_service_dep] = lambda: mock_runtime_service
+    response = await async_client.post("/api/ingestion/kb/test-kb/start")
 
     assert response.status_code == 200
     data = response.json()
@@ -61,25 +67,31 @@ async def test_start_ingestion_success(async_client: AsyncClient, mock_kb_manage
 
 @pytest.mark.asyncio
 async def test_get_job_status(async_client: AsyncClient) -> None:
-    with patch("app.routers.ingestion.repo") as mock_repo:
-        mock_repo.get_job.return_value = Mock(
-            id="job-123",
-            kb_id="test-kb",
-            status="running",
-            counters={},
-            checkpoint=None,
-            last_error=None,
-            created_at=datetime.now(timezone.utc),
-            finished_at=None,
-        )
-        mock_repo.get_job_status.return_value = "running"
-        response = await async_client.get("/api/ingestion/kb/job-123/status")
+    mock_repo = Mock()
+    mock_repo.get_job.return_value = Mock(
+        id="job-123",
+        kb_id="test-kb",
+        status="running",
+        counters={},
+        checkpoint=None,
+        last_error=None,
+        created_at=datetime.now(timezone.utc),
+        finished_at=None,
+    )
+    mock_repo.get_job_status.return_value = "running"
+    app.dependency_overrides[get_job_repository_dep] = lambda: mock_repo
+    response = await async_client.get("/api/ingestion/kb/job-123/status")
     assert response.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_pause_ingestion_no_job(async_client: AsyncClient) -> None:
-    with patch("app.routers.ingestion.repo") as mock_repo:
-        mock_repo.get_latest_job_id.return_value = None
-        response = await async_client.post("/api/ingestion/kb/test-kb/pause")
+    from fastapi import HTTPException  # noqa: PLC0415
+
+    mock_runtime_service = Mock()
+    mock_runtime_service.pause_ingestion = AsyncMock(
+        side_effect=HTTPException(status_code=404, detail="No job found for KB 'test-kb'")
+    )
+    app.dependency_overrides[get_ingestion_runtime_service_dep] = lambda: mock_runtime_service
+    response = await async_client.post("/api/ingestion/kb/test-kb/pause")
     assert response.status_code == 404

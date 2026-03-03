@@ -3,11 +3,16 @@ Business Logic for KB Management Operations
 Service layer handling KB listing, health checks, and KB CRUD.
 """
 
+import asyncio
 import logging
 from typing import Any, cast
 
+from fastapi import HTTPException
+
+from app.ingestion.infrastructure import create_job_repository
 from app.kb import KBManager
-from app.kb.service import KnowledgeBaseService
+from app.kb.service import KnowledgeBaseService, clear_index_cache
+from app.service_registry import invalidate_kb_manager
 
 from .management_models import CreateKBRequest
 
@@ -59,6 +64,7 @@ class KBManagementService:
 
         # Create KB
         manager.create_kb(request.kb_id, kb_config)
+        invalidate_kb_manager()
 
         logger.info(f"KB created id={request.kb_id} name='{request.name}'")
 
@@ -144,6 +150,37 @@ class KBManagementService:
 
         logger.info(f"KB health status={overall_status}")
         return {"overall_status": overall_status, "knowledge_bases": kb_health}
+
+    async def delete_knowledge_base(self, kb_id: str, manager: KBManager) -> dict[str, str]:
+        """Delete a knowledge base and related runtime/cache state."""
+        if not manager.kb_exists(kb_id):
+            raise HTTPException(
+                status_code=404, detail=f"Knowledge base '{kb_id}' not found"
+            )
+
+        kb_config = manager.get_kb(kb_id)
+        storage_dir = kb_config.index_path if kb_config else None
+
+        try:
+            repo = create_job_repository()
+            repo.update_job_status(
+                job_id=repo.get_latest_job_id(kb_id) or "",
+                status="canceled",
+            )
+        except Exception:  # noqa: BLE001
+            logger.debug("No active job to cancel for KB: %s", kb_id)
+
+        if storage_dir:
+            clear_index_cache(kb_id=kb_id, storage_dir=storage_dir)
+            await asyncio.sleep(0.5)
+
+        manager.delete_kb(kb_id)
+        invalidate_kb_manager()
+        logger.info("Deleted KB: %s", kb_id)
+        return {
+            "message": f"Knowledge base '{kb_id}' deleted successfully",
+            "kb_id": kb_id,
+        }
 
 
 def get_management_service() -> KBManagementService:

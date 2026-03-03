@@ -9,6 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.routers.error_utils import internal_server_error
 from app.services.settings_models_service import SettingsModelsService
 
 logger = logging.getLogger(__name__)
@@ -107,9 +108,11 @@ async def get_available_models(
         return AvailableModelsResponse(models=response_models, cached_at=cached_at)
 
     except Exception as e:
-        logger.error(f"Failed to get available models: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to fetch available models: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to get available models: {e}",
+            exc=e,
+            detail_prefix="Failed to fetch available models",
         ) from e
 
 
@@ -129,9 +132,11 @@ async def get_current_model() -> CurrentModelResponse:
         return CurrentModelResponse(model=current_model)
 
     except Exception as e:
-        logger.error(f"Failed to get current model: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get current model: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to get current model: {e}",
+            exc=e,
+            detail_prefix="Failed to get current model",
         ) from e
 
 
@@ -162,7 +167,9 @@ async def set_model(request: SetModelRequest) -> SetModelResponse:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to change model: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to change model: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to change model: {e}",
+            exc=e,
+            detail_prefix="Failed to change model",
         ) from e

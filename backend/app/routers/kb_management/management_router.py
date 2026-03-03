@@ -3,7 +3,6 @@ KB Management Router
 FastAPI endpoints for KB CRUD operations, listing, and health monitoring.
 """
 
-import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,8 +11,7 @@ from app.dependencies import get_kb_manager
 from app.ingestion.application.status_query_service import StatusQueryService
 from app.ingestion.infrastructure import create_job_repository, create_queue_repository
 from app.kb import KBManager
-from app.kb.service import clear_index_cache
-from app.service_registry import invalidate_kb_manager
+from app.routers.error_utils import internal_server_error, map_value_error
 from app.services.kb import MultiKBQueryService
 
 from .management_models import (
@@ -63,17 +61,15 @@ async def create_kb(
     """Create a new knowledge base"""
     try:
         result = operations.create_knowledge_base(request, kb_manager)
-
-        # Invalidate KB manager cache to reload config
-        invalidate_kb_manager()
-
         return CreateKBResponse(**result)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise map_value_error(e, default_status=400) from e
     except Exception as e:
-        logger.error(f"Failed to create KB: {e!s}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to create KB: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to create KB: {e!s}",
+            exc=e,
+            detail_prefix="Failed to create KB",
         ) from e
 
 
@@ -81,6 +77,7 @@ async def create_kb(
 async def delete_kb(
     kb_id: str,
     kb_manager: KBManager = Depends(get_kb_manager),
+    operations: KBManagementService = Depends(get_management_service_dep),
 ) -> dict[str, str]:
     """
     Delete a knowledge base and all its data.
@@ -92,53 +89,18 @@ async def delete_kb(
     - Delete all KB data (index, documents, etc.)
     """
     try:
-        # Check if KB exists
-        if not kb_manager.kb_exists(kb_id):
-            raise HTTPException(
-                status_code=404, detail=f"Knowledge base '{kb_id}' not found"
-            )
-
-        # Get KB config before deletion
-        kb_config = kb_manager.get_kb(kb_id)
-        storage_dir = kb_config.index_path if kb_config else None
-
-        # Persist cancel/reset prior to deletion
-        try:
-            repo = create_job_repository()
-            repo.update_job_status(
-                job_id=repo.get_latest_job_id(kb_id) or "", status="canceled"
-            )
-        except Exception:  # noqa: BLE001
-            logger.debug("No active job to cancel for KB: %s", kb_id)
-
-        # Clear index from memory cache
-        if storage_dir:
-            clear_index_cache(kb_id=kb_id, storage_dir=storage_dir)
-            logger.info(f"Cleared index cache for KB: {kb_id}")
-            await asyncio.sleep(0.5)
-
-        # Delete the KB
-        kb_manager.delete_kb(kb_id)
-
-        # Invalidate KB manager cache to reload config
-        invalidate_kb_manager()
-
-        logger.info(f"Deleted KB: {kb_id}")
-
-        return {
-            "message": f"Knowledge base '{kb_id}' deleted successfully",
-            "kb_id": kb_id,
-        }
+        return await operations.delete_knowledge_base(kb_id, kb_manager)
 
     except HTTPException:
         raise
     except ValueError as e:
-        logger.error(f"Failed to delete KB: {e!s}", exc_info=True)
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise map_value_error(e, default_status=400) from e
     except Exception as e:
-        logger.error(f"Failed to delete KB: {e!s}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to delete KB: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to delete KB: {e!s}",
+            exc=e,
+            detail_prefix="Failed to delete KB",
         ) from e
 
 
@@ -168,9 +130,11 @@ async def list_knowledge_bases(
         return KBListResponse(knowledge_bases=kb_list)
 
     except Exception as e:
-        logger.error(f"Failed to list knowledge bases: {e!s}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to list knowledge bases: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to list knowledge bases: {e!s}",
+            exc=e,
+            detail_prefix="Failed to list knowledge bases",
         ) from e
 
 
@@ -193,9 +157,11 @@ async def check_kb_health(
         )
 
     except Exception as e:
-        logger.error(f"Health check failed: {e!s}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Health check failed: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Health check failed: {e!s}",
+            exc=e,
+            detail_prefix="Health check failed",
         ) from e
 
 
@@ -240,8 +206,10 @@ async def get_kb_status(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get KB status: {e!s}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get KB status: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to get KB status: {e!s}",
+            exc=e,
+            detail_prefix="Failed to get KB status",
         ) from e
 

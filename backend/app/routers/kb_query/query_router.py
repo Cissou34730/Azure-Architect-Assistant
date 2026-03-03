@@ -5,11 +5,12 @@ FastAPI endpoints for knowledge base queries.
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from app.dependencies import get_kb_manager
 from app.kb import KBManager
 from app.kb.service import KnowledgeBaseService
+from app.routers.error_utils import internal_server_error
 from app.services.kb import MultiKBQueryService, QueryProfile
 
 from .query_models import (
@@ -95,8 +96,12 @@ async def query_legacy(
         return _to_query_response(result)
 
     except Exception as e:
-        logger.error(f"Legacy query failed: {e!s}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Query failed: {e!s}") from e
+        raise internal_server_error(
+            logger=logger,
+            message=f"Legacy query failed: {e!s}",
+            exc=e,
+            detail_prefix="Query failed",
+        ) from e
 
 
 @router.post("/chat", response_model=QueryResponse)
@@ -129,9 +134,11 @@ async def query_chat(
         return _to_query_response(result)
 
     except Exception as e:
-        logger.error(f"Chat query failed: {e!s}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Chat query failed: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Chat query failed: {e!s}",
+            exc=e,
+            detail_prefix="Chat query failed",
         ) from e
 
 
@@ -165,9 +172,11 @@ async def query_proposal(
         return _to_query_response(result)
 
     except Exception as e:
-        logger.error(f"Proposal query failed: {e!s}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Proposal query failed: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Proposal query failed: {e!s}",
+            exc=e,
+            detail_prefix="Proposal query failed",
         ) from e
 
 
@@ -204,6 +213,10 @@ async def query_kb_manual(
         return _to_query_response(result)
 
     except Exception as e:
-        logger.error(f"KB Query failed: {e!s}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"KB Query failed: {e!s}") from e
+        raise internal_server_error(
+            logger=logger,
+            message=f"KB Query failed: {e!s}",
+            exc=e,
+            detail_prefix="KB Query failed",
+        ) from e
 

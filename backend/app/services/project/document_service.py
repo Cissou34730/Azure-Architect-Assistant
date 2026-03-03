@@ -420,6 +420,7 @@ class DocumentService:
         state_record = result.scalar_one_or_none()
         if not state_record:
             raise ValueError(
+                "Project state not initialized. Please analyze documents first."
             )
 
         state = json.loads(state_record.state)

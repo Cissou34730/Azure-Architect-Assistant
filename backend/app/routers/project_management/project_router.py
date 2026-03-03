@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.routers.error_utils import internal_server_error, map_value_error
 from app.projects_database import get_db
 from app.services.project.chat_service import ChatService
 from app.services.project.document_content_service import DocumentContentService
@@ -64,11 +65,13 @@ async def create_project(
         project = await project_service.create_project(request, db)
         return {"project": project}
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        raise map_value_error(e, default_status=400) from e
     except Exception as e:
-        logger.error(f"Failed to create project: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to create project: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to create project: {e}",
+            exc=e,
+            detail_prefix="Failed to create project",
         ) from e
 
 
@@ -79,9 +82,11 @@ async def list_projects(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
         projects = await project_service.list_projects(db)
         return {"projects": projects}
     except Exception as e:
-        logger.error(f"Failed to list projects: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to list projects: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to list projects: {e}",
+            exc=e,
+            detail_prefix="Failed to list projects",
         ) from e
 
 
@@ -96,8 +101,12 @@ async def get_project(project_id: str, db: AsyncSession = Depends(get_db)) -> di
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get project: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get project: {e!s}") from e
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to get project: {e}",
+            exc=e,
+            detail_prefix="Failed to get project",
+        ) from e
 
 
 @router.put("/projects/{project_id}/requirements", response_model=ProjectResponse)
@@ -111,13 +120,13 @@ async def update_requirements(
         project = await project_service.update_requirements(project_id, request, db)
         return {"project": project}
     except ValueError as e:
-        raise HTTPException(
-            status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
-        ) from e
+        raise map_value_error(e, default_status=400) from e
     except Exception as e:
-        logger.error(f"Failed to update requirements: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update requirements: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to update requirements: {e}",
+            exc=e,
+            detail_prefix="Failed to update requirements",
         ) from e
 
 
@@ -134,13 +143,13 @@ async def delete_project(
             "projectIds": [project_id],
         }
     except ValueError as e:
-        raise HTTPException(
-            status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
-        ) from e
+        raise map_value_error(e, default_status=400) from e
     except Exception as e:
-        logger.error(f"Failed to delete project: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to delete project: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to delete project: {e}",
+            exc=e,
+            detail_prefix="Failed to delete project",
         ) from e
 
 
@@ -164,9 +173,11 @@ async def bulk_delete_projects(
             "projectIds": result["project_ids"],
         }
     except Exception as e:
-        logger.error(f"Failed to bulk delete projects: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to bulk delete projects: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to bulk delete projects: {e}",
+            exc=e,
+            detail_prefix="Failed to bulk delete projects",
         ) from e
 
 
@@ -197,13 +208,13 @@ async def upload_documents(
             "uploadSummary": upload_result.get("uploadSummary", {}),
         }
     except ValueError as e:
-        raise HTTPException(
-            status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
-        ) from e
+        raise map_value_error(e, default_status=400) from e
     except Exception as e:
-        logger.error(f"Failed to upload documents: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to upload documents: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to upload documents: {e}",
+            exc=e,
+            detail_prefix="Failed to upload documents",
         ) from e
 
 
@@ -237,13 +248,13 @@ async def analyze_documents(project_id: str, db: AsyncSession = Depends(get_db))
         )
         return {"projectState": state}
     except ValueError as e:
-        raise HTTPException(
-            status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
-        ) from e
+        raise map_value_error(e, default_status=400) from e
     except Exception as e:
-        logger.error(f"Failed to analyze documents: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to analyze documents: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to analyze documents: {e}",
+            exc=e,
+            detail_prefix="Failed to analyze documents",
         ) from e
 
 
@@ -282,13 +293,13 @@ async def get_project_state(project_id: str, db: AsyncSession = Depends(get_db))
         state = await chat_service.get_project_state(project_id, db)
         return {"projectState": state}
     except ValueError as e:
-        raise HTTPException(
-            status_code=404 if "not found" in str(e).lower() else 400, detail=str(e)
-        ) from e
+        raise map_value_error(e, default_status=400) from e
     except Exception as e:
-        logger.error(f"Failed to get project state: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get project state: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to get project state: {e}",
+            exc=e,
+            detail_prefix="Failed to get project state",
         ) from e
 
 
@@ -307,10 +318,14 @@ async def get_messages(
         )
         return {"messages": messages}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+        raise map_value_error(e, default_status=404) from e
     except Exception as e:
-        logger.error(f"Failed to get messages: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get messages: {e!s}") from e
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to get messages: {e}",
+            exc=e,
+            detail_prefix="Failed to get messages",
+        ) from e
 
 
 @router.patch("/projects/{project_id}/adrs/{adr_id}/append", response_model=StateResponse)
@@ -338,9 +353,11 @@ async def append_to_adr(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to append to ADR: %s", e, exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to append to ADR: {e!s}"
+        raise internal_server_error(
+            logger=logger,
+            message=f"Failed to append to ADR: {e}",
+            exc=e,
+            detail_prefix="Failed to append to ADR",
         ) from e
 
 

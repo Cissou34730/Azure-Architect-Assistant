@@ -16,7 +16,7 @@ from typing_extensions import TypedDict
 from app.ingestion.application.status_query_service import StatusQueryService
 from app.ingestion.infrastructure import create_job_repository, create_queue_repository
 from app.kb import KBManager
-from app.service_registry import get_kb_manager
+from app.service_registry import get_ingestion_runtime_service, get_kb_manager
 from app.services.ingestion_metrics_service import (
     IngestionMetrics,
     JobStatus,
@@ -62,22 +62,22 @@ class JobViewResponse(BaseModel):
     phase_details: list[dict[str, Any]] | None = None
 
 
-repo = create_job_repository()
-ingestion_runtime_service = IngestionRuntimeService(repo=repo)
+def get_ingestion_runtime_service_dep() -> IngestionRuntimeService:
+    return get_ingestion_runtime_service()
 
 
-def _get_runtime_service() -> IngestionRuntimeService:
-    # Keep runtime service aligned with the module-level repo for tests and overrides.
-    ingestion_runtime_service.repo = repo
-    return ingestion_runtime_service
+def get_job_repository_dep() -> Any:
+    return create_job_repository()
 
 
 @router.post("/kb/{kb_id}/start", response_model=JobStatusResponse)
 async def start_ingestion(
-    kb_id: str, kb_manager: KBManager = Depends(get_kb_manager)
+    kb_id: str,
+    kb_manager: KBManager = Depends(get_kb_manager),
+    runtime_service: IngestionRuntimeService = Depends(get_ingestion_runtime_service_dep),
 ) -> JobStatusResponse:
     try:
-        payload = await _get_runtime_service().start_ingestion(kb_id, kb_manager)
+        payload = await runtime_service.start_ingestion(kb_id, kb_manager)
         return JobStatusResponse(**payload)
     except HTTPException:
         raise
@@ -89,9 +89,12 @@ async def start_ingestion(
 
 
 @router.post("/kb/{kb_id}/pause")
-async def pause_ingestion(kb_id: str) -> dict[str, Any]:
+async def pause_ingestion(
+    kb_id: str,
+    runtime_service: IngestionRuntimeService = Depends(get_ingestion_runtime_service_dep),
+) -> dict[str, Any]:
     try:
-        return await _get_runtime_service().pause_ingestion(kb_id)
+        return await runtime_service.pause_ingestion(kb_id)
     except HTTPException:
         raise
     except Exception as exc:
@@ -110,10 +113,12 @@ class ResumeResponse(TypedDict):
 
 @router.post("/kb/{kb_id}/resume")
 async def resume_ingestion(
-    kb_id: str, kb_manager: KBManager = Depends(get_kb_manager)
+    kb_id: str,
+    kb_manager: KBManager = Depends(get_kb_manager),
+    runtime_service: IngestionRuntimeService = Depends(get_ingestion_runtime_service_dep),
 ) -> ResumeResponse:
     try:
-        payload = await _get_runtime_service().resume_ingestion(kb_id, kb_manager)
+        payload = await runtime_service.resume_ingestion(kb_id, kb_manager)
         return ResumeResponse(**payload)
     except HTTPException:
         raise
@@ -123,9 +128,12 @@ async def resume_ingestion(
 
 
 @router.post("/kb/{kb_id}/cancel")
-async def cancel_ingestion(kb_id: str) -> dict[str, Any]:
+async def cancel_ingestion(
+    kb_id: str,
+    runtime_service: IngestionRuntimeService = Depends(get_ingestion_runtime_service_dep),
+) -> dict[str, Any]:
     try:
-        return await _get_runtime_service().cancel_ingestion(kb_id)
+        return await runtime_service.cancel_ingestion(kb_id)
     except HTTPException:
         raise
     except Exception as exc:
@@ -134,7 +142,10 @@ async def cancel_ingestion(kb_id: str) -> dict[str, Any]:
 
 
 @router.get("/kb/{job_id}/status", response_model=JobStatusResponse)
-async def get_job_status(job_id: str) -> JobStatusResponse:
+async def get_job_status(
+    job_id: str,
+    repo: Any = Depends(get_job_repository_dep),
+) -> JobStatusResponse:
     try:
         job = repo.get_job(job_id)
         if not job:
@@ -158,7 +169,10 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
 
 
 @router.get("/kb/{kb_id}/details")
-async def get_kb_ingestion_details(kb_id: str) -> dict[str, Any]:
+async def get_kb_ingestion_details(
+    kb_id: str,
+    repo: Any = Depends(get_job_repository_dep),
+) -> dict[str, Any]:
     try:
         status_service = StatusQueryService()
         status = status_service.get_status(kb_id)
@@ -243,4 +257,4 @@ async def get_kb_job_view(kb_id: str) -> JobViewResponse:
 
 async def cleanup_running_tasks() -> None:
     """Cleanup function to gracefully stop all running ingestion tasks."""
-    await _get_runtime_service().cleanup_running_tasks()
+    await get_ingestion_runtime_service().cleanup_running_tasks()
