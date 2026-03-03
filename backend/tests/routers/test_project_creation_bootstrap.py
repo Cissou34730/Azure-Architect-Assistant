@@ -72,7 +72,7 @@ async def test_create_project_bootstraps_state_and_waf_checklist(
     settings.waf_template_cache_dir = cache_dir
 
     monkeypatch.setattr(
-        "app.routers.project_management.services.project_service.get_app_settings",
+        "app.services.project.project_service.get_app_settings",
         lambda: settings,
     )
 

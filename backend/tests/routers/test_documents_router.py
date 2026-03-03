@@ -1,10 +1,13 @@
+import asyncio
+import json
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
-from app.models import Project, ProjectDocument
+from app.models import Project, ProjectDocument, ProjectState
 from app.projects_database import get_db
 
 
@@ -36,7 +39,7 @@ async def test_upload_documents_returns_summary_and_persists_statuses(
         return "ok text", None
 
     monkeypatch.setattr(
-        "app.routers.project_management.services.document_service.extract_text_from_upload",
+        "app.services.project.document_service.extract_text_from_upload",
         fake_extract_text,
     )
 
@@ -118,7 +121,7 @@ async def test_document_content_guesses_pdf_content_type_for_generic_upload(
         return "pdf text", None
 
     monkeypatch.setattr(
-        "app.routers.project_management.services.document_service.extract_text_from_upload",
+        "app.services.project.document_service.extract_text_from_upload",
         fake_extract_text,
     )
 
@@ -151,3 +154,47 @@ async def test_document_content_guesses_pdf_content_type_for_generic_upload(
     )
     content_disposition = content_response.headers.get("content-disposition", "")
     assert content_disposition.startswith("inline")
+
+
+@pytest.mark.asyncio
+async def test_architecture_proposal_streams_progress_events(
+    async_client: AsyncClient,
+    test_db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = Project(id="proj-sse-1", name="SSE Project")
+    test_db_session.add(project)
+    test_db_session.add(ProjectState(project_id=project.id, state="{}", updated_at="now"))
+    await test_db_session.commit()
+
+    async def fake_generate_proposal(project_id: str, db, on_progress=None):
+        if on_progress is not None:
+            on_progress("phase_1", "Gathering context")
+            await asyncio.sleep(0.01)
+            on_progress("phase_2", "Drafting recommendation")
+        return "final proposal"
+
+    monkeypatch.setattr(
+        "app.routers.project_management.project_router.document_service.generate_proposal",
+        fake_generate_proposal,
+    )
+
+    seen_stages: list[str] = []
+    async with async_client.stream(
+        "GET",
+        f"/api/projects/{project.id}/architecture/proposal",
+    ) as response:
+        assert response.status_code == 200
+        async for line in response.aiter_lines():
+            if not line.startswith("data: "):
+                continue
+            payload = json.loads(line[6:])
+            stage = str(payload.get("stage"))
+            seen_stages.append(stage)
+            if stage == "done":
+                break
+
+    assert "started" in seen_stages
+    assert "phase_1" in seen_stages
+    assert "phase_2" in seen_stages
+    assert "done" in seen_stages

@@ -46,9 +46,11 @@ async def test_start_ingestion_success(async_client: AsyncClient, mock_kb_manage
 
     with patch("app.routers.ingestion.repo") as mock_repo:
         mock_repo.create_job.return_value = "job-123"
-        with patch("app.routers.ingestion.asyncio") as mock_asyncio:
+        with patch(
+            "app.services.ingestion_runtime.asyncio.create_task"
+        ) as mock_create_task:
             mock_task = Mock()
-            mock_asyncio.create_task.return_value = mock_task
+            mock_create_task.return_value = mock_task
             response = await async_client.post("/api/ingestion/kb/test-kb/start")
 
     assert response.status_code == 200

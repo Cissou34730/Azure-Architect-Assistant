@@ -3,11 +3,8 @@ FastAPI Router for Project Management Endpoints
 Clean routing layer - business logic delegated to operations.py
 """
 
-import json
 import logging
 import mimetypes
-from collections.abc import AsyncGenerator
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +14,13 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ProjectDocument, ProjectState
+from app.models import ProjectDocument
 from app.projects_database import get_db
+from app.services.project.chat_service import ChatService
+from app.services.project.document_service import DocumentService
+from app.services.project.project_service import ProjectService
+from app.services.project.proposal_stream_service import stream_architecture_proposal
+from app.services.project.state_edit_service import ProjectStateEditService
 from app.services.diagram.project_diagram_helpers import (
     append_diagram_reference_to_project_state,
     ensure_initial_c4_context_diagram,
@@ -37,7 +39,6 @@ from .project_models import (
     StateResponse,
     UpdateRequirementsRequest,
 )
-from .services import ChatService, DocumentService, ProjectService
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ router = APIRouter(prefix="/api", tags=["projects"])
 project_service = ProjectService()
 document_service = DocumentService()
 chat_service = ChatService()
+project_state_edit_service = ProjectStateEditService()
 
 
 class AdrAppendRequest(BaseModel):
@@ -358,42 +360,13 @@ async def append_to_adr(
     (US7) so the agent merge rules can surface conflicts instead of overwriting.
     """
     try:
-        field = (request.adr_field or "").strip()
-        if field not in {"context", "decision", "consequences", "title"}:
-            raise HTTPException(status_code=400, detail=f"Unsupported adrField: {field}")
-
-        result = await db.execute(
-            select(ProjectState).where(ProjectState.project_id == project_id)
+        state = await project_state_edit_service.append_to_adr(
+            project_id=project_id,
+            adr_id=adr_id,
+            adr_field=request.adr_field,
+            append_text=request.append_text,
+            db=db,
         )
-        state_record = result.scalar_one_or_none()
-        if not state_record:
-            raise HTTPException(status_code=404, detail="Project state not found")
-
-        state = json.loads(state_record.state)
-        adrs = state.get("adrs")
-        if not isinstance(adrs, list):
-            raise HTTPException(status_code=400, detail="No ADRs present in state")
-
-        target = None
-        for adr in adrs:
-            if isinstance(adr, dict) and str(adr.get("id")) == adr_id:
-                target = adr
-                break
-        if target is None:
-            raise HTTPException(status_code=404, detail="ADR not found")
-
-        append_text = (request.append_text or "").strip()
-        if not append_text:
-            raise HTTPException(status_code=400, detail="appendText is required")
-
-        existing_val = str(target.get(field) or "").rstrip()
-        new_val = (existing_val + "\n" if existing_val else "") + append_text
-        target[field] = new_val
-
-        state_record.state = json.dumps(state)
-        state_record.updated_at = datetime.now(timezone.utc).isoformat()
-        await db.commit()
-
         return {"projectState": state}
 
     except HTTPException:
@@ -416,64 +389,12 @@ async def generate_proposal(
 ) -> StreamingResponse:
     """Generate architecture proposal with Server-Sent Events for progress"""
 
-    async def event_generator() -> AsyncGenerator[str, None]:
-        """Generate SSE events"""
-
-        def send_progress(stage: str, detail: str | None = None) -> str:
-            data = {
-                "stage": stage,
-                "detail": detail,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-            return f"data: {json.dumps(data)}\n\n"
-
-        yield send_progress("started", "Initializing proposal generation")
-
-        try:
-            # Track progress events
-            progress_events: list[tuple[str, str | None]] = []
-
-            def on_progress(stage: str, detail: str | None = None) -> None:
-                progress_events.append((stage, detail))
-
-            # Generate proposal
-            proposal = await document_service.generate_proposal(
-                project_id, db, on_progress
-            )
-
-            # Send accumulated progress
-            for stage, detail in progress_events:
-                yield send_progress(stage, detail)
-
-            yield send_progress("completed", "Proposal generated successfully")
-
-            # Send final result
-            final_data = {
-                "stage": "done",
-                "proposal": proposal,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-            yield f"data: {json.dumps(final_data)}\n\n"
-
-        except ValueError as e:
-            logger.error(f"Proposal generation failed: {e}")
-            error_data = {
-                "stage": "error",
-                "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-            yield f"data: {json.dumps(error_data)}\n\n"
-        except Exception as e:
-            logger.error(f"Proposal generation failed: {e}", exc_info=True)
-            error_data = {
-                "stage": "error",
-                "error": f"Internal server error: {e!s}",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-            yield f"data: {json.dumps(error_data)}\n\n"
-
     return StreamingResponse(
-        event_generator(),
+        stream_architecture_proposal(
+            document_service=document_service,
+            project_id=project_id,
+            db=db,
+        ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )

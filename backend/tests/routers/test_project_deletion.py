@@ -276,7 +276,7 @@ async def test_delete_project_cleans_up_diagram_references(
         yield MockSession()
 
     monkeypatch.setattr(
-        "app.routers.project_management.services.project_service.get_diagram_session",
+        "app.services.project.project_service.get_diagram_session",
         mock_diagram_session,
     )
 
