@@ -39,6 +39,8 @@ class AIRouter:
     async def chat(self, **kwargs: Any) -> LLMResponse | AsyncIterator[str]:
         if kwargs.get("stream", False):
             return await self._chat_stream_with_fallback(**kwargs)
+        # self.fallback_llm is set once in __init__ and never mutated, so the
+        # lambda reference is stable and safe to capture directly.
         fallback = (lambda: self.fallback_llm.chat(**kwargs)) if self.fallback_llm else None
         return await self._execute_with_fallback(
             primary_call=lambda: self.primary_llm.chat(**kwargs),

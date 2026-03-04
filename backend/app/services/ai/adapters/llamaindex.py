@@ -4,6 +4,17 @@ LlamaIndex Adapters for AIService
 Provides LlamaIndex-compatible interfaces that delegate to the unified AIService.
 This allows LlamaIndex code to continue working unchanged while using centralized
 AI service configuration and monitoring.
+
+Note on event-loop bridging
+---------------------------
+LlamaIndex's synchronous ``_get_*_embedding`` and ``complete``/``chat`` methods
+must call async AIService methods from a (potentially) already-running event loop.
+``nest_asyncio.apply()`` is called **once at module load time** to allow
+``loop.run_until_complete()`` to be called from within a running loop.
+
+This is a process-wide side effect.  Callers that require strict asyncio
+isolation should use the async ``_aget_*`` methods directly instead of
+relying on these sync shims.
 """
 
 import asyncio

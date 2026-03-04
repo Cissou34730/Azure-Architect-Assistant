@@ -456,7 +456,8 @@ class OpenAILLMProvider(LLMProvider):
         messages = [ChatMessage(role="user", content=prompt)]
         kwargs.pop("stream", None)  # complete() is always non-streaming
         response = await self.chat(messages, temperature, max_tokens, stream=False, **kwargs)
-        assert isinstance(response, LLMResponse)
+        if not isinstance(response, LLMResponse):
+            raise TypeError(f"Expected LLMResponse from non-streaming chat, got {type(response)}")
         return response.content
 
     def get_model_name(self) -> str:

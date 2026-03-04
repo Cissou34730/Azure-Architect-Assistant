@@ -336,7 +336,7 @@ class AIServiceManager:
             LLMServiceSingleton.set_instance(None)
             logger.debug("Cleared LLMService singleton instance")
         except ImportError:
-            pass
+            logger.debug("LLMServiceSingleton not available; skipping dependent cache clear")
 
 
 def get_ai_service(config: AIConfig | None = None) -> AIService:
