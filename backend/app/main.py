@@ -14,13 +14,13 @@ from pydantic import BaseModel
 
 # Import lifecycle management
 from app import lifecycle
-from app.agents_system.agents.router import router as agent_router
 from app.core.app_logging import configure_logging
 from app.core.app_settings import get_app_settings
 from app.core.router_guardrails import enforce_router_guardrails
 from app.core.signals import install_ingestion_signal_handlers
 
 # Import routers
+from app.routers.agents.router import router as agent_router
 from app.routers.checklists.checklist_router import router as checklist_router
 from app.routers.diagram_generation import router as diagram_generation_router
 from app.routers.ingestion import cleanup_running_tasks

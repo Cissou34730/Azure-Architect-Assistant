@@ -3,6 +3,7 @@ Routers package
 Exports top-level API routers.
 """
 
+from .agents import router as agent_router
 from .checklists.checklist_router import router as checklist_router
 from .diagram_generation import router as diagram_generation_router
 from .ingestion import router as ingestion_router
@@ -17,6 +18,7 @@ __all__ = [
     "ingestion_router",
     "kb_management_router",
     "kb_query_router",
+    "agent_router",
     "project_router",
     "settings_router",
 ]
