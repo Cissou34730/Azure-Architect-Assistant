@@ -6,7 +6,7 @@ Provides endpoints to list, get, and change the active LLM model.
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
 from app.services.settings_models_service import SettingsModelsService
@@ -14,7 +14,12 @@ from app.services.settings_models_service import SettingsModelsService
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-settings_models_service = SettingsModelsService()
+
+_settings_models_service = SettingsModelsService()
+
+
+def get_settings_models_service_dep() -> SettingsModelsService:
+    return _settings_models_service
 
 
 # Response Models
@@ -67,7 +72,8 @@ class SetModelResponse(BaseModel):
 async def get_available_models(
     refresh: bool = Query(
         default=False, description="Force refresh from primary provider strategy, bypassing cache"
-    )
+    ),
+    settings_models_service: SettingsModelsService = Depends(get_settings_models_service_dep),
 ) -> AvailableModelsResponse:
     """
     Get list of available models for the active provider strategy.
@@ -103,7 +109,9 @@ async def get_available_models(
 
 
 @router.get("/current-model", response_model=CurrentModelResponse)
-async def get_current_model() -> CurrentModelResponse:
+async def get_current_model(
+    settings_models_service: SettingsModelsService = Depends(get_settings_models_service_dep),
+) -> CurrentModelResponse:
     """
     Get the currently active LLM model.
 
@@ -116,7 +124,10 @@ async def get_current_model() -> CurrentModelResponse:
 
 
 @router.put("/model", response_model=SetModelResponse)
-async def set_model(request: SetModelRequest) -> SetModelResponse:
+async def set_model(
+    request: SetModelRequest,
+    settings_models_service: SettingsModelsService = Depends(get_settings_models_service_dep),
+) -> SetModelResponse:
     """
     Change the active LLM model.
 

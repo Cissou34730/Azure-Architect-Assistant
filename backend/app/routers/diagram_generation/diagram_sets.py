@@ -12,7 +12,12 @@ from app.services.diagram.diagram_set_service import DiagramSetService
 from .schemas import AmbiguityReportResponse
 
 router = APIRouter(prefix="/diagram-sets", tags=["Diagrams"])
-diagram_set_service = DiagramSetService()
+
+_diagram_set_service = DiagramSetService()
+
+
+def get_diagram_set_service_dep() -> DiagramSetService:
+    return _diagram_set_service
 
 
 class CreateDiagramSetRequest(BaseModel):
@@ -67,6 +72,7 @@ class DiagramSetResponse(BaseModel):
 async def create_diagram_set(
     request: CreateDiagramSetRequest,
     session: AsyncSession = Depends(get_diagram_session),
+    diagram_set_service: DiagramSetService = Depends(get_diagram_set_service_dep),
 ) -> DiagramSetResponse:
     result = await diagram_set_service.create_diagram_set(
         session=session,
@@ -85,6 +91,7 @@ async def create_diagram_set(
 async def get_diagram_set(
     diagram_set_id: str,
     session: AsyncSession = Depends(get_diagram_session),
+    diagram_set_service: DiagramSetService = Depends(get_diagram_set_service_dep),
 ) -> DiagramSetResponse:
     result = await diagram_set_service.get_diagram_set(
         session=session,

@@ -13,7 +13,6 @@ from app.dependencies import (
     get_multi_query_service_dependency,
 )
 from app.kb import KBManager
-from app.kb.service import KnowledgeBaseService
 from app.services.kb import MultiKBQueryService, QueryProfile
 from app.services.kb.query_orchestration_service import KBQueryService
 
@@ -66,24 +65,6 @@ def _to_query_response(result: dict[str, str | list | bool | None]) -> QueryResp
     )
 
 
-def _ready_kbs_for_profile(kb_manager: KBManager, profile: QueryProfile) -> list[object]:
-    return [
-        kb
-        for kb in kb_manager.get_kbs_for_profile(profile.value)
-        if KnowledgeBaseService(kb).is_index_ready()
-    ]
-
-
-def _ready_selected_kb_ids(kb_manager: KBManager, kb_ids: list[str]) -> list[str]:
-    """Filter user-selected KB ids to those with a ready index."""
-    return [
-        kb_id
-        for kb_id in kb_ids
-        if (kb_config := kb_manager.get_kb(kb_id))
-        and KnowledgeBaseService(kb_config).is_index_ready()
-    ]
-
-
 # ============================================================================
 # Query Endpoints
 # ============================================================================
@@ -116,7 +97,7 @@ async def query_chat(
     Query knowledge bases using CHAT profile (fast, targeted responses).
     Returns answer with sources from chat-enabled knowledge bases.
     """
-    ready_kbs = _ready_kbs_for_profile(kb_manager, QueryProfile.CHAT)
+    ready_kbs = operations.get_ready_kbs_for_profile(kb_manager, QueryProfile.CHAT)
     if not ready_kbs:
         return QueryResponse(
             answer="No indexed knowledge bases available for chat yet.",
@@ -145,7 +126,7 @@ async def query_proposal(
     Query knowledge bases using PROPOSAL profile (comprehensive, detailed responses).
     Returns answer with sources from proposal-enabled knowledge bases.
     """
-    ready_kbs = _ready_kbs_for_profile(kb_manager, QueryProfile.PROPOSAL)
+    ready_kbs = operations.get_ready_kbs_for_profile(kb_manager, QueryProfile.PROPOSAL)
     if not ready_kbs:
         return QueryResponse(
             answer="No indexed knowledge bases available for proposal yet.",
@@ -174,7 +155,7 @@ async def query_kb_manual(
     Query specific knowledge bases manually selected by user.
     Used in KB Query tab for manual KB selection.
     """
-    ready_kb_ids = _ready_selected_kb_ids(kb_manager, request.kb_ids)
+    ready_kb_ids = operations.get_ready_selected_kb_ids(kb_manager, request.kb_ids)
     if not ready_kb_ids:
         return QueryResponse(
             answer="Selected KBs have no built index yet.",

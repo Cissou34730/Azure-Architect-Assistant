@@ -3,6 +3,8 @@
 import logging
 from typing import Any, cast
 
+from app.kb import KBManager
+from app.kb.service import KnowledgeBaseService
 from app.services.kb import MultiKBQueryService, QueryProfile
 
 logger = logging.getLogger(__name__)
@@ -10,6 +12,23 @@ logger = logging.getLogger(__name__)
 
 class KBQueryService:
     """Stateless orchestration for profile and manual KB query flows."""
+
+    def get_ready_kbs_for_profile(self, kb_manager: KBManager, profile: QueryProfile) -> list[object]:
+        """Return KBs for the given profile that have a ready index."""
+        return [
+            kb
+            for kb in kb_manager.get_kbs_for_profile(profile.value)
+            if KnowledgeBaseService(kb).is_index_ready()
+        ]
+
+    def get_ready_selected_kb_ids(self, kb_manager: KBManager, kb_ids: list[str]) -> list[str]:
+        """Filter user-selected KB IDs to those with a ready index."""
+        return [
+            kb_id
+            for kb_id in kb_ids
+            if (kb_config := kb_manager.get_kb(kb_id))
+            and KnowledgeBaseService(kb_config).is_index_ready()
+        ]
 
     def query_with_profile(
         self,

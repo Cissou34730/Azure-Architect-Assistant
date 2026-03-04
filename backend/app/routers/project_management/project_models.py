@@ -63,3 +63,10 @@ class DeleteResponse(BaseModel):
     deleted_count: int = Field(default=1, alias="deletedCount")
     project_ids: list[str] = Field(default_factory=list, alias="projectIds")
 
+
+class AdrAppendRequest(BaseModel):
+    """Request to append text to an ADR field."""
+
+    adr_field: str = "decision"
+    append_text: str
+

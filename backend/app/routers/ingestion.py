@@ -5,11 +5,10 @@ See docs/SYSTEM_ARCHITECTURE.md for a pipeline overview.
 """
 
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from typing_extensions import TypedDict
+from pydantic import BaseModel, Field
 
 from app.dependencies import (
     get_ingestion_runtime_service_dependency,
@@ -81,15 +80,25 @@ async def start_ingestion(
     return JobStatusResponse(**payload)
 
 
-@router.post("/kb/{kb_id}/pause")
+class PauseResponse(BaseModel):
+    """Response from pause operation."""
+
+    status: str
+    job_id: str
+    kb_id: str | None = None
+    message: str
+
+
+@router.post("/kb/{kb_id}/pause", response_model=PauseResponse)
 async def pause_ingestion(
     kb_id: str,
     runtime_service: IngestionRuntimeService = Depends(get_ingestion_runtime_service_dep),
-) -> dict[str, Any]:
-    return await runtime_service.pause_ingestion(kb_id)
+) -> PauseResponse:
+    payload = await runtime_service.pause_ingestion(kb_id)
+    return PauseResponse.model_validate(payload)
 
 
-class ResumeResponse(TypedDict):
+class ResumeResponse(BaseModel):
     """Response from resume operation."""
 
     status: str
@@ -98,14 +107,14 @@ class ResumeResponse(TypedDict):
     message: str
 
 
-@router.post("/kb/{kb_id}/resume")
+@router.post("/kb/{kb_id}/resume", response_model=ResumeResponse)
 async def resume_ingestion(
     kb_id: str,
     kb_manager: KBManager = Depends(get_kb_manager),
     runtime_service: IngestionRuntimeService = Depends(get_ingestion_runtime_service_dep),
 ) -> ResumeResponse:
     payload = await runtime_service.resume_ingestion(kb_id, kb_manager)
-    return cast(ResumeResponse, payload)
+    return ResumeResponse.model_validate(payload)
 
 
 @router.post("/kb/{kb_id}/cancel")
@@ -144,13 +153,25 @@ async def get_job_status(
     return await _get_job_status_response(job_id, repo)
 
 
-@router.get("/kb/{kb_id}/details")
+class KBIngestionDetailsResponse(BaseModel):
+    """Response for KB ingestion details endpoint."""
+
+    kb_id: str
+    status: str
+    current_phase: str | None = None
+    overall_progress: int | None = None
+    phase_details: list[dict[str, Any]] | None = None
+    counters: dict[str, Any] = Field(default_factory=dict)
+
+
+@router.get("/kb/{kb_id}/details", response_model=KBIngestionDetailsResponse)
 async def get_kb_ingestion_details(
     kb_id: str,
     read_service: IngestionReadService = Depends(get_ingestion_read_service_dep),
-) -> dict[str, Any]:
+) -> KBIngestionDetailsResponse:
     try:
-        return read_service.get_kb_ingestion_details(kb_id)
+        payload = read_service.get_kb_ingestion_details(kb_id)
+        return KBIngestionDetailsResponse.model_validate(payload)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=f"KB details not found: {kb_id}") from exc
 

@@ -22,7 +22,12 @@ from app.routers.error_utils import map_value_error
 from app.services.checklists_api_service import ChecklistsApiService
 
 router = APIRouter(prefix="/api/projects/{project_id}/checklists", tags=["checklists"])
-checklists_api_service = ChecklistsApiService()
+
+_checklists_api_service = ChecklistsApiService()
+
+
+def get_checklists_api_service_dep() -> ChecklistsApiService:
+    return _checklists_api_service
 
 
 @router.get("", response_model=list[ChecklistSummary])
@@ -30,6 +35,7 @@ async def list_checklists(
     project_id: str,
     db: AsyncSession = Depends(get_db),
     service: ChecklistService = Depends(get_checklist_service),
+    checklists_api_service: ChecklistsApiService = Depends(get_checklists_api_service_dep),
 ) -> list[ChecklistSummary]:
     """List normalized checklists for a project."""
     payload = await checklists_api_service.list_checklists(
@@ -45,6 +51,7 @@ async def get_checklist_detail(
     project_id: str,
     checklist_id: UUID,
     db: AsyncSession = Depends(get_db),
+    checklists_api_service: ChecklistsApiService = Depends(get_checklists_api_service_dep),
 ) -> ChecklistDetail:
     """Get one checklist with item-level detail."""
     payload = await checklists_api_service.get_checklist_detail(
@@ -99,6 +106,7 @@ async def resync_checklists_from_project_state(
     project_id: str,
     db: AsyncSession = Depends(get_db),
     service: ChecklistService = Depends(get_checklist_service),
+    checklists_api_service: ChecklistsApiService = Depends(get_checklists_api_service_dep),
 ) -> ResyncResponse:
     """Force sync from ``ProjectState.state.wafChecklist`` into normalized tables."""
     payload = await checklists_api_service.resync_from_project_state(
