@@ -96,13 +96,13 @@ class ProjectDocument(Base):
             "fileName": str(self.file_name),
             "mimeType": str(self.mime_type),
             "rawText": str(self.raw_text),
-            "storedPath": self.stored_path,
-            "parseStatus": self.parse_status,
-            "analysisStatus": self.analysis_status,
-            "parseError": self.parse_error,
+            "storedPath": str(self.stored_path) if self.stored_path is not None else None,
+            "parseStatus": str(self.parse_status) if self.parse_status is not None else None,
+            "analysisStatus": str(self.analysis_status) if self.analysis_status is not None else None,
+            "parseError": str(self.parse_error) if self.parse_error is not None else None,
             "uploadedAt": str(self.uploaded_at),
-            "analyzedAt": self.analyzed_at,
-            "lastAnalysisRunId": self.last_analysis_run_id,
+            "analyzedAt": str(self.analyzed_at) if self.analyzed_at is not None else None,
+            "lastAnalysisRunId": str(self.last_analysis_run_id) if self.last_analysis_run_id is not None else None,
         }
 
 
