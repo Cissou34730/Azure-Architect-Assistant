@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from app.core.app_settings import get_app_settings
-from app.services.ai.ai_service import AIService, AIServiceManager
+from app.services.ai.ai_service import AIServiceManager
 from app.services.ai.config import AIConfig
 from app.services.ai.interfaces import ChatMessage
 from app.services.models_service import ModelsService
@@ -44,7 +44,7 @@ class SettingsModelsService:
         if probe_config.llm_provider == "openai":
             probe_config.openai_llm_model = model_id
 
-        probe_service = AIService(probe_config)
+        probe_service = AIServiceManager.create_probe(probe_config)
         _s = get_app_settings()
         try:
             await probe_service.chat(

@@ -3,6 +3,7 @@ MCP (Model Context Protocol) service package.
 Provides abstraction layer for external tool integrations via MCP.
 """
 
+from .client import MCPClient
 from .exceptions import (
     MCPCapabilityError,
     MCPConfigurationError,
@@ -22,6 +23,7 @@ from .operations import (
 
 __all__ = [
     "MCPCapabilityError",
+    "MCPClient",
     "MCPConfigurationError",
     "MCPConnectionError",
     "MCPError",

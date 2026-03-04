@@ -6,7 +6,6 @@ Single entry point for all AI operations (LLM and Embeddings).
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from functools import lru_cache
 from typing import Any, cast
 
 from .config import AIConfig
@@ -280,6 +279,14 @@ class AIServiceManager:
         cls._instance = instance
 
     @classmethod
+    def create_probe(cls, config: AIConfig) -> "AIService":
+        """
+        Create a temporary AIService for probing (not registered as singleton).
+        Use this when you need to test a configuration without committing it.
+        """
+        return AIService(config)
+
+    @classmethod
     async def reinitialize_with_model(cls, new_model: str) -> None:
         """
         Reinitialize AIService with a new model.
@@ -325,11 +332,6 @@ class AIServiceManager:
                 # Replace singleton instance
                 cls._instance = new_instance
 
-                # CRITICAL: Clear all cached service instances that depend on AIService
-                # This ensures fresh instances are created with the new model
-                get_ai_service.cache_clear()
-                logger.debug("Cleared get_ai_service LRU cache")
-
                 # Clear LLMService singleton to force recreation with new AI service
                 from app.services.llm_service import LLMServiceSingleton  # noqa: PLC0415
                 LLMServiceSingleton.set_instance(None)
@@ -348,7 +350,6 @@ class AIServiceManager:
                 raise ValueError(f"Failed to change model to {new_model}: {e!s}") from e
 
 
-@lru_cache(maxsize=1)
 def get_ai_service(config: AIConfig | None = None) -> AIService:
     """
     Get or create AIService singleton.

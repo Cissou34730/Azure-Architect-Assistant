@@ -8,13 +8,13 @@ Eliminates unnecessary type checking and response normalization.
 import logging
 from typing import Any, cast
 
-from ..learn_mcp_client import MicrosoftLearnMCPClient
+from ..client import MCPClient
 
 logger = logging.getLogger(__name__)
 
 
 async def _call_mcp_tool(
-    client: MicrosoftLearnMCPClient,
+    client: MCPClient,
     tool_name: str,
     arguments: dict[str, Any],
     operation_name: str,
@@ -47,7 +47,7 @@ async def _call_mcp_tool(
 
 
 async def search_microsoft_docs(
-    client: MicrosoftLearnMCPClient, query: str, max_results: int = 5
+    client: MCPClient, query: str, max_results: int = 5
 ) -> dict[str, Any]:
     """
     Search Microsoft documentation with semantic search.
@@ -109,7 +109,7 @@ async def search_microsoft_docs(
 
 
 async def fetch_documentation(
-    client: MicrosoftLearnMCPClient, url: str
+    client: MCPClient, url: str
 ) -> dict[str, Any]:
     """
     Fetch and convert a Microsoft documentation page to markdown.
@@ -154,7 +154,7 @@ async def fetch_documentation(
 
 
 async def search_code_samples(
-    client: MicrosoftLearnMCPClient,
+    client: MCPClient,
     query: str,
     language: str | None = None,
     max_results: int = 3,
@@ -230,7 +230,7 @@ async def search_code_samples(
 
 
 async def get_azure_guidance(
-    client: MicrosoftLearnMCPClient, topic: str, include_code: bool = True
+    client: MCPClient, topic: str, include_code: bool = True
 ) -> dict[str, Any]:
     """
     Get comprehensive Azure guidance on a topic.
