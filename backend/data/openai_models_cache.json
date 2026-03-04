@@ -225,6 +225,12 @@
       "pricing": null
     },
     {
+      "id": "gpt-5.3-chat-latest",
+      "name": "Gpt-5.3 Chat Latest",
+      "context_window": 8192,
+      "pricing": null
+    },
+    {
       "id": "gpt-5.2-pro-2025-12-11",
       "name": "Gpt-5.2 Pro (2025) (12) (11)",
       "context_window": 8192,
@@ -845,6 +851,6 @@
       "pricing": null
     }
   ],
-  "fetched_at": "2026-02-25T11:09:45.468622+00:00",
+  "fetched_at": "2026-03-04T20:36:19.007907+00:00",
   "ttl_days": 7
 }

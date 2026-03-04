@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "pwsh -ExecutionPolicy Bypass -NonInteractive -File .github/hooks/scripts/lint-modified-files.ps1",
+        "windows": "pwsh -ExecutionPolicy Bypass -NonInteractive -File .github\\hooks\\scripts\\lint-modified-files.ps1",
+        "timeout": 120
+      }
+    ]
+  }
+}
