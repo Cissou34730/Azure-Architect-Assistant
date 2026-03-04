@@ -47,47 +47,61 @@ def map_normalized_status(normalized_status: str | EvaluationStatus) -> str:
     return NORMALIZED_STATUS_MAP.get(normalized, "notCovered")
 
 
-def extract_waf_evaluations(project_state: dict[str, Any]) -> list[dict[str, Any]]:
-    """Extract latest legacy evaluation for each WAF item."""
-    waf_data = project_state.get("wafChecklist", {})
-    if not isinstance(waf_data, dict):
-        return []
+def _resolve_pillars(items_with_evals: list[Any], known_pillars: list[str] | None) -> list[str]:
+    """Resolve the list of pillar names in priority order: known → derived from items → default."""
+    if known_pillars:
+        pillars = sorted({p for p in known_pillars if p})
+        if pillars:
+            return pillars
+    derived = sorted(
+        {str(getattr(item, "pillar", "")).strip() for item in items_with_evals if getattr(item, "pillar", "")}
+    )
+    return derived if derived else _DEFAULT_PILLARS
 
-    items = waf_data.get("items", [])
-    if not isinstance(items, list):
-        return []
 
-    evaluations: list[dict[str, Any]] = []
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        item_id = item.get("id")
-        if not item_id:
-            continue
+def _extract_evidence_text(eval_obj: ChecklistItemEvaluation) -> str:
+    """Extract the plain-text evidence string from an evaluation object."""
+    if isinstance(eval_obj.evidence, dict):
+        return str(
+            eval_obj.evidence.get("description")
+            or eval_obj.evidence.get("evidence")
+            or ""
+        )
+    if isinstance(eval_obj.evidence, str):
+        return eval_obj.evidence
+    return ""
 
-        item_evals = item.get("evaluations", [])
-        if not isinstance(item_evals, list) or not item_evals:
-            continue
 
-        latest_eval = item_evals[-1]
-        if not isinstance(latest_eval, dict):
-            continue
+def _build_legacy_item(item: Any) -> dict[str, Any]:
+    """Build a single legacy WAF item dict with its most-recent evaluation."""
+    raw_evals = getattr(item, "evaluations", []) or []
+    eval_list = [e for e in raw_evals if isinstance(e, ChecklistItemEvaluation)]
+    eval_list.sort(
+        key=lambda e: e.created_at if isinstance(e.created_at, datetime) else datetime.min,
+        reverse=True,
+    )
+    eval_obj = eval_list[0] if eval_list else None
 
-        evaluations.append(
+    legacy_evals: list[dict[str, Any]] = []
+    if eval_obj is not None:
+        legacy_evals.append(
             {
-                "item_id": item_id,
-                "status": map_legacy_status(str(latest_eval.get("status", "notCovered"))),
-                "evidence": {
-                    "description": str(latest_eval.get("evidence", "")),
-                    "legacy_id": latest_eval.get("id"),
-                },
-                "evaluator": "legacy-migration",
-                "source_type": "legacy-migration",
-                "created_at": latest_eval.get("created_at"),
+                "id": f"eval_{eval_obj.id}",
+                "status": map_normalized_status(eval_obj.status),
+                "evidence": _extract_evidence_text(eval_obj),
+                "created_at": eval_obj.created_at.isoformat() if eval_obj.created_at else None,
+                "sourceCitations": [],
+                "relatedFindingIds": [],
             }
         )
 
-    return evaluations
+    legacy_item_id = str(getattr(item, "template_item_id", "") or getattr(item, "id", ""))
+    return {
+        "id": legacy_item_id,
+        "pillar": getattr(item, "pillar", None),
+        "topic": getattr(item, "title", None),
+        "evaluations": legacy_evals,
+    }
 
 
 def reconstruct_legacy_waf_json(
@@ -97,64 +111,61 @@ def reconstruct_legacy_waf_json(
     known_pillars: list[str] | None = None,
 ) -> dict[str, Any]:
     """Reconstruct legacy ``wafChecklist`` JSON from normalized rows."""
-    pillars = sorted({p for p in known_pillars or [] if p}) if known_pillars else []
-    if not pillars:
-        pillars = sorted(
-            {str(getattr(item, "pillar", "")).strip() for item in items_with_evals if getattr(item, "pillar", "")}
-        )
-    if not pillars:
-        pillars = _DEFAULT_PILLARS
-
-    legacy_items: list[dict[str, Any]] = []
-    for item in items_with_evals:
-        raw_evals = getattr(item, "evaluations", []) or []
-        eval_list = [e for e in raw_evals if isinstance(e, ChecklistItemEvaluation)]
-        eval_list.sort(
-            key=lambda e: e.created_at if isinstance(e.created_at, datetime) else datetime.min,
-            reverse=True,
-        )
-        eval_obj = eval_list[0] if eval_list else None
-
-        legacy_evals: list[dict[str, Any]] = []
-        if eval_obj is not None:
-            evidence_text = ""
-            if isinstance(eval_obj.evidence, dict):
-                evidence_text = str(
-                    eval_obj.evidence.get("description")
-                    or eval_obj.evidence.get("evidence")
-                    or ""
-                )
-            elif isinstance(eval_obj.evidence, str):
-                evidence_text = eval_obj.evidence
-
-            legacy_evals.append(
-                {
-                    "id": f"eval_{eval_obj.id}",
-                    "status": map_normalized_status(eval_obj.status),
-                    "evidence": evidence_text,
-                    "created_at": eval_obj.created_at.isoformat() if eval_obj.created_at else None,
-                    "sourceCitations": [],
-                    "relatedFindingIds": [],
-                }
-            )
-
-        # Keep legacy item id stable for UI references.
-        legacy_item_id = str(getattr(item, "template_item_id", "") or getattr(item, "id", ""))
-        legacy_items.append(
-            {
-                "id": legacy_item_id,
-                "pillar": getattr(item, "pillar", None),
-                "topic": getattr(item, "title", None),
-                "evaluations": legacy_evals,
-            }
-        )
-
+    pillars = _resolve_pillars(items_with_evals, known_pillars)
+    legacy_items = [_build_legacy_item(item) for item in items_with_evals]
     return {
         "slug": template_slug,
         "version": version or "1",
         "pillars": pillars,
         "items": legacy_items,
     }
+
+
+def merge_reconstructed_waf_payloads(reconstructed: dict[str, Any]) -> dict[str, Any]:
+    """Merge multi-template reconstructed WAF payload into legacy checklist shape."""
+    all_items: list[dict[str, Any]] = []
+    pillar_order: list[str] = []
+    seen_pillars: set[str] = set()
+    versions: set[str] = set()
+
+    for payload in reconstructed.values():
+        if not isinstance(payload, dict):
+            continue
+
+        version = payload.get("version")
+        if isinstance(version, str) and version.strip():
+            versions.add(version.strip())
+
+        pillars = payload.get("pillars")
+        if isinstance(pillars, list):
+            for pillar in pillars:
+                name = str(pillar).strip()
+                if not name or name in seen_pillars:
+                    continue
+                seen_pillars.add(name)
+                pillar_order.append(name)
+
+        items = payload.get("items")
+        if isinstance(items, list):
+            all_items.extend(item for item in items if isinstance(item, dict))
+        elif isinstance(items, dict):
+            all_items.extend(item for item in items.values() if isinstance(item, dict))
+
+    version = versions.pop() if len(versions) == 1 else "multi"
+    return {"version": version, "pillars": pillar_order, "items": all_items}
+
+
+def _extract_item_ids(items: Any) -> set[str]:
+    """Extract a set of item ID strings from a dict-keyed or list-of-dict items container."""
+    if isinstance(items, dict):
+        return {str(k) for k in items}
+    if isinstance(items, list):
+        return {
+            str(i.get("id") or i.get("slug"))
+            for i in items
+            if isinstance(i, dict) and (i.get("id") or i.get("slug"))
+        }
+    return set()
 
 
 def validate_normalized_consistency(orig_waf: dict[str, Any], recon_waf: dict[str, Any]) -> tuple[bool, list[str]]:
@@ -171,28 +182,9 @@ def validate_normalized_consistency(orig_waf: dict[str, Any], recon_waf: dict[st
         if not isinstance(orig_checklist, dict):
             continue
         recon_checklist = recon_waf.get(slug, {})
-        orig_items = orig_checklist.get("items", {})
-        recon_items = recon_checklist.get("items", {})
 
-        orig_ids: set[str] = set()
-        if isinstance(orig_items, dict):
-            orig_ids = {str(k) for k in orig_items}
-        elif isinstance(orig_items, list):
-            orig_ids = {
-                str(i.get("id") or i.get("slug"))
-                for i in orig_items
-                if isinstance(i, dict) and (i.get("id") or i.get("slug"))
-            }
-
-        recon_ids: set[str] = set()
-        if isinstance(recon_items, dict):
-            recon_ids = {str(k) for k in recon_items}
-        elif isinstance(recon_items, list):
-            recon_ids = {
-                str(i.get("id") or i.get("slug"))
-                for i in recon_items
-                if isinstance(i, dict) and (i.get("id") or i.get("slug"))
-            }
+        orig_ids = _extract_item_ids(orig_checklist.get("items", {}))
+        recon_ids = _extract_item_ids(recon_checklist.get("items", {}))
 
         missing = sorted(orig_ids - recon_ids)
         if missing:

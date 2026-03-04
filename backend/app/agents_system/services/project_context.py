@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..checklists.normalize_helpers import merge_reconstructed_waf_payloads
 from ...models import Project, ProjectDocument, ProjectState
 from .aaa_state_models import AAAProjectState, apply_us6_enrichment, ensure_aaa_defaults
 from .mindmap_loader import is_mindmap_initialized, update_mindmap_coverage
@@ -189,7 +190,7 @@ async def read_project_state(
                 reconstructed_waf = await engine.sync_db_to_project_state(project_id)
 
             if reconstructed_waf:
-                state_data["wafChecklist"] = _merge_reconstructed_waf_payloads(reconstructed_waf)
+                state_data["wafChecklist"] = merge_reconstructed_waf_payloads(reconstructed_waf)
 
                 # Also reconstruct findings if they are empty in the JSON but we have risks in DB
                 if not state_data.get("findings"):
@@ -341,40 +342,6 @@ def _deep_merge(base: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]
         else:
             result[key] = value
     return result
-
-
-def _merge_reconstructed_waf_payloads(reconstructed: dict[str, Any]) -> dict[str, Any]:
-    """Merge multi-template reconstructed WAF payload into legacy checklist shape."""
-    all_items: list[dict[str, Any]] = []
-    pillar_order: list[str] = []
-    seen_pillars: set[str] = set()
-    versions: set[str] = set()
-
-    for payload in reconstructed.values():
-        if not isinstance(payload, dict):
-            continue
-
-        version = payload.get("version")
-        if isinstance(version, str) and version.strip():
-            versions.add(version.strip())
-
-        pillars = payload.get("pillars")
-        if isinstance(pillars, list):
-            for pillar in pillars:
-                name = str(pillar).strip()
-                if not name or name in seen_pillars:
-                    continue
-                seen_pillars.add(name)
-                pillar_order.append(name)
-
-        items = payload.get("items")
-        if isinstance(items, list):
-            all_items.extend(item for item in items if isinstance(item, dict))
-        elif isinstance(items, dict):
-            all_items.extend(item for item in items.values() if isinstance(item, dict))
-
-    version = versions.pop() if len(versions) == 1 else "multi"
-    return {"version": version, "pillars": pillar_order, "items": all_items}
 
 
 async def get_project_context_summary(project_id: str, db: AsyncSession) -> str:

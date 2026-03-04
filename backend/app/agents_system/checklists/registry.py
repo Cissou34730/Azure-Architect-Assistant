@@ -67,8 +67,12 @@ class ChecklistRegistry:
                 )
                 self._templates[template.slug] = template
                 loaded_count += 1
+            except (json.JSONDecodeError, ValueError) as exc:
+                logger.error("Invalid template file %s: %s", json_file, exc)
+            except OSError as exc:
+                logger.error("Failed to read template file %s: %s", json_file, exc)
             except Exception:
-                logger.exception("Failed to load template %s", json_file)
+                logger.exception("Unexpected error loading template %s", json_file)
 
         logger.info("Loaded %d WAF templates from cache.", loaded_count)
 
@@ -96,6 +100,26 @@ class ChecklistRegistry:
         """
         return sorted(self._templates.values(), key=lambda t: t.slug)
 
+    def _persist_template_to_disk(self, template: ChecklistTemplate) -> None:
+        """Persist a template to the local cache directory."""
+        file_path = self.cache_dir / f"{template.slug}.json"
+        template_data = {
+            "slug": template.slug,
+            "title": template.title,
+            "description": template.description,
+            "version": template.version,
+            "source": template.source,
+            "source_url": template.source_url,
+            "source_version": template.source_version,
+            "content": template.content,
+        }
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(template_data, f, indent=2)
+            logger.info("Template %s saved to %s.", template.slug, file_path)
+        except OSError:
+            logger.exception("Failed to persist template %s to disk", template.slug)
+
     def register_template(self, template: ChecklistTemplate) -> None:
         """
         Register and persist a new template.
@@ -104,25 +128,8 @@ class ChecklistRegistry:
             template: The template model instance.
         """
         self._templates[template.slug] = template
-
-        # Persist to disk
-        file_path = self.cache_dir / f"{template.slug}.json"
-        try:
-            template_data = {
-                "slug": template.slug,
-                "title": template.title,
-                "description": template.description,
-                "version": template.version,
-                "source": template.source,
-                "source_url": template.source_url,
-                "source_version": template.source_version,
-                "content": template.content
-            }
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(template_data, f, indent=2)
-            logger.info("Template %s registered and saved to %s.", template.slug, file_path)
-        except Exception:
-            logger.exception("Failed to persist template %s to disk", template.slug)
+        self._persist_template_to_disk(template)
+        logger.info("Template %s registered.", template.slug)
 
     def refresh_from_cache(self) -> int:
         """
