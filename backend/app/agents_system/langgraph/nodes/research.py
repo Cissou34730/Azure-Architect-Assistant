@@ -46,22 +46,25 @@ def _waf_snapshot(state: GraphState) -> str:
         return "WAF checklist unavailable."
 
     total = len(items)
-    covered = 0
-    partial = 0
-    not_covered = 0
+    fixed = 0
+    in_progress = 0
+    open_items = 0
     for item in items:
         if not isinstance(item, dict):
             continue
         evals = item.get("evaluations")
         latest = evals[-1] if isinstance(evals, list) and evals else None
-        status = str((latest or {}).get("status", "notCovered")).lower()
-        if status == "covered":
-            covered += 1
-        elif status == "partial":
-            partial += 1
+        status = str((latest or {}).get("status", "open")).lower()
+        if status in {"fixed", "false_positive"}:
+            fixed += 1
+        elif status == "in_progress":
+            in_progress += 1
         else:
-            not_covered += 1
-    return f"WAF status snapshot: total={total}, covered={covered}, partial={partial}, notCovered={not_covered}."
+            open_items += 1
+    return (
+        "WAF status snapshot: "
+        f"total={total}, fixed={fixed}, in_progress={in_progress}, open={open_items}."
+    )
 
 
 def _build_mindmap_guidance(
@@ -165,7 +168,7 @@ async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
             "\n\nValidation persistence requirements (mandatory):\n"
             "- Consult the WAF knowledge base using kb_search or kb_search_agent (at least one query).\n"
             "- Then call aaa_record_validation_results with a NON-EMPTY payload.wafEvaluations array.\n"
-            "- Use status values: covered | partial | notCovered.\n"
+            "- Use status values: fixed | in_progress | open.\n"
             "- findings may be empty; if you include findings, each finding must include at least one sourceCitations entry.\n\n"
             "Example payload (minimum):\n"
             "{\n"
@@ -174,7 +177,7 @@ async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
             "      \"itemId\": \"waf-security-identity-1\",\n"
             "      \"pillar\": \"Security\",\n"
             "      \"topic\": \"Identity and access management\",\n"
-            "      \"status\": \"partial\",\n"
+            "      \"status\": \"in_progress\",\n"
             "      \"evidence\": \"Current design mentions Entra ID SSO but lacks conditional access and MFA enforcement details.\"\n"
             "    }\n"
             "  ]\n"

@@ -1,6 +1,7 @@
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { featureFlags } from "../../../../config/featureFlags";
+import { checklistApi } from "../../../../services/checklistService";
 import { useProjectInputContext } from "../../context/useProjectInputContext";
 import { useProjectStateContext } from "../../context/useProjectStateContext";
 import type { WorkspaceTab } from "./workspace/types";
@@ -12,12 +13,49 @@ interface LeftInputsArtifactsPanelProps {
   readonly onOpenTab: (tab: WorkspaceTab) => void;
 }
 
+function useWafArtifactCount(projectId: string | undefined, lastUpdated: string | undefined): number {
+  const [wafCount, setWafCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const effectiveProjectId = projectId ?? "";
+
+    const loadWafCount = async () => {
+      if (effectiveProjectId === "") {
+        if (active) {
+          setWafCount(0);
+        }
+        return;
+      }
+
+      try {
+        const count = await checklistApi.fetchChecklistItemCount(effectiveProjectId);
+        if (active) {
+          setWafCount(count);
+        }
+      } catch {
+        if (active) {
+          setWafCount(0);
+        }
+      }
+    };
+
+    void loadWafCount();
+    return () => {
+      active = false;
+    };
+  }, [projectId, lastUpdated]);
+
+  return wafCount;
+}
+
 function LeftInputsArtifactsPanelBase({
   onToggle,
   onOpenTab,
 }: LeftInputsArtifactsPanelProps) {
   const { projectState } = useProjectStateContext();
   const { textRequirements, inputWorkflow } = useProjectInputContext();
+  const wafCount = useWafArtifactCount(projectState?.projectId, projectState?.lastUpdated);
 
   const documents = useMemo(
     () => projectState?.referenceDocuments ?? [],
@@ -72,14 +110,14 @@ function LeftInputsArtifactsPanelBase({
       findings: projectState.findings.length,
       costs: projectState.costEstimates.length,
       iac: projectState.iacArtifacts.length,
-      waf: projectState.wafChecklist.items.length,
+      waf: wafCount,
       traceabilityLinks: projectState.traceabilityLinks.length,
       traceabilityIssues: projectState.traceabilityIssues.length,
       candidates: projectState.candidateArchitectures.length,
       iterations: projectState.iterationEvents.length,
       mcpQueries: projectState.mcpQueries.length,
     };
-  }, [projectState]);
+  }, [projectState, wafCount]);
 
   return (
     <div className="h-full flex flex-col bg-surface">

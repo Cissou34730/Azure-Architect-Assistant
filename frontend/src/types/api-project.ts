@@ -49,7 +49,6 @@ export interface ProjectState {
   readonly clarificationQuestions: readonly ClarificationQuestion[];
   readonly candidateArchitectures: readonly CandidateArchitecture[];
   readonly adrs: readonly AdrArtifact[];
-  readonly wafChecklist: WafChecklist;
   readonly findings: readonly FindingArtifact[];
   readonly diagrams: readonly DiagramData[];
   readonly iacArtifacts: readonly IacArtifact[];
@@ -103,7 +102,6 @@ export interface Assumption {
 // Imports for ProjectState cross-references (will be re-exported from api.ts)
 import type {
   AdrArtifact,
-  WafChecklist,
   FindingArtifact,
   IacArtifact,
   CostEstimate,

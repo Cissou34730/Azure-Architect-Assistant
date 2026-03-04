@@ -231,52 +231,52 @@ def _check_validation_gaps(state: dict[str, Any], questions: list[str]) -> None:
     items = items_raw.values() if isinstance(items_raw, dict) else items_raw
     if not isinstance(items, list) or len(items) == 0:
         questions.append(
-            "Topic WAF: checklist exists but has no item statuses yet. Should I start by marking top-risk controls as notCovered/partial with evidence?"
+            "Topic WAF: checklist exists but has no item statuses yet. Should I start by marking top-risk controls as open/in_progress with evidence?"
         )
         return
 
-    covered = 0
-    partial = 0
-    not_covered = 0
+    in_progress = 0
+    open_items = 0
     per_pillar_open: dict[str, int] = {}
 
     for item in items:
         if not isinstance(item, dict):
             continue
         status = _latest_waf_status(item)
-        if status == "covered":
-            covered += 1
+        if status == "fixed":
             continue
-        if status == "partial":
-            partial += 1
+        if status == "in_progress":
+            in_progress += 1
         else:
-            not_covered += 1
+            open_items += 1
         pillar = str(item.get("pillar", "General")).strip() or "General"
         per_pillar_open[pillar] = per_pillar_open.get(pillar, 0) + 1
 
-    remaining = partial + not_covered
+    remaining = in_progress + open_items
     if remaining <= 0:
         return
 
     top_pillar = sorted(per_pillar_open.items(), key=lambda p: p[1], reverse=True)[0][0]
     questions.append(
-        f"Topic WAF: {remaining} checklist items are still partial/notCovered (top gap: {top_pillar}). "
+        f"Topic WAF: {remaining} checklist items are still in_progress/open (top gap: {top_pillar}). "
         "Should I update these statuses now with explicit evidence and remediation owners?"
     )
 
 
 def _latest_waf_status(item: dict[str, Any]) -> str:
-    """Return latest legacy checklist status for an item."""
+    """Return latest checklist status for an item."""
     evals = item.get("evaluations")
     if not isinstance(evals, list) or not evals:
-        return "notCovered"
+        return "open"
     latest = evals[-1]
     if not isinstance(latest, dict):
-        return "notCovered"
-    status = str(latest.get("status", "notCovered")).strip().lower()
-    if status not in {"covered", "partial", "notcovered"}:
-        return "notCovered"
-    return "notCovered" if status == "notcovered" else status
+        return "open"
+    status = str(latest.get("status", "open")).strip().lower().replace("-", "_")
+    if status in {"fixed", "false_positive"}:
+        return "fixed"
+    if status == "in_progress":
+        return "in_progress"
+    return "open"
 
 
 def _check_iac_cost_gaps(state: dict[str, Any], questions: list[str]) -> None:

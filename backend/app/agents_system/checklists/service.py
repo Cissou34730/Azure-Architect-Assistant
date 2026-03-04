@@ -59,12 +59,6 @@ class ChecklistService:
         self.engine = engine
         self.registry = registry
 
-    async def process_agent_result(
-        self, project_id: str, agent_result: dict[str, Any]
-    ) -> dict[str, Any]:
-        """Process agent result containing AAA_STATE_UPDATE."""
-        return await self.engine.process_agent_result(project_id, agent_result)
-
     async def sync_project(
         self, project_id: str, project_state: dict[str, Any], chunk_size: int | None = None
     ) -> dict[str, Any]:

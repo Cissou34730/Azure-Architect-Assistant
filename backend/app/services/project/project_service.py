@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents_system.checklists.default_templates import resolve_bootstrap_template_slugs
 from app.agents_system.checklists.engine import ChecklistEngine
-from app.agents_system.checklists.normalize_helpers import merge_reconstructed_waf_payloads
 from app.agents_system.checklists.registry import ChecklistRegistry
 from app.agents_system.services.aaa_state_models import ensure_aaa_defaults
 from app.core.app_settings import get_app_settings
@@ -222,8 +221,6 @@ class ProjectService:
 
     async def _bootstrap_waf_checklist(self, project_id: str, db: AsyncSession) -> None:
         settings = get_app_settings()
-        if not settings.aaa_feature_waf_normalized:
-            return
 
         @asynccontextmanager
         async def session_factory():
@@ -246,37 +243,10 @@ class ProjectService:
                 )
                 return
 
-            reconstructed = await engine.sync_db_to_project_state(project_id)
-            if not reconstructed:
-                return
-
-            waf_payload = merge_reconstructed_waf_payloads(reconstructed)
-            if not isinstance(waf_payload, dict):
-                return
-
-            state_record = (
-                await db.execute(
-                    select(ProjectState).where(ProjectState.project_id == project_id)
-                )
-            ).scalar_one_or_none()
-            if state_record is None:
-                return
-
-            try:
-                state_data = (
-                    json.loads(state_record.state)
-                    if isinstance(state_record.state, str)
-                    else dict(state_record.state)
-                )
-            except json.JSONDecodeError:
-                state_data = {}
-
-            state_data = ensure_aaa_defaults(state_data)
-            state_data["wafChecklist"] = waf_payload
-            state_record.state = json.dumps(state_data)
-            state_record.updated_at = datetime.now(timezone.utc).isoformat()
-            await db.commit()
-            logger.info("Bootstrapped WAF checklist for project %s at creation time.", project_id)
+            logger.info(
+                "Bootstrapped normalized WAF checklists for project %s at creation time.",
+                project_id,
+            )
         except Exception as exc:
             await db.rollback()
             logger.error(

@@ -238,43 +238,6 @@ class FindingArtifact(BaseModel):
         return value
 
 
-WafCoverageStatus = Literal["covered", "partial", "notCovered"]
-
-
-class WafEvaluation(BaseModel):
-    """Append-only evaluation entry for a WAF checklist item."""
-
-    model_config = _AAA_LAX_CONFIG
-
-    id: str
-    status: WafCoverageStatus
-    evidence: str
-    related_finding_ids: list[str] = Field(default_factory=list)
-    source_citations: list[dict[str, Any]] = Field(default_factory=list)
-    created_at: str | None = None
-
-
-class WafChecklistItem(BaseModel):
-    """WAF checklist item (stable identity) with append-only evaluations."""
-
-    model_config = _AAA_LAX_CONFIG
-
-    id: str
-    pillar: str
-    topic: str
-    evaluations: list[WafEvaluation] = Field(default_factory=list)
-
-
-class WafChecklist(BaseModel):
-    """Container for WAF checklist metadata and items."""
-
-    model_config = _AAA_LAX_CONFIG
-
-    version: str | None = None
-    pillars: list[str] = Field(default_factory=list)
-    items: list[WafChecklistItem] = Field(default_factory=list)
-
-
 IacFormat = Literal["bicep", "terraform", "arm", "yaml", "json", "other"]
 
 
@@ -353,7 +316,6 @@ class AAAProjectState(BaseModel):
     clarification_questions: list[dict[str, Any]] = Field(default_factory=list)
     candidate_architectures: list[dict[str, Any]] = Field(default_factory=list)
     adrs: list[AdrArtifact] = Field(default_factory=list)
-    waf_checklist: WafChecklist = Field(default_factory=WafChecklist)
     findings: list[FindingArtifact] = Field(default_factory=list)
     diagrams: list[dict[str, Any]] = Field(default_factory=list)
     iac_artifacts: list[IacArtifact] = Field(default_factory=list)
@@ -386,34 +348,6 @@ def ensure_aaa_defaults(state: dict[str, Any]) -> dict[str, Any]:
     updated.setdefault("clarificationQuestions", [])
     updated.setdefault("candidateArchitectures", [])
     updated.setdefault("adrs", [])
-    waf = updated.get("wafChecklist")
-    if not isinstance(waf, dict) or not waf:
-        updated["wafChecklist"] = {
-            "version": "1",
-            "pillars": [
-                "reliability",
-                "security",
-                "cost",
-                "operationalExcellence",
-                "performanceEfficiency",
-            ],
-            "items": [],
-        }
-    else:
-        # Ensure minimally expected keys exist for UX + future checklist updates.
-        waf.setdefault(
-            "pillars",
-            [
-                "reliability",
-                "security",
-                "cost",
-                "operationalExcellence",
-                "performanceEfficiency",
-            ],
-        )
-        waf.setdefault("items", [])
-        waf.setdefault("version", "1")
-        updated["wafChecklist"] = waf
     updated.setdefault("findings", [])
     updated.setdefault("diagrams", [])
     updated.setdefault("iacArtifacts", [])

@@ -106,7 +106,7 @@ async def test_run_agent_node_bulk_waf_reliability_override_shortcut(monkeypatch
     waf_items = updates["wafChecklist"]["items"]
     assert len(waf_items) == 2
     assert all(item["pillar"] == "Reliability" for item in waf_items)
-    assert all(item["evaluations"][0]["status"] == "covered" for item in waf_items)
+    assert all(item["evaluations"][0]["status"] == "fixed" for item in waf_items)
 
 
 @pytest.mark.asyncio
@@ -191,7 +191,7 @@ async def test_run_agent_node_bulk_override_falls_back_when_no_matching_items(mo
 
 
 @pytest.mark.asyncio
-async def test_run_agent_node_single_item_uncheck_updates_not_covered(monkeypatch):
+async def test_run_agent_node_single_item_uncheck_updates_open(monkeypatch):
     monkeypatch.setattr(
         agent_node,
         "get_agent_runner",
@@ -228,7 +228,7 @@ async def test_run_agent_node_single_item_uncheck_updates_not_covered(monkeypatc
     items = updates["wafChecklist"]["items"]
     assert len(items) == 1
     assert items[0]["id"] == "rel-01"
-    assert items[0]["evaluations"][0]["status"] == "notCovered"
+    assert items[0]["evaluations"][0]["status"] == "open"
 
 
 @pytest.mark.asyncio

@@ -105,8 +105,8 @@ def test_update_mindmap_coverage_uses_waf_maturity_signal() -> None:
     state = {
         "wafChecklist": {
             "items": [
-                {"id": "1", "evaluations": [{"status": "covered"}]},
-                {"id": "2", "evaluations": [{"status": "partial"}]},
+                {"id": "1", "evaluations": [{"status": "fixed"}]},
+                {"id": "2", "evaluations": [{"status": "in_progress"}]},
             ]
         }
     }

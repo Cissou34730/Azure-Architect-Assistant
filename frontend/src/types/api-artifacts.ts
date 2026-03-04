@@ -33,7 +33,7 @@ export interface FindingArtifact {
 
 interface WafEvaluation {
   readonly id: string;
-  readonly status: "covered" | "partial" | "notCovered";
+  readonly status: "fixed" | "in_progress" | "open";
   readonly evidence: string;
   readonly relatedFindingIds: readonly string[];
   readonly sourceCitations: readonly SourceCitation[];

@@ -42,9 +42,8 @@ class TestFindJsonBlocks:
 @pytest.mark.asyncio
 async def test_processor_delegates_to_engine() -> None:
     mock_engine = AsyncMock(spec=ChecklistEngine)
-    mock_engine.default_template_slug.return_value = "azure-waf-reliability-v1"
     mock_engine.ensure_project_checklist.return_value = MagicMock()
-    mock_engine.process_agent_result.return_value = {"status": "success"}
+    mock_engine.sync_project_state_to_db.return_value = {"status": "success"}
 
     processor = WafResultProcessor(mock_engine)
 
@@ -57,7 +56,7 @@ async def test_processor_delegates_to_engine() -> None:
                 "items": [
                     {
                         "id": "waf-item-1",
-                        "evaluations": [{"status": "covered", "evidence": "good"}]
+                        "evaluations": [{"status": "fixed", "evidence": "good"}]
                     }
                 ]
             }
@@ -71,7 +70,20 @@ async def test_processor_delegates_to_engine() -> None:
     mock_engine.ensure_project_checklist.assert_called_once_with(
         "proj-1", "azure-waf-reliability-v1"
     )
-    mock_engine.process_agent_result.assert_called_once()
+    mock_engine.sync_project_state_to_db.assert_called_once_with(
+        "proj-1",
+        {
+            "wafChecklist": {
+                "slug": "azure-waf-reliability-v1",
+                "items": [
+                    {
+                        "id": "waf-item-1",
+                        "evaluations": [{"status": "fixed", "evidence": "good"}],
+                    }
+                ],
+            }
+        },
+    )
 
 
 @pytest.mark.asyncio
@@ -84,7 +96,7 @@ async def test_processor_ignores_non_waf_updates() -> None:
     }
 
     await processor.process_orchestrator_result("proj-1", result)
-    mock_engine.process_agent_result.assert_not_called()
+    mock_engine.sync_project_state_to_db.assert_not_called()
     mock_engine.ensure_project_checklist.assert_not_called()
 
 
@@ -94,13 +106,12 @@ async def test_processor_ignores_empty_output() -> None:
     processor = WafResultProcessor(mock_engine)
 
     await processor.process_orchestrator_result("proj-1", {"output": ""})
-    mock_engine.process_agent_result.assert_not_called()
+    mock_engine.sync_project_state_to_db.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_processor_ignores_no_items() -> None:
     mock_engine = AsyncMock(spec=ChecklistEngine)
-    mock_engine.default_template_slug.return_value = "azure-waf-reliability-v1"
     processor = WafResultProcessor(mock_engine)
 
     result = {

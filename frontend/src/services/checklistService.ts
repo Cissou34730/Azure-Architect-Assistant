@@ -6,6 +6,9 @@ interface ChecklistSummaryApi {
   readonly id: string;
   readonly title: string;
   readonly templateSlug?: string | null;
+  readonly itemsCount?: number;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- Backend may still return snake_case
+  readonly items_count?: number;
 }
 
 interface ChecklistItemDetailApi {
@@ -30,18 +33,23 @@ interface ChecklistDetailApi {
   readonly items: readonly ChecklistItemDetailApi[];
 }
 
-function mapNormalizedStatusToLegacy(status: string | undefined): "covered" | "partial" | "notCovered" {
+function mapStatusToDisplay(status: string | undefined): "fixed" | "in_progress" | "open" {
   const normalized = (status ?? "").toLowerCase();
   if (normalized === "fixed" || normalized === "false_positive") {
-    return "covered";
+    return "fixed";
   }
   if (normalized === "in_progress") {
-    return "partial";
+    return "in_progress";
   }
-  return "notCovered";
+  return "open";
 }
 
 export const checklistApi = {
+  async fetchChecklistItemCount(projectId: string): Promise<number> {
+    const summaries = await fetchChecklistSummaries(projectId);
+    return summaries.reduce((total, summary) => total + extractItemsCount(summary), 0);
+  },
+
   async fetchNormalizedChecklist(projectId: string): Promise<WafChecklist | null> {
     const summaries = await fetchChecklistSummaries(projectId);
     if (summaries.length === 0) {
@@ -109,7 +117,7 @@ function collectChecklistItems(
           ? [
               {
                 id: `${item.templateItemId}-latest`,
-                status: mapNormalizedStatusToLegacy(item.latestEvaluation.status),
+                status: mapStatusToDisplay(item.latestEvaluation.status),
                 evidence: "",
                 relatedFindingIds: [],
                 sourceCitations: [],
@@ -119,6 +127,16 @@ function collectChecklistItems(
           : [],
     })),
   );
+}
+
+function extractItemsCount(summary: ChecklistSummaryApi): number {
+  if (typeof summary.itemsCount === "number") {
+    return summary.itemsCount;
+  }
+  if (typeof summary.items_count === "number") {
+    return summary.items_count;
+  }
+  return 0;
 }
 
 function resolveVersion(details: readonly ChecklistDetailApi[]): string | undefined {

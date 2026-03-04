@@ -11,9 +11,12 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents_system.checklists.service import get_checklist_service
+from app.core.app_settings import get_settings
+
 from ....models.project import ConversationMessage
 from ...services.iteration_logging import derive_uncovered_topic_questions
-from ...services.project_context import update_project_state
+from ...services.project_context import read_project_state, update_project_state
 from ...services.response_sanitizer import sanitize_agent_output
 from ..state import GraphState
 
@@ -87,7 +90,8 @@ async def apply_state_updates_node(
     Also handles uncovered topics and failed MCP guidance.
     """
     project_id = state["project_id"]
-    combined_updates = state.get("combined_updates", {})
+    raw_updates = state.get("combined_updates", {})
+    combined_updates = dict(raw_updates) if isinstance(raw_updates, dict) else {}
     agent_output = state.get("agent_output", "")
     architect_choice_required = state.get("architect_choice_required_section")
 
@@ -103,21 +107,23 @@ async def apply_state_updates_node(
             f"Applying state updates for project {project_id} (keys={sorted(combined_updates.keys())})"
         )
 
-        updated_state = await update_project_state(project_id, combined_updates, db)
-
-        # NEW: Sync to normalized DB if feature enabled
-        try:
-            from app.agents_system.checklists.service import get_checklist_service  # noqa: PLC0415
-            from app.core.app_settings import get_settings  # noqa: PLC0415
-
-            settings = get_settings()
-            if settings.aaa_feature_waf_normalized:
+        waf_update = combined_updates.pop("wafChecklist", None)
+        if isinstance(waf_update, dict):
+            try:
+                settings = get_settings()
                 service = await get_checklist_service(db=db, settings=settings)
                 await service.sync_project(
-                    project_id=project_id, project_state=updated_state
+                    project_id=project_id,
+                    project_state={"wafChecklist": waf_update},
                 )
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"Failed to sync project {project_id} to normalized DB: {e}")
+            except Exception as e:  # noqa: BLE001
+                logger.error(f"Failed to sync project {project_id} WAF updates: {e}")
+
+        if combined_updates:
+            await update_project_state(project_id, combined_updates, db)
+
+        refreshed_state = await read_project_state(project_id, db)
+        updated_state = refreshed_state if isinstance(refreshed_state, dict) else {}
 
         # Build final answer with additional guidance
         final_answer = sanitize_agent_output(str(agent_output))
@@ -127,7 +133,7 @@ async def apply_state_updates_node(
         final_answer = _handle_failed_mcp_lookups(combined_updates, final_answer)
         final_answer = _handle_waf_followup_guardrail(
             next_stage=state.get("next_stage"),
-            combined_updates=combined_updates,
+            combined_updates=dict(raw_updates) if isinstance(raw_updates, dict) else {},
             updated_state=updated_state,
             final_answer=final_answer,
         )
@@ -308,8 +314,8 @@ def _count_open_waf_items(updated_state: dict[str, Any]) -> int:
             continue
         evals = item.get("evaluations")
         latest = evals[-1] if isinstance(evals, list) and evals else None
-        status = str((latest or {}).get("status", "notCovered")).lower()
-        if status != "covered":
+        status = str((latest or {}).get("status", "open")).strip().lower()
+        if status not in {"fixed", "false_positive"}:
             remaining += 1
     return remaining
 

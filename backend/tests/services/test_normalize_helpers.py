@@ -1,73 +1,56 @@
-import uuid
-from datetime import datetime
-
 from app.agents_system.checklists.normalize_helpers import (
-    extract_waf_evaluations,
-    map_legacy_status,
-    map_normalized_status,
-    reconstruct_legacy_waf_json,
+    merge_reconstructed_waf_payloads,
+    validate_normalized_consistency,
 )
-from app.models.checklist import ChecklistItem, ChecklistItemEvaluation, SeverityLevel
 
 
-def test_status_mapping():
-    assert map_legacy_status("covered") == "fixed"
-    assert map_legacy_status("partial") == "in_progress"
-    assert map_legacy_status("notCovered") == "open"
-    assert map_legacy_status("unknown") == "open"
+def test_merge_reconstructed_waf_payloads_flattens_templates() -> None:
+    reconstructed = {
+        "azure-waf-v1": {
+            "version": "1.0",
+            "pillars": ["Security", "Reliability"],
+            "items": [{"id": "sec-01"}, {"id": "rel-01"}],
+        },
+        "azure-waf-cost-v1": {
+            "version": "1.0",
+            "pillars": ["Cost", "Security"],
+            "items": [{"id": "cost-01"}],
+        },
+    }
 
-    assert map_normalized_status("fixed") == "covered"
-    assert map_normalized_status("in_progress") == "partial"
-    assert map_normalized_status("open") == "notCovered"
+    merged = merge_reconstructed_waf_payloads(reconstructed)
+    assert merged["version"] == "1.0"
+    assert merged["pillars"] == ["Security", "Reliability", "Cost"]
+    assert [item["id"] for item in merged["items"]] == ["sec-01", "rel-01", "cost-01"]
 
-def test_extract_waf_evaluations():
-    legacy_state = {
-        "wafChecklist": {
-            "items": [
-                {
-                    "id": "waf-item-1",
-                    "evaluations": [
-                        {"id": "old-eval", "status": "notCovered", "evidence": "no"},
-                        {"id": "new-eval", "status": "covered", "evidence": "yes", "created_at": "2024-01-01T00:00:00"}
-                    ]
-                }
-            ]
+
+def test_validate_normalized_consistency_for_merged_shape() -> None:
+    original = {
+        "items": [{"id": "sec-01"}, {"id": "rel-01"}],
+    }
+    reconstructed = {
+        "azure-waf-v1": {
+            "items": [{"id": "sec-01"}, {"id": "rel-01"}],
         }
     }
 
-    evals = extract_waf_evaluations(legacy_state)
-    assert len(evals) == 1
-    assert evals[0]["item_id"] == "waf-item-1"
-    assert evals[0]["status"] == "fixed"
-    assert "yes" in evals[0]["evidence"]["description"]
-    assert evals[0]["evaluator"] == "legacy-migration"
+    consistent, errors = validate_normalized_consistency(original, reconstructed)
+    assert consistent is True
+    assert errors == []
 
-def test_reconstruct_legacy_waf_json():
-    item_id = uuid.uuid4()
-    item = ChecklistItem(
-        id=item_id,
-        pillar="Security",
-        template_item_id="waf-1",
-        severity=SeverityLevel.MEDIUM,
-        title="Secure everything"
-    )
-    evaluation = ChecklistItemEvaluation(
-        id=uuid.uuid4(),
-        item_id=item_id,
-        project_id="proj-1",
-        evaluator="test",
-        source_type="test",
-        status="fixed",
-        evidence={"description": "done"},
-        created_at=datetime(2024, 1, 1)
-    )
-    item.evaluations = [evaluation]
 
-    legacy_json = reconstruct_legacy_waf_json("waf-2024", "1.0", [item])
+def test_validate_normalized_consistency_detects_missing_items() -> None:
+    original = {
+        "azure-waf-v1": {
+            "items": [{"id": "sec-01"}, {"id": "rel-01"}],
+        }
+    }
+    reconstructed = {
+        "azure-waf-v1": {
+            "items": [{"id": "sec-01"}],
+        }
+    }
 
-    assert legacy_json["version"] == "1.0"
-    assert "Security" in legacy_json["pillars"]
-    assert len(legacy_json["items"]) == 1
-    assert legacy_json["items"][0]["id"] == "waf-1"
-    assert legacy_json["items"][0]["evaluations"][0]["status"] == "covered"
-    assert legacy_json["items"][0]["evaluations"][0]["evidence"] == "done"
+    consistent, errors = validate_normalized_consistency(original, reconstructed)
+    assert consistent is False
+    assert errors

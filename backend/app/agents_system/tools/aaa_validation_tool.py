@@ -29,7 +29,7 @@ def _now_iso() -> str:
 
 
 FindingSeverity = Literal["low", "medium", "high", "critical"]
-WafCoverageStatus = Literal["covered", "partial", "notCovered"]
+WafCoverageStatus = Literal["fixed", "in_progress", "open"]
 
 
 class ValidationFindingInput(BaseModel):
@@ -84,7 +84,7 @@ class WafChecklistEvaluationInput(BaseModel):
     pillar: str = Field(min_length=1, description="WAF pillar")
     topic: str = Field(min_length=1, description="WAF topic/title")
 
-    status: WafCoverageStatus = Field(description="covered|partial|notCovered")
+    status: WafCoverageStatus = Field(description="fixed|in_progress|open")
     evidence: str = Field(
         min_length=1,
         description="Short evidence summary justifying the status",

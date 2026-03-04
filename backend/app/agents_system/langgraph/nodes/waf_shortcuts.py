@@ -32,7 +32,7 @@ def build_direct_waf_bulk_update_response(state: GraphState) -> dict[str, Any] |
 
     timestamp = datetime.now(timezone.utc).isoformat()
     bulk_evidence = (
-        f"Manual bulk override requested by user: marked all {target_pillar} checks as covered. "
+        f"Manual bulk override requested by user: marked all {target_pillar} checks as fixed. "
         "Evidence not independently verified in this turn."
     )
     update_items = [
@@ -43,7 +43,7 @@ def build_direct_waf_bulk_update_response(state: GraphState) -> dict[str, Any] |
             "evaluations": [
                 {
                     "id": str(uuid.uuid4()),
-                    "status": "covered",
+                    "status": "fixed",
                     "evidence": bulk_evidence,
                     "relatedFindingIds": [],
                     "sourceCitations": [],
@@ -55,7 +55,7 @@ def build_direct_waf_bulk_update_response(state: GraphState) -> dict[str, Any] |
     ]
     state_update = {"wafChecklist": {"items": update_items}}
     response_text = (
-        f"Updated {len(update_items)} {target_pillar} WAF checklist items to covered.\n\n"
+        f"Updated {len(update_items)} {target_pillar} WAF checklist items to fixed.\n\n"
         "Risk warning: this is a manual bulk override without per-item validation evidence. "
         "Treat it as provisional and verify each control before sign-off.\n\n"
         "AAA_STATE_UPDATE\n"
@@ -180,11 +180,11 @@ def _extract_target_status(user_message: str) -> str | None:
     covered_terms = ("check", "covered", "done", "complete", "completed", "green")
 
     if any(term in lowered for term in not_covered_terms):
-        return "notCovered"
+        return "open"
     if any(term in lowered for term in partial_terms):
-        return "partial"
+        return "in_progress"
     if any(term in lowered for term in covered_terms):
-        return "covered"
+        return "fixed"
     return None
 
 
@@ -239,11 +239,11 @@ def _match_single_item_from_message(
 
 
 def _status_to_label(status: str) -> str:
-    if status == "notCovered":
-        return "not covered"
-    if status == "partial":
-        return "partial"
-    return "covered"
+    if status == "open":
+        return "open"
+    if status == "in_progress":
+        return "in progress"
+    return "fixed"
 
 
 def _extract_pillar_items(

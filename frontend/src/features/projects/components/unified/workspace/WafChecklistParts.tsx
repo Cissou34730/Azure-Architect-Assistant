@@ -12,12 +12,12 @@ export type { WafChecklistGroup };
 export function WafChecklistStatusIcon({
   status,
 }: {
-  readonly status: "covered" | "partial" | "notCovered";
+  readonly status: "fixed" | "in_progress" | "open";
 }) {
-  if (status === "covered") {
+  if (status === "fixed") {
     return <CheckCircle2 className="h-4 w-4 text-success" />;
   }
-  if (status === "partial") {
+  if (status === "in_progress") {
     return <MinusCircle className="h-4 w-4 text-warning" />;
   }
   return <Circle className="h-4 w-4 text-dim" />;
@@ -26,25 +26,25 @@ export function WafChecklistStatusIcon({
 export function WafStatusBadge({
   status,
 }: {
-  readonly status: "covered" | "partial" | "notCovered";
+  readonly status: "fixed" | "in_progress" | "open";
 }) {
-  if (status === "covered") {
+  if (status === "fixed") {
     return (
       <span className="rounded-full border border-success-line bg-success-soft px-2 py-0.5 text-xs text-success">
-        Covered
+        Fixed
       </span>
     );
   }
-  if (status === "partial") {
+  if (status === "in_progress") {
     return (
       <span className="rounded-full border border-warning-line bg-warning-soft px-2 py-0.5 text-xs text-warning">
-        Partial
+        In progress
       </span>
     );
   }
   return (
     <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-xs text-secondary">
-      Not covered
+      Open
     </span>
   );
 }
@@ -84,9 +84,9 @@ export function WafSeverityBadge({
 
 function getLatestStatus(
   evaluations: readonly WafChecklist["items"][number]["evaluations"][number][],
-): "covered" | "partial" | "notCovered" {
+): "fixed" | "in_progress" | "open" {
   if (evaluations.length === 0) {
-    return "notCovered";
+    return "open";
   }
   const latest = evaluations.reduce((best, current) => {
     const bestTs = best.createdAt !== undefined ? Date.parse(best.createdAt) : Number.NEGATIVE_INFINITY;
@@ -140,7 +140,7 @@ export function WafChecklistPanel({
 }: {
   readonly group: WafChecklistGroup;
 }) {
-  const covered = group.items.filter((item) => getLatestStatus(item.evaluations) === "covered").length;
+  const fixed = group.items.filter((item) => getLatestStatus(item.evaluations) === "fixed").length;
   return (
     <div className="rounded-xl border border-border bg-card">
       <div className="px-4 py-3 border-b border-border bg-muted flex items-center justify-between gap-3">
@@ -149,7 +149,7 @@ export function WafChecklistPanel({
           <div className="text-xs text-dim">{group.items.length} checks</div>
         </div>
         <div className="text-xs text-secondary">
-          Covered {covered}/{group.items.length}
+          Fixed {fixed}/{group.items.length}
         </div>
       </div>
       <div className="max-h-[56vh] overflow-y-auto p-3 space-y-2">
@@ -199,9 +199,9 @@ export function ChecklistGroupTabs({
 
 interface WafProgress {
   readonly total: number;
-  readonly covered: number;
-  readonly partial: number;
-  readonly notCovered: number;
+  readonly fixed: number;
+  readonly inProgress: number;
+  readonly open: number;
   readonly percentComplete: number;
 }
 
@@ -232,20 +232,20 @@ export function WafChecklistHeader({
           <div className="text-right">
             <p className="text-sm font-semibold text-foreground">{progress.percentComplete}%</p>
             <p className="text-xs text-dim">
-              {progress.covered}/{progress.total} covered
+              {progress.fixed}/{progress.total} fixed
             </p>
           </div>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-2 text-xs">
         <div className="rounded-md border border-success-line bg-success-soft px-2 py-1 text-success">
-          Covered: {progress.covered}
+          Fixed: {progress.fixed}
         </div>
         <div className="rounded-md border border-warning-line bg-warning-soft px-2 py-1 text-warning">
-          Partial: {progress.partial}
+          In progress: {progress.inProgress}
         </div>
         <div className="rounded-md border border-border bg-surface px-2 py-1 text-secondary">
-          Not covered: {progress.notCovered}
+          Open: {progress.open}
         </div>
       </div>
     </>

@@ -1,7 +1,8 @@
-"""Core checklist engine for legacy JSON <-> normalized table synchronization."""
+"""Core checklist engine for normalized table synchronization and reconstruction."""
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -16,7 +17,6 @@ from sqlalchemy.orm import selectinload
 from app.agents_system.checklists.metrics import ChecklistMetricsService, severity_value
 from app.agents_system.checklists.read_assembler import ChecklistReadAssembler
 from app.agents_system.checklists.registry import ChecklistRegistry
-from app.agents_system.checklists.state_parser import ChecklistStateParser
 from app.agents_system.checklists.sync_writer import ChecklistSyncWriter
 from app.agents_system.checklists.template_resolver import ChecklistTemplateResolver
 from app.core.app_settings import AppSettings
@@ -24,7 +24,6 @@ from app.models.checklist import (
     Checklist,
     ChecklistItem,
     ChecklistItemEvaluation,
-    ChecklistTemplate,
     EvaluationStatus,
     SeverityLevel,
 )
@@ -49,7 +48,7 @@ _SEVERITY_ORDER = {
 
 
 class ChecklistEngine:
-    """Engine for WAF checklist synchronization and evaluation management."""
+    """Engine for checklist synchronization and evaluation management."""
 
     def __init__(
         self,
@@ -62,50 +61,83 @@ class ChecklistEngine:
         self.settings = settings
         self.namespace_uuid = UUID(str(settings.waf_namespace_uuid))
         self.chunk_size = int(settings.waf_sync_chunk_size)
-        self.feature_flag = bool(settings.aaa_feature_waf_normalized)
 
-        self._parser = ChecklistStateParser()
         self._resolver = ChecklistTemplateResolver(registry)
         self._writer = ChecklistSyncWriter(self._resolver, self.namespace_uuid)
         self._assembler = ChecklistReadAssembler(self._resolver)
         self._metrics = ChecklistMetricsService()
 
     @staticmethod
-    def _extract_state_update(agent_result: dict[str, Any]) -> dict[str, Any] | None:
-        state_update = agent_result.get("AAA_STATE_UPDATE")
-        if isinstance(state_update, dict):
-            return state_update
-        metadata = agent_result.get("metadata")
-        if isinstance(metadata, dict):
-            return metadata.get("AAA_STATE_UPDATE") if isinstance(metadata.get("AAA_STATE_UPDATE"), dict) else None
+    def _parse_project_state(project_state: dict[str, Any] | str) -> dict[str, Any] | None:
+        if isinstance(project_state, str):
+            try:
+                loaded = json.loads(project_state)
+            except json.JSONDecodeError:
+                return None
+            return loaded if isinstance(loaded, dict) else None
+        return project_state
+
+    @staticmethod
+    def _resolve_template_slug(payload: dict[str, Any]) -> str | None:
+        explicit = payload.get("template")
+        if isinstance(explicit, str) and explicit.strip():
+            return explicit.strip()
+
+        slug = payload.get("slug")
+        if isinstance(slug, str) and slug.strip():
+            return slug.strip()
+
+        templates = payload.get("templates")
+        if isinstance(templates, list):
+            for template in templates:
+                if not isinstance(template, dict):
+                    continue
+                candidate = template.get("slug")
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
         return None
 
-    async def process_agent_result(self, project_id: str, agent_result: dict[str, Any]) -> dict[str, Any]:
-        """Process an agent output payload and sync WAF updates to normalized tables."""
-        if not self.feature_flag:
-            return {"status": "skipped", "reason": "feature_disabled"}
+    @staticmethod
+    def _normalize_items_container(raw_items: Any) -> list[dict[str, Any]]:
+        if isinstance(raw_items, list):
+            return [item for item in raw_items if isinstance(item, dict)]
+        if isinstance(raw_items, dict):
+            items: list[dict[str, Any]] = []
+            for key, value in raw_items.items():
+                if not isinstance(value, dict):
+                    continue
+                merged = dict(value)
+                merged.setdefault("id", key)
+                items.append(merged)
+            return items
+        return []
 
-        state_update = self._extract_state_update(agent_result)
-        if state_update is None:
-            return {"status": "skipped", "reason": "no_state_update"}
+    @staticmethod
+    def _extract_waf_data(parsed_state: dict[str, Any]) -> dict[str, Any] | None:
+        waf_data = parsed_state.get("wafChecklist")
+        if isinstance(waf_data, dict):
+            return waf_data
 
-        waf_checklist = state_update.get("wafChecklist")
-        if not isinstance(waf_checklist, dict):
-            return {"status": "skipped", "reason": "no_waf_data"}
+        if "items" in parsed_state:
+            return parsed_state
+        return None
 
-        summary = await self.sync_project_state_to_db(
-            project_id=project_id,
-            project_state={"wafChecklist": waf_checklist},
-        )
-        if summary.get("status") != "success":
-            return summary
+    def _extract_checklists_from_waf_data(
+        self, waf_data: dict[str, Any]
+    ) -> list[tuple[str, dict[str, Any]]]:
+        if "items" in waf_data:
+            template_slug = self._resolve_template_slug(waf_data) or self._resolver.default_template_slug()
+            return [(template_slug, waf_data)]
 
-        return {
-            "status": "success",
-            "items_processed": summary.get("items_synced", 0),
-            "evaluations_created": summary.get("evaluations_synced", 0),
-            "checklists": summary.get("checklists", []),
-        }
+        checklists: list[tuple[str, dict[str, Any]]] = []
+        for key, value in waf_data.items():
+            if key in {"templates", "metadata"}:
+                continue
+            if not isinstance(value, dict) or "items" not in value:
+                continue
+            template_slug = self._resolve_template_slug(value) or str(key).strip() or self._resolver.default_template_slug()
+            checklists.append((template_slug, value))
+        return checklists
 
     async def sync_project_state_to_db(
         self,
@@ -113,16 +145,16 @@ class ChecklistEngine:
         project_state: dict[str, Any] | str,
         chunk_size: int | None = None,
     ) -> dict[str, Any]:
-        """Idempotently sync legacy ``wafChecklist`` JSON into normalized rows."""
-        parsed_state = self._parser.parse_project_state(project_state)
+        """Idempotently sync checklist payloads into normalized rows."""
+        parsed_state = self._parse_project_state(project_state)
         if parsed_state is None:
             return {"status": "error", "reason": "invalid_json"}
 
-        waf_data = parsed_state.get("wafChecklist")
+        waf_data = self._extract_waf_data(parsed_state)
         if not isinstance(waf_data, dict):
             return {"status": "skipped", "reason": "no_waf_data"}
 
-        checklists_to_process = self._parser.extract_checklists_from_waf_data(waf_data)
+        checklists_to_process = self._extract_checklists_from_waf_data(waf_data)
         if not checklists_to_process:
             return {"status": "skipped", "reason": "no_checklist_items_found"}
 
@@ -148,17 +180,17 @@ class ChecklistEngine:
         template_record = await self._writer.get_or_create_template_record(session, resolved_template)
         checklist = await self._writer.get_or_create_checklist(session, project_id, template_record)
 
-        legacy_items = self._parser.normalize_items_container(checklist_payload.get("items", []))
+        items = self._normalize_items_container(checklist_payload.get("items", []))
         items_synced = 0
         evaluations_synced = 0
 
-        for start in range(0, len(legacy_items), effective_chunk_size):
-            chunk = legacy_items[start : start + effective_chunk_size]
-            for legacy_item in chunk:
-                evaluations_added = await self._writer.sync_legacy_item(
+        for start in range(0, len(items), effective_chunk_size):
+            chunk = items[start : start + effective_chunk_size]
+            for item_payload in chunk:
+                evaluations_added = await self._writer.sync_item_from_payload(
                     session=session,
                     checklist=checklist,
-                    legacy_item=legacy_item,
+                    item_payload=item_payload,
                     template=resolved_template,
                     project_id=project_id,
                 )
@@ -211,7 +243,7 @@ class ChecklistEngine:
         }
 
     async def sync_db_to_project_state(self, project_id: str) -> dict[str, Any]:
-        """Reconstruct legacy ``wafChecklist`` map from normalized rows."""
+        """Reconstruct checklist payload map from normalized rows."""
         async with self.db_session_factory() as session:
             result = await session.execute(
                 select(Checklist)
@@ -384,13 +416,3 @@ class ChecklistEngine:
                 await session.rollback()
                 logger.exception("Failed to bootstrap checklists for project %s", project_id)
                 raise
-
-    # Compatibility helpers retained for existing callers/tests.
-    def default_template_slug(self) -> str:
-        return self._resolver.default_template_slug()
-
-    def _select_bootstrap_template_slugs(self, requested: list[str] | None) -> list[str]:
-        return self._resolver.select_bootstrap_template_slugs(requested)
-
-    def _extract_known_pillars(self, template: ChecklistTemplate | None) -> list[str]:
-        return self._resolver.extract_known_pillars(template)

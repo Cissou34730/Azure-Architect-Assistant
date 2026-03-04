@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app.core.app_settings import get_app_settings
+
 REQUIRED_TOP_LEVEL_TOPIC_KEYS: tuple[str, ...] = (
     "1_foundations",
     "2_requirements_and_quality_attributes",
@@ -29,8 +31,6 @@ REQUIRED_TOP_LEVEL_TOPIC_KEYS: tuple[str, ...] = (
     "12_practice_ideas",
     "13_learning_and_practice",
 )
-
-from app.core.app_settings import get_app_settings
 
 
 def _address_confidence_threshold() -> float:
@@ -163,8 +163,8 @@ def _waf_signal_strength(state: dict[str, Any]) -> float:
     if not isinstance(items, list) or not items:
         return 0.0
 
-    covered = 0
-    partial = 0
+    fixed = 0
+    in_progress = 0
     total = 0
     for item in items:
         if not isinstance(item, dict):
@@ -172,16 +172,16 @@ def _waf_signal_strength(state: dict[str, Any]) -> float:
         total += 1
         evals = item.get("evaluations")
         latest = evals[-1] if isinstance(evals, list) and evals else None
-        status = str((latest or {}).get("status", "notCovered")).strip().lower()
-        if status == "covered":
-            covered += 1
-        elif status == "partial":
-            partial += 1
+        status = str((latest or {}).get("status", "open")).strip().lower()
+        if status in {"fixed", "false_positive"}:
+            fixed += 1
+        elif status == "in_progress":
+            in_progress += 1
 
     if total <= 0:
         return 0.0
 
-    score = (covered + 0.5 * partial) / total
+    score = (fixed + 0.5 * in_progress) / total
     return round(max(0.0, min(score, 1.0)), 2)
 
 

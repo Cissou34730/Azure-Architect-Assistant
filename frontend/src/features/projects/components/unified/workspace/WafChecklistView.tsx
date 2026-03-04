@@ -10,17 +10,10 @@ import type { WafChecklistGroup } from "./WafChecklistParts";
 
 interface WafProgress {
   readonly total: number;
-  readonly covered: number;
-  readonly partial: number;
-  readonly notCovered: number;
+  readonly fixed: number;
+  readonly inProgress: number;
+  readonly open: number;
   readonly percentComplete: number;
-}
-
-function normalizeChecklist(value: WafChecklist | undefined): WafChecklist {
-  if (value === undefined) {
-    return { items: [], pillars: [], version: undefined };
-  }
-  return value;
 }
 
 function getLatestWafEvaluation(
@@ -37,17 +30,17 @@ function getLatestWafEvaluation(
 }
 
 function computeWafProgress(items: readonly WafChecklist["items"][number][]): WafProgress {
-  let covered = 0;
-  let partial = 0;
-  let notCovered = 0;
+  let fixed = 0;
+  let inProgress = 0;
+  let open = 0;
   for (const item of items) {
-    const status = getLatestWafEvaluation(item.evaluations)?.status ?? "notCovered";
-    if (status === "covered") covered += 1;
-    else if (status === "partial") partial += 1;
-    else notCovered += 1;
+    const status = getLatestWafEvaluation(item.evaluations)?.status ?? "open";
+    if (status === "fixed") fixed += 1;
+    else if (status === "in_progress") inProgress += 1;
+    else open += 1;
   }
   const total = items.length;
-  return { total, covered, partial, notCovered, percentComplete: total > 0 ? Math.round((covered / total) * 100) : 0 };
+  return { total, fixed, inProgress, open, percentComplete: total > 0 ? Math.round((fixed / total) * 100) : 0 };
 }
 
 function checklistSortRank(title: string, key: string): number {
@@ -80,32 +73,32 @@ function groupChecklistItems(items: readonly WafChecklist["items"][number][]): r
 }
 
 function useWafChecklist(projectState: ProjectState) {
-  const fallbackChecklist = useMemo(
-    () => normalizeChecklist(projectState.wafChecklist),
-    [projectState.wafChecklist],
+  const emptyChecklist = useMemo<WafChecklist>(
+    () => ({ items: [], pillars: [], version: undefined }),
+    [],
   );
-  const [checklist, setChecklist] = useState<WafChecklist>(fallbackChecklist);
+  const [checklist, setChecklist] = useState<WafChecklist>(emptyChecklist);
   const [loading, setLoading] = useState(false);
   const projectId = projectState.projectId;
 
   useEffect(() => {
     let active = true;
     const loadNormalizedChecklist = async () => {
-      if (projectId === "") { setChecklist(fallbackChecklist); return; }
-      setChecklist(fallbackChecklist);
+      if (projectId === "") { setChecklist(emptyChecklist); return; }
+      setChecklist(emptyChecklist);
       setLoading(true);
       try {
         const normalized = await checklistApi.fetchNormalizedChecklist(projectId);
-        if (active) setChecklist(normalized ?? fallbackChecklist);
+        if (active) setChecklist(normalized ?? emptyChecklist);
       } catch {
-        if (active) setChecklist(fallbackChecklist);
+        if (active) setChecklist(emptyChecklist);
       } finally {
         if (active) setLoading(false);
       }
     };
     void loadNormalizedChecklist();
     return () => { active = false; };
-  }, [fallbackChecklist, projectId]);
+  }, [emptyChecklist, projectId]);
 
   return { checklist, loading };
 }

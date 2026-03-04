@@ -35,7 +35,7 @@ def test_validation_tool_emits_state_update_block_parseable() -> None:
                 "itemId": "waf-sec-001",
                 "pillar": "security",
                 "topic": "Network security",
-                "status": "notCovered",
+                "status": "open",
                 "evidence": "No Private Link configured.",
                 "relatedFindingIds": [],
                 "sourceCitations": [
@@ -85,7 +85,7 @@ def test_project_state_validates_findings_and_waf_evaluations() -> None:
                     "evaluations": [
                         {
                             "id": "e-1",
-                            "status": "notCovered",
+                            "status": "open",
                             "evidence": "No Private Link configured.",
                             "relatedFindingIds": ["f-1"],
                             "sourceCitations": [],
@@ -98,7 +98,8 @@ def test_project_state_validates_findings_and_waf_evaluations() -> None:
 
     validated = AAAProjectState.model_validate(payload)
     assert validated.findings[0].severity == "high"
-    assert validated.waf_checklist.items[0].evaluations[0].status == "notCovered"
+    dumped = validated.model_dump(mode="json", by_alias=True)
+    assert dumped["wafChecklist"]["items"][0]["evaluations"][0]["status"] == "open"
 
 
 def test_finding_requires_citation() -> None:

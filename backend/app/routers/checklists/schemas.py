@@ -67,8 +67,3 @@ class ProgressResponse(BaseModel):
     last_updated: str
 
 
-class ResyncResponse(BaseModel):
-    status: str
-    items_synced: int = 0
-    evaluations_synced: int = 0
-    errors: list[str] = Field(default_factory=list)

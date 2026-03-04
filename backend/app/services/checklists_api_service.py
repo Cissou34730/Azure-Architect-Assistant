@@ -1,8 +1,7 @@
-"""Service layer for checklist router read/resync operations."""
+"""Service layer for checklist router read operations."""
 
 from __future__ import annotations
 
-import json
 from typing import Any
 from uuid import UUID
 
@@ -12,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.checklist import Checklist, ChecklistItem
-from app.models.project import ProjectState
 
 
 def _enum_str(value: Any) -> str:
@@ -109,39 +107,5 @@ class ChecklistsApiService:
             "items_count": len(checklist.items),
             "last_synced_at": checklist.updated_at,
             "items": items,
-        }
-
-    async def resync_from_project_state(
-        self,
-        *,
-        project_id: str,
-        db: AsyncSession,
-        checklist_service: Any,
-    ) -> dict[str, Any]:
-        state_obj = (
-            await db.execute(select(ProjectState).where(ProjectState.project_id == project_id))
-        ).scalar_one_or_none()
-        if state_obj is None:
-            raise HTTPException(status_code=404, detail="Project state not found")
-        try:
-            state_dict = (
-                json.loads(state_obj.state)
-                if isinstance(state_obj.state, str)
-                else state_obj.state
-            )
-        except json.JSONDecodeError as exc:
-            raise HTTPException(status_code=400, detail="Invalid project state JSON") from exc
-
-        result = await checklist_service.sync_project(project_id, state_dict)
-        if result.get("status") == "error":
-            raise HTTPException(
-                status_code=500,
-                detail=f"Resync failed: {result.get('errors', ['unknown'])}",
-            )
-        return {
-            "status": result.get("status", "unknown"),
-            "items_synced": int(result.get("items_synced", 0)),
-            "evaluations_synced": int(result.get("evaluations_synced", 0)),
-            "errors": [str(e) for e in result.get("errors", [])],
         }
 

@@ -58,13 +58,13 @@ def test_derive_uncovered_topic_questions_prioritizes_waf_gaps() -> None:
                         "id": "re-01",
                         "pillar": "Reliability",
                         "topic": "RTO/RPO",
-                        "evaluations": [{"status": "partial"}],
+                        "evaluations": [{"status": "in_progress"}],
                     },
                     {
                         "id": "se-01",
                         "pillar": "Security",
                         "topic": "IAM",
-                        "evaluations": [{"status": "notCovered"}],
+                        "evaluations": [{"status": "open"}],
                     },
                 ]
             },
@@ -75,7 +75,7 @@ def test_derive_uncovered_topic_questions_prioritizes_waf_gaps() -> None:
     assert any("Topic WAF" in q for q in questions)
 
 
-def test_derive_uncovered_topic_questions_no_waf_prompt_when_all_covered() -> None:
+def test_derive_uncovered_topic_questions_no_waf_prompt_when_all_fixed() -> None:
     questions = derive_uncovered_topic_questions(
         {
             "requirements": [{"id": "r1"}],
@@ -87,13 +87,13 @@ def test_derive_uncovered_topic_questions_no_waf_prompt_when_all_covered() -> No
                         "id": "re-01",
                         "pillar": "Reliability",
                         "topic": "RTO/RPO",
-                        "evaluations": [{"status": "covered"}],
+                        "evaluations": [{"status": "fixed"}],
                     },
                     {
                         "id": "se-01",
                         "pillar": "Security",
                         "topic": "IAM",
-                        "evaluations": [{"status": "covered"}],
+                        "evaluations": [{"status": "fixed"}],
                     },
                 ]
             },

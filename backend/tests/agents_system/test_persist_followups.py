@@ -30,9 +30,9 @@ def test_count_open_waf_items_handles_latest_status() -> None:
     state = {
         "wafChecklist": {
             "items": [
-                {"id": "1", "evaluations": [{"status": "covered"}]},
-                {"id": "2", "evaluations": [{"status": "partial"}]},
-                {"id": "3", "evaluations": [{"status": "notCovered"}]},
+                {"id": "1", "evaluations": [{"status": "fixed"}]},
+                {"id": "2", "evaluations": [{"status": "in_progress"}]},
+                {"id": "3", "evaluations": [{"status": "open"}]},
                 {"id": "4", "evaluations": []},
             ]
         }
@@ -45,8 +45,8 @@ def test_waf_followup_guardrail_triggers_in_validate_stage_without_updates() -> 
     state = {
         "wafChecklist": {
             "items": [
-                {"id": "1", "evaluations": [{"status": "partial"}]},
-                {"id": "2", "evaluations": [{"status": "covered"}]},
+                {"id": "1", "evaluations": [{"status": "in_progress"}]},
+                {"id": "2", "evaluations": [{"status": "fixed"}]},
             ]
         }
     }
@@ -66,7 +66,7 @@ def test_waf_followup_guardrail_skips_when_waf_updated() -> None:
     state = {
         "wafChecklist": {
             "items": [
-                {"id": "1", "evaluations": [{"status": "partial"}]},
+                {"id": "1", "evaluations": [{"status": "in_progress"}]},
             ]
         }
     }

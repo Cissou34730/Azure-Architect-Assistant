@@ -14,7 +14,6 @@ const emptyProjectState = {
   clarificationQuestions: [],
   candidateArchitectures: [],
   adrs: [],
-  wafChecklist: { version: "1", pillars: [], items: [] },
   findings: [],
   diagrams: [],
   iacArtifacts: [],
@@ -48,7 +47,7 @@ const checklistWithItems = {
       severity: "critical",
       guidance: null,
       itemMetadata: null,
-      latestEvaluation: { status: "compliant", evaluator: "agent", timestamp: "2026-02-06T00:00:00Z" },
+      latestEvaluation: { status: "fixed", evaluator: "agent", timestamp: "2026-02-06T00:00:00Z" },
     },
     {
       id: "item-2",
@@ -59,7 +58,7 @@ const checklistWithItems = {
       severity: "high",
       guidance: null,
       itemMetadata: null,
-      latestEvaluation: { status: "non_compliant", evaluator: "agent", timestamp: "2026-02-06T00:00:00Z" },
+      latestEvaluation: { status: "open", evaluator: "agent", timestamp: "2026-02-06T00:00:00Z" },
     },
     {
       id: "item-3",

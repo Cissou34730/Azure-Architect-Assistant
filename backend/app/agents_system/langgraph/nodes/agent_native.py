@@ -21,11 +21,13 @@ from langgraph.prebuilt import ToolNode
 
 from app.services.ai.ai_service import get_ai_service
 
+from ....projects_database import AsyncSessionLocal
 from ....services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from ...config.prompt_loader import get_prompt_loader
 from ...tools.aaa_candidate_tool import create_aaa_tools
 from ...tools.kb_tool import create_kb_tools
 from ...tools.mcp_tool import create_mcp_tools
+from ...tools.project_document_tool import ProjectDocumentSearchTool
 from ...tools.tool_wrappers import make_single_input_wrapper
 from ..state import MAX_AGENT_ITERATIONS, GraphState
 
@@ -131,7 +133,7 @@ def _build_system_directives(state: GraphState) -> str:
         "- Mind map guidance is advisory-only and must not enforce a rigid workflow.\n"
         "- In validation turns, checklist status updates and persistence rules take priority over exploratory prompts.\n"
         "- Challenge assumptions: If a user choice contradicts Azure WAF best practices or NFRs, you MUST explain the risk and offer alternatives.\n"
-        "- Treat WAF checklist as first-class: when analysis supports a status change, proactively persist checklist updates (covered/partial/notCovered) without waiting for explicit user wording.\n"
+        "- Treat WAF checklist as first-class: when analysis supports a status change, proactively persist checklist updates (fixed/in_progress/open) without waiting for explicit user wording.\n"
         "- If evidence is insufficient for a status change, ask a focused status/evidence clarification and propose the next checklist completion step.\n"
         "- Persist decisions: Whenever a design choice is made, use the appropriate AAA tool and include the 'AAA_STATE_UPDATE' block in your response to confirm it reached the system.\n"
         "- Proactive driving: Drive the project forward. If requirements are clear, propose the architecture; if architecture is clear, move to ADRs.\n"
@@ -186,9 +188,6 @@ async def _build_tools(mcp_client: MicrosoftLearnMCPClient, project_id: str = ""
 
     # Add project document search tool when running in project context
     if project_id:
-        from app.agents_system.tools.project_document_tool import ProjectDocumentSearchTool
-        from app.projects_database import AsyncSessionLocal
-
         doc_tool = ProjectDocumentSearchTool(
             db_factory=AsyncSessionLocal, project_id=project_id
         )

@@ -5,15 +5,21 @@ Provides read/write access to ProjectState from database.
 
 import json
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..checklists.normalize_helpers import merge_reconstructed_waf_payloads
+from app.core.app_settings import get_app_settings
+
 from ...models import Project, ProjectDocument, ProjectState
+from ..checklists.engine import ChecklistEngine
+from ..checklists.normalize_helpers import merge_reconstructed_waf_payloads
+from ..checklists.registry import ChecklistRegistry
 from .aaa_state_models import AAAProjectState, apply_us6_enrichment, ensure_aaa_defaults
 from .mindmap_loader import is_mindmap_initialized, update_mindmap_coverage
 from .state_update_parser import merge_state_updates_no_overwrite
@@ -95,9 +101,7 @@ def _merge_uploaded_reference_documents(
     return list(merged_by_id.values())
 
 
-async def read_project_state(
-    project_id: str, db: AsyncSession
-) -> dict[str, Any] | None:
+async def read_project_state(project_id: str, db: AsyncSession) -> dict[str, Any] | None:  # noqa: C901
     """
     Read ProjectState from database.
 
@@ -151,87 +155,54 @@ async def read_project_state(
     state_data["projectId"] = project_id
     state_data["lastUpdated"] = state_record.updated_at
 
-    # Phase 5: Dynamic WAF Reconstruction from Normalized DB
-    # This ensures that even if the JSON state is out of sync, the frontend
-    # sees the latest assessments from the checklists table.
-    from app.core.app_settings import get_app_settings
-    settings = get_app_settings()
-    if settings.aaa_feature_waf_normalized:
-        try:
-            from contextlib import asynccontextmanager
-            from pathlib import Path
+    # Reconstruct WAF checklist from normalized DB so agent/frontend context has a single source of truth.
+    try:
+        @asynccontextmanager
+        async def session_factory():
+            yield db
 
-            from ..checklists.engine import ChecklistEngine
-            from ..checklists.registry import ChecklistRegistry
+        settings = get_app_settings()
+        registry = ChecklistRegistry(Path(settings.waf_template_cache_dir), settings)
+        engine = ChecklistEngine(session_factory, registry, settings)
 
-            @asynccontextmanager
-            async def session_factory():
-                yield db
+        reconstructed_waf = await engine.sync_db_to_project_state(project_id)
+        if reconstructed_waf:
+            state_data["wafChecklist"] = merge_reconstructed_waf_payloads(reconstructed_waf)
 
-            registry = ChecklistRegistry(Path(settings.waf_template_cache_dir), settings)
-            engine = ChecklistEngine(session_factory, registry, settings)
+            if not state_data.get("findings"):
+                findings = []
+                items = state_data["wafChecklist"].get("items", [])
+                item_values = items.values() if isinstance(items, dict) else items
+                for it in item_values:
+                    evals = it.get("evaluations", [])
+                    if not isinstance(evals, list) or not evals:
+                        continue
 
-            # Reconstruct wafChecklist
-            reconstructed_waf = await engine.sync_db_to_project_state(project_id)
+                    latest_eval = evals[0]
+                    status = str(latest_eval.get("status", "open")).strip().lower()
+                    if status not in {"in_progress", "open", "at_risk", "failed"}:
+                        continue
 
-            # If DB only has a skeleton but JSON has real items, trigger a sync
-            has_db_items = any(c.get("items") for c in reconstructed_waf.values())
-            raw_waf = raw_state.get("wafChecklist", {})
-            has_json_items = False
-            if isinstance(raw_waf, dict):
-                if raw_waf.get("items"): # Legacy flat format
-                    has_json_items = True
-                else: # Multi-template format
-                    has_json_items = any(isinstance(v, dict) and v.get("items") for k, v in raw_waf.items() if k not in ["templates", "metadata"])
+                    findings.append(
+                        {
+                            "id": f"finding-{it.get('id') or it.get('title')}",
+                            "title": it.get("title") or it.get("topic") or "WAF Issue",
+                            "severity": it.get("severity", "medium"),
+                            "description": latest_eval.get("evidence")
+                            or "Non-compliant WAF item detected.",
+                            "remediation": "Review WAF best practices for this topic.",
+                            "wafPillar": (it.get("pillar") or "General").lower().replace(" ", ""),
+                        }
+                    )
 
-            if not has_db_items and has_json_items:
-                logger.info(f"WAF data missing from DB for {project_id}, triggering sync from JSON")
-                await engine.sync_project_state_to_db(project_id, raw_state)
-                reconstructed_waf = await engine.sync_db_to_project_state(project_id)
+                if findings:
+                    state_data["findings"] = findings
+                    logger.debug("Derived %s findings for project %s", len(findings), project_id)
 
-            if reconstructed_waf:
-                state_data["wafChecklist"] = merge_reconstructed_waf_payloads(reconstructed_waf)
-
-                # Also reconstruct findings if they are empty in the JSON but we have risks in DB
-                if not state_data.get("findings"):
-                    findings = []
-                    # We might want a separate engine method for this,
-                    # but for now let's derive them from the reconstructed checklist
-                    items = state_data["wafChecklist"].get("items", [])
-                    # Handle both list and dict formats for items (depending on engine fix)
-                    if isinstance(items, dict):
-                        item_values = items.values()
-                    else:
-                        item_values = items
-
-                    for it in item_values:
-                        # The reconstructed item has an evaluations list in the legacy format.
-                        # We need to find the latest evaluation status.
-                        evals = it.get("evaluations", [])
-                        if not evals:
-                            continue
-
-                        latest_eval = evals[0] # normalize_helpers.py puts latest first
-                        status = latest_eval.get("status")
-
-                        # Legacy statuses that indicate a finding/issue
-                        if status in ["partial", "notCovered", "at_risk", "failed"]:
-                            findings.append({
-                                "id": f"finding-{it.get('id') or it.get('title')}",
-                                "title": it.get("title") or it.get("topic") or "WAF Issue",
-                                "severity": it.get("severity", "medium"),
-                                "description": latest_eval.get("evidence") or "Non-compliant WAF item detected.",
-                                "remediation": "Review WAF best practices for this topic.",
-                                "wafPillar": (it.get("pillar") or "General").lower().replace(" ", "")
-                            })
-                    if findings:
-                        state_data["findings"] = findings
-                        logger.debug(f"Derived {len(findings)} findings for project {project_id}")
-
-                logger.debug(f"Reconstructed WAF checklist for project {project_id} from DB")
-        except Exception as e:
-            # Don't fail the whole request if reconstruction fails, just log it
-            logger.error(f"Failed to reconstruct WAF for {project_id}: {e}", exc_info=True)
+            logger.debug("Reconstructed WAF checklist for project %s from DB", project_id)
+    except Exception as e:
+        # Don't fail the whole request if reconstruction fails, just log it
+        logger.error(f"Failed to reconstruct WAF for {project_id}: {e}", exc_info=True)
 
     logger.debug(f"Loaded ProjectState for project {project_id}")
     return state_data
@@ -271,15 +242,19 @@ async def update_project_state(
     if not state_record:
         raise ValueError(f"ProjectState not initialized for project {project_id}")
 
+    sanitized_updates = dict(updates)
+    sanitized_updates.pop("wafChecklist", None)
+
     # Merge or replace
     conflicts = []
     if merge:
         current_state = ensure_aaa_defaults(json.loads(state_record.state))
-        merge_result = merge_state_updates_no_overwrite(current_state, updates)
+        current_state.pop("wafChecklist", None)
+        merge_result = merge_state_updates_no_overwrite(current_state, sanitized_updates)
         updated_state = ensure_aaa_defaults(merge_result.merged_state)
         conflicts = [c.__dict__ for c in merge_result.conflicts]
     else:
-        updated_state = ensure_aaa_defaults(updates)
+        updated_state = ensure_aaa_defaults(sanitized_updates)
 
     # US6 enrichment: update mind map coverage and traceability without overwriting.
     if is_mindmap_initialized():
@@ -296,28 +271,6 @@ async def update_project_state(
     # Update database record
     state_record.state = json.dumps(updated_state)
     state_record.updated_at = datetime.now(timezone.utc).isoformat()
-
-    # PHASE 5: Dual write to normalized WAF tables
-    from app.core.app_settings import get_app_settings
-    settings = get_app_settings()
-    if settings.aaa_feature_waf_normalized:
-        try:
-            from contextlib import asynccontextmanager
-            from pathlib import Path
-
-            from ..checklists.engine import ChecklistEngine
-            from ..checklists.registry import ChecklistRegistry
-
-            @asynccontextmanager
-            async def session_factory():
-                yield db
-
-            registry = ChecklistRegistry(Path(settings.waf_template_cache_dir), settings)
-            engine = ChecklistEngine(session_factory, registry, settings)
-            await engine.sync_project_state_to_db(project_id, updated_state)
-            logger.info(f"Sync'd project state to normalized WAF tables for {project_id}")
-        except Exception as e:
-            logger.error(f"Failed to sync WAF state to DB for {project_id}: {e}", exc_info=True)
 
     # Don't commit here - let the dependency handle it
     await db.flush()  # Flush to get updated values but don't commit
@@ -467,7 +420,7 @@ def _add_open_questions_section(parts: list[str], state: dict[str, Any]) -> None
 _DOCUMENT_EXCERPT_MAX_CHARS = 2000
 
 
-def _add_requirements_section(parts: list[str], state: dict[str, Any]) -> None:
+def _add_requirements_section(parts: list[str], state: dict[str, Any]) -> None:  # noqa: C901
     """Add extracted requirements with category, ambiguity, and sources to summary."""
     requirements = state.get("requirements")
     if not requirements:

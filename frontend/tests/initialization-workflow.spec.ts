@@ -20,7 +20,6 @@ function buildProjectState() {
     clarificationQuestions: [],
     candidateArchitectures: [],
     adrs: [],
-    wafChecklist: { version: "1", pillars: [], items: [] },
     findings: [],
     diagrams: [],
     iacArtifacts: [],

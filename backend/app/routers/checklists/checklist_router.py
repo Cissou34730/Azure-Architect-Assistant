@@ -16,7 +16,6 @@ from app.routers.checklists.schemas import (
     EvaluateItemRequest,
     EvaluateItemResponse,
     ProgressResponse,
-    ResyncResponse,
 )
 from app.routers.error_utils import map_value_error
 from app.services.checklists_api_service import ChecklistsApiService
@@ -100,18 +99,3 @@ async def get_checklist_progress(
         last_updated=str(progress.get("last_updated", "")),
     )
 
-
-@router.post("/resync", response_model=ResyncResponse)
-async def resync_checklists_from_project_state(
-    project_id: str,
-    db: AsyncSession = Depends(get_db),
-    service: ChecklistService = Depends(get_checklist_service),
-    checklists_api_service: ChecklistsApiService = Depends(get_checklists_api_service_dep),
-) -> ResyncResponse:
-    """Force sync from ``ProjectState.state.wafChecklist`` into normalized tables."""
-    payload = await checklists_api_service.resync_from_project_state(
-        project_id=project_id,
-        db=db,
-        checklist_service=service,
-    )
-    return ResyncResponse.model_validate(payload)

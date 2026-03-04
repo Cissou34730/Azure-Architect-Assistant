@@ -68,7 +68,6 @@ async def test_create_project_bootstraps_state_and_waf_checklist(
     _write_template(cache_dir)
 
     settings = get_settings().model_copy(deep=True)
-    settings.aaa_feature_waf_normalized = True
     settings.waf_template_cache_dir = cache_dir
 
     monkeypatch.setattr(
@@ -88,10 +87,7 @@ async def test_create_project_bootstraps_state_and_waf_checklist(
     assert state_row is not None
 
     state_data = json.loads(state_row.state)
-    waf = state_data.get("wafChecklist", {})
-    assert isinstance(waf, dict)
-    assert isinstance(waf.get("items"), list)
-    assert len(waf["items"]) >= 2
+    assert "wafChecklist" not in state_data
 
     state_response = await async_client.get(f"/api/projects/{project_id}/state")
     assert state_response.status_code == 200

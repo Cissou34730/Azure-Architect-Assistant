@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
-from app.models.checklist import Checklist, ChecklistItem
+from app.models.checklist import Checklist, ChecklistItem, ChecklistItemEvaluation
 from app.models.project import Project, ProjectState
 from app.projects_database import get_db
 
@@ -41,7 +41,7 @@ async def sample_project(test_db_session: AsyncSession):
     # Create ProjectState
     project_state = ProjectState(
         project_id=project_id,
-        state='{"wafChecklist": {}}'
+        state="{}"
     )
     test_db_session.add(project_state)
 
@@ -106,7 +106,6 @@ async def test_evaluate_checklist_item(async_client: AsyncClient, sample_project
     assert eval_resp.json()["status"] == "success"
 
     # Verify in DB
-    from app.models.checklist import ChecklistItemEvaluation
     # Clear session to ensure we read fresh from DB
     test_db_session.expire_all()
     res = await test_db_session.execute(
