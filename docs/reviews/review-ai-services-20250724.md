@@ -359,3 +359,32 @@ If attempt 3 fails (no temperature, no response_format), the code still re-enter
 ## Verdict
 
 **FAIL** — 😤 Five critical bugs including broken model switching, stale HTTP clients, and live LangChain imports in a codebase that removed LangChain. The LangChain issue alone is a showstopper if `langchain_openai` isn't in the dependencies. Fix Issues 1–5 before this goes anywhere near production.
+
+---
+
+## Remediation Status (PR: `copilot/fix-17-points-issues`)
+
+| # | Status | Notes |
+|---|--------|-------|
+| 1 | ✅ Fixed | Use `model_copy(update={...})` — idiomatic even though Pydantic v2 models are mutable by default |
+| 2 | ✅ Fixed | Added `reset_openai_client()` / `reset_azure_openai_client()`; called from `reinitialize_with_model` |
+| 3 | ✅ Fixed | `create_chat_llm()` removed from `AIService`; LLM created directly in `agent_native.py` |
+| 4 | ✅ Fixed | Explicit `isinstance` check + `TypeError` replaces `# type: ignore[union-attr]` |
+| 5 | ✅ Fixed | Broad `except RuntimeError` removed; `nest_asyncio.apply()` called once at module load |
+| 6 | ⏸ Deferred | Removing `AIConfig` entirely is a larger refactor; DTO layer retained for now |
+| 7 | ⏸ Deferred | `from_settings` logic preserved for backward compat |
+| 8 | ✅ Fixed | Consolidated into single `needs_openai` check; separate Azure LLM vs embedding checks retained |
+| 9 | ✅ Fixed | 4 copy-pasted closures → inline conditional lambdas |
+| 10 | ✅ Fixed | Variable-shadowing pattern eliminated by inline lambdas |
+| 11 | ✅ Fixed | `getattr` removed (method removed entirely in fix for Issue 3) |
+| 12 | ✅ Fixed | `threading.Lock` + double-checked locking in `get_instance` |
+| 13 | ✅ Fixed | All f-strings replaced with `%`-style lazy formatting |
+| 14 | ⏸ Deferred | `noqa` consolidation is cosmetic; not addressed to minimise diff |
+| 15 | ⏸ Skipped | `openai_embedding_model` is the correct key for Azure (intentional design) |
+| 16 | ✅ Fixed | `metadata` now returns `LLMMetadata` |
+| 17 | ✅ Fixed | `_sync_embed` helper extracted; `_get_query_embedding` / `_get_text_embedding` deduplicated |
+| 18 | ✅ Fixed | `nest_asyncio.apply()` moved to module load; documented as process-wide side effect |
+| 19 | ⏸ N/A | Core `ai/__init__.py` does not import from `adapters/`; no issue present |
+| 20 | ✅ Fixed | `_notify_dependents()` private method extracted; logs `ImportError` at debug |
+| 21 | ⏸ Acknowledged | Grace-period sleep is documented as best-effort; full request draining is out of scope |
+| 22 | ⏸ Deferred | API preference cache already exists; retry logic refactor is a separate task |
