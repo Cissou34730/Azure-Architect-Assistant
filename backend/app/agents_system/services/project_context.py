@@ -5,21 +5,14 @@ Provides read/write access to ProjectState from database.
 
 import json
 import logging
-from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.app_settings import get_app_settings
-
 from ...models import Project, ProjectDocument, ProjectState
-from ..checklists.engine import ChecklistEngine
-from ..checklists.normalize_helpers import merge_reconstructed_waf_payloads
-from ..checklists.registry import ChecklistRegistry
 from .aaa_state_models import AAAProjectState, apply_us6_enrichment, ensure_aaa_defaults
 from .mindmap_loader import is_mindmap_initialized, update_mindmap_coverage
 from .state_update_parser import merge_state_updates_no_overwrite
@@ -101,7 +94,7 @@ def _merge_uploaded_reference_documents(
     return list(merged_by_id.values())
 
 
-async def read_project_state(project_id: str, db: AsyncSession) -> dict[str, Any] | None:  # noqa: C901
+async def read_project_state(project_id: str, db: AsyncSession) -> dict[str, Any] | None:
     """
     Read ProjectState from database.
 
@@ -154,55 +147,6 @@ async def read_project_state(project_id: str, db: AsyncSession) -> dict[str, Any
 
     state_data["projectId"] = project_id
     state_data["lastUpdated"] = state_record.updated_at
-
-    # Reconstruct WAF checklist from normalized DB so agent/frontend context has a single source of truth.
-    try:
-        @asynccontextmanager
-        async def session_factory():
-            yield db
-
-        settings = get_app_settings()
-        registry = ChecklistRegistry(Path(settings.waf_template_cache_dir), settings)
-        engine = ChecklistEngine(session_factory, registry, settings)
-
-        reconstructed_waf = await engine.sync_db_to_project_state(project_id)
-        if reconstructed_waf:
-            state_data["wafChecklist"] = merge_reconstructed_waf_payloads(reconstructed_waf)
-
-            if not state_data.get("findings"):
-                findings = []
-                items = state_data["wafChecklist"].get("items", [])
-                item_values = items.values() if isinstance(items, dict) else items
-                for it in item_values:
-                    evals = it.get("evaluations", [])
-                    if not isinstance(evals, list) or not evals:
-                        continue
-
-                    latest_eval = evals[0]
-                    status = str(latest_eval.get("status", "open")).strip().lower()
-                    if status not in {"in_progress", "open", "at_risk", "failed"}:
-                        continue
-
-                    findings.append(
-                        {
-                            "id": f"finding-{it.get('id') or it.get('title')}",
-                            "title": it.get("title") or it.get("topic") or "WAF Issue",
-                            "severity": it.get("severity", "medium"),
-                            "description": latest_eval.get("evidence")
-                            or "Non-compliant WAF item detected.",
-                            "remediation": "Review WAF best practices for this topic.",
-                            "wafPillar": (it.get("pillar") or "General").lower().replace(" ", ""),
-                        }
-                    )
-
-                if findings:
-                    state_data["findings"] = findings
-                    logger.debug("Derived %s findings for project %s", len(findings), project_id)
-
-            logger.debug("Reconstructed WAF checklist for project %s from DB", project_id)
-    except Exception as e:
-        # Don't fail the whole request if reconstruction fails, just log it
-        logger.error(f"Failed to reconstruct WAF for {project_id}: {e}", exc_info=True)
 
     logger.debug(f"Loaded ProjectState for project {project_id}")
     return state_data
