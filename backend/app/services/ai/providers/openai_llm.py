@@ -26,7 +26,7 @@ class OpenAILLMProvider(LLMProvider):
         self.config = config
         self.client = get_openai_client(config)
         self.model = config.openai_llm_model
-        logger.info(f"OpenAI LLM Provider initialized with model: {self.model}")
+        logger.info("OpenAI LLM Provider initialized with model: %s", self.model)
 
     @classmethod
     def _set_preferred_api(cls, model: str, api: str) -> None:
@@ -358,7 +358,7 @@ class OpenAILLMProvider(LLMProvider):
             raise RuntimeError("OpenAI inference failed without explicit error")
 
         except Exception as e:
-            logger.error(f"OpenAI chat error: {e}")
+            logger.error("OpenAI chat error: %s", e)
             raise
 
     async def _stream_chat(  # noqa: C901, PLR0912
@@ -447,15 +447,17 @@ class OpenAILLMProvider(LLMProvider):
                             yield delta
                     return
         except Exception as e:
-            logger.error(f"OpenAI stream error: {e}")
+            logger.error("OpenAI stream error: %s", e)
             raise
 
     async def complete(
         self, prompt: str, temperature: float = 0.7, max_tokens: int = 1000, **kwargs
     ) -> str:
         messages = [ChatMessage(role="user", content=prompt)]
-        response = await self.chat(messages, temperature, max_tokens, **kwargs)
-        return response.content  # type: ignore[union-attr]
+        kwargs.pop("stream", None)  # complete() is always non-streaming
+        response = await self.chat(messages, temperature, max_tokens, stream=False, **kwargs)
+        assert isinstance(response, LLMResponse)
+        return response.content
 
     def get_model_name(self) -> str:
         return self.model

@@ -43,3 +43,13 @@ def get_openai_client(config: AIConfig) -> AsyncOpenAI:
             config.openai_max_retries,
         )
     return _client
+
+
+def reset_openai_client() -> None:
+    """Reset the shared client singleton so the next call recreates it.
+
+    Call this whenever connection parameters (API key, timeout) change –
+    for example after a model-switching reinitialisation.
+    """
+    global _client  # noqa: PLW0603
+    _client = None
