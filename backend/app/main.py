@@ -20,15 +20,17 @@ from app.core.router_guardrails import enforce_router_guardrails
 from app.core.signals import install_ingestion_signal_handlers
 
 # Import routers
-from app.routers.agents.router import router as agent_router
-from app.routers.checklists.checklist_router import router as checklist_router
-from app.routers.diagram_generation import router as diagram_generation_router
-from app.routers.ingestion import cleanup_running_tasks
-from app.routers.ingestion import router as ingestion_router
-from app.routers.kb_management import router as kb_management_router
-from app.routers.kb_query import router as kb_query_router
-from app.routers.project_management import router as project_router
-from app.routers.settings import router as settings_router
+from app.routers import (
+    agent_router,
+    checklist_router,
+    cleanup_running_tasks,
+    diagram_generation_router,
+    ingestion_router,
+    kb_management_router,
+    kb_query_router,
+    project_router,
+    settings_router,
+)
 from app.services.diagram.database import close_diagram_database
 
 # Suppress third-party Pydantic v2 warnings from dependencies not yet updated
