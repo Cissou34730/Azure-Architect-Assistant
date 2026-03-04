@@ -4,7 +4,9 @@ Loads prompts from YAML files for easy editing without code changes.
 """
 
 import logging
+from copy import deepcopy
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 import yaml
@@ -15,11 +17,11 @@ logger = logging.getLogger(__name__)
 class PromptLoader:
     """
     Load and cache agent prompts from external YAML files.
-    Supports hot-reload for dynamic prompt updates.
+    Supports explicit hot-reload for dynamic prompt updates.
     
     SINGLETON RATIONALE:
     - File I/O caching: YAML prompt files are loaded once and cached in memory
-    - Hot-reload capability: Single instance can detect file changes and reload
+    - Hot-reload capability: Single instance can be explicitly reloaded on demand
     - Shared cache: Prompt templates are reused across all agent requests
     - Performance: Avoids repeated file system reads on every agent invocation
     
@@ -30,12 +32,15 @@ class PromptLoader:
     """
 
     _instance: "PromptLoader | None" = None
+    _instance_lock = Lock()
 
     @classmethod
     def get_instance(cls) -> "PromptLoader":
         """Get or create the global singleton instance."""
         if cls._instance is None:
-            cls._instance = cls()
+            with cls._instance_lock:
+                if cls._instance is None:
+                    cls._instance = cls()
         return cls._instance
 
     @classmethod
@@ -81,14 +86,14 @@ class PromptLoader:
         """
         if self._cache and not force_reload:
             logger.debug("Using cached prompts")
-            return self._cache
+            return deepcopy(self._cache)
 
         prompts = self._load_yaml_file(self._file_path, force_reload=force_reload)
         self._cache = prompts
         logger.info(
             f"Successfully loaded prompts (version: {prompts.get('version', 'unknown')})"
         )
-        return prompts
+        return deepcopy(prompts)
 
     def load_prompt(self, prompt_name: str, force_reload: bool = False) -> dict[str, Any]:
         """
@@ -129,7 +134,7 @@ class PromptLoader:
         cache_key = str(file_path.resolve())
         if cache_key in self._file_cache and not force_reload:
             logger.debug(f"Using cached prompt file: {file_path.name}")
-            return self._file_cache[cache_key]
+            return deepcopy(self._file_cache[cache_key])
 
         if not file_path.exists():
             raise FileNotFoundError(
@@ -146,7 +151,7 @@ class PromptLoader:
                 raise ValueError(f"Empty or invalid prompts file: {file_path}")
 
             self._file_cache[cache_key] = prompts
-            return prompts
+            return deepcopy(prompts)
         except yaml.YAMLError as exc:
             logger.error(f"Failed to parse prompts YAML: {exc}")
             raise

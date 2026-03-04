@@ -22,7 +22,7 @@ from langgraph.prebuilt import ToolNode
 from app.services.ai.ai_service import get_ai_service
 
 from ....services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
-from ...config.react_prompts import SYSTEM_PROMPT
+from ...config.prompt_loader import get_prompt_loader
 from ...tools.aaa_candidate_tool import create_aaa_tools
 from ...tools.kb_tool import create_kb_tools
 from ...tools.mcp_tool import create_mcp_tools
@@ -89,7 +89,7 @@ def _stage_policy_notes(stage_value: str) -> str:
 
 
 def _build_system_directives(state: GraphState) -> str:
-    directives = [SYSTEM_PROMPT]
+    directives = [get_prompt_loader().get_system_prompt()]
     stage_value = str(state.get("next_stage") or "clarify")
 
     specialist = state.get("selected_specialist") or state.get("specialist_used")
