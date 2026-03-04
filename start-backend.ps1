@@ -18,7 +18,7 @@ Write-Host "Starting uvicorn server on port $port via uv..." -ForegroundColor Cy
 
 # Start uvicorn as a child process so we can track its PID
 $proc = Start-Process -FilePath "uv" `
-    -ArgumentList "run", "uvicorn", "app.main:app", "--port", $port, "--app-dir", "backend" `
+    -ArgumentList "run", "python", "-m", "uvicorn", "app.main:app", "--port", $port, "--app-dir", "backend" `
     -NoNewWindow -PassThru
 
 try {

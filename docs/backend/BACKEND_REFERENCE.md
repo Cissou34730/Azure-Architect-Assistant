@@ -14,10 +14,10 @@
 
 ## Router conventions
 
-- `kb_management/` and `kb_query/` use a models + operations + router pattern.
+- `kb_management/` and `kb_query/` use models + router with orchestration services under `app/services/kb/`.
 - `project_management/` uses a router with canonical services in `app/services/project/` (re-exported via `routers/project_management/services/__init__.py`).
 - `ingestion.py` is a dedicated router because it owns background tasks.
-- Diagram routes live under `routers/diagram_generation/` with a `/api/v1` prefix.
+- Diagram routes live under `routers/diagram_generation/` with the canonical `/api` prefix.
 
 ## API overview
 
@@ -66,8 +66,8 @@
 - `GET /api/agent/capabilities`
 
 ### Diagram generation
-- `POST /api/v1/diagram-sets`
-- `GET /api/v1/diagram-sets/{diagram_set_id}`
+- `POST /api/diagram-sets`
+- `GET /api/diagram-sets/{diagram_set_id}`
 
 ## Data models (high level)
 
@@ -151,7 +151,7 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 
 1. Decide the feature area (projects, KB, ingestion, agent, diagrams) and create a router module under `backend/app/routers/`.
 2. Define request/response models (Pydantic) near the router or in a `*_models.py` file.
-3. Implement business logic in a service or operations module.
+3. Implement business logic in a service module (avoid router-local operations modules).
 4. Register the router in `backend/app/main.py`.
 5. Add or update frontend calls in `frontend/src/services/apiService.ts` and align types.
 

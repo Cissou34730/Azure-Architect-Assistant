@@ -7,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.models import Project, ProjectDocument, ProjectState
 from app.models.project import Base
-from app.routers.project_management.services.document_service import DocumentService
+from app.services.project.document_service import DocumentService
 
 
 @pytest.fixture

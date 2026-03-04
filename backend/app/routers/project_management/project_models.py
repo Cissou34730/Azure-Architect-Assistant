@@ -19,12 +19,6 @@ class UpdateRequirementsRequest(BaseModel):
     text_requirements: str = Field(alias="textRequirements")
 
 
-class ChatMessageRequest(BaseModel):
-    """Request to send a chat message"""
-
-    message: str
-
-
 class ProjectResponse(BaseModel):
     """Single project response"""
 
@@ -56,14 +50,6 @@ class MessagesResponse(BaseModel):
     messages: list[dict[str, Any]]
 
 
-class ChatResponse(BaseModel):
-    """Chat response with updated state"""
-
-    message: str
-    project_state: dict[str, Any] = Field(alias="projectState")
-    waf_sources: list[dict[str, Any]] = Field(default_factory=list, alias="wafSources")
-
-
 class BulkDeleteProjectsRequest(BaseModel):
     """Request to bulk delete multiple projects"""
 
@@ -76,4 +62,11 @@ class DeleteResponse(BaseModel):
     message: str
     deleted_count: int = Field(default=1, alias="deletedCount")
     project_ids: list[str] = Field(default_factory=list, alias="projectIds")
+
+
+class AdrAppendRequest(BaseModel):
+    """Request to append text to an ADR field."""
+
+    adr_field: str = "decision"
+    append_text: str
 

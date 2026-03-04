@@ -1,6 +1,6 @@
 """Tests for KB management router endpoints."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -11,7 +11,6 @@ from app.main import app
 from app.projects_database import get_db
 from app.routers.kb_management.management_router import (
     get_management_service_dep,
-    get_multi_query_service_dep,
 )
 
 
@@ -30,6 +29,12 @@ def mock_management_service():
             {"kb_id": "kb-1", "kb_name": "KB 1", "status": "ready", "index_ready": True, "error": None}
         ],
     })
+    svc.delete_knowledge_base = AsyncMock(
+        return_value={
+            "message": "Knowledge base 'test-kb' deleted successfully",
+            "kb_id": "test-kb",
+        }
+    )
     return svc
 
 
@@ -41,7 +46,6 @@ async def async_client(test_db_session: AsyncSession, mock_kb_manager, mock_mana
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_kb_manager] = lambda: mock_kb_manager
     app.dependency_overrides[get_management_service_dep] = lambda: mock_management_service
-    app.dependency_overrides[get_multi_query_service_dep] = lambda: Mock()
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -67,8 +71,7 @@ async def test_create_kb(async_client: AsyncClient) -> None:
         "source_type": "website",
         "source_config": {"url": "https://example.com"},
     }
-    with patch("app.routers.kb_management.management_router.invalidate_kb_manager"):
-        response = await async_client.post("/api/kb/create", json=payload)
+    response = await async_client.post("/api/kb/create", json=payload)
     assert response.status_code == 200
     data = response.json()
     assert data["kb_id"] == "test-kb"
@@ -76,25 +79,19 @@ async def test_create_kb(async_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_delete_kb_not_found(async_client: AsyncClient, mock_kb_manager) -> None:
-    mock_kb_manager.kb_exists.return_value = False
+    from fastapi import HTTPException  # noqa: PLC0415
+
+    get_management_service_dep_instance = app.dependency_overrides[get_management_service_dep]()
+    get_management_service_dep_instance.delete_knowledge_base = AsyncMock(
+        side_effect=HTTPException(status_code=404, detail="Knowledge base 'nonexistent' not found")
+    )
     response = await async_client.delete("/api/kb/nonexistent")
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_delete_kb_success(async_client: AsyncClient, mock_kb_manager) -> None:
-    mock_kb_manager.kb_exists.return_value = True
-    mock_kb_manager.get_kb.return_value = Mock(index_path="/tmp/test")
-
-    with (
-        patch("app.routers.kb_management.management_router.create_job_repository") as mock_repo_factory,
-        patch("app.routers.kb_management.management_router.clear_index_cache"),
-        patch("app.routers.kb_management.management_router.invalidate_kb_manager"),
-    ):
-        mock_repo = Mock()
-        mock_repo.get_latest_job_id.return_value = None
-        mock_repo_factory.return_value = mock_repo
-        response = await async_client.delete("/api/kb/test-kb")
+    response = await async_client.delete("/api/kb/test-kb")
 
     assert response.status_code == 200
     data = response.json()

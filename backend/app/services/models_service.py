@@ -19,6 +19,8 @@ from app.services.ai.config import AIConfig
 from app.services.ai.providers import get_azure_openai_client, get_openai_client
 
 logger = logging.getLogger(__name__)
+MODEL_ID_DATE_LEN = 10
+MODEL_ID_DOT_COUNT_FOR_DATE = 2
 
 
 class ModelInfo:
@@ -59,7 +61,7 @@ class ModelInfo:
 class ModelsService:
     """
     Service for managing available models with provider-aware strategy.
-    
+
     Cache Strategy:
     - OpenAI: fetch from API on first request
     - Persist to disk (backend/data/openai_models_cache.json)
@@ -79,7 +81,7 @@ class ModelsService:
 
         self.cache_path = cache_path or app_settings.models_cache_path
         self.ttl_days = 7
-        self.config = config or AIConfig()
+        self.config = config or AIConfig.default()
         self.client = (
             get_openai_client(self.config)
             if self.config.llm_provider == "openai"
@@ -96,7 +98,7 @@ class ModelsService:
     ) -> tuple[list[ModelInfo], datetime]:
         """
         Get available OpenAI chat completion models.
-        
+
         Checks disk cache → TTL → fetches from API if needed.
 
         Args:
@@ -207,14 +209,14 @@ class ModelsService:
         model_infos = []
         models_with_pricing = 0
         models_without_pricing = 0
-        
+
         for model in chat_models:
             # Extract context window from model metadata if available
             context_window = self._extract_context_window(model.id)
 
             # Pricing information (OpenAI API doesn't provide this directly)
             pricing = self._extract_pricing(model.id)
-            
+
             if pricing:
                 models_with_pricing += 1
             else:
@@ -368,10 +370,10 @@ class ModelsService:
 
         return unique_deployments
 
-    def _extract_context_window(self, model_id: str) -> int:
+    def _extract_context_window(self, model_id: str) -> int:  # noqa: PLR0911
         """
         Extract context window size based on model ID.
-        
+
         This is a lookup table since OpenAI API doesn't provide this.
         """
         context_windows = {
@@ -431,10 +433,10 @@ class ModelsService:
         # Ultimate fallback
         return 8192
 
-    def _extract_pricing(self, model_id: str) -> dict[str, Any] | None:
+    def _extract_pricing(self, model_id: str) -> dict[str, Any] | None:  # noqa: C901, PLR0911, PLR0912
         """
         Extract pricing information based on model ID.
-        
+
         This is a lookup table of current OpenAI pricing (as of Feb 2025).
         Prices are per 1K tokens in USD.
         """
@@ -482,7 +484,7 @@ class ModelsService:
 
         # Fallback estimates based on model family patterns
         model_lower = model_id.lower()
-        
+
         # GPT-4o family
         if "gpt-4o-mini" in model_lower or "gpt4o-mini" in model_lower:
             logger.debug(f"Using GPT-4o Mini fallback pricing for {model_id}")
@@ -490,7 +492,7 @@ class ModelsService:
         if "gpt-4o" in model_lower or "gpt4o" in model_lower:
             logger.debug(f"Using GPT-4o fallback pricing for {model_id}")
             return {"input": 0.0025, "output": 0.01, "currency": "USD"}
-        
+
         # O1 family
         if "o1-mini" in model_lower:
             logger.debug(f"Using O1 Mini fallback pricing for {model_id}")
@@ -498,22 +500,22 @@ class ModelsService:
         if "o1" in model_lower or "o3" in model_lower:
             logger.debug(f"Using O1/O3 fallback pricing for {model_id}")
             return {"input": 0.015, "output": 0.06, "currency": "USD"}
-        
+
         # GPT-4 Turbo family
         if "gpt-4-turbo" in model_lower or "gpt4-turbo" in model_lower:
             logger.debug(f"Using GPT-4 Turbo fallback pricing for {model_id}")
             return {"input": 0.01, "output": 0.03, "currency": "USD"}
-        
+
         # GPT-4 32k
         if "gpt-4" in model_lower and "32k" in model_lower:
             logger.debug(f"Using GPT-4 32k fallback pricing for {model_id}")
             return {"input": 0.06, "output": 0.12, "currency": "USD"}
-        
+
         # GPT-4 base
         if "gpt-4" in model_lower or "gpt4" in model_lower:
             logger.debug(f"Using GPT-4 fallback pricing for {model_id}")
             return {"input": 0.03, "output": 0.06, "currency": "USD"}
-        
+
         # GPT-3.5 Turbo family
         if "gpt-3.5" in model_lower or "gpt3.5" in model_lower:
             logger.debug(f"Using GPT-3.5 fallback pricing for {model_id}")
@@ -526,7 +528,7 @@ class ModelsService:
     def _format_model_name(self, model_id: str) -> str:
         """
         Format model ID into human-readable name.
-        
+
         Examples:
         - gpt-4o -> GPT-4o
         - gpt-4o-mini -> GPT-4o Mini
@@ -538,7 +540,7 @@ class ModelsService:
         if model_id.startswith("o1"):
             name = model_id.replace("-", " ").replace("o1", "O1")
             return " ".join(word.capitalize() for word in name.split())
-        
+
         # Replace hyphens with spaces
         name = model_id.replace("-", " ")
 
@@ -561,10 +563,10 @@ class ModelsService:
         formatted_parts = []
         for part in parts:
             # Keep dates and version numbers as-is
-            if part.isdigit() or (len(part) == 10 and part.count(".") == 2):
-                formatted_parts.append(f"({part})")
-            # Keep version-like strings in parentheses
-            elif part.isdigit() or (len(part) >= 4 and part.isdigit()):
+            if part.isdigit() or (
+                len(part) == MODEL_ID_DATE_LEN
+                and part.count(".") == MODEL_ID_DOT_COUNT_FOR_DATE
+            ):
                 formatted_parts.append(f"({part})")
             else:
                 formatted_parts.append(part.capitalize())

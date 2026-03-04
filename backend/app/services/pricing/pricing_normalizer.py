@@ -102,6 +102,8 @@ def find_best_retail_price_item(
 
 def extract_unit_price(item: dict[str, Any]) -> float | None:
     value = item.get("retailPrice")
+    if value is None:
+        return None
     try:
         return float(value)
     except Exception:  # noqa: BLE001

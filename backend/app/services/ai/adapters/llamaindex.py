@@ -8,7 +8,7 @@ AI service configuration and monitoring.
 
 import asyncio
 import logging
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from llama_index.core.base.llms.types import (
     ChatMessage as LlamaIndexChatMessage,
@@ -24,7 +24,7 @@ from llama_index.core.embeddings import BaseEmbedding
 from llama_index.core.llms import CustomLLM
 
 from ..ai_service import AIService
-from ..interfaces import ChatMessage
+from ..interfaces import ChatMessage, LLMResponse
 
 logger = logging.getLogger(__name__)
 
@@ -149,13 +149,14 @@ class AIServiceLLM(CustomLLM):
                     max_tokens=kwargs.get("max_tokens", self.max_tokens),
                 )
             )
+            response = cast(LLMResponse, response)
 
             # Convert back to LlamaIndex format
             return ChatResponse(
                 message=LlamaIndexChatMessage(
                     role=MessageRole.ASSISTANT, content=response.content
                 ),
-                raw=response.raw_response,
+                raw={"model": response.model, "usage": response.usage},
             )
         except RuntimeError:
             # Already in event loop
@@ -167,11 +168,12 @@ class AIServiceLLM(CustomLLM):
                     max_tokens=kwargs.get("max_tokens", self.max_tokens),
                 )
             )
+            response = cast(LLMResponse, response)
             return ChatResponse(
                 message=LlamaIndexChatMessage(
                     role=MessageRole.ASSISTANT, content=response.content
                 ),
-                raw=response.raw_response,
+                raw={"model": response.model, "usage": response.usage},
             )
 
     def stream_chat(

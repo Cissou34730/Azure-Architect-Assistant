@@ -30,7 +30,11 @@ REQUIRED_TOP_LEVEL_TOPIC_KEYS: tuple[str, ...] = (
     "13_learning_and_practice",
 )
 
-ADDRESS_CONFIDENCE_THRESHOLD = 0.75
+from app.core.app_settings import get_app_settings
+
+
+def _address_confidence_threshold() -> float:
+    return get_app_settings().mindmap_confidence_threshold
 
 
 class MindMapValidationError(ValueError):
@@ -246,7 +250,7 @@ def _derive_topic_status(checks: list[float]) -> str:
     score = sum(float(c) for c in checks) / len(checks)
     if score <= 0:
         return "not-addressed"
-    if score >= ADDRESS_CONFIDENCE_THRESHOLD:
+    if score >= _address_confidence_threshold():
         return "addressed"
     return "partial"
 

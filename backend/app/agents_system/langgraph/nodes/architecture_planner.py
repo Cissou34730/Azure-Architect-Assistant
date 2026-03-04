@@ -8,8 +8,8 @@ design requests with NFR analysis and diagram generation.
 import logging
 from typing import Any
 
-from app.agents_system.runner import get_agent_runner
 from app.agents_system.config.prompt_loader import PromptLoader
+from app.agents_system.runner import get_agent_runner
 
 from ..state import GraphState
 from .agent_native import run_stage_aware_agent

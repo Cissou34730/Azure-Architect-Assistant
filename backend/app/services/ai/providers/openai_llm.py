@@ -7,7 +7,7 @@ when a model is not compatible with chat completions.
 
 import logging
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, ClassVar
 
 from openai import APITimeoutError, BadRequestError, NotFoundError
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class OpenAILLMProvider(LLMProvider):
     """OpenAI implementation of LLM provider using Chat Completions API."""
-    _preferred_api_by_model: dict[str, str] = {}
+    _preferred_api_by_model: ClassVar[dict[str, str]] = {}
 
     def __init__(self, config: AIConfig):
         self.config = config
@@ -72,12 +72,12 @@ class OpenAILLMProvider(LLMProvider):
             return {"prompt_tokens": pt, "completion_tokens": ct, "total_tokens": tt}
         return None
 
-    def _build_params(
+    def _build_params(  # noqa: PLR0913
         self,
         messages: list[ChatMessage],
         temperature: float,
         max_tokens: int,
-        token_limit_param: str = "max_tokens",
+        token_limit_param: str = "max_tokens",  # noqa: S107
         include_temperature: bool = True,
         response_format: dict | None = None,
     ) -> dict[str, Any]:
@@ -108,7 +108,7 @@ class OpenAILLMProvider(LLMProvider):
             or "v1/chat/completions" in message
         )
 
-    def _build_responses_params(
+    def _build_responses_params(  # noqa: PLR0913
         self,
         messages: list[ChatMessage],
         temperature: float,
@@ -147,7 +147,7 @@ class OpenAILLMProvider(LLMProvider):
     ) -> LLMResponse:
         """Run inference via chat completions with compatibility fallbacks."""
         last_error: Exception | None = None
-        token_limit_param = "max_tokens"
+        token_limit_param = "max_tokens"  # noqa: S105
 
         for compatibility_pass in range(2):
             attempts: list[dict[str, Any]] = [
@@ -191,7 +191,7 @@ class OpenAILLMProvider(LLMProvider):
                 except BadRequestError as error:
                     last_error = error
                     if (
-                        token_limit_param == "max_tokens"
+                        token_limit_param == "max_tokens"  # noqa: S105
                         and self._requires_max_completion_tokens(error)
                     ):
                         logger.info(
@@ -210,7 +210,7 @@ class OpenAILLMProvider(LLMProvider):
                     continue
 
             if should_retry_with_max_completion_tokens and compatibility_pass == 0:
-                token_limit_param = "max_completion_tokens"
+                token_limit_param = "max_completion_tokens"  # noqa: S105
                 continue
 
             break
@@ -280,7 +280,7 @@ class OpenAILLMProvider(LLMProvider):
             raise last_error
         raise RuntimeError("Responses API failed without explicit error")
 
-    async def chat(
+    async def chat(  # noqa: C901, PLR0912
         self,
         messages: list[ChatMessage],
         temperature: float = 0.7,
@@ -361,7 +361,7 @@ class OpenAILLMProvider(LLMProvider):
             logger.error(f"OpenAI chat error: {e}")
             raise
 
-    async def _stream_chat(
+    async def _stream_chat(  # noqa: C901, PLR0912
         self,
         messages: list[ChatMessage],
         temperature: float,
@@ -377,7 +377,7 @@ class OpenAILLMProvider(LLMProvider):
 
         response_format: dict | None = kwargs.pop("response_format", None)
         try:
-            token_limit_param = "max_tokens"
+            token_limit_param = "max_tokens"  # noqa: S105
             for compatibility_pass in range(2):
                 params = self._build_params(
                     messages,
@@ -398,7 +398,7 @@ class OpenAILLMProvider(LLMProvider):
                     return
                 except (NotFoundError, BadRequestError) as error:
                     if (
-                        token_limit_param == "max_tokens"
+                        token_limit_param == "max_tokens"  # noqa: S105
                         and isinstance(error, BadRequestError)
                         and self._requires_max_completion_tokens(error)
                         and compatibility_pass == 0
@@ -407,7 +407,7 @@ class OpenAILLMProvider(LLMProvider):
                             "Model %s requires max_completion_tokens for streaming; retrying with compatible token parameter",
                             self.model,
                         )
-                        token_limit_param = "max_completion_tokens"
+                        token_limit_param = "max_completion_tokens"  # noqa: S105
                         continue
 
                     if self._is_not_chat_model_error(error):

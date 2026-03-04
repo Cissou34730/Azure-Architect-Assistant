@@ -1,4 +1,6 @@
-from app.agents_system.agents.router import _extract_architect_choice_required_section
+from app.agents_system.langgraph.nodes.postprocess import (
+    _extract_architect_choice_required_section,
+)
 
 
 def test_extract_architect_choice_required_section_none_when_absent() -> None:

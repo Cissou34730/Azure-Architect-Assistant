@@ -11,15 +11,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents_system.checklists.default_templates import resolve_bootstrap_template_slugs
 from app.agents_system.checklists.engine import ChecklistEngine
+from app.agents_system.checklists.normalize_helpers import merge_reconstructed_waf_payloads
 from app.agents_system.checklists.registry import ChecklistRegistry
 from app.agents_system.services.aaa_state_models import ensure_aaa_defaults
 from app.core.app_settings import get_app_settings
 from app.models import Project
 from app.models.diagram import DiagramSet
 from app.models.project import ProjectState
+from app.routers.project_management.project_models import (
+    CreateProjectRequest,
+    UpdateRequirementsRequest,
+)
 from app.services.diagram.database import get_diagram_session
-
-from app.routers.project_management.project_models import CreateProjectRequest, UpdateRequirementsRequest
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +104,7 @@ class ProjectService:
 
     async def soft_delete_project(self, project_id: str, db: AsyncSession) -> None:
         """Soft delete a project by setting deleted_at timestamp.
-        
+
         Also cleans up associated diagrams from the diagrams database.
         """
         result = await db.execute(
@@ -132,7 +135,7 @@ class ProjectService:
         self, project_ids: list[str], db: AsyncSession
     ) -> dict[str, Any]:
         """Bulk soft delete multiple projects.
-        
+
         Returns dict with deleted_count and project_ids.
         """
         if not project_ids:
@@ -175,7 +178,7 @@ class ProjectService:
         self, project_id: str, db: AsyncSession
     ) -> None:
         """Delete diagram sets associated with a project from diagrams database.
-        
+
         Diagrams are linked to projects via ProjectState.state JSON field which
         contains diagram references with diagramSetId.
         """
@@ -247,7 +250,7 @@ class ProjectService:
             if not reconstructed:
                 return
 
-            waf_payload = _merge_reconstructed_waf(reconstructed)
+            waf_payload = merge_reconstructed_waf_payloads(reconstructed)
             if not isinstance(waf_payload, dict):
                 return
 
@@ -283,44 +286,4 @@ class ProjectService:
                 exc_info=True,
             )
 
-
-def _merge_reconstructed_waf(reconstructed: dict[str, Any]) -> dict[str, Any] | None:
-    """Merge multiple reconstructed template payloads into one legacy-compatible object."""
-    if not reconstructed:
-        return None
-
-    all_items: list[dict[str, Any]] = []
-    pillar_order: list[str] = []
-    seen_pillars: set[str] = set()
-    versions: set[str] = set()
-
-    for payload in reconstructed.values():
-        if not isinstance(payload, dict):
-            continue
-
-        version = payload.get("version")
-        if isinstance(version, str) and version.strip():
-            versions.add(version.strip())
-
-        pillars = payload.get("pillars", [])
-        if isinstance(pillars, list):
-            for pillar in pillars:
-                name = str(pillar).strip()
-                if not name or name in seen_pillars:
-                    continue
-                seen_pillars.add(name)
-                pillar_order.append(name)
-
-        items = payload.get("items")
-        if isinstance(items, list):
-            all_items.extend(item for item in items if isinstance(item, dict))
-        elif isinstance(items, dict):
-            all_items.extend(item for item in items.values() if isinstance(item, dict))
-
-    merged_version = versions.pop() if len(versions) == 1 else "multi"
-    return {
-        "version": merged_version,
-        "pillars": pillar_order,
-        "items": all_items,
-    }
 

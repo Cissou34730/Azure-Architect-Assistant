@@ -2,33 +2,32 @@
 
 from __future__ import annotations
 
-import json
-import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.agents_system.checklists.service import ChecklistService, get_checklist_service
-from app.models.checklist import Checklist, ChecklistItem
-from app.models.project import ProjectState
+from app.core.app_settings import get_app_settings
 from app.projects_database import get_db
 from app.routers.checklists.schemas import (
     ChecklistDetail,
-    ChecklistItemDetail,
-    ChecklistItemLatestEvaluation,
     ChecklistSummary,
     EvaluateItemRequest,
     EvaluateItemResponse,
     ProgressResponse,
     ResyncResponse,
 )
-
-logger = logging.getLogger(__name__)
+from app.routers.error_utils import map_value_error
+from app.services.checklists_api_service import ChecklistsApiService
 
 router = APIRouter(prefix="/api/projects/{project_id}/checklists", tags=["checklists"])
+
+_checklists_api_service = ChecklistsApiService()
+
+
+def get_checklists_api_service_dep() -> ChecklistsApiService:
+    return _checklists_api_service
 
 
 @router.get("", response_model=list[ChecklistSummary])
@@ -36,36 +35,15 @@ async def list_checklists(
     project_id: str,
     db: AsyncSession = Depends(get_db),
     service: ChecklistService = Depends(get_checklist_service),
+    checklists_api_service: ChecklistsApiService = Depends(get_checklists_api_service_dep),
 ) -> list[ChecklistSummary]:
     """List normalized checklists for a project."""
-    # Always run idempotent checklist bootstrap so template expansions are
-    # reflected for both new and existing projects.
-    await service.ensure_project_checklists(project_id)
-
-    async def _fetch_checklists() -> list[Checklist]:
-        result = await db.execute(
-            select(Checklist)
-            .where(Checklist.project_id == project_id)
-            .options(selectinload(Checklist.items))
-        )
-        return list(result.scalars().all())
-
-    checklists = await _fetch_checklists()
-
-    return [
-        ChecklistSummary(
-            id=checklist.id,
-            project_id=checklist.project_id,
-            template_id=checklist.template_id,
-            template_slug=checklist.template_slug,
-            title=checklist.title,
-            version=checklist.version,
-            status=checklist.status.value if hasattr(checklist.status, "value") else str(checklist.status),
-            items_count=len(checklist.items),
-            last_synced_at=checklist.updated_at,
-        )
-        for checklist in checklists
-    ]
+    payload = await checklists_api_service.list_checklists(
+        project_id=project_id,
+        db=db,
+        checklist_service=service,
+    )
+    return [ChecklistSummary.model_validate(item) for item in payload]
 
 
 @router.get("/{checklist_id:uuid}", response_model=ChecklistDetail)
@@ -73,61 +51,15 @@ async def get_checklist_detail(
     project_id: str,
     checklist_id: UUID,
     db: AsyncSession = Depends(get_db),
+    checklists_api_service: ChecklistsApiService = Depends(get_checklists_api_service_dep),
 ) -> ChecklistDetail:
     """Get one checklist with item-level detail."""
-    checklist = (
-        await db.execute(
-            select(Checklist)
-            .where(Checklist.id == checklist_id)
-            .where(Checklist.project_id == project_id)
-            .options(selectinload(Checklist.items).selectinload(ChecklistItem.evaluations))
-        )
-    ).scalar_one_or_none()
-
-    if checklist is None:
-        raise HTTPException(status_code=404, detail="Checklist not found")
-
-    item_details: list[ChecklistItemDetail] = []
-    for item in checklist.items:
-        latest_eval = None
-        if item.evaluations:
-            latest_eval = max(item.evaluations, key=lambda e: e.created_at or checklist.updated_at)
-        item_details.append(
-            ChecklistItemDetail(
-                id=item.id,
-                template_item_id=item.template_item_id,
-                title=item.title,
-                description=item.description,
-                pillar=item.pillar,
-                severity=item.severity.value if hasattr(item.severity, "value") else str(item.severity),
-                guidance=item.guidance,
-                item_metadata=item.item_metadata,
-                latest_evaluation=(
-                    ChecklistItemLatestEvaluation(
-                        status=latest_eval.status.value
-                        if hasattr(latest_eval.status, "value")
-                        else str(latest_eval.status),
-                        evaluator=latest_eval.evaluator,
-                        timestamp=latest_eval.created_at,
-                    )
-                    if latest_eval
-                    else None
-                ),
-            )
-        )
-
-    return ChecklistDetail(
-        id=checklist.id,
-        project_id=checklist.project_id,
-        template_id=checklist.template_id,
-        template_slug=checklist.template_slug,
-        title=checklist.title,
-        version=checklist.version,
-        status=checklist.status.value if hasattr(checklist.status, "value") else str(checklist.status),
-        items_count=len(checklist.items),
-        last_synced_at=checklist.updated_at,
-        items=item_details,
+    payload = await checklists_api_service.get_checklist_detail(
+        project_id=project_id,
+        checklist_id=checklist_id,
+        db=db,
     )
+    return ChecklistDetail.model_validate(payload)
 
 
 @router.post("/items/{item_id}/evaluate", response_model=EvaluateItemResponse)
@@ -145,10 +77,7 @@ async def evaluate_checklist_item(
             evaluation_payload=request.model_dump(exclude_none=True),
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
-        logger.error("Failed to evaluate checklist item %s: %s", item_id, exc, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to create checklist evaluation") from exc
+        raise map_value_error(exc, default_status=404) from exc
     return EvaluateItemResponse(status="success", evaluation_id=str(evaluation.id))
 
 
@@ -160,7 +89,7 @@ async def get_checklist_progress(
 ) -> ProgressResponse:
     """Return progress metrics for checklist completion."""
     progress = await service.get_progress(project_id, checklist_id)
-    next_actions = await service.list_next_actions(project_id, limit=10)
+    next_actions = await service.list_next_actions(project_id, limit=get_app_settings().checklist_next_actions_limit)
     return ProgressResponse(
         total_items=progress.get("total_items", 0),
         completed_items=progress.get("completed_items", 0),
@@ -177,26 +106,12 @@ async def resync_checklists_from_project_state(
     project_id: str,
     db: AsyncSession = Depends(get_db),
     service: ChecklistService = Depends(get_checklist_service),
+    checklists_api_service: ChecklistsApiService = Depends(get_checklists_api_service_dep),
 ) -> ResyncResponse:
     """Force sync from ``ProjectState.state.wafChecklist`` into normalized tables."""
-    state_obj = (
-        await db.execute(select(ProjectState).where(ProjectState.project_id == project_id))
-    ).scalar_one_or_none()
-    if state_obj is None:
-        raise HTTPException(status_code=404, detail="Project state not found")
-
-    try:
-        state_dict = json.loads(state_obj.state) if isinstance(state_obj.state, str) else state_obj.state
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=400, detail="Invalid project state JSON") from exc
-
-    result = await service.sync_project(project_id, state_dict)
-    if result.get("status") == "error":
-        raise HTTPException(status_code=500, detail=f"Resync failed: {result.get('errors', ['unknown'])}")
-
-    return ResyncResponse(
-        status=result.get("status", "unknown"),
-        items_synced=int(result.get("items_synced", 0)),
-        evaluations_synced=int(result.get("evaluations_synced", 0)),
-        errors=[str(e) for e in result.get("errors", [])],
+    payload = await checklists_api_service.resync_from_project_state(
+        project_id=project_id,
+        db=db,
+        checklist_service=service,
     )
+    return ResyncResponse.model_validate(payload)

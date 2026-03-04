@@ -3,29 +3,27 @@
 import os
 from typing import Any, cast
 
-from app.core.app_settings import (
-    get_kb_defaults,
-    get_kb_storage_root,
-    get_openai_settings,
-)
+from app.core.app_settings import get_app_settings
 
 
 class KBConfig:
     """Knowledge base configuration."""
 
     def __init__(self, config_dict: dict[str, Any]) -> None:
-        openai_settings = get_openai_settings()
-        kb_defaults = get_kb_defaults()
+        settings = get_app_settings()
+        openai_model = settings.openai_model or settings.ai_openai_llm_model
+        openai_emb_model = settings.openai_embedding_model or settings.ai_openai_embedding_model
+        kb_defaults = settings.ingestion.kb_defaults
 
         self.id: str = config_dict["id"]
         self.name: str = config_dict["name"]
         self.description: str = config_dict.get("description", "")
         self.status: str = config_dict.get("status", "active")
         self.embedding_model: str = config_dict.get(
-            "embedding_model", openai_settings.embedding_model
+            "embedding_model", openai_emb_model
         )
         self.generation_model: str = config_dict.get(
-            "generation_model", openai_settings.model
+            "generation_model", openai_model
         )
         self.chunk_size: int = config_dict.get("chunk_size", kb_defaults.chunk_size)
         self.chunk_overlap: int = config_dict.get(
@@ -54,7 +52,7 @@ class KBConfig:
             if normalized.startswith(legacy_prefix):
                 index_path = normalized[len(legacy_prefix) :]
 
-            kb_root = get_kb_storage_root()
+            kb_root = get_app_settings().knowledge_bases_root
             return str(kb_root / cast(str, index_path))
         return ""
 

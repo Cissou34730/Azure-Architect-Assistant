@@ -133,7 +133,7 @@ EXTRACTION RULES (mandatory):
         except (APITimeoutError, RateLimitError, APIError):
             # Network/server-level failure — no point retrying with the legacy path
             raise
-        except Exception as e:
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
             # Content-level failure (bad JSON, empty response, etc.) — try legacy parser
             logger.warning(f"JSON mode failed, falling back to legacy parsing: {e}")
             response = await self._complete(
@@ -185,7 +185,7 @@ EXTRACTION RULES (mandatory):
             "LLM response preview: %s...",
             content[: self.app_settings.llm_response_preview_log_chars],
         )
-        
+
         return await self._parse_json_with_repair(content, max_tokens=max_tokens)
 
     async def _parse_json_with_repair(
@@ -436,13 +436,13 @@ Always be helpful, professional, and technically accurate."""
 class LLMServiceSingleton:
     """
     Manages a singleton instance of LLMService.
-    
+
     SINGLETON RATIONALE:
     - Connection pooling: HTTP clients to OpenAI/Azure OpenAI benefit from persistence
     - Rate limiting: Shared state prevents per-request quota issues
     - Initialization cost: Client setup has network overhead
     - Consistent configuration: All requests use same LLM settings
-    
+
     Testability:
     - Override via FastAPI dependency injection (see app.dependencies.get_llm_service_dependency)
     - Use set_instance() to inject mock in unit tests

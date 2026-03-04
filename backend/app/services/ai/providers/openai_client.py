@@ -26,7 +26,7 @@ def get_openai_client(config: AIConfig) -> AsyncOpenAI:
     The client is created on first call and reused on subsequent calls.
     Configuration (API key, timeout) is read from *config* on first call only.
     """
-    global _client
+    global _client  # noqa: PLW0603
     if _client is None:
         _client = AsyncOpenAI(
             api_key=config.openai_api_key,

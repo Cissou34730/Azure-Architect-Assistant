@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.core.app_settings import get_kb_defaults, get_openai_settings
+from app.core.app_settings import get_app_settings
 
 
 class SourceType(str, Enum):
@@ -31,15 +31,15 @@ class CreateKBRequest(BaseModel):
         ..., description="Source-specific configuration"
     )
     embedding_model: str = Field(
-        default_factory=lambda: get_openai_settings().embedding_model,
+        default_factory=lambda: get_app_settings().openai_embedding_model or get_app_settings().ai_openai_embedding_model,
         description="OpenAI embedding model",
     )
     chunk_size: int = Field(
-        default_factory=lambda: get_kb_defaults().chunk_size,
+        default_factory=lambda: get_app_settings().ingestion.kb_defaults.chunk_size,
         description="Chunk size for indexing",
     )
     chunk_overlap: int = Field(
-        default_factory=lambda: get_kb_defaults().chunk_overlap,
+        default_factory=lambda: get_app_settings().ingestion.kb_defaults.chunk_overlap,
         description="Chunk overlap for indexing",
     )
     profiles: list[str] | None = Field(

@@ -14,6 +14,7 @@ from llama_index.core import (
     load_index_from_storage,
 )
 
+from app.core.app_settings import get_app_settings
 from app.services.ai import get_ai_service
 from app.services.ai.adapters import AIServiceEmbedding, AIServiceLLM
 
@@ -28,7 +29,7 @@ _INDEX_CACHE: dict[str, VectorStoreIndex] = {}
 class KnowledgeBaseService:
     """Service for managing index lifecycle for a knowledge base."""
 
-    def __init__(self, kb_config: KBConfig, similarity_threshold: float = 0.5):
+    def __init__(self, kb_config: KBConfig, similarity_threshold: float | None = None):
         """
         Initialize knowledge base service.
 
@@ -38,6 +39,11 @@ class KnowledgeBaseService:
         """
         self.kb_config = kb_config
         self.kb_id = kb_config.id
+        self.similarity_threshold = (
+            similarity_threshold
+            if similarity_threshold is not None
+            else get_app_settings().kb_similarity_threshold
+        )
         self.kb_name = kb_config.name
         self.storage_dir = kb_config.index_path
         self._settings_configured = False

@@ -8,10 +8,10 @@ from enum import Enum
 
 from llama_index.core import Settings
 
+from app.core.app_settings import get_app_settings
 from app.kb import KBManager
 from app.kb.models import KBConfig
 from app.kb.service import KnowledgeBaseService
-from config.settings import get_query_settings
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +35,11 @@ class KBQueryService:
         self.kb_name = kb_config.name
 
         # Load query settings from config
-        query_settings = get_query_settings()
-        self.similarity_threshold = similarity_threshold if similarity_threshold is not None else query_settings.similarity_threshold
-        self.min_results = min_results if min_results is not None else query_settings.min_results
-        self.initial_retrieve_multiplier = query_settings.initial_retrieve_multiplier
-        self.min_initial_retrieve = query_settings.min_initial_retrieve
+        _s = get_app_settings()
+        self.similarity_threshold = similarity_threshold if similarity_threshold is not None else _s.search_similarity_threshold
+        self.min_results = min_results if min_results is not None else _s.search_min_results
+        self.initial_retrieve_multiplier = _s.search_initial_retrieve_multiplier
+        self.min_initial_retrieve = _s.search_min_initial_retrieve
 
     def query(
         self, question: str, top_k: int = 5, metadata_filters: dict | None = None

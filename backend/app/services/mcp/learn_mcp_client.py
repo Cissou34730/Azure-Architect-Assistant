@@ -21,9 +21,9 @@ from typing import Any
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
+from .client import MCPClient
 from .exceptions import (
     MCPCapabilityError,
-    MCPConfigurationError,
     MCPConnectionError,
     MCPError,
     MCPProtocolError,
@@ -34,7 +34,7 @@ from .exceptions import (
 logger = logging.getLogger(__name__)
 
 
-class MicrosoftLearnMCPClient:
+class MicrosoftLearnMCPClient(MCPClient):
     """
     MCP client for Microsoft Learn documentation server.
 
@@ -74,7 +74,7 @@ class MicrosoftLearnMCPClient:
         Raises:
             MCPConfigurationError: If required config parameters are missing
         """
-        self._validate_config(config)
+        super().__init__(config)
 
         self.endpoint = config["endpoint"]
         self.timeout = config.get("timeout", 30)
@@ -101,19 +101,10 @@ class MicrosoftLearnMCPClient:
             f"Microsoft Learn MCP client configured: endpoint={self.endpoint}, timeout={self.timeout}s"
         )
 
-    def _validate_config(self, config: dict[str, Any]) -> None:
-        """Validate configuration parameters."""
-        if not config:
-            raise MCPConfigurationError("Config dictionary cannot be empty")
-
-        if "endpoint" not in config:
-            raise MCPConfigurationError("Missing required config parameter: 'endpoint'")
-
-        endpoint = config["endpoint"]
-        if not isinstance(endpoint, str) or not endpoint.startswith("http"):
-            raise MCPConfigurationError(
-                f"Invalid endpoint URL: {endpoint}. Must start with http:// or https://"
-            )
+    @property
+    def is_initialized(self) -> bool:
+        """Return True if the client is connected and ready."""
+        return self._initialized
 
     async def _wait_for_existing_initialization(self) -> None:
         """Wait for an in-flight initialization to complete."""

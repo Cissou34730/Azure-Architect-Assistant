@@ -6,8 +6,7 @@ Single entry point for all AI operations (LLM and Embeddings).
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from functools import lru_cache
-from typing import Any
+from typing import Any, cast
 
 from .config import AIConfig
 from .interfaces import ChatMessage, EmbeddingProvider, LLMProvider, LLMResponse
@@ -35,7 +34,7 @@ class AIService:
         Args:
             config: AI configuration (if None, loads from environment)
         """
-        self.config = config or AIConfig()
+        self.config = config or AIConfig.default()
         self.config.validate_provider_config()
 
         self._llm_provider = self._create_llm_provider(self.config.llm_provider)
@@ -120,8 +119,10 @@ class AIService:
         """
         # Convert dict messages to ChatMessage if needed
         if messages and isinstance(messages[0], dict):
+            dict_messages = cast(list[dict[str, Any]], messages)
             messages = [
-                ChatMessage(role=m["role"], content=m["content"]) for m in messages
+                ChatMessage(role=m["role"], content=m["content"])
+                for m in dict_messages
             ]
 
         temp = (
@@ -249,13 +250,13 @@ class AIService:
 class AIServiceManager:
     """
     Manages the AIService singleton instance.
-    
+
     SINGLETON RATIONALE:
     - Provider abstraction: Manages OpenAI, Azure OpenAI, Anthropic clients
     - Connection pooling: Shared HTTP clients across requests
     - Model caching: Embedding models loaded once and reused
     - Configuration consistency: All requests use same AI provider settings
-    
+
     Testability:
     - Override via FastAPI dependency injection (see app.dependencies.get_ai_service_dependency)
     - Use set_instance() to inject mock in unit tests
@@ -278,65 +279,69 @@ class AIServiceManager:
         cls._instance = instance
 
     @classmethod
+    def create_probe(cls, config: AIConfig) -> "AIService":
+        """
+        Create a temporary AIService for probing (not registered as singleton).
+        Use this when you need to test a configuration without committing it.
+        """
+        return AIService(config)
+
+    @classmethod
     async def reinitialize_with_model(cls, new_model: str) -> None:
         """
         Reinitialize AIService with a new model.
-        
+
         Thread-safe implementation using asyncio.Lock to prevent concurrent
         reinitializations. Waits for in-flight requests via a grace period.
         Clears all cached service instances to ensure fresh initialization.
-        
+
         Args:
             new_model: New model ID to use (e.g., "gpt-4-turbo-preview")
-        
+
         Raises:
             ValueError: If model ID is invalid or reinitialization fails
         """
         async with cls._lock:
             logger.info(f"Reinitialization requested: changing model to {new_model}")
-            
+
             # Get current instance (if any)
             old_instance = cls._instance
             old_model = old_instance.get_llm_model() if old_instance else None
-            
+
             if old_model == new_model:
                 logger.info(f"Model already set to {new_model}, skipping reinitialization")
                 return
-            
+
             # Grace period for in-flight requests (simple approach)
             # More sophisticated: maintain request counter and wait for zero
-            await asyncio.sleep(0.5)
-            
+            from app.core.app_settings import get_app_settings  # noqa: PLC0415
+            await asyncio.sleep(get_app_settings().ai_reinit_grace_sleep)
+
             try:
                 # Create new config with updated model
-                new_config = AIConfig()
+                new_config = AIConfig.default()
                 if new_config.llm_provider == "azure":
                     new_config.azure_llm_deployment = new_model
                 else:
                     new_config.openai_llm_model = new_model
                 new_config.validate_provider_config()
-                
+
                 # Create new AIService instance
                 new_instance = AIService(new_config)
-                
+
                 # Replace singleton instance
                 cls._instance = new_instance
-                
-                # CRITICAL: Clear all cached service instances that depend on AIService
-                # This ensures fresh instances are created with the new model
-                get_ai_service.cache_clear()
-                logger.debug("Cleared get_ai_service LRU cache")
-                
+
                 # Clear LLMService singleton to force recreation with new AI service
                 from app.services.llm_service import LLMServiceSingleton  # noqa: PLC0415
                 LLMServiceSingleton.set_instance(None)
                 logger.debug("Cleared LLMService singleton instance")
-                
+
                 logger.info(
                     f"AIService reinitialized: {old_model} -> {new_model} "
                     f"(all service caches cleared)"
                 )
-                
+
             except Exception as e:
                 logger.error(f"Failed to reinitialize AIService with model {new_model}: {e}")
                 # Keep old instance if reinitialization fails
@@ -345,7 +350,6 @@ class AIServiceManager:
                 raise ValueError(f"Failed to change model to {new_model}: {e!s}") from e
 
 
-@lru_cache(maxsize=1)
 def get_ai_service(config: AIConfig | None = None) -> AIService:
     """
     Get or create AIService singleton.

@@ -18,7 +18,7 @@ _azure_client: AsyncAzureOpenAI | None = None
 
 def get_azure_openai_client(config: AIConfig) -> AsyncAzureOpenAI:
     """Return process-wide shared AsyncAzureOpenAI client."""
-    global _azure_client
+    global _azure_client  # noqa: PLW0603
     if _azure_client is None:
         _azure_client = AsyncAzureOpenAI(
             api_key=config.azure_openai_api_key,

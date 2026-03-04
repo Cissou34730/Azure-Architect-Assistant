@@ -73,7 +73,7 @@ async def ensure_initial_c4_context_diagram(
 ) -> dict[str, Any] | None:
     """Generate a C4 Context diagram and return a reference payload.
 
-    Uses the diagram DB + DiagramGenerator (same components as /api/v1/diagram-sets).
+    Uses the diagram DB + DiagramGenerator (same components as /api/diagram-sets).
     """
 
     description = build_diagram_input_description(state)
@@ -116,7 +116,7 @@ async def ensure_initial_c4_context_diagram(
             "source": diagram.source_code,
             "version": diagram.version,
             "diagramSetId": diagram_set.id,
-            "url": f"/api/v1/diagram-sets/{diagram_set.id}",
+            "url": f"/api/diagram-sets/{diagram_set.id}",
             "updatedAt": diagram.created_at.isoformat(),
         }
 

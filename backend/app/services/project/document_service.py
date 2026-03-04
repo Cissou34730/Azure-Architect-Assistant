@@ -35,7 +35,7 @@ class DocumentService:
     def __init__(self) -> None:
         self.document_store_dir = get_app_settings().project_documents_root
 
-    async def upload_documents(
+    async def upload_documents(  # noqa: PLR0915
         self,
         project_id: str,
         files: list[Any],
@@ -57,10 +57,7 @@ class DocumentService:
             document_id = str(uuid.uuid4())
             safe_file_name = Path(file.filename or "document").name
             uploaded_mime_type = (getattr(file, "content_type", None) or "").strip()
-            if (
-                uploaded_mime_type == ""
-                or uploaded_mime_type == "application/octet-stream"
-            ):
+            if uploaded_mime_type in {"", "application/octet-stream"}:
                 guessed_mime_type, _ = mimetypes.guess_type(safe_file_name)
                 if guessed_mime_type:
                     uploaded_mime_type = guessed_mime_type
@@ -420,6 +417,7 @@ class DocumentService:
         state_record = result.scalar_one_or_none()
         if not state_record:
             raise ValueError(
+                "Project state not initialized. Please analyze documents first."
             )
 
         state = json.loads(state_record.state)

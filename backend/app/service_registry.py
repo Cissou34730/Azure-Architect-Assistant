@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
 from app.kb import KBManager
+from app.services.ingestion_runtime import IngestionRuntimeService
 from app.services.kb import MultiKBQueryService
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ class ServiceRegistry:
 
     _kb_manager: KBManager | None = None
     _multi_query_service: MultiKBQueryService | None = None
+    _ingestion_runtime_service: IngestionRuntimeService | None = None
     _mcp_client: Any | None = None
 
     @classmethod
@@ -81,6 +83,14 @@ class ServiceRegistry:
         cls._multi_query_service = None
 
     @classmethod
+    def get_ingestion_runtime_service(cls) -> IngestionRuntimeService:
+        """Get or create shared ingestion runtime service instance."""
+        if cls._ingestion_runtime_service is None:
+            cls._ingestion_runtime_service = IngestionRuntimeService()
+            logger.info("IngestionRuntimeService ready")
+        return cls._ingestion_runtime_service
+
+    @classmethod
     def set_mcp_client(cls, client: "MicrosoftLearnMCPClient") -> None:
         """Store the MCP client instance."""
         cls._mcp_client = client
@@ -99,6 +109,11 @@ def get_kb_manager() -> KBManager:
 def get_multi_query_service() -> MultiKBQueryService:
     """Compatibility wrapper for get_multi_query_service."""
     return ServiceRegistry.get_multi_query_service()
+
+
+def get_ingestion_runtime_service() -> IngestionRuntimeService:
+    """Compatibility wrapper for ingestion runtime service."""
+    return ServiceRegistry.get_ingestion_runtime_service()
 
 
 def invalidate_kb_manager():

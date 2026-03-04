@@ -4,6 +4,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
+from app.core.app_settings import get_app_settings
 from app.ingestion.domain.indexing import Indexer
 from app.ingestion.infrastructure.job_repository import JobRepository
 
@@ -22,7 +23,7 @@ class JobGate:
                 return True
             if status == 'paused':
                 logger.info('Job paused, waiting', extra={'job_id': job_id})
-                await asyncio.sleep(1)
+                await asyncio.sleep(get_app_settings().job_gate_poll_interval)
             elif status == 'canceled':
                 logger.info('Job canceled, running cleanup', extra={'job_id': job_id})
                 await self._cleanup(job_id, kb_id, indexer)

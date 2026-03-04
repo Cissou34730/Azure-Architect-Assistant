@@ -35,6 +35,16 @@ from app.agents_system.runner import AgentRunner
 from app.kb import KBManager
 from app.service_registry import ServiceRegistry
 from app.services.ai import AIService, get_ai_service
+from app.services.ingestion_runtime import IngestionRuntimeService
+from app.services.kb import MultiKBQueryService
+from app.services.kb.management_orchestration_service import (
+    KBManagementService,
+    get_management_service,
+)
+from app.services.kb.query_orchestration_service import (
+    KBQueryService,
+    get_query_service,
+)
 from app.services.llm_service import LLMService, get_llm_service
 
 logger = logging.getLogger(__name__)
@@ -83,6 +93,26 @@ def get_kb_manager() -> KBManager:
         KBManager: The singleton KB manager instance
     """
     return ServiceRegistry.get_kb_manager()
+
+
+def get_multi_query_service_dependency() -> MultiKBQueryService:
+    """Get MultiKBQueryService singleton instance."""
+    return ServiceRegistry.get_multi_query_service()
+
+
+def get_ingestion_runtime_service_dependency() -> IngestionRuntimeService:
+    """Get IngestionRuntimeService singleton instance."""
+    return ServiceRegistry.get_ingestion_runtime_service()
+
+
+def get_kb_query_service_dependency() -> KBQueryService:
+    """Get KB query orchestration service instance."""
+    return get_query_service()
+
+
+def get_kb_management_service_dependency() -> KBManagementService:
+    """Get KB management orchestration service instance."""
+    return get_management_service()
 
 
 # LLM Service

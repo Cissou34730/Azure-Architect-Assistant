@@ -14,20 +14,23 @@ from pydantic import BaseModel
 
 # Import lifecycle management
 from app import lifecycle
-from app.agents_system.agents.router import router as agent_router
 from app.core.app_logging import configure_logging
 from app.core.app_settings import get_app_settings
+from app.core.router_guardrails import enforce_router_guardrails
 from app.core.signals import install_ingestion_signal_handlers
 
 # Import routers
-from app.routers.checklists.checklist_router import router as checklist_router
-from app.routers.diagram_generation import router as diagram_generation_router
-from app.routers.ingestion import cleanup_running_tasks
-from app.routers.ingestion import router as ingestion_router
-from app.routers.kb_management import router as kb_management_router
-from app.routers.kb_query import router as kb_query_router
-from app.routers.project_management import router as project_router
-from app.routers.settings import router as settings_router
+from app.routers import (
+    agent_router,
+    checklist_router,
+    cleanup_running_tasks,
+    diagram_generation_router,
+    ingestion_router,
+    kb_management_router,
+    kb_query_router,
+    project_router,
+    settings_router,
+)
 from app.services.diagram.database import close_diagram_database
 
 # Suppress third-party Pydantic v2 warnings from dependencies not yet updated
@@ -41,6 +44,7 @@ settings = get_app_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 logger.info("Loaded application settings via get_app_settings()")
+API_BASE_PREFIX = "/api"
 
 
 @asynccontextmanager
@@ -89,8 +93,9 @@ app.include_router(kb_management_router)  # KB health/list endpoints
 app.include_router(ingestion_router)  # Orchestrator-based ingestion
 app.include_router(agent_router)  # Agent chat endpoints
 app.include_router(checklist_router)  # New normalized checklists
-app.include_router(diagram_generation_router, prefix="/api/v1")  # Diagram generation
-app.include_router(settings_router, prefix="/api/settings", tags=["settings"])  # Settings endpoints
+app.include_router(diagram_generation_router, prefix=API_BASE_PREFIX)  # Diagram generation
+app.include_router(settings_router, prefix=f"{API_BASE_PREFIX}/settings", tags=["settings"])  # Settings endpoints
+enforce_router_guardrails(app)
 
 # Health check
 class HealthResponse(BaseModel):
