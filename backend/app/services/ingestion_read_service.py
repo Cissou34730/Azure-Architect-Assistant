@@ -30,6 +30,23 @@ class IngestionReadService:
         self._job_repo = create_job_repository()
         self._queue_repo = create_queue_repository()
 
+    def get_job_status(self, job_id: str) -> dict[str, Any]:
+        """Return raw job status dict; raises ValueError if job not found."""
+        job = self._job_repo.get_job(job_id)
+        if not job:
+            raise ValueError(f"Job not found: {job_id}")
+        status = self._job_repo.get_job_status(job_id)
+        return {
+            "job_id": job.id,
+            "kb_id": job.kb_id,
+            "status": status,
+            "counters": job.counters,
+            "checkpoint": job.checkpoint,
+            "last_error": job.last_error,
+            "started_at": job.created_at,
+            "finished_at": job.finished_at,
+        }
+
     def get_kb_ingestion_details(self, kb_id: str) -> dict[str, Any]:
         status = self._status_service.get_status(kb_id)
         counters: dict[str, Any] = {}

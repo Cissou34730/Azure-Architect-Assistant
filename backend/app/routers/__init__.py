@@ -13,12 +13,12 @@ from .project_management import router as project_router
 from .settings import router as settings_router
 
 __all__ = [
+    "agent_router",
     "checklist_router",
     "diagram_generation_router",
     "ingestion_router",
     "kb_management_router",
     "kb_query_router",
-    "agent_router",
     "project_router",
     "settings_router",
 ]
