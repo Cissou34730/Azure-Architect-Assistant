@@ -55,7 +55,6 @@ class AIConfig(BaseModel):
     @classmethod
     def from_settings(cls, settings: AppSettings) -> AIConfig:
         """Build an AIConfig from the centralised AppSettings."""
-        effective_api_key = settings.ai_openai_api_key or settings.openai_api_key or ""
         effective_llm_model = settings.openai_model or settings.ai_openai_llm_model
         effective_emb_model = settings.openai_embedding_model or settings.ai_openai_embedding_model
         return cls(
@@ -64,7 +63,7 @@ class AIConfig(BaseModel):
             fallback_provider=settings.ai_fallback_provider,
             fallback_enabled=settings.ai_fallback_enabled,
             fallback_on_transient_only=settings.ai_fallback_on_transient_only,
-            openai_api_key=effective_api_key,
+            openai_api_key=settings.effective_openai_api_key,
             openai_project=settings.ai_openai_project,
             openai_organization=settings.ai_openai_organization,
             openai_llm_model=effective_llm_model,
@@ -72,7 +71,7 @@ class AIConfig(BaseModel):
             openai_timeout=settings.ai_openai_timeout,
             openai_max_retries=settings.ai_openai_max_retries,
             azure_openai_endpoint=settings.ai_azure_openai_endpoint,
-            azure_openai_api_key=settings.ai_azure_openai_api_key,
+            azure_openai_api_key=settings.effective_azure_openai_api_key,
             azure_openai_api_version=settings.ai_azure_openai_api_version,
             azure_llm_deployment=settings.ai_azure_llm_deployment,
             azure_llm_deployments=settings.ai_azure_llm_deployments,

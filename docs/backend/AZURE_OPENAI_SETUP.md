@@ -103,13 +103,22 @@ az cognitiveservices account keys list \
 Save the returned values as:
 
 - `AZURE_OPENAI_ENDPOINT` (for `AI_AZURE_OPENAI_ENDPOINT`)
-- `AZURE_OPENAI_API_KEY` (for `AI_AZURE_OPENAI_API_KEY`)
+- `AZURE_OPENAI_API_KEY` (store in SecretKeeper as `AI_AZURE_OPENAI_API_KEY`)
 
 ## 8) Configure project environment variables
 
 The project AI layer uses `AI_`-prefixed variables (`backend/app/services/ai/config.py`).
 
 Update your local `.env` with one of the configurations below.
+
+Store secret keys in SecretKeeper before starting the backend:
+
+```powershell
+sk set AI_OPENAI_API_KEY "<OPENAI_API_KEY>"
+sk set AI_AZURE_OPENAI_API_KEY "<AZURE_OPENAI_API_KEY>"
+```
+
+Only non-secret settings stay in `.env`.
 
 ### Option A: Azure as primary provider
 
@@ -121,7 +130,6 @@ AI_FALLBACK_PROVIDER=none
 AI_FALLBACK_ON_TRANSIENT_ONLY=true
 
 AI_AZURE_OPENAI_ENDPOINT=https://<AOAI_ACCOUNT_NAME>.openai.azure.com/
-AI_AZURE_OPENAI_API_KEY=<AZURE_OPENAI_API_KEY>
 AI_AZURE_OPENAI_API_VERSION=2024-02-15-preview
 AI_AZURE_LLM_DEPLOYMENT=<LLM_DEPLOYMENT_NAME>
 AI_AZURE_EMBEDDING_DEPLOYMENT=<EMBEDDING_DEPLOYMENT_NAME>
@@ -139,12 +147,10 @@ AI_FALLBACK_ENABLED=true
 AI_FALLBACK_PROVIDER=azure
 AI_FALLBACK_ON_TRANSIENT_ONLY=true
 
-AI_OPENAI_API_KEY=<OPENAI_API_KEY>
 AI_OPENAI_LLM_MODEL=gpt-4o-mini
 AI_OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 
 AI_AZURE_OPENAI_ENDPOINT=https://<AOAI_ACCOUNT_NAME>.openai.azure.com/
-AI_AZURE_OPENAI_API_KEY=<AZURE_OPENAI_API_KEY>
 AI_AZURE_OPENAI_API_VERSION=2024-02-15-preview
 AI_AZURE_LLM_DEPLOYMENT=<LLM_DEPLOYMENT_NAME>
 AI_AZURE_EMBEDDING_DEPLOYMENT=<EMBEDDING_DEPLOYMENT_NAME>
@@ -190,7 +196,7 @@ The AI config validator requires Azure endpoint/key/deployments whenever Azure i
 
 ### 401/403 authentication errors
 
-- Rotate/regenerate key and update `AI_AZURE_OPENAI_API_KEY`.
+- Rotate/regenerate key and update `AI_AZURE_OPENAI_API_KEY` in SecretKeeper (`sk set AI_AZURE_OPENAI_API_KEY ...`).
 - Verify subscription/resource access and account firewall restrictions.
 
 ### Wrong endpoint format

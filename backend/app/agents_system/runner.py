@@ -2,7 +2,7 @@
 
 import logging
 
-from app.core.app_settings import get_app_settings
+from app.core.app_settings import get_openai_settings
 
 from ..services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
@@ -54,8 +54,8 @@ class AgentRunner:
         if not self.mcp_client:
             raise ValueError("MCP client must be provided to AgentRunner")
 
-        if not get_app_settings().openai_api_key:
-            raise ValueError("OPENAI_API_KEY not set in environment")
+        if not get_openai_settings().api_key:
+            raise ValueError("OpenAI API key not configured (SecretKeeper or environment)")
 
         logger.info("Agent system initialization complete")
 
@@ -74,7 +74,7 @@ class AgentRunner:
         Returns:
             Dictionary with health status
         """
-        openai_configured = bool(get_app_settings().openai_api_key)
+        openai_configured = bool(get_openai_settings().api_key)
         status = "healthy" if self.mcp_client and openai_configured else "not_initialized"
         health = {"status": status}
         health.update(

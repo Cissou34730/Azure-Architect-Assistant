@@ -7,6 +7,7 @@
 - Make smallest safe diff; no unrelated refactors.
 - Do not run lint/tests/build unless explicitly requested.
 - Do not apply unsolicited fixes outside requested scope.
+- All settings in the backend must be handle throug AppSettings abstaction, no direct import of any variable in other module. This is to ensure all settings are properly validated and loaded from env/SecretKeeper.
 - Never modify `.env`.
 - Ask approval before major dependencies/frameworks/architecture shifts.
 - When multiple files need to be changed in a chat session, create a branch. If a branch has already been created in the session, use the existing one.

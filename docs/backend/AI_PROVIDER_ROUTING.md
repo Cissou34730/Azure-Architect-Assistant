@@ -28,7 +28,7 @@ All fields use the `AI_` env prefix (Pydantic settings):
 
 OpenAI fields:
 
-- `AI_OPENAI_API_KEY`
+- `AI_OPENAI_API_KEY` (SecretKeeper vault key; not stored in `.env`)
 - `AI_OPENAI_LLM_MODEL`
 - `AI_OPENAI_EMBEDDING_MODEL`
 - `AI_OPENAI_TIMEOUT`
@@ -37,11 +37,18 @@ OpenAI fields:
 Azure OpenAI fields:
 
 - `AI_AZURE_OPENAI_ENDPOINT`
-- `AI_AZURE_OPENAI_API_KEY`
+- `AI_AZURE_OPENAI_API_KEY` (SecretKeeper vault key; not stored in `.env`)
 - `AI_AZURE_OPENAI_API_VERSION`
 - `AI_AZURE_LLM_DEPLOYMENT`
 - `AI_AZURE_LLM_DEPLOYMENTS` (optional comma-separated list for model-list endpoint metadata)
 - `AI_AZURE_EMBEDDING_DEPLOYMENT`
+
+### SecretKeeper Notes
+
+- The backend resolves `AI_OPENAI_API_KEY` and `AI_AZURE_OPENAI_API_KEY` from SecretKeeper first.
+- Resolution is centralized in `AppSettings` (`effective_openai_api_key`, `effective_azure_openai_api_key`) and consumed by AI runtime config.
+- If a key is not present in SecretKeeper, runtime falls back to existing environment values for compatibility.
+- Ensure vault is unlocked before startup: `sk unlock`.
 
 ## Validation Rules
 

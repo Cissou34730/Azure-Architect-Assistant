@@ -1,5 +1,7 @@
 import pytest
 
+import app.core.app_settings as app_settings_module
+from app.core.app_settings import AppSettings
 from app.services.ai.ai_service import AIService
 from app.services.ai.config import AIConfig
 from app.services.ai.providers import AzureOpenAIEmbeddingProvider, AzureOpenAILLMProvider
@@ -62,3 +64,71 @@ def test_ai_service_builds_azure_fallback_providers() -> None:
 
     assert isinstance(service._fallback_llm_provider, AzureOpenAILLMProvider)
     assert isinstance(service._fallback_embedding_provider, AzureOpenAIEmbeddingProvider)
+
+
+def test_app_settings_effective_keys_prefer_secretkeeper(monkeypatch: pytest.MonkeyPatch) -> None:
+    values = {
+        "AI_OPENAI_API_KEY": "sk-openai-key",
+        "AI_AZURE_OPENAI_API_KEY": "sk-azure-key",
+    }
+    monkeypatch.setattr("app.core.app_settings._read_secretkeeper_secret", lambda key: values.get(key))
+
+    settings = AppSettings(
+        ai_openai_api_key="env-openai-key",
+        ai_azure_openai_api_key="env-azure-key",
+        openai_api_key="legacy-openai-key",
+    )
+
+    assert settings.effective_openai_api_key == "sk-openai-key"
+    assert settings.effective_azure_openai_api_key == "sk-azure-key"
+
+
+def test_app_settings_effective_keys_fall_back_to_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.core.app_settings._read_secretkeeper_secret", lambda _key: None)
+
+    settings = AppSettings(
+        ai_openai_api_key="",
+        ai_azure_openai_api_key="env-azure-key",
+        openai_api_key="legacy-openai-key",
+    )
+
+    assert settings.effective_openai_api_key == "legacy-openai-key"
+    assert settings.effective_azure_openai_api_key == "env-azure-key"
+
+
+def test_app_settings_effective_openai_key_empty_when_unconfigured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("app.core.app_settings._read_secretkeeper_secret", lambda _key: None)
+
+    settings = AppSettings(ai_openai_api_key="", openai_api_key=None)
+
+    assert settings.effective_openai_api_key == ""
+
+
+def test_read_secretkeeper_secret_returns_none_for_expected_runtime_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class VaultLockedError(Exception):
+        pass
+
+    class _LockedClient:
+        def get_or_none(self, _key: str) -> str | None:
+            raise VaultLockedError("vault locked")
+
+    monkeypatch.setattr(app_settings_module, "_get_secretkeeper_client", lambda: _LockedClient())
+
+    assert app_settings_module._read_secretkeeper_secret("AI_OPENAI_API_KEY") is None
+
+
+def test_read_secretkeeper_secret_raises_unexpected_runtime_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _BrokenClient:
+        def get_or_none(self, _key: str) -> str | None:
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(app_settings_module, "_get_secretkeeper_client", lambda: _BrokenClient())
+
+    with pytest.raises(RuntimeError, match="boom"):
+        app_settings_module._read_secretkeeper_secret("AI_OPENAI_API_KEY")

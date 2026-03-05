@@ -225,7 +225,7 @@ backend/data/knowledge_bases/waf/checkpoint.json
 
 # SecretKeeper vault (encrypted secrets — do not commit)
 .secretkeeper/vault.enc
-.secretkeeper/vault.enc.tmp
+.secretkeeper/vault.meta
 
 
 

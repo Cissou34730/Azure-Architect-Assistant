@@ -1,0 +1,10 @@
+{
+  "subject": "Git ignore behavior for new test files",
+  "fact": "The repository .gitignore includes a `tests/` pattern, so newly created test files under `backend/tests/...` may be ignored unless they are already tracked.",
+  "citations": [
+    ".gitignore:232",
+    "command: git check-ignore -v backend/tests/core/test_app_settings_secret_resolution.py backend/tests/services/test_ai_config_secretkeeper.py"
+  ],
+  "reason": "Prevents adding tests in ignored paths by mistake; prefer editing an existing tracked test file for regression coverage.",
+  "category": "workflow"
+}
