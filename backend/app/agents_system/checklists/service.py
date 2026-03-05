@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents_system.checklists.engine import ChecklistEngine
 from app.agents_system.checklists.registry import ChecklistRegistry
-from app.core.app_settings import AppSettings, get_settings
+from app.core.app_settings import AppSettings, get_app_settings
 from app.models.checklist import ChecklistItemEvaluation
 from app.projects_database import get_db
 
@@ -28,11 +28,11 @@ logger = logging.getLogger(__name__)
 def _build_registry(cache_dir: str, waf_namespace_uuid: str) -> ChecklistRegistry:
     """Build the singleton ChecklistRegistry (keyed by settings so lru_cache works)."""
     # waf_namespace_uuid is accepted only so the cache key changes if settings change.
-    return ChecklistRegistry(Path(cache_dir), get_settings())
+    return ChecklistRegistry(Path(cache_dir), get_app_settings())
 
 
 def get_checklist_registry(
-    settings: AppSettings = Depends(get_settings),
+    settings: AppSettings = Depends(get_app_settings),
 ) -> ChecklistRegistry:
     """FastAPI dependency to get the ChecklistRegistry singleton."""
     return _build_registry(
@@ -116,7 +116,7 @@ class ChecklistService:
 
 
 async def get_checklist_service(
-    db: AsyncSession = Depends(get_db), settings: AppSettings = Depends(get_settings)
+    db: AsyncSession = Depends(get_db), settings: AppSettings = Depends(get_app_settings)
 ) -> ChecklistService:
     """FastAPI dependency for ChecklistService."""
     registry = get_checklist_registry(settings)

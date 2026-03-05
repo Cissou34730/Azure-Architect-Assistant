@@ -79,11 +79,11 @@
 ## Configuration and settings
 
 - `.env` (repo root) provides ports, API keys, and storage paths.
-- App settings live in `backend/app/core/app_settings.py` (extra env keys must be added there).
-- `backend/config/ingestion.config.json` controls ingest queue behavior.
-- `backend/config/kb_defaults.json` provides chunking and embedding defaults.
-- `backend/config/mcp/mcp_config.json` configures MCP servers.
-- `backend/config/prompts/agent_prompts.yaml` defines agent prompts.
+- `backend/app/core/app_settings.py` is the runtime configuration entry point (use `get_app_settings()`).
+- Add or change env-backed settings in settings mixins under `backend/app/core/settings/`, then consume through `AppSettings`.
+- `backend/config/ingestion.config.json` and `backend/config/kb_defaults.json` are file-backed defaults loaded by `IngestionSettingsMixin` into `AppSettings` (`ingestion_queue`, `kb_defaults`).
+- `backend/config/mcp/mcp_config.json` is loaded through `AppSettings.get_mcp_server_config(...)`.
+- `backend/config/prompts/*.yaml` and `backend/config/checklists/*.json` are content/resource files (not env settings) loaded by dedicated services.
 - Agent runtime is LangGraph-only (legacy LangChain ReAct backend paths were removed).
 - AI provider routing and fallback behavior is documented in `docs/backend/AI_PROVIDER_ROUTING.md`.
 

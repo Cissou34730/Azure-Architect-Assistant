@@ -62,13 +62,6 @@ def get_app_settings() -> AppSettings:
     return AppSettings()
 
 
-# ── Backward-compatible aliases ──────────────────────────────────────────────
-
-def get_settings() -> AppSettings:
-    """Compat alias – returns AppSettings."""
-    return get_app_settings()
-
-
 def get_backend_root() -> Path:
     """Backend root directory path."""
     return Path(__file__).resolve().parents[2]
@@ -84,7 +77,7 @@ def get_kb_defaults() -> KBDefaultsSettings:
     return get_app_settings().kb_defaults
 
 
-def get_kb_storage_root(raw: bool = False) -> Path:  # noqa: ARG001
+def get_kb_storage_root(raw: bool = False) -> Path:
     """Compat: returns absolute knowledge-base storage root.
 
     The ``raw`` parameter is ignored; AppSettings always stores an absolute path.
@@ -122,6 +115,5 @@ __all__ = [
     "get_kb_defaults",
     "get_kb_storage_root",
     "get_openai_settings",
-    "get_settings",
 ]
 

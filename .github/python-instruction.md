@@ -3,12 +3,6 @@ description: 'Python coding conventions and guidelines'
 applyTo: '**/*.py'
 ---
 
-# Python Rules (Scoped)
-
-## Scope
-
-- Applies only to `*.py` files.
-- Python target: 3.10+.
 
 ## General Instructions
 
@@ -28,16 +22,11 @@ applyTo: '**/*.py'
 - `snake_case` for functions/variables.
 - `PascalCase` for classes.
 - Avoid import-time side effects.
+- All import must be at the top of the module except if it's absolutly mendatory to do it inside the module
 
 ## Best Practices
 
 - Use clear error paths and explicit return contracts.
 - Keep module responsibilities narrow.
 - Add concise comments only for non-obvious intent.
-
-## Python Definition of Done
-
-1. Global TDD policy from `copilot-instructions.md` is followed.
-2. Type hints remain consistent with project typing policy.
-3. No unrelated structural cleanup mixed into the same change.
 

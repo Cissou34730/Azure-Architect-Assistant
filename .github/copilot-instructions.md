@@ -9,6 +9,7 @@
 - Do not apply unsolicited fixes outside requested scope.
 - Never modify `.env`.
 - Ask approval before major dependencies/frameworks/architecture shifts.
+- When multiple files need to be changed in a chat session, create a branch. If a branch has already been created in the session, use the existing one.
 
 Tooling and Dependency Standards
 - Python commands and dependency operations must use `uv`.

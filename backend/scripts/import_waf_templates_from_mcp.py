@@ -26,7 +26,7 @@ _ensure_backend_on_path()
 from app.agents_system.checklists.default_templates import (  # noqa: E402
     WAF_PILLAR_TEMPLATES,
 )
-from app.core.app_settings import get_settings  # noqa: E402
+from app.core.app_settings import get_app_settings  # noqa: E402
 from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient  # noqa: E402
 from app.services.mcp.operations.learn_operations import fetch_documentation  # noqa: E402
 
@@ -148,7 +148,7 @@ def _build_template_payload(
 
 
 async def _fetch_templates() -> list[dict[str, Any]]:
-    settings = get_settings()
+    settings = get_app_settings()
     config = settings.get_mcp_server_config("microsoft_learn")
     client = MicrosoftLearnMCPClient(config)
     await client.initialize()

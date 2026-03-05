@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents_system.checklists.service import get_checklist_service
-from app.core.app_settings import get_settings
+from app.core.app_settings import get_app_settings
 
 from ....models.project import ConversationMessage
 from ...services.iteration_logging import derive_uncovered_topic_questions
@@ -110,7 +110,7 @@ async def apply_state_updates_node(
         waf_update = combined_updates.pop("wafChecklist", None)
         if isinstance(waf_update, dict):
             try:
-                settings = get_settings()
+                settings = get_app_settings()
                 service = await get_checklist_service(db=db, settings=settings)
                 await service.sync_project(
                     project_id=project_id,

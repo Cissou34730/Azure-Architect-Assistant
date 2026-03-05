@@ -13,7 +13,7 @@ class KBConfig:
         settings = get_app_settings()
         openai_model = settings.openai_model or settings.ai_openai_llm_model
         openai_emb_model = settings.openai_embedding_model or settings.ai_openai_embedding_model
-        kb_defaults = settings.ingestion.kb_defaults
+        kb_defaults = settings.kb_defaults
 
         self.id: str = config_dict["id"]
         self.name: str = config_dict["name"]
