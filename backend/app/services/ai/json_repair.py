@@ -28,11 +28,22 @@ async def parse_json_with_repair(
     """
     try:
         return json.loads(content)
-    except json.JSONDecodeError as e:
-        logger.error("JSON decode failed: %s", e)
-        logger.error("Response content: %s", content[:preview_chars])
-        repaired_content = await repair_fn(content, max_tokens)
-        return json.loads(repaired_content)
+    except json.JSONDecodeError as first_error:
+        logger.error("JSON decode failed: %s", first_error)
+        logger.error("Response content (first %d chars): %s", preview_chars, content[:preview_chars])
+        try:
+            repaired_content = await repair_fn(content, max_tokens)
+        except Exception as repair_err:
+            raise ValueError("JSON repair callback raised an error") from repair_err
+        try:
+            return json.loads(repaired_content)
+        except json.JSONDecodeError as second_error:
+            logger.error(
+                "Repaired JSON still invalid: %s | repaired=%s",
+                second_error,
+                repaired_content[:preview_chars],
+            )
+            raise ValueError("JSON repair produced invalid JSON") from second_error
 
 
 async def repair_json_content(
@@ -78,9 +89,23 @@ async def repair_json_content(
 
 
 def extract_json_candidate(response_text: str) -> str | None:
-    """Extract the outer JSON object from text if present."""
-    start = response_text.find("{")
-    end = response_text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        return None
-    return response_text[start : end + 1]
+    """Extract the first valid top-level JSON object or array from text.
+
+    Tries ``{...}`` first, then ``[...]``.  Each candidate is validated with
+    ``json.loads`` before being returned so callers can rely on the result
+    being parseable.  Returns ``None`` if no valid candidate is found.
+    """
+    for open_char, close_char in ("{", "}"), ("[", "]"):
+        start = response_text.find(open_char)
+        if start == -1:
+            continue
+        end = response_text.rfind(close_char)
+        if end == -1 or end <= start:
+            continue
+        candidate = response_text[start : end + 1]
+        try:
+            json.loads(candidate)
+            return candidate
+        except json.JSONDecodeError:
+            continue
+    return None

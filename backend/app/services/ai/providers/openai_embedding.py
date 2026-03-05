@@ -46,6 +46,8 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         self, texts: list[str], batch_size: int = 100
     ) -> list[list[float]]:
         """Generate embeddings for multiple texts with batching."""
+        if batch_size <= 0:
+            raise ValueError(f"batch_size must be positive, got {batch_size}")
         all_embeddings = []
 
         try:
@@ -56,6 +58,12 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                 response = await self.client.embeddings.create(
                     model=self.model, input=batch
                 )
+
+                if len(response.data) != len(batch):
+                    raise ValueError(
+                        f"Embedding response length mismatch: expected {len(batch)},"
+                        f" got {len(response.data)}"
+                    )
 
                 # Extract embeddings in order
                 batch_embeddings = [item.embedding for item in response.data]

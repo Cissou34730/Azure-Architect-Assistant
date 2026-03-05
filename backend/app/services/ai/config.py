@@ -1,7 +1,7 @@
 """
 AI Service Configuration – focused DTO populated from AppSettings.
 
-``AIConfig`` is a plain dataclass-style model.  It is **not** a
+``AIConfig`` is a Pydantic model.  It is **not** a
 ``BaseSettings`` subclass and does **not** read from environment variables
 directly.  Use ``AIConfig.from_settings(get_app_settings())`` to build one,
 or call ``AIConfig.default()`` as a shorthand.
@@ -9,9 +9,9 @@ or call ``AIConfig.default()`` as a shorthand.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from app.core.app_settings import AppSettings
@@ -19,8 +19,6 @@ if TYPE_CHECKING:
 
 class AIConfig(BaseModel):
     """Focused AI provider configuration consumed by AIService and providers."""
-
-    model_config = {"arbitrary_types_allowed": True}
 
     # Provider selection
     llm_provider: Literal["openai", "azure", "anthropic", "local"] = "openai"
@@ -42,20 +40,20 @@ class AIConfig(BaseModel):
     azure_openai_endpoint: str = ""
     azure_openai_api_key: str = ""
     azure_openai_api_version: str = "2024-02-15-preview"
-    azure_llm_deployment: str = ""
-    azure_llm_deployments: str = ""
+    azure_llm_deployment: str = ""      # active deployment used for LLM inference
+    azure_llm_deployments: str = ""     # comma-separated list for model-selection UI only; not used for inference
     azure_embedding_deployment: str = ""
 
     # Model defaults
-    default_temperature: float = 0.7
-    default_max_tokens: int = 1000
+    default_temperature: Annotated[float, Field(ge=0.0, le=2.0)] = 0.7
+    default_max_tokens: Annotated[int, Field(gt=0)] = 1000
 
     # Rate limiting
-    max_requests_per_minute: int = 60
-    max_tokens_per_minute: int = 150_000
+    max_requests_per_minute: Annotated[int, Field(gt=0)] = 60
+    max_tokens_per_minute: Annotated[int, Field(gt=0)] = 150_000
 
     @classmethod
-    def from_settings(cls, settings: "AppSettings") -> "AIConfig":
+    def from_settings(cls, settings: AppSettings) -> AIConfig:
         """Build an AIConfig from the centralised AppSettings."""
         effective_api_key = settings.ai_openai_api_key or settings.openai_api_key or ""
         effective_llm_model = settings.openai_model or settings.ai_openai_llm_model
@@ -86,7 +84,7 @@ class AIConfig(BaseModel):
         )
 
     @classmethod
-    def default(cls) -> "AIConfig":
+    def default(cls) -> AIConfig:
         """Convenience shorthand: build from the cached AppSettings singleton."""
         from app.core.app_settings import get_app_settings  # noqa: PLC0415
         return cls.from_settings(get_app_settings())

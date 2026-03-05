@@ -46,6 +46,25 @@ logger = logging.getLogger(__name__)
 nest_asyncio.apply()
 
 
+def _run_async(coro: Any) -> Any:
+    """Execute a coroutine synchronously.
+
+    Prefers the already-running event loop (nest_asyncio makes run_until_complete
+    safe in that case).  Falls back to a fresh event loop when no loop is
+    running, closing it afterwards to avoid resource leaks.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop – spin up a temporary one.
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+    return loop.run_until_complete(coro)
+
+
 class AIServiceLLM(CustomLLM):
     """
     LlamaIndex-compatible LLM that delegates to AIService.
@@ -111,8 +130,7 @@ class AIServiceLLM(CustomLLM):
         Returns:
             CompletionResponse with generated text
         """
-        loop = asyncio.get_event_loop()
-        response = loop.run_until_complete(
+        response = _run_async(
             self.ai_service.complete(
                 prompt,
                 temperature=kwargs.get("temperature", self.temperature),
@@ -144,10 +162,9 @@ class AIServiceLLM(CustomLLM):
             for msg in messages
         ]
 
-        loop = asyncio.get_event_loop()
         response = cast(
             LLMResponse,
-            loop.run_until_complete(
+            _run_async(
                 self.ai_service.chat(
                     ai_messages,
                     temperature=kwargs.get("temperature", self.temperature),
@@ -206,9 +223,8 @@ class AIServiceEmbedding(BaseEmbedding):
         return "AIServiceEmbedding"
 
     def _sync_embed(self, text: str) -> list[float]:
-        """Bridge async embed_text to sync context (nest_asyncio is applied at module load)."""
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.ai_service.embed_text(text))
+        """Bridge async embed_text to sync context."""
+        return _run_async(self.ai_service.embed_text(text))
 
     def _get_query_embedding(self, query: str) -> list[float]:
         return self._sync_embed(query)
@@ -234,6 +250,5 @@ class AIServiceEmbedding(BaseEmbedding):
         Returns:
             List of embedding vectors
         """
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.ai_service.embed_batch(texts))
+        return _run_async(self.ai_service.embed_batch(texts))
 

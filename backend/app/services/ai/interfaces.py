@@ -6,13 +6,14 @@ Abstract base classes for LLM and Embedding providers.
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass
 class ChatMessage:
     """Standardized chat message format."""
 
-    role: str  # 'system', 'user', 'assistant'
+    role: Literal["system", "user", "assistant", "tool", "function"]
     content: str
 
 

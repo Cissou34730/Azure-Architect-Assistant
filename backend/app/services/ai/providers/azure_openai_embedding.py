@@ -24,4 +24,7 @@ class AzureOpenAIEmbeddingProvider(OpenAIEmbeddingProvider):
         )
 
     def get_embedding_dimension(self) -> int:
+        # self.model holds the Azure deployment name (e.g. "my-ada-deployment").
+        # Dimensions are determined by the underlying OpenAI model architecture,
+        # which is stored separately as openai_embedding_model.
         return EMBEDDING_DIMENSIONS.get(self.config.openai_embedding_model, 1536)

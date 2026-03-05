@@ -139,7 +139,15 @@ class AIRouter:
                 capability,
                 primary_error,
             )
-            return await fallback_call()
+            try:
+                return await fallback_call()
+            except Exception as fallback_error:
+                logger.error(
+                    "Fallback provider also failed for %s: %s",
+                    capability,
+                    fallback_error,
+                )
+                raise fallback_error from primary_error
 
     def _should_fallback(self, error: Exception) -> bool:
         if not self.fallback_enabled:
