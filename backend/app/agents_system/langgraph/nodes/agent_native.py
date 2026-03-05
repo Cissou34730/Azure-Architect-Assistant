@@ -16,9 +16,11 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.tools import BaseTool, Tool
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
 from langgraph.graph import END, StateGraph, add_messages
 from langgraph.prebuilt import ToolNode
 
+from app.core.app_settings import get_app_settings
 from app.services.ai.ai_service import get_ai_service
 
 from ....projects_database import AsyncSessionLocal
@@ -219,12 +221,22 @@ async def run_stage_aware_agent(
     tools = await _build_tools(mcp_client, project_id=project_id)
 
     ai_service = get_ai_service()
-    from app.core.app_settings import get_app_settings  # noqa: PLC0415
-    chat_llm_overrides: dict[str, Any] = {"temperature": get_app_settings().chat_temperature}
-    if ai_service.config.llm_provider == "openai":
-        chat_llm_overrides["model"] = ai_service.config.openai_llm_model
-        chat_llm_overrides["openai_api_key"] = ai_service.config.openai_api_key
-    base_llm = ai_service.create_chat_llm(**chat_llm_overrides)
+    config = ai_service.config
+    temperature: float = get_app_settings().chat_temperature
+    if config.llm_provider == "azure":
+        base_llm = AzureChatOpenAI(
+            azure_deployment=config.azure_llm_deployment,
+            api_version=config.azure_openai_api_version,
+            azure_endpoint=config.azure_openai_endpoint,
+            api_key=config.azure_openai_api_key,
+            temperature=temperature,
+        )
+    else:
+        base_llm = ChatOpenAI(
+            model=config.openai_llm_model,
+            temperature=temperature,
+            openai_api_key=config.openai_api_key,
+        )
     llm = base_llm.bind_tools(tools)
 
     agent_graph = _compile_agent_graph(llm, tools, base_llm)

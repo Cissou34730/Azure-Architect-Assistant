@@ -31,7 +31,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         self.config = config
         self.client = get_openai_client(config)
         self.model = config.openai_embedding_model
-        logger.info(f"OpenAI Embedding Provider initialized with model: {self.model}")
+        logger.info("OpenAI Embedding Provider initialized with model: %s", self.model)
 
     async def embed_text(self, text: str) -> list[float]:
         """Generate embedding for a single text."""
@@ -39,7 +39,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             response = await self.client.embeddings.create(model=self.model, input=text)
             return response.data[0].embedding
         except Exception as e:
-            logger.error(f"OpenAI embedding error: {e}")
+            logger.error("OpenAI embedding error: %s", e)
             raise
 
     async def embed_batch(
@@ -63,14 +63,16 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
                 if (i + batch_size) < len(texts):
                     logger.debug(
-                        f"Embedded batch {i // batch_size + 1}: {len(batch_embeddings)} texts"
+                        "Embedded batch %d: %d texts",
+                        i // batch_size + 1,
+                        len(batch_embeddings),
                     )
 
-            logger.info(f"Generated {len(all_embeddings)} embeddings")
+            logger.info("Generated %d embeddings", len(all_embeddings))
             return all_embeddings
 
         except Exception as e:
-            logger.error(f"OpenAI batch embedding error: {e}")
+            logger.error("OpenAI batch embedding error: %s", e)
             raise
 
     def get_embedding_dimension(self) -> int:

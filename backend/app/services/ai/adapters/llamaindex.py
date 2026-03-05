@@ -4,12 +4,24 @@ LlamaIndex Adapters for AIService
 Provides LlamaIndex-compatible interfaces that delegate to the unified AIService.
 This allows LlamaIndex code to continue working unchanged while using centralized
 AI service configuration and monitoring.
+
+Note on event-loop bridging
+---------------------------
+LlamaIndex's synchronous ``_get_*_embedding`` and ``complete``/``chat`` methods
+must call async AIService methods from a (potentially) already-running event loop.
+``nest_asyncio.apply()`` is called **once at module load time** to allow
+``loop.run_until_complete()`` to be called from within a running loop.
+
+This is a process-wide side effect.  Callers that require strict asyncio
+isolation should use the async ``_aget_*`` methods directly instead of
+relying on these sync shims.
 """
 
 import asyncio
 import logging
 from typing import Any, ClassVar, cast
 
+import nest_asyncio
 from llama_index.core.base.llms.types import (
     ChatMessage as LlamaIndexChatMessage,
 )
@@ -18,6 +30,7 @@ from llama_index.core.base.llms.types import (
     ChatResponseGen,
     CompletionResponse,
     CompletionResponseGen,
+    LLMMetadata,
     MessageRole,
 )
 from llama_index.core.embeddings import BaseEmbedding
@@ -27,6 +40,10 @@ from ..ai_service import AIService
 from ..interfaces import ChatMessage, LLMResponse
 
 logger = logging.getLogger(__name__)
+
+# Apply nest_asyncio once at module load time so sync adapter methods can safely
+# call run_until_complete even when an event loop is already running.
+nest_asyncio.apply()
 
 
 class AIServiceLLM(CustomLLM):
@@ -72,17 +89,16 @@ class AIServiceLLM(CustomLLM):
             else ai_service.config.default_max_tokens,
             **kwargs,
         )
-        logger.info(f"AIServiceLLM adapter initialized: model={self.model_name}")
+        logger.info("AIServiceLLM adapter initialized: model=%s", self.model_name)
 
     @property
-    def metadata(self) -> dict:
-        """LLM metadata."""
-        return {
-            "model_name": self.model_name,
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
-            "is_chat_model": True,
-        }
+    def metadata(self) -> LLMMetadata:
+        """LLM metadata required by LlamaIndex."""
+        return LLMMetadata(
+            model_name=self.model_name,
+            num_output=self.max_tokens,
+            is_chat_model=True,
+        )
 
     def complete(self, prompt: str, **kwargs: Any) -> CompletionResponse:
         """
@@ -95,27 +111,15 @@ class AIServiceLLM(CustomLLM):
         Returns:
             CompletionResponse with generated text
         """
-        try:
-            # Run async method in sync context
-            response = asyncio.run(
-                self.ai_service.complete(
-                    prompt,
-                    temperature=kwargs.get("temperature", self.temperature),
-                    max_tokens=kwargs.get("max_tokens", self.max_tokens),
-                )
+        loop = asyncio.get_event_loop()
+        response = loop.run_until_complete(
+            self.ai_service.complete(
+                prompt,
+                temperature=kwargs.get("temperature", self.temperature),
+                max_tokens=kwargs.get("max_tokens", self.max_tokens),
             )
-            return CompletionResponse(text=response)
-        except RuntimeError:
-            # Already in event loop, use run_until_complete
-            loop = asyncio.get_event_loop()
-            response = loop.run_until_complete(
-                self.ai_service.complete(
-                    prompt,
-                    temperature=kwargs.get("temperature", self.temperature),
-                    max_tokens=kwargs.get("max_tokens", self.max_tokens),
-                )
-            )
-            return CompletionResponse(text=response)
+        )
+        return CompletionResponse(text=response)
 
     def stream_complete(self, prompt: str, **kwargs: Any) -> CompletionResponseGen:
         """Streaming not implemented for adapter."""
@@ -140,41 +144,24 @@ class AIServiceLLM(CustomLLM):
             for msg in messages
         ]
 
-        try:
-            # Run async method in sync context
-            response = asyncio.run(
+        loop = asyncio.get_event_loop()
+        response = cast(
+            LLMResponse,
+            loop.run_until_complete(
                 self.ai_service.chat(
                     ai_messages,
                     temperature=kwargs.get("temperature", self.temperature),
                     max_tokens=kwargs.get("max_tokens", self.max_tokens),
                 )
-            )
-            response = cast(LLMResponse, response)
+            ),
+        )
 
-            # Convert back to LlamaIndex format
-            return ChatResponse(
-                message=LlamaIndexChatMessage(
-                    role=MessageRole.ASSISTANT, content=response.content
-                ),
-                raw={"model": response.model, "usage": response.usage},
-            )
-        except RuntimeError:
-            # Already in event loop
-            loop = asyncio.get_event_loop()
-            response = loop.run_until_complete(
-                self.ai_service.chat(
-                    ai_messages,
-                    temperature=kwargs.get("temperature", self.temperature),
-                    max_tokens=kwargs.get("max_tokens", self.max_tokens),
-                )
-            )
-            response = cast(LLMResponse, response)
-            return ChatResponse(
-                message=LlamaIndexChatMessage(
-                    role=MessageRole.ASSISTANT, content=response.content
-                ),
-                raw={"model": response.model, "usage": response.usage},
-            )
+        return ChatResponse(
+            message=LlamaIndexChatMessage(
+                role=MessageRole.ASSISTANT, content=response.content
+            ),
+            raw={"model": response.model, "usage": response.usage},
+        )
 
     def stream_chat(
         self, messages: list[LlamaIndexChatMessage], **kwargs: Any
@@ -211,70 +198,23 @@ class AIServiceEmbedding(BaseEmbedding):
             model_name=model_name or ai_service.config.openai_embedding_model,
             **kwargs,
         )
-        logger.info(f"AIServiceEmbedding adapter initialized: model={self.model_name}")
+        logger.info("AIServiceEmbedding adapter initialized: model=%s", self.model_name)
 
     @classmethod
     def class_name(cls) -> str:
         """Class name for serialization."""
         return "AIServiceEmbedding"
 
+    def _sync_embed(self, text: str) -> list[float]:
+        """Bridge async embed_text to sync context (nest_asyncio is applied at module load)."""
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(self.ai_service.embed_text(text))
+
     def _get_query_embedding(self, query: str) -> list[float]:
-        """
-        Get embedding for query text (required by LlamaIndex).
-
-        Args:
-            query: Query text to embed
-
-        Returns:
-            List of float values representing the embedding vector
-        """
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Already in event loop, apply nest_asyncio and use run_until_complete
-                import nest_asyncio  # noqa: PLC0415
-
-                nest_asyncio.apply()
-                return loop.run_until_complete(self.ai_service.embed_text(query))
-            else:
-                # No running loop, use asyncio.run
-                return asyncio.run(self.ai_service.embed_text(query))
-        except RuntimeError:
-            # Fallback: create new loop
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(self.ai_service.embed_text(query))
-            finally:
-                loop.close()
+        return self._sync_embed(query)
 
     def _get_text_embedding(self, text: str) -> list[float]:
-        """
-        Get embedding for document text (required by LlamaIndex).
-
-        Args:
-            text: Document text to embed
-
-        Returns:
-            List of float values representing the embedding vector
-        """
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Already in event loop, apply nest_asyncio and use run_until_complete
-                import nest_asyncio  # noqa: PLC0415
-
-                nest_asyncio.apply()
-                return loop.run_until_complete(self.ai_service.embed_text(text))
-            else:
-                # No running loop, use asyncio.run
-                return asyncio.run(self.ai_service.embed_text(text))
-        except RuntimeError:
-            # Fallback: create new loop
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(self.ai_service.embed_text(text))
-            finally:
-                loop.close()
+        return self._sync_embed(text)
 
     async def _aget_query_embedding(self, query: str) -> list[float]:
         """Async get query embedding."""
@@ -294,22 +234,6 @@ class AIServiceEmbedding(BaseEmbedding):
         Returns:
             List of embedding vectors
         """
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Already in event loop, apply nest_asyncio and use run_until_complete
-                import nest_asyncio  # noqa: PLC0415
-
-                nest_asyncio.apply()
-                return loop.run_until_complete(self.ai_service.embed_batch(texts))
-            else:
-                # No running loop, use asyncio.run
-                return asyncio.run(self.ai_service.embed_batch(texts))
-        except RuntimeError:
-            # Fallback: create new loop
-            loop = asyncio.new_event_loop()
-            try:
-                return loop.run_until_complete(self.ai_service.embed_batch(texts))
-            finally:
-                loop.close()
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(self.ai_service.embed_batch(texts))
 

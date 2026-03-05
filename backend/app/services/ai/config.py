@@ -93,23 +93,22 @@ class AIConfig(BaseModel):
 
     def validate_provider_config(self) -> None:
         """Validate that required config for selected provider is present."""
-        openai_required_for_llm = self.llm_provider == "openai" or (
-            self.fallback_enabled and self.fallback_provider == "openai"
+        needs_openai = (
+            self.llm_provider == "openai"
+            or self.embedding_provider == "openai"
+            or (self.fallback_enabled and self.fallback_provider == "openai")
         )
-        openai_required_for_embedding = self.embedding_provider == "openai" or (
-            self.fallback_enabled and self.fallback_provider == "openai"
-        )
-        azure_required_for_llm = self.llm_provider == "azure" or (
+        needs_azure_llm = self.llm_provider == "azure" or (
             self.fallback_enabled and self.fallback_provider == "azure"
         )
-        azure_required_for_embedding = self.embedding_provider == "azure" or (
+        needs_azure_embedding = self.embedding_provider == "azure" or (
             self.fallback_enabled and self.fallback_provider == "azure"
         )
 
-        if openai_required_for_llm and not self.openai_api_key:
-            raise ValueError("OpenAI API key is required for OpenAI LLM provider")
+        if needs_openai and not self.openai_api_key:
+            raise ValueError("OpenAI API key is required for OpenAI provider")
 
-        if azure_required_for_llm and not all(
+        if needs_azure_llm and not all(
             [
                 self.azure_openai_endpoint,
                 self.azure_openai_api_key,
@@ -117,13 +116,10 @@ class AIConfig(BaseModel):
             ]
         ):
             raise ValueError(
-                "Azure endpoint, API key, and deployment name required for Azure provider"
+                "Azure endpoint, API key, and LLM deployment name required for Azure provider"
             )
 
-        if openai_required_for_embedding and not self.openai_api_key:
-            raise ValueError("OpenAI API key is required for OpenAI embedding provider")
-
-        if azure_required_for_embedding and not all(
+        if needs_azure_embedding and not all(
             [
                 self.azure_openai_endpoint,
                 self.azure_openai_api_key,
@@ -131,6 +127,6 @@ class AIConfig(BaseModel):
             ]
         ):
             raise ValueError(
-                "Azure endpoint, API key, and deployment name required for Azure embeddings"
+                "Azure endpoint, API key, and embedding deployment name required for Azure embeddings"
             )
 

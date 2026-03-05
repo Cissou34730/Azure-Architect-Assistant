@@ -37,61 +37,46 @@ class AIRouter:
         self.fallback_on_transient_only = fallback_on_transient_only
 
     async def chat(self, **kwargs: Any) -> LLMResponse | AsyncIterator[str]:
-        stream = kwargs.get("stream", False)
-        if stream:
+        if kwargs.get("stream", False):
             return await self._chat_stream_with_fallback(**kwargs)
-        fallback_call: Callable[[], Awaitable[LLMResponse | AsyncIterator[str]]] | None = None
-        if self.fallback_llm is not None:
-            fallback_llm = self.fallback_llm
-
-            def fallback_call() -> Awaitable[LLMResponse | AsyncIterator[str]]:
-                return fallback_llm.chat(**kwargs)
-
+        # self.fallback_llm is set once in __init__ and never mutated, so the
+        # lambda reference is stable and safe to capture directly.
+        fallback = (lambda: self.fallback_llm.chat(**kwargs)) if self.fallback_llm else None
         return await self._execute_with_fallback(
             primary_call=lambda: self.primary_llm.chat(**kwargs),
-            fallback_call=fallback_call,
+            fallback_call=fallback,
             capability="chat",
         )
 
     async def complete(self, **kwargs: Any) -> str:
-        fallback_call: Callable[[], Awaitable[str]] | None = None
-        if self.fallback_llm is not None:
-            fallback_llm = self.fallback_llm
-
-            def fallback_call() -> Awaitable[str]:
-                return fallback_llm.complete(**kwargs)
-
+        fallback = (lambda: self.fallback_llm.complete(**kwargs)) if self.fallback_llm else None
         return await self._execute_with_fallback(
             primary_call=lambda: self.primary_llm.complete(**kwargs),
-            fallback_call=fallback_call,
+            fallback_call=fallback,
             capability="complete",
         )
 
     async def embed_text(self, text: str) -> list[float]:
-        fallback_call: Callable[[], Awaitable[list[float]]] | None = None
-        if self.fallback_embedding is not None:
-            fallback_embedding = self.fallback_embedding
-
-            def fallback_call() -> Awaitable[list[float]]:
-                return fallback_embedding.embed_text(text)
-
+        fallback = (
+            (lambda: self.fallback_embedding.embed_text(text))
+            if self.fallback_embedding
+            else None
+        )
         return await self._execute_with_fallback(
             primary_call=lambda: self.primary_embedding.embed_text(text),
-            fallback_call=fallback_call,
+            fallback_call=fallback,
             capability="embed_text",
         )
 
     async def embed_batch(self, texts: list[str], batch_size: int) -> list[list[float]]:
-        fallback_call: Callable[[], Awaitable[list[list[float]]]] | None = None
-        if self.fallback_embedding is not None:
-            fallback_embedding = self.fallback_embedding
-
-            def fallback_call() -> Awaitable[list[list[float]]]:
-                return fallback_embedding.embed_batch(texts, batch_size)
-
+        fallback = (
+            (lambda: self.fallback_embedding.embed_batch(texts, batch_size))
+            if self.fallback_embedding
+            else None
+        )
         return await self._execute_with_fallback(
             primary_call=lambda: self.primary_embedding.embed_batch(texts, batch_size),
-            fallback_call=fallback_call,
+            fallback_call=fallback,
             capability="embed_batch",
         )
 
