@@ -104,18 +104,13 @@ class AppSettings(
 
     @property
     def effective_openai_api_key(self) -> str:
-        """Resolve OpenAI key through SecretKeeper first, then env-backed settings."""
-        return (
-            _read_secretkeeper_secret("AI_OPENAI_API_KEY")
-            or self.ai_openai_api_key
-            or self.openai_api_key
-            or ""
-        )
+        """Resolve OpenAI key through SecretKeeper."""
+        return _read_secretkeeper_secret("AI_OPENAI_API_KEY") or ""
 
     @property
     def effective_azure_openai_api_key(self) -> str:
-        """Resolve Azure OpenAI key through SecretKeeper first, then env-backed settings."""
-        return _read_secretkeeper_secret("AI_AZURE_OPENAI_API_KEY") or self.ai_azure_openai_api_key
+        """Resolve Azure OpenAI key through SecretKeeper."""
+        return _read_secretkeeper_secret("AI_AZURE_OPENAI_API_KEY") or ""
 
 
 @lru_cache
