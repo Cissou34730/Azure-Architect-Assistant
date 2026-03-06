@@ -86,8 +86,6 @@ class JobRepository:
                 total_items=0,
                 processed_items=0,
                 priority=priority,
-                current_phase='loading',
-                phase_progress={},
             )
             session.add(job)
             session.flush()
@@ -242,7 +240,7 @@ class JobRepository:
             kb_id=job.kb_id,
             status=job.status.lower(),
             created_at=job.created_at,
-            phase=job.current_phase,
+            phase=JobPhase.LOADING.value,
             progress=job.processed_items,
         )
 

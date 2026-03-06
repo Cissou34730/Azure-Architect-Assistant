@@ -9,10 +9,9 @@ import logging
 from typing import Any
 
 from app.ingestion.application.status_query_service import StatusQueryService
-from app.ingestion.infrastructure import create_job_repository, create_queue_repository
+from app.ingestion.infrastructure import create_job_repository
 from app.services.ingestion_metrics_service import (
     IngestionMetrics,
-    QueueMetrics,
     derive_job_status,
     get_job_counters,
     get_status_message,
@@ -28,7 +27,6 @@ class IngestionReadService:
     def __init__(self) -> None:
         self._status_service = StatusQueryService()
         self._job_repo = create_job_repository()
-        self._queue_repo = create_queue_repository()
 
     def get_job_status(self, job_id: str) -> dict[str, Any]:
         """Return raw job status dict; raises ValueError if job not found."""
@@ -96,26 +94,8 @@ class IngestionReadService:
         job_id = latest_job_state.job_id
         latest_job_view = self._job_repo.get_job(job_id) if job_id else None
 
-        raw_metrics = QueueMetrics()
-        if job_id:
-            try:
-                stats = self._queue_repo.get_queue_stats(job_id)
-                raw_metrics = QueueMetrics(
-                    pending=stats.get("pending", 0),
-                    processing=stats.get("processing", 0),
-                    done=stats.get("done", 0),
-                    error=stats.get("error", 0),
-                )
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "Unable to fetch queue metrics for job_id=%s: %s",
-                    job_id,
-                    exc,
-                    exc_info=True,
-                )
-
         counters = get_job_counters(latest_job_view)
-        metrics = normalize_job_metrics(kb_status, raw_metrics, counters)
+        metrics = normalize_job_metrics(kb_status, counters)
         job_status = derive_job_status(latest_job_state, kb_status)
         message = get_status_message(job_status)
 

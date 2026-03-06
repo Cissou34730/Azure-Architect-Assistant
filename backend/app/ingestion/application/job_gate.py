@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
 
 from app.core.app_settings import get_app_settings
+from app.ingestion.application.job_lifecycle import JobLifecycleManager
 from app.ingestion.domain.indexing import Indexer
 from app.ingestion.infrastructure.job_repository import JobRepository
 
@@ -12,8 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class JobGate:
-    def __init__(self, repo: JobRepository) -> None:
+    def __init__(self, repo: JobRepository, lifecycle: JobLifecycleManager) -> None:
         self._repo = repo
+        self._lifecycle = lifecycle
 
     async def check(self, job_id: str, kb_id: str, indexer: Indexer) -> bool:
         while True:
@@ -37,15 +38,6 @@ class JobGate:
 
     async def _cleanup(self, job_id: str, kb_id: str, indexer: Indexer) -> None:
         try:
-            indexer.delete_by_job(job_id, kb_id)
-            logger.info('Deleted indexed data for canceled job', extra={'job_id': job_id})
-
-            self._repo.set_job_status(
-                job_id,
-                status='not_started',
-                finished_at=datetime.now(timezone.utc),
-                last_error='Canceled by user',
-            )
-            self._repo.update_job(job_id, checkpoint=None, counters=None)
+            self._lifecycle.cleanup_canceled_job(job_id, kb_id, indexer)
         except Exception:
             logger.error('Cleanup failed for canceled job', extra={'job_id': job_id}, exc_info=True)

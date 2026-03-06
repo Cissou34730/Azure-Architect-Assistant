@@ -2,7 +2,7 @@
 
 > **Created**: February 8, 2026  
 > **Based on**: [review-ingestion-codebase-20260208.md](./review-ingestion-codebase-20260208.md)  
-> **Status**: Phase 2 in progress (Task 2.1 implemented; Phase 1.4 audit fixes still pending)
+> **Status**: Phase 0 queue-backed read-path removal, lifecycle unification, legacy schema cleanup, and pipeline context simplification completed on 2026-03-06; backend-wide compatibility shims restored and full backend test suite passing (Phase 1.4 audit fixes still pending)
 
 ## Executive Summary
 
@@ -27,6 +27,62 @@ This section tracks what’s already true in the repo vs. what this plan still n
 - [x] Confirmed ingestion “Prometheus-style” metrics are still custom (not `prometheus_client`)
 - [x] Confirmed frontend ingestion components still contain `void ` promise casts
 - [x] Confirmed React `ErrorBoundary` exists, but ingestion route is not wrapped
+- [x] Confirmed queue-backed reporting is isolated to read-side services and can be removed without touching the orchestrator runtime path
+
+---
+
+## Phase 0: Remove Queue-Backed Read Reporting
+
+### Task 0.1: Replace Queue-Derived Read Metrics With Persisted State
+**Priority**: P0  
+**Files**: `backend/app/services/ingestion_read_service.py`, `backend/app/services/kb/management_orchestration_service.py`, `backend/app/services/ingestion_metrics_service.py`  
+**Estimated Time**: 3 hours
+
+**Implementation Steps**:
+1. Add regression tests for read-layer ingestion metrics and persisted-status responses.
+2. Replace queue-derived metric reads with values derived from persisted phase state and job counters.
+3. Preserve existing response shapes where practical so callers do not need an API migration.
+4. Delete `backend/app/ingestion/infrastructure/queue_repository.py` and remove exports once no callers remain.
+
+**Success Criteria**:
+- [x] Read-side ingestion metrics no longer depend on `QueueRepository`
+- [x] KB persisted status no longer depends on queue statistics
+- [x] Queue repository file removed from ingestion infrastructure exports
+- [x] Targeted regression tests executed and passing
+
+### Task 0.2: Centralize Lifecycle Transitions And Batch Resume Checkpointing
+**Priority**: P0  
+**Files**: `backend/app/ingestion/application/job_lifecycle.py`, `backend/app/services/ingestion_runtime.py`, `backend/app/ingestion/application/pipeline_coordinator.py`, `backend/app/ingestion/application/stages/embedding_stage.py`, `backend/app/ingestion/application/job_gate.py`  
+**Estimated Time**: 5 hours
+
+**Implementation Steps**:
+1. Introduce a dedicated lifecycle manager for pause, resume, cancel, completion, failure, and checkpoint persistence.
+2. Use graceful shutdown requests for pause operations instead of immediate task cancellation where possible.
+3. Persist active batch and last processed chunk so resumes continue inside partially processed batches.
+4. Update loading and chunking stages so resumed batches do not double-count documents or chunks.
+
+**Success Criteria**:
+- [x] Runtime, coordinator, and gate use a shared lifecycle transition path
+- [x] Pause/resume can continue from the middle of an embedding batch without double-counting `docs_seen` or `chunks_seen`
+- [x] Batch progress is checkpointed incrementally during embedding/indexing
+- [x] Targeted lifecycle and runtime regression tests executed and passing
+
+### Task 0.3: Remove Legacy Queue Table And Compatibility Fields
+**Priority**: P0  
+**Files**: `backend/app/ingestion/models.py`, `backend/app/ingestion/infrastructure/job_repository.py`, `backend/migrations/ingestion/versions/*`, `backend/tests/ingestion/test_ingestion_schema_migrations.py`  
+**Estimated Time**: 2 hours
+
+**Implementation Steps**:
+1. Remove `IngestionQueueItem` and `QueueStatus` from the ingestion ORM and exports.
+2. Remove legacy `current_phase` and `phase_progress` columns from the SQLAlchemy model and job creation path.
+3. Update the initial Alembic ingestion schema for fresh databases and add a forward migration to drop the legacy queue table and columns from existing databases.
+4. Tighten schema tests so new ingestion databases do not recreate the removed legacy structures.
+
+**Success Criteria**:
+- [x] `IngestionQueueItem` and `QueueStatus` removed from the active ingestion Python model layer
+- [x] `current_phase` and `phase_progress` removed from the active ingestion ORM model and job creation path
+- [x] Alembic head removes the legacy queue table and compatibility fields for existing databases
+- [x] Schema migration tests executed and passing
 
 ---
 

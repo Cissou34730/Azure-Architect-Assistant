@@ -14,5 +14,9 @@ def test_run_migrations_creates_ingestion_tables(tmp_path) -> None:
     inspector = inspect(engine)
     assert inspector.has_table('ingestion_jobs')
     assert inspector.has_table('ingestion_phase_status')
-    assert inspector.has_table('ingestion_queue')
+    assert inspector.has_table('ingestion_queue') is False
     assert inspector.has_table('alembic_version')
+
+    columns = {column['name'] for column in inspector.get_columns('ingestion_jobs')}
+    assert 'current_phase' not in columns
+    assert 'phase_progress' not in columns

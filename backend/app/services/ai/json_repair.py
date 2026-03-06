@@ -93,7 +93,10 @@ def extract_json_candidate(response_text: str) -> str | None:
 
     Tries ``{...}`` first, then ``[...]``.  Each candidate is validated with
     ``json.loads`` before being returned so callers can rely on the result
-    being parseable.  Returns ``None`` if no valid candidate is found.
+    being parseable when possible. If validation fails but a balanced outer
+    candidate exists, return that raw substring so repair callers can still
+    operate on the full JSON-shaped payload. Returns ``None`` if no candidate
+    is found.
     """
     for open_char, close_char in ("{", "}"), ("[", "]"):
         start = response_text.find(open_char)
@@ -107,5 +110,5 @@ def extract_json_candidate(response_text: str) -> str | None:
             json.loads(candidate)
             return candidate
         except json.JSONDecodeError:
-            continue
+            return candidate
     return None

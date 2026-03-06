@@ -12,12 +12,16 @@ from app.models import ConversationMessage, Project, ProjectState
 from app.service_registry import get_multi_query_service
 from app.services.kb import QueryProfile
 from app.services.llm_service import get_llm_service
+from app.services.project.project_service import ProjectService
 
 logger = logging.getLogger(__name__)
 
 
 class ChatService:
     """Handles chat operations and state updates for projects."""
+
+    def __init__(self) -> None:
+        self._project_service = ProjectService()
 
     async def _get_project_context(
         self, project_id: str, db: AsyncSession
@@ -147,6 +151,9 @@ class ChatService:
         state = await read_project_state(project_id, db)
         if not state:
             raise ValueError("Project state not found. Please analyze documents first.")
+        waf_checklist = await self._project_service.get_waf_checklist_state(project_id, db)
+        if waf_checklist is not None:
+            state["wafChecklist"] = waf_checklist
         return cast(dict[str, Any], state)
 
     async def get_conversation_messages(

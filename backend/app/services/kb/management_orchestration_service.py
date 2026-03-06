@@ -10,10 +10,11 @@ from fastapi import HTTPException
 
 from app.core.app_settings import get_app_settings
 from app.ingestion.application.status_query_service import StatusQueryService
-from app.ingestion.infrastructure import create_job_repository, create_queue_repository
+from app.ingestion.infrastructure import create_job_repository
 from app.kb import KBManager
 from app.kb.service import KnowledgeBaseService, clear_index_cache
 from app.service_registry import ServiceRegistry
+from app.services.ingestion_metrics_service import build_persisted_status_metrics, get_job_counters
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,7 @@ class KBManagementService:
     def get_persisted_status(
         self, kb_id: str, manager: KBManager
     ) -> dict[str, str | dict[str, int] | None]:
-        """Return persisted KB status and best-effort queue metrics."""
+        """Return persisted KB status and derived ingestion metrics."""
         if not manager.kb_exists(kb_id):
             raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
 
@@ -136,20 +137,16 @@ class KBManagementService:
         metrics: dict[str, int] | None = None
 
         try:
-            queue_repo = create_queue_repository()
             job_repo = create_job_repository()
             job_id = job_repo.get_latest_job_id(kb_id)
             if job_id:
-                stats = queue_repo.get_queue_stats(job_id)
-                metrics = {
-                    "pending": int(stats.get("pending", 0)),
-                    "processing": int(stats.get("processing", 0)),
-                    "done": int(stats.get("done", 0)),
-                    "error": int(stats.get("error", 0)),
-                }
+                metrics = build_persisted_status_metrics(
+                    status,
+                    get_job_counters(job_repo.get_job(job_id)),
+                )
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "Unable to retrieve queue metrics for kb_id=%s: %s",
+                "Unable to retrieve persisted ingestion metrics for kb_id=%s: %s",
                 kb_id,
                 exc,
                 exc_info=True,

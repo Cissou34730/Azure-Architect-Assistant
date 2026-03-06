@@ -4,7 +4,6 @@ from .enums import JobPhase, PhaseStatus
 from .models import (
     IngestionState,
     IngestionStateSchema,
-    JobRuntime,
     PhaseState,
     PhaseStateSchema,
 )
@@ -13,7 +12,6 @@ __all__ = [
     'IngestionState',
     'IngestionStateSchema',
     'JobPhase',
-    'JobRuntime',
     'PhaseState',
     'PhaseStateSchema',
     'PhaseStatus',

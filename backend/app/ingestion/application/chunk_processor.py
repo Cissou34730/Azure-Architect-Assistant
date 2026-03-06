@@ -18,7 +18,7 @@ class ChunkProcessor:
         self._embedder = embedder
         self._indexer = indexer
 
-    async def process(self, task: ProcessingTask, chunk: Any) -> dict[str, Any]:
+    async def process_chunk(self, task: ProcessingTask, chunk: Any) -> dict[str, Any]:
         exists = await asyncio.to_thread(self._indexer.exists, task.kb_id, chunk.content_hash)
         if exists:
             logger.debug('Chunk already indexed, skipping', extra={'content_hash': chunk.content_hash[:8]})

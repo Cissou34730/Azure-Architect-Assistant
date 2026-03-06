@@ -5,10 +5,11 @@ from typing import Any
 
 import pytest
 
+from app.ingestion.application.job_lifecycle import JobLifecycleManager
 from app.ingestion.application.pipeline_stage import PipelineContext
 from app.ingestion.application.policies import RetryPolicy
 from app.ingestion.application.stages.chunking_stage import ChunkingStage
-from app.ingestion.application.stages.embedding_stage import EmbeddingStage
+from app.ingestion.application.stages.embedding_stage import EmbeddingIndexingStage
 from app.ingestion.application.stages.loading_stage import LoadingStage
 
 
@@ -34,12 +35,16 @@ class FakeJobRepo:
     def __init__(self) -> None:
         self.status_updates: list[tuple[str, str]] = []
         self.job_updates: list[tuple[str, dict[str, Any], dict[str, int]]] = []
+        self.heartbeats: list[str] = []
 
     def set_job_status(self, job_id: str, *, status: str) -> None:
         self.status_updates.append((job_id, status))
 
     def update_job(self, job_id: str, *, checkpoint: dict[str, Any], counters: dict[str, int]) -> None:
         self.job_updates.append((job_id, dict(checkpoint), dict(counters)))
+
+    def update_heartbeat(self, job_id: str) -> None:
+        self.heartbeats.append(job_id)
 
 
 @dataclass(frozen=True)
@@ -97,6 +102,29 @@ async def test_loading_stage_increments_docs_and_updates_progress(monkeypatch: p
 
 
 @pytest.mark.asyncio
+async def test_loading_stage_resume_does_not_double_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        'app.ingestion.application.stages.loading_stage.save_documents_to_disk',
+        lambda _kb_id, _batch: None,
+    )
+
+    phase_repo = FakePhaseRepo()
+    stage = LoadingStage(phase_repo)
+    context = PipelineContext(
+        kb_id='kb1',
+        job_id='job1',
+        config={},
+        checkpoint={'active_batch_id': 2, 'resume_chunk_index': 0},
+        counters={'docs_seen': 3},
+        results={'batch': [1, 2, 3], 'batch_id': 2, 'resume_active_batch': True},
+    )
+
+    await stage.execute(context)
+
+    assert context.counters['docs_seen'] == 3
+
+
+@pytest.mark.asyncio
 async def test_chunking_stage_sets_chunks_and_updates_progress(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_chunk_documents_to_chunks(batch: list[str], chunker: Any, kb_id: str) -> list[FakeChunk]:
         assert chunker == 'chunker'
@@ -134,10 +162,39 @@ async def test_chunking_stage_sets_chunks_and_updates_progress(monkeypatch: pyte
 
 
 @pytest.mark.asyncio
+async def test_chunking_stage_resume_does_not_double_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        'app.ingestion.application.stages.chunking_stage.chunk_documents_to_chunks',
+        lambda _batch, _chunker, _kb_id: [FakeChunk('a'), FakeChunk('b')],
+    )
+
+    phase_repo = FakePhaseRepo()
+    stage = ChunkingStage(phase_repo, chunker='chunker')
+    context = PipelineContext(
+        kb_id='kb1',
+        job_id='job1',
+        config={},
+        checkpoint={'active_batch_id': 7, 'resume_chunk_index': 0},
+        counters={'chunks_seen': 2},
+        results={
+            'batch': ['doc1'],
+            'batch_id': 7,
+            'resume_active_batch': True,
+            'phases_started': {'chunking': False, 'embedding': False, 'indexing': False},
+        },
+    )
+
+    await stage.execute(context)
+
+    assert context.counters['chunks_seen'] == 2
+
+
+@pytest.mark.asyncio
 async def test_embedding_stage_processes_and_counts(monkeypatch: pytest.MonkeyPatch) -> None:
     repo = FakeJobRepo()
     phase_repo = FakePhaseRepo()
     indexer = FakeIndexer()
+    lifecycle = JobLifecycleManager(repo)
 
     async def gate_check(job_id: str, kb_id: str, _indexer: FakeIndexer) -> bool:
         assert job_id == 'job1'
@@ -147,9 +204,9 @@ async def test_embedding_stage_processes_and_counts(monkeypatch: pytest.MonkeyPa
     def is_shutdown_requested() -> bool:
         return False
 
-    stage = EmbeddingStage(
-        repo=repo,
+    stage = EmbeddingIndexingStage(
         phase_repo=phase_repo,
+        lifecycle=lifecycle,
         retry_policy=RetryPolicy(max_attempts=1),
         embedder=FakeEmbedder(),
         indexer=indexer,
@@ -161,7 +218,7 @@ async def test_embedding_stage_processes_and_counts(monkeypatch: pytest.MonkeyPa
         kb_id='kb1',
         job_id='job1',
         config={},
-        checkpoint={},
+        checkpoint={'active_batch_id': 7, 'resume_chunk_index': -1},
         counters={'chunks_processed': 0, 'chunks_skipped': 0, 'chunks_error': 0},
         results={'chunks': [FakeChunk('a'), FakeChunk('b')], 'batch_id': 7},
     )
@@ -173,6 +230,7 @@ async def test_embedding_stage_processes_and_counts(monkeypatch: pytest.MonkeyPa
     assert len(indexer.indexed) == 2
     assert ('job1', 'embedding') in phase_repo.started
     assert ('job1', 'indexing') in phase_repo.started
+    assert repo.job_updates[-1][1]['resume_chunk_index'] == 1
 
 
 @pytest.mark.asyncio
@@ -180,13 +238,14 @@ async def test_embedding_stage_skips_existing_chunks() -> None:
     repo = FakeJobRepo()
     phase_repo = FakePhaseRepo()
     indexer = FakeIndexer(existing={'a'})
+    lifecycle = JobLifecycleManager(repo)
 
     async def gate_check(_job_id: str, _kb_id: str, _indexer: FakeIndexer) -> bool:
         return True
 
-    stage = EmbeddingStage(
-        repo=repo,
+    stage = EmbeddingIndexingStage(
         phase_repo=phase_repo,
+        lifecycle=lifecycle,
         retry_policy=RetryPolicy(max_attempts=1),
         embedder=FakeEmbedder(),
         indexer=indexer,
@@ -198,7 +257,7 @@ async def test_embedding_stage_skips_existing_chunks() -> None:
         kb_id='kb1',
         job_id='job1',
         config={},
-        checkpoint={},
+        checkpoint={'active_batch_id': 7, 'resume_chunk_index': -1},
         counters={'chunks_processed': 0, 'chunks_skipped': 0, 'chunks_error': 0},
         results={'chunks': [FakeChunk('a'), FakeChunk('b')], 'batch_id': 7},
     )
@@ -208,3 +267,44 @@ async def test_embedding_stage_skips_existing_chunks() -> None:
     assert context.counters['chunks_skipped'] == 1
     assert context.counters['chunks_processed'] == 1
     assert len(indexer.indexed) == 1
+
+
+@pytest.mark.asyncio
+async def test_embedding_stage_resumes_from_checkpointed_chunk() -> None:
+    repo = FakeJobRepo()
+    phase_repo = FakePhaseRepo()
+    indexer = FakeIndexer()
+    lifecycle = JobLifecycleManager(repo)
+
+    stage = EmbeddingIndexingStage(
+        phase_repo=phase_repo,
+        lifecycle=lifecycle,
+        retry_policy=RetryPolicy(max_attempts=1),
+        embedder=FakeEmbedder(),
+        indexer=indexer,
+        gate_check=lambda *_args: pytest.raises(AssertionError),
+        is_shutdown_requested=lambda: False,
+    )
+
+    async def always_open(_job_id: str, _kb_id: str, _indexer: FakeIndexer) -> bool:
+        return True
+
+    stage._gate_check = always_open
+    context = PipelineContext(
+        kb_id='kb1',
+        job_id='job1',
+        config={},
+        checkpoint={'active_batch_id': 7, 'resume_chunk_index': 0},
+        counters={'chunks_processed': 1, 'chunks_skipped': 0, 'chunks_error': 0},
+        results={
+            'chunks': [FakeChunk('a'), FakeChunk('b')],
+            'batch_id': 7,
+            'resume_active_batch': True,
+            'resume_chunk_index': 0,
+        },
+    )
+
+    await stage.execute(context)
+
+    assert context.counters['chunks_processed'] == 2
+    assert indexer.indexed == [('kb1', {'hash': 'b'})]

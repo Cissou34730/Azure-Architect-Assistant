@@ -12,6 +12,7 @@ from sqlalchemy.engine import Engine
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _ALEMBIC_CFG_PATH = _BACKEND_ROOT / 'alembic_ingestion.ini'
+_LEGACY_BASE_REVISION = 'a1b2c3d4e5f6'
 
 
 def _make_alembic_config(engine: Engine) -> Config:
@@ -49,6 +50,6 @@ def run_migrations(engine: Engine) -> None:
         # - Alembic has no current revision (no table or empty version table)
         # In this state, stamp head before upgrade to avoid replaying initial DDL.
         if has_ingestion_tables and current_revision is None:
-            command.stamp(cfg, 'head')
+            command.stamp(cfg, _LEGACY_BASE_REVISION)
 
         command.upgrade(cfg, 'head')

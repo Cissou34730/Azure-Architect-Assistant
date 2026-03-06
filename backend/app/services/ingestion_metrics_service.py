@@ -26,21 +26,14 @@ class IngestionMetrics(TypedDict, total=False):
     chunks_created: int
 
 
-class QueueMetrics(TypedDict, total=False):
-    """Raw queue statistics."""
-
-    pending: int
-    processing: int
-    done: int
-    error: int
-
-
 class JobCounters(TypedDict, total=False):
     """Job-level counters."""
 
     docs_seen: int
     chunks_seen: int
     chunks_processed: int
+    chunks_error: int
+    chunks_skipped: int
 
 
 JobStatus = Literal[
@@ -60,40 +53,27 @@ def get_phase_item_count(
     return 0
 
 
-def build_queue_based_metrics(queue_metrics: QueueMetrics) -> IngestionMetrics:
-    """Build metrics from queue statistics."""
-    pending = queue_metrics.get("pending", 0)
-    processing = queue_metrics.get("processing", 0)
-    done = queue_metrics.get("done", 0)
-    error = queue_metrics.get("error", 0)
-
-    return IngestionMetrics(
-        chunks_pending=pending,
-        chunks_processing=processing,
-        chunks_embedded=done,
-        chunks_failed=error,
-        chunks_queued=pending + processing + done + error,
-        documents_crawled=0,
-        documents_cleaned=0,
-        chunks_created=0,
+def build_phase_based_metrics(status: KBPersistedStatus) -> IngestionMetrics:
+    """Build metrics from persisted phase state only."""
+    documents_crawled = get_phase_item_count(status.phase_details, "loading")
+    chunks_created = get_phase_item_count(status.phase_details, "chunking")
+    chunks_embedded = get_phase_item_count(status.phase_details, "indexing")
+    chunks_queued = max(
+        get_phase_item_count(status.phase_details, "chunking", "items_total"),
+        chunks_created,
+        chunks_embedded,
     )
 
-
-def augment_with_phase_data(
-    metrics: IngestionMetrics, phase_details: list[dict[str, Any]]
-) -> None:
-    """Augment metrics with phase detail fallbacks."""
-    if metrics["chunks_embedded"] == 0:
-        metrics["chunks_embedded"] = get_phase_item_count(phase_details, "indexing")
-
-    if metrics["chunks_queued"] == 0:
-        metrics["chunks_queued"] = get_phase_item_count(
-            phase_details, "chunking", "items_total"
-        )
-
-    metrics["documents_crawled"] = get_phase_item_count(phase_details, "loading")
-    metrics["documents_cleaned"] = get_phase_item_count(phase_details, "chunking")
-    metrics["chunks_created"] = get_phase_item_count(phase_details, "chunking")
+    return IngestionMetrics(
+        chunks_pending=max(chunks_queued - chunks_embedded, 0),
+        chunks_processing=0,
+        chunks_embedded=chunks_embedded,
+        chunks_failed=0,
+        chunks_queued=chunks_queued,
+        documents_crawled=documents_crawled,
+        documents_cleaned=get_phase_item_count(status.phase_details, "chunking"),
+        chunks_created=chunks_created,
+    )
 
 
 def apply_counter_overrides(
@@ -106,16 +86,45 @@ def apply_counter_overrides(
         metrics["chunks_created"] = counters["chunks_seen"]
     if "chunks_processed" in counters:
         metrics["chunks_embedded"] = counters["chunks_processed"]
+    if "chunks_error" in counters:
+        metrics["chunks_failed"] = counters["chunks_error"]
+
+    completed_chunks = (
+        metrics.get("chunks_embedded", 0)
+        + metrics.get("chunks_failed", 0)
+        + counters.get("chunks_skipped", 0)
+    )
+    if "chunks_seen" in counters:
+        metrics["chunks_queued"] = max(metrics.get("chunks_created", 0), completed_chunks)
+    else:
+        metrics["chunks_queued"] = max(
+            metrics.get("chunks_queued", 0),
+            metrics.get("chunks_created", 0),
+            completed_chunks,
+        )
+    metrics["chunks_pending"] = max(metrics["chunks_queued"] - completed_chunks, 0)
+    metrics["chunks_processing"] = 0
+
+
+def build_persisted_status_metrics(
+    status: KBPersistedStatus, counters: JobCounters
+) -> dict[str, int]:
+    """Build queue-shaped status metrics from persisted job and phase state."""
+    metrics = normalize_job_metrics(status, counters)
+    return {
+        "pending": metrics["chunks_pending"],
+        "processing": metrics["chunks_processing"],
+        "done": metrics["chunks_embedded"],
+        "error": metrics["chunks_failed"],
+    }
 
 
 def normalize_job_metrics(
     status: KBPersistedStatus,
-    raw_queue_metrics: QueueMetrics,
     counters: JobCounters,
 ) -> IngestionMetrics:
-    """Consolidate metrics from queue stats, phase details, and job counters."""
-    metrics = build_queue_based_metrics(raw_queue_metrics)
-    augment_with_phase_data(metrics, status.phase_details)
+    """Consolidate metrics from persisted phase details and job counters."""
+    metrics = build_phase_based_metrics(status)
     apply_counter_overrides(metrics, counters)
     return metrics
 
@@ -162,4 +171,6 @@ def get_job_counters(job_view: Any) -> JobCounters:
         docs_seen=raw_counters.get("docs_seen", 0),
         chunks_seen=raw_counters.get("chunks_seen", 0),
         chunks_processed=raw_counters.get("chunks_processed", 0),
+        chunks_error=raw_counters.get("chunks_error", 0),
+        chunks_skipped=raw_counters.get("chunks_skipped", 0),
     )

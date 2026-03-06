@@ -35,8 +35,6 @@ def upgrade() -> None:
         sa.Column('heartbeat_at', sa.DateTime(), nullable=True),
         sa.Column('finished_at', sa.DateTime(), nullable=True),
         sa.Column('last_error', sa.Text(), nullable=True),
-        sa.Column('current_phase', sa.String(length=50), nullable=True),
-        sa.Column('phase_progress', sa.JSON(), nullable=True),
     )
     op.create_index('ix_ingestion_jobs_status', 'ingestion_jobs', ['status'])
     op.create_index('ix_ingestion_jobs_created_at', 'ingestion_jobs', ['created_at'])
@@ -59,32 +57,7 @@ def upgrade() -> None:
     )
     op.create_index('ix_phase_status_job_id', 'ingestion_phase_status', ['job_id'])
 
-    op.create_table(
-        'ingestion_queue',
-        sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True, nullable=False),
-        sa.Column('job_id', sa.String(length=36), sa.ForeignKey('ingestion_jobs.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('doc_hash', sa.String(length=128), nullable=False),
-        sa.Column('content', sa.Text(), nullable=False),
-        sa.Column('metadata', sa.JSON(), nullable=False),
-        sa.Column('status', sa.String(length=20), nullable=False),
-        sa.Column('attempts', sa.Integer(), nullable=False),
-        sa.Column('error_log', sa.Text(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.Column('updated_at', sa.DateTime(), nullable=False),
-        sa.Column('available_at', sa.DateTime(), nullable=False),
-        sa.UniqueConstraint('job_id', 'doc_hash', name='uq_ingestion_queue_job_doc_hash'),
-    )
-    op.create_index(
-        'ix_ingestion_queue_status_available',
-        'ingestion_queue',
-        ['status', 'available_at'],
-    )
-
-
 def downgrade() -> None:
-    op.drop_index('ix_ingestion_queue_status_available', table_name='ingestion_queue')
-    op.drop_table('ingestion_queue')
-
     op.drop_index('ix_phase_status_job_id', table_name='ingestion_phase_status')
     op.drop_table('ingestion_phase_status')
 

@@ -12,7 +12,7 @@ from app.projects_database import get_db
 from app.routers.error_utils import map_value_error
 from app.services.project.project_service import ProjectService
 
-from ._deps import get_project_service_dep
+from ._deps import get_document_service_dep, get_project_service_dep
 from .project_models import (
     BulkDeleteProjectsRequest,
     CreateProjectRequest,
@@ -23,6 +23,7 @@ from .project_models import (
 )
 
 router = APIRouter(prefix="/api", tags=["projects"])
+document_service = get_document_service_dep()
 
 
 
@@ -93,7 +94,7 @@ async def delete_project(
     try:
         await project_service.soft_delete_project(project_id, db)
     except ValueError as e:
-        raise map_value_error(e, default_status=400) from e
+        raise map_value_error(e, default_status=404) from e
     return {
         "message": "Project deleted successfully",
         "deletedCount": 1,

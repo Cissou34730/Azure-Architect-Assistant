@@ -14,6 +14,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from app.core.app_settings import get_app_settings
+from app.ingestion.application.job_lifecycle import JobLifecycleManager
 from app.ingestion.application.orchestrator import (
     IngestionOrchestrator,
     RetryPolicy,
@@ -32,6 +33,7 @@ class IngestionRuntimeService:
 
     def __init__(self, *, repo: Any | None = None) -> None:
         self.repo = repo if repo is not None else create_job_repository()
+        self._lifecycle = JobLifecycleManager(self.repo)
         self.shutdown_manager = ShutdownManager()
         self._running_tasks: dict[str, asyncio.Task[Any]] = {}
 
@@ -43,12 +45,13 @@ class IngestionRuntimeService:
             workflow=WorkflowDefinition(),
             retry_policy=RetryPolicy(max_attempts=3),
             shutdown_manager=self.shutdown_manager,
+            lifecycle_manager=self._lifecycle,
         )
         try:
             await orchestrator.run(job_id, kb_id, kb_config)
         except asyncio.CancelledError:
             logger.warning("Orchestrator task cancelled for job %s - pausing", job_id)
-            self.repo.set_job_status(job_id, status="paused")
+            self._lifecycle.pause(job_id)
             raise
         except Exception as exc:
             logger.exception("Orchestrator failed for job %s: %s", job_id, exc)
@@ -92,14 +95,17 @@ class IngestionRuntimeService:
 
         task = self._running_tasks.get(job_id)
         if not task:
-            self.repo.set_job_status(job_id, status="paused")
+            self._lifecycle.pause(job_id)
             return {"status": "paused", "job_id": job_id, "message": "Job was not running"}
 
-        task.cancel()
+        self.shutdown_manager.request_shutdown(job_id)
         try:
             await asyncio.wait_for(task, timeout=get_app_settings().ingestion_shutdown_timeout)
         except asyncio.TimeoutError:
             logger.warning("Task for job %s did not stop within 5 seconds", job_id)
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
         except asyncio.CancelledError:
             pass
 
@@ -139,7 +145,7 @@ class IngestionRuntimeService:
 
         kb_config = kb_manager.get_kb_config(kb_id)
         kb_config["kb_id"] = kb_id
-        self.repo.set_job_status(job_id, status="running")
+        self._lifecycle.mark_running(job_id)
 
         task = asyncio.create_task(self.run_orchestrator_background(job_id, kb_id, kb_config))
         task.set_name(f"ingestion-{kb_id}-{job_id}-resumed")
@@ -157,7 +163,7 @@ class IngestionRuntimeService:
         if not job_id:
             raise HTTPException(status_code=404, detail=f"No job found for KB '{kb_id}'")
 
-        self.repo.set_job_status(job_id, status="canceled")
+        self._lifecycle.request_cancel(job_id)
 
         try:
             task = self._running_tasks.get(job_id)
@@ -167,14 +173,7 @@ class IngestionRuntimeService:
                     await asyncio.wait_for(task, timeout=get_app_settings().ingestion_cancel_timeout)
 
             indexer = Indexer(kb_id=kb_id)
-            indexer.delete_by_job(job_id, kb_id)
-            self.repo.set_job_status(
-                job_id,
-                status="not_started",
-                finished_at=datetime.now(timezone.utc),
-                last_error="Canceled by user",
-            )
-            self.repo.update_job(job_id, checkpoint=None, counters=None)
+            self._lifecycle.cleanup_canceled_job(job_id, kb_id, indexer)
         except Exception as cleanup_error:
             logger.error("Cleanup failed for job %s: %s", job_id, cleanup_error, exc_info=True)
 
@@ -194,7 +193,7 @@ class IngestionRuntimeService:
 
         for job_id, _ in tasks_snapshot:
             try:
-                self.repo.set_job_status(job_id, status="paused")
+                self._lifecycle.pause(job_id)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Could not mark job %s as paused: %s", job_id, exc)
 

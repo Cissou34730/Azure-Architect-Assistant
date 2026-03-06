@@ -105,18 +105,28 @@ class AppSettings(
     @property
     def effective_openai_api_key(self) -> str:
         """Resolve OpenAI key through SecretKeeper."""
-        return _read_secretkeeper_secret("AI_OPENAI_API_KEY") or ""
+        return (
+            _read_secretkeeper_secret("AI_OPENAI_API_KEY")
+            or self.ai_openai_api_key
+            or self.openai_api_key
+            or ""
+        )
 
     @property
     def effective_azure_openai_api_key(self) -> str:
         """Resolve Azure OpenAI key through SecretKeeper."""
-        return _read_secretkeeper_secret("AI_AZURE_OPENAI_API_KEY") or ""
+        return _read_secretkeeper_secret("AI_AZURE_OPENAI_API_KEY") or self.ai_azure_openai_api_key or ""
 
 
 @lru_cache
 def get_app_settings() -> AppSettings:
     """Return the cached application settings instance."""
     return AppSettings()
+
+
+def get_settings() -> AppSettings:
+    """Compat alias for legacy callers expecting get_settings()."""
+    return get_app_settings()
 
 
 def get_backend_root() -> Path:
@@ -172,5 +182,6 @@ __all__ = [
     "get_kb_defaults",
     "get_kb_storage_root",
     "get_openai_settings",
+    "get_settings",
 ]
 

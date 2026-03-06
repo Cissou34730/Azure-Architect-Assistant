@@ -3,7 +3,12 @@
 import os
 from typing import Any, cast
 
-from app.core.app_settings import get_app_settings
+from app.core.app_settings import (
+    get_app_settings,
+    get_kb_defaults,
+    get_kb_storage_root,
+    get_openai_settings,
+)
 
 
 class KBConfig:
@@ -11,9 +16,12 @@ class KBConfig:
 
     def __init__(self, config_dict: dict[str, Any]) -> None:
         settings = get_app_settings()
-        openai_model = settings.openai_model or settings.ai_openai_llm_model
-        openai_emb_model = settings.openai_embedding_model or settings.ai_openai_embedding_model
-        kb_defaults = settings.kb_defaults
+        openai_settings = get_openai_settings()
+        kb_defaults = get_kb_defaults()
+        openai_model = openai_settings.model or settings.ai_openai_llm_model
+        openai_emb_model = (
+            openai_settings.embedding_model or settings.ai_openai_embedding_model
+        )
 
         self.id: str = config_dict["id"]
         self.name: str = config_dict["name"]
@@ -52,7 +60,7 @@ class KBConfig:
             if normalized.startswith(legacy_prefix):
                 index_path = normalized[len(legacy_prefix) :]
 
-            kb_root = get_app_settings().knowledge_bases_root
+            kb_root = get_kb_storage_root()
             return str(kb_root / cast(str, index_path))
         return ""
 

@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any, cast
 
-from app.core.app_settings import get_app_settings
+from app.core.app_settings import get_app_settings, get_kb_storage_root
 
 from .models import KBConfig
 
@@ -30,7 +30,7 @@ class KBManager:
             config_path: Path to config.json. If None, uses default location.
         """
         self.backend_root = Path(__file__).parent.parent.parent
-        self.kb_root = Path(get_app_settings().knowledge_bases_root)
+        self.kb_root = Path(get_kb_storage_root())
         self.kb_root_config_value = str(get_app_settings().knowledge_bases_root)
 
         if config_path is None:

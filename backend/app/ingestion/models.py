@@ -37,15 +37,6 @@ class JobStatus(str, enum.Enum):
     CANCELED = 'CANCELED'
 
 
-class QueueStatus(str, enum.Enum):
-    """Processing states for queued ingestion work items."""
-
-    PENDING = 'PENDING'
-    PROCESSING = 'PROCESSING'
-    DONE = 'DONE'
-    ERROR = 'ERROR'
-
-
 class PhaseStatusDB(str, enum.Enum):
     """Phase status values for database storage."""
 
@@ -95,17 +86,6 @@ class IngestionJob(Base):
     heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
-
-    # Phase-level tracking (legacy, for backward compatibility)
-    current_phase: Mapped[str | None] = mapped_column(String(50), nullable=True, default='loading')
-    phase_progress: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True, default=dict)
-
-    queue_items: Mapped[list[IngestionQueueItem]] = relationship(
-        'IngestionQueueItem',
-        back_populates='job',
-        cascade='all, delete-orphan',
-        lazy='selectin',
-    )
 
     def update_status(self, status: JobStatus) -> None:
         self.status = status.value
@@ -195,56 +175,3 @@ class IngestionPhaseStatus(Base):
 
         self.updated_at = datetime.now(timezone.utc)
 
-
-class IngestionQueueItem(Base):
-    """Chunk-level work item persisted between producer and consumer stages."""
-
-    __tablename__ = 'ingestion_queue'
-    __table_args__ = (
-        UniqueConstraint('job_id', 'doc_hash', name='uq_ingestion_queue_job_doc_hash'),
-        Index('ix_ingestion_queue_status_available', 'status', 'available_at'),
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    job_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey('ingestion_jobs.id', ondelete='CASCADE'), nullable=False
-    )
-    doc_hash: Mapped[str] = mapped_column(String(128), nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-    # 'metadata' is reserved by SQLAlchemy Declarative; use attribute 'item_metadata'
-    item_metadata: Mapped[dict[str, Any]] = mapped_column(
-        'metadata', JSON, nullable=False, default=dict
-    )
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=QueueStatus.PENDING.value
-    )
-    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    error_log: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
-    available_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
-    )
-
-    job: Mapped[IngestionJob] = relationship('IngestionJob', back_populates='queue_items')
-
-    def mark_processing(self) -> None:
-        self.status = QueueStatus.PROCESSING.value
-        self.updated_at = datetime.now(timezone.utc)
-
-    def mark_done(self) -> None:
-        self.status = QueueStatus.DONE.value
-        self.updated_at = datetime.now(timezone.utc)
-
-    def mark_error(self, message: str) -> None:
-        self.status = QueueStatus.ERROR.value
-        self.error_log = message
-        self.attempts += 1
-        self.updated_at = datetime.now(timezone.utc)

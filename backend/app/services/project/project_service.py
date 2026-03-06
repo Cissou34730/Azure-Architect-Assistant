@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.agents_system.checklists.default_templates import resolve_bootstrap_template_slugs
 from app.agents_system.checklists.engine import ChecklistEngine
@@ -15,6 +16,7 @@ from app.agents_system.checklists.registry import ChecklistRegistry
 from app.agents_system.services.aaa_state_models import ensure_aaa_defaults
 from app.core.app_settings import get_app_settings
 from app.models import Project
+from app.models.checklist import Checklist, ChecklistItem
 from app.models.diagram import DiagramSet
 from app.models.project import ProjectState
 from app.routers.project_management.project_models import (
@@ -60,6 +62,35 @@ class ProjectService:
 
         logger.info(f"✓ Project persisted to DB: id={project.id}, name={project.name}")
         return cast(dict[str, Any], project.to_dict())
+
+    async def get_waf_checklist_state(
+        self,
+        project_id: str,
+        db: AsyncSession,
+    ) -> dict[str, Any] | None:
+        result = await db.execute(
+            select(Checklist)
+            .where(Checklist.project_id == project_id)
+            .options(selectinload(Checklist.items).selectinload(ChecklistItem.evaluations))
+        )
+        checklists = result.scalars().all()
+        if not checklists:
+            return None
+
+        items: list[dict[str, Any]] = []
+        for checklist in checklists:
+            for item in checklist.items:
+                items.append(
+                    {
+                        "id": item.template_item_id,
+                        "title": item.title,
+                        "description": item.description,
+                        "pillar": item.pillar,
+                        "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
+                    }
+                )
+
+        return {"items": items}
 
     async def list_projects(self, db: AsyncSession) -> list[dict[str, Any]]:
         result = await db.execute(

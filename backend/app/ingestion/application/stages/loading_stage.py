@@ -19,13 +19,12 @@ class LoadingStage(PipelineStage):
         return 'loading'
 
     async def execute(self, context: PipelineContext) -> None:
-        batch = context.results.get('batch')
-        if not isinstance(batch, list):
-            raise TypeError('LoadingStage requires context.results["batch"] to be a list')
+        batch = context.require_batch()
 
         await asyncio.to_thread(save_documents_to_disk, context.kb_id, batch)
 
-        context.counters['docs_seen'] = int(context.counters.get('docs_seen', 0)) + len(batch)
+        if not context.is_resuming_batch():
+            context.counters['docs_seen'] = int(context.counters.get('docs_seen', 0)) + len(batch)
         update_progress_noncritical(
             self._phase_repo,
             context.job_id,

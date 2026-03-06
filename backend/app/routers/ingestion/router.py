@@ -12,6 +12,10 @@ from app.dependencies import (
     get_ingestion_runtime_service_dependency,
     get_kb_manager,
 )
+from app.ingestion.infrastructure.job_repository import (
+    JobRepository,
+    create_job_repository,
+)
 from app.kb import KBManager
 from app.services.ingestion_read_service import (
     IngestionReadService,
@@ -37,6 +41,10 @@ def get_ingestion_runtime_service_dep() -> IngestionRuntimeService:
 
 def get_ingestion_read_service_dep() -> IngestionReadService:
     return get_ingestion_read_service()
+
+
+def get_job_repository_dep() -> JobRepository:
+    return create_job_repository()
 
 
 @router.post("/kb/{kb_id}/start", response_model=JobStatusResponse)
@@ -85,6 +93,27 @@ async def get_job_status(
     try:
         payload = read_service.get_job_status(job_id)
         return JobStatusResponse.model_validate(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/kb/{job_id}/status", response_model=JobStatusResponse)
+async def get_job_status_legacy(
+    job_id: str,
+    job_repository: JobRepository = Depends(get_job_repository_dep),
+) -> JobStatusResponse:
+    try:
+        job = job_repository.get_job(job_id)
+        return JobStatusResponse(
+            job_id=str(job.id),
+            kb_id=str(job.kb_id),
+            status=str(job.status),
+            counters=job.counters,
+            checkpoint=job.checkpoint,
+            last_error=job.last_error,
+            started_at=job.created_at,
+            finished_at=job.finished_at,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

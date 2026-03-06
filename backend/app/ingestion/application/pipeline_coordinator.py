@@ -3,19 +3,18 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
-from datetime import datetime, timezone
 from typing import Any
 
 from app.ingestion.application.job_gate import JobGate
+from app.ingestion.application.job_lifecycle import JobLifecycleManager
 from app.ingestion.application.pipeline_components import PipelineComponents
 from app.ingestion.application.pipeline_stage import PipelineContext
 from app.ingestion.application.policies import RetryPolicy
 from app.ingestion.application.stages.chunking_stage import ChunkingStage
-from app.ingestion.application.stages.embedding_stage import EmbeddingStage
+from app.ingestion.application.stages.embedding_stage import EmbeddingIndexingStage
 from app.ingestion.application.stages.loading_stage import LoadingStage
 from app.ingestion.domain.errors import PhaseNotFoundError, PhaseRepositoryError
 from app.ingestion.domain.indexing import Indexer
-from app.ingestion.infrastructure.job_repository import JobRepository
 from app.ingestion.infrastructure.phase_repository import PhaseRepository
 
 logger = logging.getLogger(__name__)
@@ -33,15 +32,15 @@ def _next_or_end(iterator: Any) -> Any:
 class PipelineCoordinator:
     def __init__(
         self,
-        repo: JobRepository,
         phase_repo: PhaseRepository,
         job_gate: JobGate,
+        lifecycle: JobLifecycleManager,
         is_shutdown_requested: Callable[[], bool],
         retry_policy: RetryPolicy,
     ) -> None:
-        self._repo = repo
         self._phase_repo = phase_repo
         self._job_gate = job_gate
+        self._lifecycle = lifecycle
         self._is_shutdown_requested = is_shutdown_requested
         self._retry_policy = retry_policy
 
@@ -68,9 +67,9 @@ class PipelineCoordinator:
 
         loading_stage = LoadingStage(self._phase_repo)
         chunking_stage = ChunkingStage(self._phase_repo, components.chunker)
-        embedding_stage = EmbeddingStage(
-            repo=self._repo,
+        embedding_stage = EmbeddingIndexingStage(
             phase_repo=self._phase_repo,
+            lifecycle=self._lifecycle,
             retry_policy=self._retry_policy,
             embedder=components.embedder,
             indexer=components.indexer,
@@ -85,13 +84,16 @@ class PipelineCoordinator:
                 logger.info('Loader exhausted', extra={'kb_id': kb_id, 'job_id': job_id, 'last_batch_id': batch_id - 1})
                 break
 
-            pipeline_context.results['batch'] = batch
-            pipeline_context.results['batch_id'] = batch_id
+            pipeline_context.set_batch_state(
+                batch=batch,
+                batch_id=batch_id,
+                resume_active_batch=self._lifecycle.is_resuming_batch(checkpoint, batch_id),
+                resume_chunk_index=self._lifecycle.get_resume_chunk_index(checkpoint, batch_id),
+            )
 
             if self._is_shutdown_requested():
                 logger.warning('Shutdown requested - pausing job at batch', extra={'job_id': job_id, 'batch_id': batch_id})
-                self._repo.set_job_status(job_id, status='paused')
-                self._repo.update_job(job_id, checkpoint=checkpoint, counters=counters)
+                self._lifecycle.pause(job_id, checkpoint, counters)
                 return
 
             if not await self._job_gate.check(job_id, kb_id, components.indexer):
@@ -101,15 +103,30 @@ class PipelineCoordinator:
             await loading_stage.execute(pipeline_context)
             await chunking_stage.execute(pipeline_context)
 
+            if not pipeline_context.is_resuming_batch():
+                chunks = pipeline_context.require_chunks()
+                self._lifecycle.mark_batch_started(
+                    job_id,
+                    checkpoint,
+                    counters,
+                    batch_id=batch_id,
+                    batch_doc_count=len(pipeline_context.require_batch()),
+                    batch_chunk_count=len(chunks),
+                )
+
             await embedding_stage.execute(pipeline_context)
-            if pipeline_context.results.get('continue') is False:
+            if not pipeline_context.should_continue():
                 return
 
             await asyncio.to_thread(components.indexer.persist)
 
-            checkpoint['last_batch_id'] = batch_id
-            self._repo.update_job(job_id, checkpoint=checkpoint, counters=counters)
-            self._repo.update_heartbeat(job_id)
+            self._lifecycle.mark_batch_completed(
+                job_id,
+                checkpoint,
+                counters,
+                batch_id=batch_id,
+                heartbeat=True,
+            )
             batch_id += 1
 
         await self._mark_job_complete(job_id, phases_started, counters, components.indexer)
@@ -138,12 +155,7 @@ class PipelineCoordinator:
             except (PhaseNotFoundError, PhaseRepositoryError):
                 logger.warning('Failed to mark loading phase failed (non-critical)', extra={'job_id': job_id})
 
-            self._repo.set_job_status(
-                job_id,
-                status='failed',
-                finished_at=datetime.now(timezone.utc),
-                last_error=message,
-            )
+            self._lifecycle.mark_failed(job_id, message)
             return
 
         for phase_name in ('loading', 'chunking', 'embedding', 'indexing'):
@@ -154,9 +166,4 @@ class PipelineCoordinator:
                 except (PhaseNotFoundError, PhaseRepositoryError):
                     logger.warning('Failed to complete phase (non-critical)', extra={'job_id': job_id, 'phase_name': phase_name})
 
-        self._repo.set_job_status(
-            job_id,
-            status='completed',
-            finished_at=datetime.now(timezone.utc),
-            last_error=None,
-        )
+        self._lifecycle.mark_completed(job_id)

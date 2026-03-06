@@ -6,10 +6,10 @@ See docs/SYSTEM_ARCHITECTURE.md for a pipeline overview.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
 from app.ingestion.application.job_gate import JobGate
+from app.ingestion.application.job_lifecycle import JobLifecycleManager
 from app.ingestion.application.pipeline_components import create_pipeline_components
 from app.ingestion.application.pipeline_coordinator import PipelineCoordinator
 from app.ingestion.application.policies import RetryPolicy, WorkflowDefinition
@@ -44,6 +44,7 @@ class IngestionOrchestrator:
         workflow: WorkflowDefinition | None = None,
         retry_policy: RetryPolicy | None = None,
         shutdown_manager: ShutdownManager | None = None,
+        lifecycle_manager: JobLifecycleManager | None = None,
     ) -> None:
         """
         Initialize orchestrator.
@@ -58,8 +59,8 @@ class IngestionOrchestrator:
         self.workflow = workflow or WorkflowDefinition()
         self.retry_policy = retry_policy or RetryPolicy()
         self.shutdown_manager = shutdown_manager
+        self.lifecycle = lifecycle_manager or JobLifecycleManager(self.repo)
         self._shutdown_event = asyncio.Event()
-        self._interrupted = False
         logger.info('IngestionOrchestrator initialized')
 
     def _safe_phase_repo_call(
@@ -151,21 +152,16 @@ class IngestionOrchestrator:
             try:
                 components = create_pipeline_components(kb_id, kb_config, checkpoint)
             except Exception as exc:
-                self.repo.set_job_status(
-                    job_id,
-                    status='failed',
-                    finished_at=datetime.now(timezone.utc),
-                    last_error=f'Initialization failed: {exc}',
-                )
+                self.lifecycle.mark_failed(job_id, f'Initialization failed: {exc}')
                 raise
 
             # 3. Process pipeline
             try:
-                job_gate = JobGate(self.repo)
+                job_gate = JobGate(self.repo, self.lifecycle)
                 coordinator = PipelineCoordinator(
-                    repo=self.repo,
                     phase_repo=self.phase_repo,
                     job_gate=job_gate,
+                    lifecycle=self.lifecycle,
                     is_shutdown_requested=self.is_shutdown_requested,
                     retry_policy=self.retry_policy,
                 )
@@ -179,12 +175,7 @@ class IngestionOrchestrator:
                 )
             except Exception as exc:
                 logger.exception(f'Ingestion failed: job_id={job_id}')
-                self.repo.set_job_status(
-                    job_id,
-                    status='failed',
-                    finished_at=datetime.now(timezone.utc),
-                    last_error=str(exc),
-                )
+                self.lifecycle.mark_failed(job_id, str(exc))
                 raise
         finally:
             if self.shutdown_manager is not None:

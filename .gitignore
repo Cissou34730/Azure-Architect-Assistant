@@ -231,3 +231,5 @@ backend/data/knowledge_bases/waf/checkpoint.json
 
 tests/
 __tests__/
+!frontend/tests/
+!frontend/tests/**

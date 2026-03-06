@@ -8,17 +8,15 @@ import pytest
 from app.services.ingestion_metrics_service import (
     IngestionMetrics,
     JobCounters,
-    QueueMetrics,
     apply_counter_overrides,
-    augment_with_phase_data,
-    build_queue_based_metrics,
+    build_persisted_status_metrics,
+    build_phase_based_metrics,
     derive_job_status,
     get_job_counters,
     get_phase_item_count,
     get_status_message,
     normalize_job_metrics,
 )
-
 
 # ---------------------------------------------------------------------------
 # get_phase_item_count
@@ -46,29 +44,34 @@ class TestGetPhaseItemCount:
 
 
 # ---------------------------------------------------------------------------
-# build_queue_based_metrics
+# build_phase_based_metrics
 # ---------------------------------------------------------------------------
 
-class TestBuildQueueBasedMetrics:
+class TestBuildPhaseBasedMetrics:
     def test_basic_counts(self):
-        qm = QueueMetrics(pending=10, processing=5, done=20, error=2)
-        result = build_queue_based_metrics(qm)
-        assert result["chunks_pending"] == 10
-        assert result["chunks_processing"] == 5
-        assert result["chunks_embedded"] == 20
-        assert result["chunks_failed"] == 2
-        assert result["chunks_queued"] == 37
+        kb_status = MagicMock(
+            phase_details=[
+                {"name": "loading", "items_processed": 10},
+                {"name": "chunking", "items_processed": 40, "items_total": 50},
+                {"name": "embedding", "items_processed": 30},
+                {"name": "indexing", "items_processed": 28},
+            ]
+        )
+
+        result = build_phase_based_metrics(kb_status)
+        assert result["chunks_pending"] == 22
+        assert result["chunks_processing"] == 0
+        assert result["chunks_embedded"] == 28
+        assert result["chunks_failed"] == 0
+        assert result["chunks_queued"] == 50
+        assert result["documents_crawled"] == 10
+        assert result["chunks_created"] == 40
 
     def test_empty_metrics(self):
-        result = build_queue_based_metrics(QueueMetrics())
+        kb_status = MagicMock(phase_details=[])
+        result = build_phase_based_metrics(kb_status)
         assert result["chunks_queued"] == 0
         assert result["documents_crawled"] == 0
-
-    def test_partial_metrics(self):
-        qm = QueueMetrics(done=50)
-        result = build_queue_based_metrics(qm)
-        assert result["chunks_embedded"] == 50
-        assert result["chunks_queued"] == 50
 
 
 # ---------------------------------------------------------------------------
@@ -94,8 +97,16 @@ class TestApplyCounterOverrides:
         apply_counter_overrides(metrics, counters)
         assert metrics["chunks_embedded"] == 100
 
+    def test_recomputes_pending_with_errors_and_skips(self):
+        metrics = IngestionMetrics(chunks_created=10, chunks_embedded=4, chunks_failed=0, chunks_queued=10)
+        counters = JobCounters(chunks_error=2, chunks_skipped=3)
+        apply_counter_overrides(metrics, counters)
+        assert metrics["chunks_failed"] == 2
+        assert metrics["chunks_pending"] == 1
+        assert metrics["chunks_processing"] == 0
+
     def test_empty_counters_no_change(self):
-        metrics = IngestionMetrics(documents_crawled=5, chunks_created=10, chunks_embedded=20)
+        metrics = IngestionMetrics(documents_crawled=5, chunks_created=10, chunks_embedded=20, chunks_queued=20)
         apply_counter_overrides(metrics, JobCounters())
         assert metrics["documents_crawled"] == 5
 
@@ -172,11 +183,21 @@ class TestGetStatusMessage:
 
 class TestGetJobCounters:
     def test_with_counters(self):
-        job_view = SimpleNamespace(counters={"docs_seen": 5, "chunks_seen": 50, "chunks_processed": 45})
+        job_view = SimpleNamespace(
+            counters={
+                "docs_seen": 5,
+                "chunks_seen": 50,
+                "chunks_processed": 45,
+                "chunks_error": 2,
+                "chunks_skipped": 3,
+            }
+        )
         result = get_job_counters(job_view)
         assert result["docs_seen"] == 5
         assert result["chunks_seen"] == 50
         assert result["chunks_processed"] == 45
+        assert result["chunks_error"] == 2
+        assert result["chunks_skipped"] == 3
 
     def test_none_job_view(self):
         result = get_job_counters(None)
@@ -207,15 +228,40 @@ class TestNormalizeJobMetrics:
                 {"name": "indexing", "items_processed": 40},
             ]
         )
-        qm = QueueMetrics(pending=5, processing=3, done=30, error=1)
-        counters = JobCounters(docs_seen=12, chunks_seen=55, chunks_processed=35)
+        counters = JobCounters(
+            docs_seen=12,
+            chunks_seen=55,
+            chunks_processed=35,
+            chunks_error=4,
+            chunks_skipped=6,
+        )
 
-        result = normalize_job_metrics(kb_status, qm, counters)
+        result = normalize_job_metrics(kb_status, counters)
         assert result["documents_crawled"] == 12
         assert result["chunks_created"] == 55
         assert result["chunks_embedded"] == 35
+        assert result["chunks_failed"] == 4
+        assert result["chunks_pending"] == 10
 
     def test_empty_inputs(self):
         kb_status = MagicMock(phase_details=[])
-        result = normalize_job_metrics(kb_status, QueueMetrics(), JobCounters())
+        result = normalize_job_metrics(kb_status, JobCounters())
         assert result["chunks_queued"] == 0
+
+
+class TestBuildPersistedStatusMetrics:
+    def test_maps_persisted_metrics_to_status_shape(self):
+        kb_status = MagicMock(
+            phase_details=[
+                {"name": "loading", "items_processed": 3},
+                {"name": "chunking", "items_processed": 10, "items_total": 12},
+                {"name": "indexing", "items_processed": 6},
+            ]
+        )
+
+        result = build_persisted_status_metrics(
+            kb_status,
+            JobCounters(chunks_processed=8, chunks_error=1, chunks_skipped=2),
+        )
+
+        assert result == {"pending": 1, "processing": 0, "done": 8, "error": 1}

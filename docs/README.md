@@ -37,6 +37,11 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 - [`backend/DATA_ROOT_STORAGE_POLICY.md`](./backend/DATA_ROOT_STORAGE_POLICY.md)
 - [`backend/TESTING_DEPENDENCY_INJECTION.md`](./backend/TESTING_DEPENDENCY_INJECTION.md)
 
+### Ingestion
+
+- [`ingestion/IMPLEMENTATION_PLAN.md`](./ingestion/IMPLEMENTATION_PLAN.md)
+- [`ingestion/review-ingestion-codebase-20260208.md`](./ingestion/review-ingestion-codebase-20260208.md)
+
 ### Frontend
 
 - [`frontend/README.md`](./frontend/README.md)
