@@ -463,3 +463,32 @@ class OpenAILLMProvider(LLMProvider):
     def get_model_name(self) -> str:
         return self.model
 
+    async def list_runtime_models(self) -> list[dict[str, str]]:
+        """List runtime-selectable OpenAI model identities."""
+        response = await self.client.models.list()
+        all_models = list(response.data)
+
+        # Exclude families never used for chat completions.
+        excluded_prefixes = (
+            "text-embedding",
+            "text-similarity",
+            "text-search",
+            "whisper",
+            "dall-e",
+            "tts",
+            "text-davinci-edit",
+            "text-moderation",
+            "davinci-",
+            "curie-",
+            "babbage-",
+            "ada-",
+        )
+
+        runtime_models = [
+            {"id": model.id, "model": model.id}
+            for model in all_models
+            if not model.id.startswith(excluded_prefixes)
+        ]
+        runtime_models.sort(key=lambda item: item["id"])
+        return runtime_models
+

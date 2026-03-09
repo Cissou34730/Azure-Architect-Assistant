@@ -79,6 +79,18 @@ class LLMProvider(ABC):
         """Get the current model name."""
         pass
 
+    @abstractmethod
+    async def list_runtime_models(self) -> list[dict[str, str]]:
+        """
+        List runtime-selectable LLM identities for this provider.
+
+        Returns:
+            List of dictionaries with keys:
+            - "id": runtime identity (model id or deployment name)
+            - "model": underlying model family when known
+        """
+        pass
+
 
 @dataclass
 class EmbeddingResponse:

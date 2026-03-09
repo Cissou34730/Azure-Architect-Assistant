@@ -81,11 +81,11 @@ For streaming, fallback is only attempted before the first token is emitted.
 
 `ModelsService` behavior:
 
-- OpenAI primary: list via OpenAI API with disk cache
-- Azure primary: list from configured deployment metadata (`AI_AZURE_LLM_DEPLOYMENT`, `AI_AZURE_LLM_DEPLOYMENTS`)
-- OpenAI primary + Azure fallback: if OpenAI model listing fails, return Azure deployment metadata list
+- OpenAI primary: list via `AIService.list_llm_runtime_models()` with disk cache
+- Azure primary: list via `AIService.list_llm_runtime_models()` (provider-backed Azure deployment discovery)
+- OpenAI primary + Azure fallback: if OpenAI model listing fails, query Azure via provider-backed runtime listing
 
-This avoids dependence on Azure OpenAI model listing semantics.
+`ModelsService` no longer imports provider SDK clients directly for listing. The model/deployment discovery path now flows through the centralized AI service/provider abstraction.
 
 ## LangGraph Path
 

@@ -247,6 +247,10 @@ class AIService:
         """Get current embedding model name."""
         return self._embedding_provider.get_model_name()
 
+    async def list_llm_runtime_models(self) -> list[dict[str, str]]:
+        """List runtime-selectable model identities for the active LLM provider."""
+        return await self._llm_provider.list_runtime_models()
+
 
 class AIServiceManager:
     """
