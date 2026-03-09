@@ -174,6 +174,8 @@ Expected behavior:
 
 - Azure primary: model list is derived from deployment metadata.
 - OpenAI primary + Azure fallback: OpenAI is attempted first; fallback only on transient failures.
+- Agent startup and health checks validate the selected AI provider configuration, so Azure-only deployments no longer depend on an OpenAI-specific readiness check.
+- KB creation defaults, ingestion embedding, and LlamaIndex adapter wiring follow the active provider configuration rather than assuming OpenAI model names.
 
 ## 10) Fallback validation (manual)
 

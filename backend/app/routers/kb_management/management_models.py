@@ -8,7 +8,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.core.app_settings import get_app_settings, get_kb_defaults
+from app.core.app_settings import get_kb_defaults
+from app.services.ai.config import AIConfig
 
 
 class SourceType(str, Enum):
@@ -31,8 +32,8 @@ class CreateKBRequest(BaseModel):
         ..., description="Source-specific configuration"
     )
     embedding_model: str = Field(
-        default_factory=lambda: get_app_settings().openai_embedding_model or get_app_settings().ai_openai_embedding_model,
-        description="OpenAI embedding model",
+        default_factory=lambda: AIConfig.default().active_embedding_model,
+        description="Configured embedding model or deployment",
     )
     chunk_size: int = Field(
         default_factory=lambda: get_kb_defaults().chunk_size,

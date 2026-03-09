@@ -117,6 +117,7 @@ async def get_agent_health(
     return AgentHealthResponse(
         status=str(health.get("status", "unknown")),
         mcp_client_connected=bool(health.get("mcp_client_connected", False)),
+        ai_runtime_configured=bool(health.get("ai_runtime_configured", False)),
         openai_configured=bool(health.get("openai_configured", False)),
     )
 

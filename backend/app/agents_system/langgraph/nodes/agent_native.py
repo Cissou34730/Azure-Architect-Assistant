@@ -16,7 +16,6 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.tools import BaseTool, Tool
-from langchain_openai import AzureChatOpenAI, ChatOpenAI
 from langgraph.graph import END, StateGraph, add_messages
 from langgraph.prebuilt import ToolNode
 
@@ -181,7 +180,7 @@ def _normalize_tool(tool: Any) -> BaseTool | None:
 
 
 async def _build_tools(mcp_client: MicrosoftLearnMCPClient, project_id: str = "") -> list[BaseTool]:
-    """Build a list of tools safe for ChatOpenAI.bind_tools + ToolNode."""
+    """Build a list of tools safe for provider-selected LangChain tool binding."""
     mcp_tools = await create_mcp_tools(mcp_client)
     kb_tools_any = create_kb_tools()
     aaa_tools = create_aaa_tools()
@@ -221,22 +220,8 @@ async def run_stage_aware_agent(
     tools = await _build_tools(mcp_client, project_id=project_id)
 
     ai_service = get_ai_service()
-    config = ai_service.config
     temperature: float = get_app_settings().chat_temperature
-    if config.llm_provider == "azure":
-        base_llm = AzureChatOpenAI(
-            azure_deployment=config.azure_llm_deployment,
-            api_version=config.azure_openai_api_version,
-            azure_endpoint=config.azure_openai_endpoint,
-            api_key=config.azure_openai_api_key,
-            temperature=temperature,
-        )
-    else:
-        base_llm = ChatOpenAI(
-            model=config.openai_llm_model,
-            temperature=temperature,
-            openai_api_key=config.openai_api_key,
-        )
+    base_llm = ai_service.create_chat_llm(temperature=temperature)
     llm = base_llm.bind_tools(tools)
 
     agent_graph = _compile_agent_graph(llm, tools, base_llm)

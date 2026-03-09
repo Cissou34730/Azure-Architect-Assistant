@@ -40,9 +40,15 @@ class SettingsModelsService:
         return ai_service.get_llm_model()
 
     async def set_model(self, *, model_id: str) -> dict[str, Any]:
-        probe_config = AIConfig.default()
-        if probe_config.llm_provider == "openai":
-            probe_config.openai_llm_model = model_id
+        base_probe_config = AIConfig.default()
+        if base_probe_config.llm_provider == "azure":
+            probe_config = base_probe_config.model_copy(
+                update={"azure_llm_deployment": model_id}
+            )
+        else:
+            probe_config = base_probe_config.model_copy(
+                update={"openai_llm_model": model_id}
+            )
 
         probe_service = AIServiceManager.create_probe(probe_config)
         _s = get_app_settings()

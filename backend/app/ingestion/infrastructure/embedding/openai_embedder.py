@@ -1,6 +1,6 @@
 """
-OpenAI Embedder
-Generates embeddings using OpenAI embedding models.
+AIService-backed document embedder.
+Kept under the legacy module path for compatibility.
 """
 
 import asyncio
@@ -10,7 +10,6 @@ from typing import Any
 
 from llama_index.core import Document as LlamaDocument
 
-from app.core.app_settings import get_openai_settings
 from app.ingestion.domain.enums import IngestionPhase
 from app.services.ai import get_ai_service
 
@@ -26,23 +25,21 @@ EMBEDDING_P_END = 75
 
 class OpenAIEmbedder:
     """
-    Generate embeddings using OpenAI embedding models.
+    Generate embeddings using the configured AIService embedding provider.
     Uses unified AIService for consistent configuration and monitoring.
     """
 
-    def __init__(self, model_name: str = 'text-embedding-3-small'):
+    def __init__(self, model_name: str | None = None):
         """
-        Initialize OpenAI embedder.
+        Initialize document embedder.
 
         Args:
-            model_name: OpenAI embedding model name
+            model_name: Embedding model or deployment identity
         """
-        if model_name is None:
-            model_name = get_openai_settings().embedding_model
-        self.model_name = model_name
-        self.logger = logging.getLogger(f'{__name__}.{self.__class__.__name__}')
         self.ai_service = get_ai_service()
-        self.logger.info(f'OpenAIEmbedder initialized with model: {model_name}')
+        self.model_name = model_name or self.ai_service.get_embedding_model()
+        self.logger = logging.getLogger(f'{__name__}.{self.__class__.__name__}')
+        self.logger.info(f'OpenAIEmbedder initialized with model: {self.model_name}')
 
     def validate_documents(self, documents: list[dict[str, Any]]) -> bool:
         """Validate document structure."""

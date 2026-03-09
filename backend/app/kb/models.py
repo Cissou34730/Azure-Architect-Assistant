@@ -4,34 +4,28 @@ import os
 from typing import Any, cast
 
 from app.core.app_settings import (
-    get_app_settings,
     get_kb_defaults,
     get_kb_storage_root,
-    get_openai_settings,
 )
+from app.services.ai.config import AIConfig
 
 
 class KBConfig:
     """Knowledge base configuration."""
 
     def __init__(self, config_dict: dict[str, Any]) -> None:
-        settings = get_app_settings()
-        openai_settings = get_openai_settings()
+        ai_config = AIConfig.default()
         kb_defaults = get_kb_defaults()
-        openai_model = openai_settings.model or settings.ai_openai_llm_model
-        openai_emb_model = (
-            openai_settings.embedding_model or settings.ai_openai_embedding_model
-        )
 
         self.id: str = config_dict["id"]
         self.name: str = config_dict["name"]
         self.description: str = config_dict.get("description", "")
         self.status: str = config_dict.get("status", "active")
         self.embedding_model: str = config_dict.get(
-            "embedding_model", openai_emb_model
+            "embedding_model", ai_config.active_embedding_model
         )
         self.generation_model: str = config_dict.get(
-            "generation_model", openai_model
+            "generation_model", ai_config.active_llm_model
         )
         self.chunk_size: int = config_dict.get("chunk_size", kb_defaults.chunk_size)
         self.chunk_overlap: int = config_dict.get(

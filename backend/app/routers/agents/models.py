@@ -68,5 +68,6 @@ class AgentHealthResponse(BaseModel):
         description="Health status: 'healthy', 'not_initialized', or 'unknown'"
     )
     mcp_client_connected: bool
+    ai_runtime_configured: bool
     openai_configured: bool
 

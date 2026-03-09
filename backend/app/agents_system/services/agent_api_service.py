@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -68,6 +67,7 @@ class AgentApiService:
             return {
                 "status": "not_initialized",
                 "mcp_client_connected": False,
+                "ai_runtime_configured": False,
                 "openai_configured": False,
             }
 

@@ -31,7 +31,7 @@ The backend agent runtime is LangGraph-only and provides:
 **ToolNode-based execution**
 
 - `nodes/agent_native.py` - LangGraph-native agent execution
-- Uses `ChatOpenAI.bind_tools()` + `ToolNode` for tool loop
+- Uses `AIService.create_chat_llm().bind_tools()` + `ToolNode` for provider-selected tool execution
 - Message-based trace (AIMessage, ToolMessage)
 - Respects iteration limits and timeouts
 

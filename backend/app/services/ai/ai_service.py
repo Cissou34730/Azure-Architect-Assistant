@@ -62,6 +62,38 @@ class AIService:
             self.config.fallback_provider if self.config.fallback_enabled else "disabled",
         )
 
+    def create_chat_llm(self, *, temperature: float | None = None, **kwargs: Any) -> Any:
+        """Create a provider-selected LangChain chat model for native agent runtimes."""
+        effective_temperature = (
+            temperature if temperature is not None else self.config.default_temperature
+        )
+
+        if self.config.llm_provider == "azure":
+            from langchain_openai import AzureChatOpenAI  # noqa: PLC0415
+
+            return AzureChatOpenAI(
+                azure_deployment=self.config.azure_llm_deployment,
+                api_version=self.config.azure_openai_api_version,
+                azure_endpoint=self.config.azure_openai_endpoint,
+                api_key=self.config.azure_openai_api_key,
+                temperature=effective_temperature,
+                **kwargs,
+            )
+
+        if self.config.llm_provider == "openai":
+            from langchain_openai import ChatOpenAI  # noqa: PLC0415
+
+            return ChatOpenAI(
+                model=self.config.openai_llm_model,
+                temperature=effective_temperature,
+                openai_api_key=self.config.openai_api_key,
+                **kwargs,
+            )
+
+        raise NotImplementedError(
+            f"Native LangChain adapter not implemented for provider: {self.config.llm_provider}"
+        )
+
     def _create_llm_provider(self, provider_name: str) -> LLMProvider:
         """Factory method to create LLM provider based on config."""
         if provider_name == "openai":

@@ -1,16 +1,15 @@
 """
 Embedder
 Pure async embedding generation for chunks.
-Extracts embedding logic without orchestration dependencies.
+Delegates embedding generation to the unified AIService.
 """
 
 import logging
 from dataclasses import dataclass
 from typing import Any
 
-from llama_index.embeddings.openai import OpenAIEmbedding
-
 from app.ingestion.domain.chunking.adapter import Chunk
+from app.services.ai import get_ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -39,16 +38,16 @@ class Embedder:
     Generates vector embeddings without orchestration coupling.
     """
 
-    def __init__(self, model_name: str = 'text-embedding-3-small'):
+    def __init__(self, model_name: str | None = None):
         """
         Initialize embedder.
 
         Args:
-            model_name: OpenAI embedding model name
+            model_name: Runtime embedding model/deployment identity
         """
-        self.model_name = model_name
-        self.embedding_client = OpenAIEmbedding(model=model_name)
-        logger.info(f'Embedder initialized: model={model_name}')
+        self.ai_service = get_ai_service()
+        self.model_name = model_name or self.ai_service.get_embedding_model()
+        logger.info(f'Embedder initialized: model={self.model_name}')
 
     async def embed(self, chunk: Chunk) -> EmbeddingResult:
         """
@@ -68,18 +67,14 @@ class Embedder:
             raise ValueError('Cannot embed empty chunk text')
 
         try:
-            # Log OpenAI API call
             logger.info(
-                f'→ Calling OpenAI API: model={self.model_name}, chunk={chunk.content_hash[:8]}, size={len(chunk.text)} chars'
+                f'→ Calling embedding provider: model={self.model_name}, chunk={chunk.content_hash[:8]}, size={len(chunk.text)} chars'
             )
 
-            # Generate embedding (sync call, but fast enough)
-            # LlamaIndex OpenAIEmbedding handles retries internally
-            vector = self.embedding_client.get_text_embedding(chunk.text)
+            vector = await self.ai_service.embed_text(chunk.text)
 
-            # Log successful response
             logger.info(
-                f'✓ OpenAI API response: {len(vector)} dimensions, chunk={chunk.content_hash[:8]}'
+                f'✓ Embedding response: {len(vector)} dimensions, chunk={chunk.content_hash[:8]}'
             )
 
             if not vector:
@@ -93,5 +88,5 @@ class Embedder:
             )
 
         except Exception as e:
-            logger.error(f'✗ OpenAI API error for chunk {chunk.content_hash[:8]}: {e}')
+            logger.error(f'✗ Embedding provider error for chunk {chunk.content_hash[:8]}: {e}')
             raise RuntimeError(f'Embedding generation failed: {e}') from e

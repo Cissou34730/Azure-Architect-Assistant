@@ -2,15 +2,24 @@
 
 import logging
 
-from app.core.app_settings import get_openai_settings
+from app.services.ai.config import AIConfig
 
 from ..services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
 logger = logging.getLogger(__name__)
 
 
+def _is_ai_runtime_configured() -> bool:
+    """Return True when the selected AI provider configuration is valid."""
+    try:
+        AIConfig.default().validate_provider_config()
+    except ValueError:
+        return False
+    return True
+
+
 class AgentRunner:
-    """Singleton holder for OpenAI and MCP configuration used by LangGraph nodes."""
+    """Singleton holder for AI runtime readiness and MCP resources used by LangGraph nodes."""
 
     _instance: "AgentRunner | None" = None
 
@@ -54,8 +63,10 @@ class AgentRunner:
         if not self.mcp_client:
             raise ValueError("MCP client must be provided to AgentRunner")
 
-        if not get_openai_settings().api_key:
-            raise ValueError("OpenAI API key not configured (SecretKeeper or environment)")
+        if not _is_ai_runtime_configured():
+            raise ValueError(
+                "Configured AI provider is not ready (SecretKeeper or environment)"
+            )
 
         logger.info("Agent system initialization complete")
 
@@ -74,13 +85,15 @@ class AgentRunner:
         Returns:
             Dictionary with health status
         """
-        openai_configured = bool(get_openai_settings().api_key)
-        status = "healthy" if self.mcp_client and openai_configured else "not_initialized"
+        ai_runtime_configured = _is_ai_runtime_configured()
+        status = "healthy" if self.mcp_client and ai_runtime_configured else "not_initialized"
         health = {"status": status}
         health.update(
             {
                 "mcp_client_connected": self.mcp_client is not None,
-                "openai_configured": openai_configured,
+                "ai_runtime_configured": ai_runtime_configured,
+                # Legacy response field name retained for API compatibility.
+                "openai_configured": ai_runtime_configured,
             }
         )
         return health

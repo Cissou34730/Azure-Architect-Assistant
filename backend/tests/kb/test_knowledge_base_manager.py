@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
+from app.services.ai.config import AIConfig
+
 # Patches applied before KBManager import resolves get_kb_storage_root
 _MODULE = "app.kb.knowledge_base_manager"
 
@@ -33,12 +35,18 @@ def kb_env(tmp_path: Path):
     config_path = tmp_path / "config.json"
     _write_config(config_path, [_sample_kb()])
 
+    ai_config = AIConfig(
+        llm_provider="openai",
+        embedding_provider="openai",
+        openai_api_key="test-openai-key",
+        openai_llm_model="gpt-4o-mini",
+        openai_embedding_model="text-embedding-3-small",
+    )
+
     with patch(f"{_MODULE}.get_kb_storage_root", return_value=tmp_path), \
          patch("app.kb.models.get_kb_storage_root", return_value=tmp_path), \
-         patch("app.kb.models.get_openai_settings") as mock_oai, \
+         patch("app.kb.models.AIConfig.default", return_value=ai_config), \
          patch("app.kb.models.get_kb_defaults") as mock_defs:
-        mock_oai.return_value.embedding_model = "text-embedding-3-small"
-        mock_oai.return_value.model = "gpt-4o-mini"
         mock_defs.return_value.chunk_size = 1024
         mock_defs.return_value.chunk_overlap = 200
 
@@ -146,12 +154,18 @@ class TestDeleteKB:
 class TestEdgeCases:
     def test_missing_config_file(self, tmp_path):
         """KBManager with non-existent config → empty knowledge_bases."""
+        ai_config = AIConfig(
+            llm_provider="openai",
+            embedding_provider="openai",
+            openai_api_key="test-openai-key",
+            openai_llm_model="gpt-4o-mini",
+            openai_embedding_model="text-embedding-3-small",
+        )
+
         with patch(f"{_MODULE}.get_kb_storage_root", return_value=tmp_path), \
              patch("app.kb.models.get_kb_storage_root", return_value=tmp_path), \
-             patch("app.kb.models.get_openai_settings") as mock_oai, \
+             patch("app.kb.models.AIConfig.default", return_value=ai_config), \
              patch("app.kb.models.get_kb_defaults") as mock_defs:
-            mock_oai.return_value.embedding_model = "text-embedding-3-small"
-            mock_oai.return_value.model = "gpt-4o-mini"
             mock_defs.return_value.chunk_size = 1024
             mock_defs.return_value.chunk_overlap = 200
 

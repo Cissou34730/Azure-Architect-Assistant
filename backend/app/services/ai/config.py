@@ -52,6 +52,20 @@ class AIConfig(BaseModel):
     max_requests_per_minute: Annotated[int, Field(gt=0)] = 60
     max_tokens_per_minute: Annotated[int, Field(gt=0)] = 150_000
 
+    @property
+    def active_llm_model(self) -> str:
+        """Return the configured runtime LLM identity for the selected provider."""
+        if self.llm_provider == "azure":
+            return self.azure_llm_deployment
+        return self.openai_llm_model
+
+    @property
+    def active_embedding_model(self) -> str:
+        """Return the configured runtime embedding identity for the selected provider."""
+        if self.embedding_provider == "azure":
+            return self.azure_embedding_deployment
+        return self.openai_embedding_model
+
     @classmethod
     def from_settings(cls, settings: AppSettings) -> AIConfig:
         """Build an AIConfig from the centralised AppSettings."""

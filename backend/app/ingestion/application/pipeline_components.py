@@ -8,6 +8,7 @@ from app.ingestion.domain.chunking.adapter import create_chunker_from_config
 from app.ingestion.domain.embedding import Embedder
 from app.ingestion.domain.indexing import Indexer
 from app.ingestion.domain.loading import fetch_batches
+from app.services.ai.config import AIConfig
 
 
 @dataclass
@@ -23,6 +24,11 @@ def create_pipeline_components(
 ) -> PipelineComponents:
     loader = fetch_batches(kb_config, checkpoint)
     chunker = create_chunker_from_config(kb_config)
-    embedder = Embedder(model_name=kb_config.get('embedding_model', 'text-embedding-3-small'))
+    embedder = Embedder(
+        model_name=kb_config.get(
+            'embedding_model',
+            AIConfig.default().active_embedding_model,
+        )
+    )
     indexer = Indexer(kb_id=kb_id)
     return PipelineComponents(loader=loader, chunker=chunker, embedder=embedder, indexer=indexer)

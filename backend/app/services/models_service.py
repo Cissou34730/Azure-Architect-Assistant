@@ -272,7 +272,7 @@ class ModelsService:
                 id=deployment,
                 name=self._format_model_name(deployment),
                 context_window=self._extract_context_window(
-                    self.config.openai_llm_model or deployment
+                    self.config.active_llm_model or deployment
                 ),
                 pricing=None,
             )

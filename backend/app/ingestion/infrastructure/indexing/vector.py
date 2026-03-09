@@ -50,8 +50,8 @@ class VectorIndexBuilder:
         ai_service = get_ai_service()
         self.kb_id = kb_id
         self.storage_dir = storage_dir
-        self.embedding_model = embedding_model or ai_service.config.openai_embedding_model
-        self.generation_model = generation_model or ai_service.config.openai_llm_model
+        self.embedding_model = embedding_model or ai_service.get_embedding_model()
+        self.generation_model = generation_model or ai_service.get_llm_model()
         self.logger = logging.getLogger(f'{__name__}.{self.__class__.__name__}')
 
         # Initialize LlamaIndex LLM using AIService adapter

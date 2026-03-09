@@ -99,7 +99,7 @@ class AIServiceLLM(CustomLLM):
         """
         super().__init__(
             ai_service=ai_service,
-            model_name=model_name or ai_service.config.openai_llm_model,
+            model_name=model_name or ai_service.get_llm_model(),
             temperature=temperature
             if temperature is not None
             else ai_service.config.default_temperature,
@@ -212,7 +212,7 @@ class AIServiceEmbedding(BaseEmbedding):
         """
         super().__init__(
             ai_service=ai_service,
-            model_name=model_name or ai_service.config.openai_embedding_model,
+            model_name=model_name or ai_service.get_embedding_model(),
             **kwargs,
         )
         logger.info("AIServiceEmbedding adapter initialized: model=%s", self.model_name)

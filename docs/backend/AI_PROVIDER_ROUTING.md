@@ -15,6 +15,7 @@ Application code still uses `AIService` as the only public entry point for:
 - `complete`
 - `embed_text`
 - `embed_batch`
+- provider-selected LangGraph chat adapter creation
 
 ## Configuration
 
@@ -88,9 +89,21 @@ This avoids dependence on Azure OpenAI model listing semantics.
 
 ## LangGraph Path
 
-`backend/app/agents_system/langgraph/nodes/agent_native.py` now builds its chat LLM through `AIService.create_chat_llm()` instead of constructing `ChatOpenAI` directly.
+`backend/app/agents_system/langgraph/nodes/agent_native.py` now builds its chat LLM through `AIService.create_chat_llm()` instead of constructing provider clients directly inside the LangGraph node.
 
 This keeps provider selection in one place and aligns runtime wiring with AI service configuration.
+
+At this stage, the native LangGraph tool-binding path centralizes provider selection and credentials in `AIService`, but fallback behavior still applies only to the `AIService.chat` / `complete` / `embed_*` call path until native failover is implemented.
+
+## KB And Ingestion Defaults
+
+Provider-neutral defaults now resolve from the active AI configuration rather than from OpenAI-only settings names:
+
+- KB config defaults use the active LLM and embedding identities
+- KB management request defaults use the active embedding identity
+- ingestion pipeline components default to the active embedding identity
+- the active ingestion embedder delegates to `AIService.embed_text()` rather than constructing `OpenAIEmbedding` directly
+- LlamaIndex adapters and vector indexing metadata use the active runtime model or deployment names
 
 ## Setup Runbook
 

@@ -103,5 +103,5 @@ Add new exceptions only when code-near maintainability clearly benefits.
 ---
 
 **Status**: Active  
-**Last Updated**: 2026-02-15  
+**Last Updated**: 2026-03-09  
 **Owner**: Engineering
