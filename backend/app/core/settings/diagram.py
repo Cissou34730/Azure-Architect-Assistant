@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator
 
-# Anchors – this file lives at backend/app/core/settings/diagram.py
+# Anchors - this file lives at backend/app/core/settings/diagram.py
 _BACKEND_ROOT: Path = Path(__file__).resolve().parents[3]
 
 

@@ -1,15 +1,15 @@
-"""
-SQLAlchemy models for WAF checklists.
-"""
+"""SQLAlchemy models for WAF checklists."""
+
+from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
 from enum import Enum as PyEnum
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
     JSON,
-    Column,
     DateTime,
     Enum,
     Float,
@@ -20,7 +20,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Import base from existing models
 from app.models.project import Base
@@ -58,17 +58,17 @@ class ChecklistTemplate(Base):
 
     __tablename__ = 'checklist_templates'
 
-    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    slug = Column(String(255), unique=True, nullable=False, index=True)
-    title = Column(String(500), nullable=False)
-    description = Column(Text, nullable=True)
-    version = Column(String(50), nullable=False)
-    source = Column(String(100), nullable=False)  # e.g., "microsoft-learn"
-    source_url = Column(String(1000), nullable=False)
-    source_version = Column(String(100), nullable=False)
-    content = Column(JSON, nullable=False)  # Original template structure
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    version: Mapped[str] = mapped_column(String(50), nullable=False)
+    source: Mapped[str] = mapped_column(String(100), nullable=False)
+    source_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    source_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    content: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
@@ -76,7 +76,7 @@ class ChecklistTemplate(Base):
     )
 
     # Relationships
-    checklists = relationship('Checklist', back_populates='template')
+    checklists: Mapped[list[Checklist]] = relationship('Checklist', back_populates='template')
 
     __table_args__ = (Index('ix_template_source_version', 'source', 'source_version'),)
 
@@ -88,27 +88,27 @@ class Checklist(Base):
 
     __tablename__ = 'checklists'
 
-    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    project_id = Column(String(36), ForeignKey('projects.id'), nullable=False)
-    template_id = Column(Uuid(as_uuid=True), ForeignKey('checklist_templates.id'), nullable=True)
-    template_slug = Column(String(255), nullable=True)
-    title = Column(String(500), nullable=False)
-    version = Column(String(50), nullable=True)
-    created_by = Column(String(255), nullable=True)
-    status = Column(
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[str] = mapped_column(String(36), ForeignKey('projects.id'), nullable=False)
+    template_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey('checklist_templates.id'), nullable=True)
+    template_slug: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[ChecklistStatus] = mapped_column(
         Enum(ChecklistStatus, name='checklist_status'), default=ChecklistStatus.OPEN, nullable=False
     )
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
     # Relationships
-    project = relationship('Project', back_populates='checklists')
-    template = relationship('ChecklistTemplate', back_populates='checklists')
-    items = relationship('ChecklistItem', back_populates='checklist', cascade='all, delete-orphan')
+    project: Mapped[Any] = relationship('Project', back_populates='checklists')
+    template: Mapped[ChecklistTemplate | None] = relationship('ChecklistTemplate', back_populates='checklists')
+    items: Mapped[list[ChecklistItem]] = relationship('ChecklistItem', back_populates='checklist', cascade='all, delete-orphan')
 
     __table_args__ = (
         Index('ix_checklist_project_id', 'project_id'),
@@ -124,27 +124,27 @@ class ChecklistItem(Base):
 
     __tablename__ = 'checklist_items'
 
-    id = Column(Uuid(as_uuid=True), primary_key=True)  # Deterministic UUID v5
-    checklist_id = Column(
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    checklist_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey('checklists.id', ondelete='CASCADE'), nullable=False
     )
-    template_item_id = Column(String(255), nullable=False)  # Original ID from template
-    title = Column(String(1000), nullable=False)
-    description = Column(Text, nullable=True)
-    pillar = Column(String(100), nullable=True)
-    severity = Column(Enum(SeverityLevel, name='severity_level'), nullable=False)
-    guidance = Column(JSON, nullable=True)  # Recommended fix
-    item_metadata = Column(JSON, nullable=True)  # Tags, remediations
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
+    template_item_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    title: Mapped[str] = mapped_column(String(1000), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pillar: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    severity: Mapped[SeverityLevel] = mapped_column(Enum(SeverityLevel, name='severity_level'), nullable=False)
+    guidance: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    item_metadata: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
     # Relationships
-    checklist = relationship('Checklist', back_populates='items')
-    evaluations = relationship(
+    checklist: Mapped[Checklist] = relationship('Checklist', back_populates='items')
+    evaluations: Mapped[list[ChecklistItemEvaluation]] = relationship(
         'ChecklistItemEvaluation', back_populates='item', cascade='all, delete-orphan'
     )
 
@@ -173,28 +173,28 @@ class ChecklistItemEvaluation(Base):
 
     __tablename__ = 'checklist_item_evaluations'
 
-    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    item_id = Column(
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    item_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey('checklist_items.id', ondelete='CASCADE'), nullable=False
     )
-    project_id = Column(String(36), ForeignKey('projects.id'), nullable=False)
-    evaluator = Column(String(255), nullable=False)  # tool/agent/user identifier
-    status = Column(Enum(EvaluationStatus, name='evaluation_status'), nullable=False)
-    score = Column(Float, nullable=True)
-    comment = Column(Text, nullable=True)
-    evidence = Column(JSON, nullable=True)  # artifacts, citations
-    source_type = Column(String(100), nullable=False)  # e.g., 'agent-validation', 'manual'
-    source_id = Column(String(255), nullable=True)  # tool run ID for deduplication
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
+    project_id: Mapped[str] = mapped_column(String(36), ForeignKey('projects.id'), nullable=False)
+    evaluator: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[EvaluationStatus] = mapped_column(Enum(EvaluationStatus, name='evaluation_status'), nullable=False)
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evidence: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
+    source_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    source_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
     # Relationships
-    item = relationship('ChecklistItem', back_populates='evaluations')
-    project = relationship('Project', back_populates='checklist_evaluations')
+    item: Mapped[ChecklistItem] = relationship('ChecklistItem', back_populates='evaluations')
+    project: Mapped[Any] = relationship('Project', back_populates='checklist_evaluations')
 
     __table_args__ = (
         Index('ix_evaluation_item_id', 'item_id'),

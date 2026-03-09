@@ -81,7 +81,7 @@ def _run_async_in_new_thread(coro: Any) -> Any:
         finally:
             new_loop.close()
 
-    fut = Future()
+    fut: Future[Any] = Future()
     t = threading.Thread(target=_thread_worker, args=(fut, coro))
     t.start()
     return fut.result()

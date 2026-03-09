@@ -1,5 +1,5 @@
 """
-Application settings – single entry point for all backend configuration.
+Application settings - single entry point for all backend configuration.
 
 ``AppSettings`` is assembled from domain-specific mixins (see
 ``app/core/settings/``).  Each mixin owns a coherent group of fields.
@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
+from importlib import import_module
 from pathlib import Path
+from typing import Protocol
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -36,6 +38,10 @@ from app.core.settings import (
 logger = logging.getLogger(__name__)
 
 
+class _SecretKeeperClient(Protocol):
+    def get_or_none(self, key: str) -> object: ...
+
+
 def _is_expected_secretkeeper_error(exc: Exception) -> bool:
     """Return True for non-fatal SecretKeeper runtime states."""
     return exc.__class__.__name__ in {
@@ -46,16 +52,16 @@ def _is_expected_secretkeeper_error(exc: Exception) -> bool:
 
 
 @lru_cache
-def _get_secretkeeper_client() -> object | None:
+def _get_secretkeeper_client() -> _SecretKeeperClient | None:
     """Create and cache SecretKeeper client when SDK and vault are available."""
     try:
-        from secretkeeper import SecretKeeper  # type: ignore[import-not-found]
+        secretkeeper_module = import_module("secretkeeper")
     except ImportError:
         logger.debug("SecretKeeper SDK not installed; falling back to env settings")
         return None
 
     try:
-        return SecretKeeper()
+        return secretkeeper_module.SecretKeeper()
     except Exception as exc:
         if _is_expected_secretkeeper_error(exc):
             logger.info("SecretKeeper unavailable during startup; using env fallback")

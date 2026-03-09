@@ -46,3 +46,13 @@ class AsyncTimingsMixin(BaseModel):
         default=2.0,
         description="Politeness delay (s) between consecutive website page fetches",
     )
+
+    @property
+    def ingestion_cancel_timeout(self) -> float:
+        """Compatibility alias for legacy cancel-timeout callers."""
+        return self.ingestion_shutdown_timeout
+
+    @property
+    def kb_operation_sleep(self) -> float:
+        """Compatibility alias for legacy KB delete callers."""
+        return self.kb_delete_sleep

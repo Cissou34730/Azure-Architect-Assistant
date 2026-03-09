@@ -9,7 +9,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +18,13 @@ class PromptLoader:
     """
     Load and cache agent prompts from external YAML files.
     Supports explicit hot-reload for dynamic prompt updates.
-    
+
     SINGLETON RATIONALE:
     - File I/O caching: YAML prompt files are loaded once and cached in memory
     - Hot-reload capability: Single instance can be explicitly reloaded on demand
     - Shared cache: Prompt templates are reused across all agent requests
     - Performance: Avoids repeated file system reads on every agent invocation
-    
+
     Testability:
     - Override via FastAPI dependency injection (see app.dependencies.get_prompt_loader)
     - Use set_instance() to inject mock in unit tests

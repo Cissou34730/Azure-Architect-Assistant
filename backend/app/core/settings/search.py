@@ -14,7 +14,7 @@ class SearchSettingsMixin(BaseModel):
     search_similarity_threshold: float = Field(
         default=0.38,
         description=(
-            "Minimum similarity score for retrieved results (0.0–1.0). "
+            "Minimum similarity score for retrieved results (0.0-1.0). "
             "Lower values increase recall."
         ),
     )

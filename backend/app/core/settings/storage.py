@@ -3,12 +3,23 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Final
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-# Anchors – this file lives at backend/app/core/settings/storage.py
+# Anchors - this file lives at backend/app/core/settings/storage.py
 _BACKEND_ROOT: Path = Path(__file__).resolve().parents[3]
 _REPO_ROOT: Path = Path(__file__).resolve().parents[4]
+_DATABASE_OR_FILE_SUFFIXES: Final[tuple[str, ...]] = ("_database", "_path")
+_DERIVED_STORAGE_PATHS: Final[dict[str, str]] = {
+    "projects_database": "projects.db",
+    "ingestion_database": "ingestion.db",
+    "diagrams_database": "diagrams.db",
+    "models_cache_path": "openai_models_cache.json",
+    "knowledge_bases_root": "knowledge_bases",
+    "project_documents_root": "project_documents",
+    "waf_template_cache_dir": "waf_template_cache",
+}
 
 
 def get_default_env_path() -> Path:
@@ -29,6 +40,43 @@ def _default_data_root() -> Path:
         return p if p.is_absolute() else (_BACKEND_ROOT / p).resolve()
 
     return _BACKEND_ROOT / "data"
+
+
+def _resolve_backend_path(path: Path) -> Path:
+    """Resolve relative paths against the backend root."""
+    return path if path.is_absolute() else (_BACKEND_ROOT / path).resolve()
+
+
+def _normalize_optional_path(value: object) -> Path | None | object:
+    """Normalize string and Path values while letting Pydantic reject other types."""
+    if value is None:
+        return None
+    if isinstance(value, Path):
+        return _resolve_backend_path(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        return _resolve_backend_path(Path(stripped))
+    return value
+
+
+def _ensure_within_data_root(*, field_name: str, path: Path, data_root: Path) -> Path:
+    """Resolve, validate, and create a storage path constrained to DATA_ROOT."""
+    resolved = path.resolve()
+    try:
+        resolved.relative_to(data_root)
+    except ValueError as exc:
+        env_name = field_name.upper()
+        raise ValueError(
+            f"{env_name} must be under DATA_ROOT ({data_root}), got {resolved}"
+        ) from exc
+
+    if field_name.endswith(_DATABASE_OR_FILE_SUFFIXES):
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        resolved.mkdir(parents=True, exist_ok=True)
+    return resolved
 
 
 class StorageSettingsMixin(BaseModel):
@@ -59,16 +107,13 @@ class StorageSettingsMixin(BaseModel):
         if value is None:
             return None
         if isinstance(value, Path):
-            return value if value.is_absolute() else (_BACKEND_ROOT / value).resolve()
+            return _resolve_backend_path(value)
         if isinstance(value, str):
-            v = value.strip()
-            if v.startswith("sqlite+aiosqlite:///"):
-                path_str = v.replace("sqlite+aiosqlite:///", "", 1)
-                p = Path(path_str)
-                return p if p.is_absolute() else (_BACKEND_ROOT / p).resolve()
-            p = Path(v)
-            return p if p.is_absolute() else (_BACKEND_ROOT / p).resolve()
-        return value  # type: ignore[return-value]
+            stripped = value.strip()
+            if stripped.startswith("sqlite+aiosqlite:///"):
+                stripped = stripped.replace("sqlite+aiosqlite:///", "", 1)
+            return _resolve_backend_path(Path(stripped))
+        return None
 
     @field_validator(
         "data_root",
@@ -82,20 +127,31 @@ class StorageSettingsMixin(BaseModel):
     )
     @classmethod
     def _normalize_storage_paths(cls, value: object) -> Path | None:
-        if value is None:
-            return None
-        if isinstance(value, Path):
-            return value if value.is_absolute() else (_BACKEND_ROOT / value).resolve()
-        if isinstance(value, str):
-            v = value.strip()
-            if not v:
-                return None
-            p = Path(v)
-            return p if p.is_absolute() else (_BACKEND_ROOT / p).resolve()
-        return value  # type: ignore[return-value]
+        normalized = _normalize_optional_path(value)
+        return normalized if isinstance(normalized, Path) or normalized is None else None
+
+    def _apply_default_storage_paths(self, *, data_root: Path) -> None:
+        for field_name, relative_path in _DERIVED_STORAGE_PATHS.items():
+            if getattr(self, field_name) is None:
+                setattr(self, field_name, data_root / relative_path)
+
+    def _resolve_storage_paths(self, *, data_root: Path) -> None:
+        for field_name in _DERIVED_STORAGE_PATHS:
+            path = getattr(self, field_name)
+            if path is None:
+                raise ValueError(f"{field_name.upper()} could not be resolved")
+            setattr(
+                self,
+                field_name,
+                _ensure_within_data_root(
+                    field_name=field_name,
+                    path=path,
+                    data_root=data_root,
+                ),
+            )
 
     @model_validator(mode="after")
-    def _derive_storage_paths(self) -> "StorageSettingsMixin":
+    def _derive_storage_paths(self) -> StorageSettingsMixin:
         data_root = self.data_root
         if data_root is None:
             raise ValueError("DATA_ROOT could not be resolved")
@@ -104,44 +160,7 @@ class StorageSettingsMixin(BaseModel):
         data_root.mkdir(parents=True, exist_ok=True)
         self.data_root = data_root
 
-        # Derive paths from data_root when not explicitly configured
-        if self.projects_database is None:
-            self.projects_database = data_root / "projects.db"
-        if self.ingestion_database is None:
-            self.ingestion_database = data_root / "ingestion.db"
-        if self.diagrams_database is None:
-            self.diagrams_database = data_root / "diagrams.db"
-        if self.models_cache_path is None:
-            self.models_cache_path = data_root / "openai_models_cache.json"
-        if self.knowledge_bases_root is None:
-            self.knowledge_bases_root = data_root / "knowledge_bases"
-        if self.project_documents_root is None:
-            self.project_documents_root = data_root / "project_documents"
-        if self.waf_template_cache_dir is None:
-            self.waf_template_cache_dir = data_root / "waf_template_cache"
-
-        storage_paths: dict[str, Path] = {
-            "PROJECTS_DATABASE": self.projects_database,         # type: ignore[dict-item]
-            "INGESTION_DATABASE": self.ingestion_database,       # type: ignore[dict-item]
-            "DIAGRAMS_DATABASE": self.diagrams_database,         # type: ignore[dict-item]
-            "MODELS_CACHE_PATH": self.models_cache_path,         # type: ignore[dict-item]
-            "KNOWLEDGE_BASES_ROOT": self.knowledge_bases_root,   # type: ignore[dict-item]
-            "PROJECT_DOCUMENTS_ROOT": self.project_documents_root,# type: ignore[dict-item]
-            "WAF_TEMPLATE_CACHE_DIR": self.waf_template_cache_dir,# type: ignore[dict-item]
-        }
-
-        for name, path in storage_paths.items():
-            resolved = path.resolve()
-            try:
-                resolved.relative_to(data_root)
-            except ValueError as exc:
-                raise ValueError(
-                    f"{name} must be under DATA_ROOT ({data_root}), got {resolved}"
-                ) from exc
-            if name.endswith("_DATABASE") or name.endswith("_PATH"):
-                resolved.parent.mkdir(parents=True, exist_ok=True)
-            else:
-                resolved.mkdir(parents=True, exist_ok=True)
-            setattr(self, name.lower(), resolved)
+        self._apply_default_storage_paths(data_root=data_root)
+        self._resolve_storage_paths(data_root=data_root)
 
         return self

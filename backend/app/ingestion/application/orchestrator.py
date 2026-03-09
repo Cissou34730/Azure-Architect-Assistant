@@ -11,7 +11,7 @@ from typing import Any
 from app.ingestion.application.job_gate import JobGate
 from app.ingestion.application.job_lifecycle import JobLifecycleManager
 from app.ingestion.application.pipeline_components import create_pipeline_components
-from app.ingestion.application.pipeline_coordinator import PipelineCoordinator
+from app.ingestion.application.pipeline_coordinator import PipelineCoordinator, PipelineRunRequest
 from app.ingestion.application.policies import RetryPolicy, WorkflowDefinition
 from app.ingestion.application.shutdown_manager import ShutdownManager
 from app.ingestion.domain.errors import PhaseNotFoundError, PhaseRepositoryError
@@ -166,12 +166,14 @@ class IngestionOrchestrator:
                     retry_policy=self.retry_policy,
                 )
                 await coordinator.run(
-                    job_id=job_id,
-                    kb_id=kb_id,
-                    kb_config=kb_config,
-                    components=components,
-                    checkpoint=checkpoint,
-                    counters=counters,
+                    PipelineRunRequest(
+                        job_id=job_id,
+                        kb_id=kb_id,
+                        kb_config=kb_config,
+                        components=components,
+                        checkpoint=checkpoint,
+                        counters=counters,
+                    )
                 )
             except Exception as exc:
                 logger.exception(f'Ingestion failed: job_id={job_id}')

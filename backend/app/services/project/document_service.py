@@ -33,7 +33,10 @@ class DocumentService:
     """Handles document upload and analysis for projects."""
 
     def __init__(self) -> None:
-        self.document_store_dir = get_app_settings().project_documents_root
+        document_store_dir = get_app_settings().project_documents_root
+        if document_store_dir is None:
+            raise ValueError("PROJECT_DOCUMENTS_ROOT must be configured")
+        self.document_store_dir = document_store_dir
 
     async def upload_documents(  # noqa: PLR0915
         self,
@@ -216,7 +219,7 @@ class DocumentService:
         result = await db.execute(
             select(ProjectDocument).where(ProjectDocument.project_id == project_id)
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     def _build_reference_documents(
         self, documents: list[ProjectDocument]
@@ -376,10 +379,10 @@ class DocumentService:
         state_data = ensure_aaa_defaults(state_data)
 
         state_json = json.dumps(state_data)
-        result = await db.execute(
+        state_result = await db.execute(
             select(ProjectState).where(ProjectState.project_id == project_id)
         )
-        existing_state = result.scalar_one_or_none()
+        existing_state = state_result.scalar_one_or_none()
 
         if existing_state:
             existing_state.state = state_json
@@ -411,15 +414,17 @@ class DocumentService:
         if not project:
             raise ValueError("Project not found")
 
-        result = await db.execute(
+        state_result = await db.execute(
             select(ProjectState).where(ProjectState.project_id == project_id)
         )
-        state_record = result.scalar_one_or_none()
+        state_record = state_result.scalar_one_or_none()
         if not state_record:
             raise ValueError(
                 "Project state not initialized. Please analyze documents first."
             )
 
+        if state_record.state is None:
+            raise ValueError("Project state payload is missing")
         state = json.loads(state_record.state)
 
         service = llm_service.get_llm_service()

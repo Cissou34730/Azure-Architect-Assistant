@@ -56,7 +56,7 @@ def _run_async(coro: Any) -> Any:
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        # No running loop – spin up a temporary one.
+        # No running loop - spin up a temporary one.
         loop = asyncio.new_event_loop()
         try:
             return loop.run_until_complete(coro)

@@ -7,6 +7,8 @@ during the conversation.
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 from typing import Any
 
@@ -21,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Maximum excerpt length returned per match
 _EXCERPT_CONTEXT_CHARS = 500
+_MIN_QUERY_WORD_LENGTH = 3
 
 
 def _find_keyword_excerpts(
@@ -34,7 +37,7 @@ def _find_keyword_excerpts(
     if not text or not query:
         return []
 
-    query_words = [w for w in query.lower().split() if len(w) >= 3]
+    query_words = [w for w in query.lower().split() if len(w) >= _MIN_QUERY_WORD_LENGTH]
     if not query_words:
         query_words = query.lower().split()
 
@@ -160,26 +163,27 @@ class ProjectDocumentSearchTool(BaseTool):
         self._project_id = project_id
 
     def _run(self, payload: str | dict | Any) -> str:
-        """Sync wrapper — delegates to async."""
-        import asyncio
+        """Sync wrapper - delegates to async."""
 
         return asyncio.run(self._arun(payload))
 
-    async def _arun(self, payload: str | dict | Any) -> str:
-        """Search project documents asynchronously."""
-        import json as _json
-
-        # Parse input — accept plain string or dict
+    @staticmethod
+    def _parse_query(payload: str | dict | Any) -> str:
         if isinstance(payload, str):
             try:
-                parsed = _json.loads(payload)
-                query = parsed.get("query", payload) if isinstance(parsed, dict) else payload
-            except _json.JSONDecodeError:
-                query = payload
-        elif isinstance(payload, dict):
-            query = payload.get("query", "")
-        else:
-            query = str(payload)
+                parsed = json.loads(payload)
+            except json.JSONDecodeError:
+                return payload
+            return parsed.get("query", payload) if isinstance(parsed, dict) else payload
+
+        if isinstance(payload, dict):
+            return str(payload.get("query", ""))
+
+        return str(payload)
+
+    async def _arun(self, payload: str | dict | Any) -> str:
+        """Search project documents asynchronously."""
+        query = self._parse_query(payload)
 
         project_id = self._project_id
         if not project_id or not query:

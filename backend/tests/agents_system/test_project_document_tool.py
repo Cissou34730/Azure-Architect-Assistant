@@ -6,8 +6,8 @@ Verifies that agents can query uploaded document content via a tool.
 from __future__ import annotations
 
 import json
-from typing import Any
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 import pytest
 import pytest_asyncio
@@ -146,3 +146,22 @@ class TestProjectDocumentSearchTool:
         tool = ProjectDocumentSearchTool()
         assert tool.name == "project_document_search"
         assert "uploaded" in tool.description.lower() or "document" in tool.description.lower()
+
+    @pytest.mark.asyncio
+    async def test_tool_accepts_json_string_payload(
+        self,
+        db: AsyncSession,
+        sample_project_with_docs,
+    ) -> None:
+        project_id = await sample_project_with_docs()
+
+        @asynccontextmanager
+        async def db_factory() -> AsyncGenerator[AsyncSession, None]:
+            yield db
+
+        tool = ProjectDocumentSearchTool(db_factory=db_factory, project_id=project_id)
+
+        result = await tool._arun(json.dumps({"query": "Azure AD"}))
+
+        assert "requirements.pdf" in result
+

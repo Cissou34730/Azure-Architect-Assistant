@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-# Anchors – this file lives at backend/app/core/settings/agents.py
+# Anchors - this file lives at backend/app/core/settings/agents.py
 _BACKEND_ROOT: Path = Path(__file__).resolve().parents[3]
 
 
@@ -31,7 +31,7 @@ class AgentsSettingsMixin(BaseModel):
         return value  # type: ignore[return-value]
 
     @model_validator(mode="after")
-    def _apply_langgraph_compat_flags(self) -> "AgentsSettingsMixin":
+    def _apply_langgraph_compat_flags(self) -> AgentsSettingsMixin:
         # Backend runtime is LangGraph-only.
         self.aaa_use_langgraph = True
         return self

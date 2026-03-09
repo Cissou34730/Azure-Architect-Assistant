@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -24,6 +25,22 @@ from ...services.pricing.pricing_normalizer import (
     find_best_retail_price_item,
 )
 from ...services.pricing.retail_prices_client import AzureRetailPricesClient
+
+_MIN_SEARCH_TERM_LENGTH = 3
+_MAX_DISCOVERED_ITEMS = 300
+_MAX_SEARCH_TERMS = 8
+_MIN_RELAXED_MATCH_SCORE = 3
+_RELAXED_MATCH_FIELDS = ("productName", "serviceName", "meterName")
+
+
+@dataclass(frozen=True)
+class _RelaxedMatchCriteria:
+    target_region: str
+    sku_name: str
+    product_name_contains: str
+    meter_name_contains: str
+    service_name: str
+    terms: tuple[str, ...]
 
 
 def _now_iso() -> str:
@@ -265,20 +282,20 @@ def _extract_search_terms(line: PricingLineItemInput) -> list[str]:
         text = seed.strip()
         if not text:
             continue
-        if len(text) >= 3:
+        if len(text) >= _MIN_SEARCH_TERM_LENGTH:
             key = text.lower()
             if key not in seen:
                 seen.add(key)
                 terms.append(text)
         for token in re.findall(r"[A-Za-z0-9][A-Za-z0-9._-]{1,}", text):
             key = token.lower()
-            if len(key) < 3 or key in stop_words:
+            if len(key) < _MIN_SEARCH_TERM_LENGTH or key in stop_words:
                 continue
             if key in seen:
                 continue
             seen.add(key)
             terms.append(token)
-    return terms[:8]
+    return terms[:_MAX_SEARCH_TERMS]
 
 
 def _merge_unique_items(
@@ -314,13 +331,12 @@ async def _discover_items_for_line(
     terms = _extract_search_terms(line)
     attempts: list[dict[str, Any]] = []
     discovered: list[dict[str, Any]] = []
-    fields = ("productName", "serviceName", "meterName")
 
     for term in terms:
-        if len(discovered) >= 300:
+        if len(discovered) >= _MAX_DISCOVERED_ITEMS:
             break
         safe_term = term.replace("'", "''")
-        for field in fields:
+        for field in _RELAXED_MATCH_FIELDS:
             filter_expr = f"armRegionName eq '{region}' and contains({field}, '{safe_term}')"
             line_items, meta = await client.query_all_with_meta(
                 filter_expr=filter_expr,
@@ -337,10 +353,63 @@ async def _discover_items_for_line(
                 }
             )
             discovered = _merge_unique_items(discovered, line_items)
-            if len(discovered) >= 300:
+            if len(discovered) >= _MAX_DISCOVERED_ITEMS:
                 break
 
     return discovered, attempts
+
+
+def _normalize_match_value(value: str | None) -> str:
+    return value.strip().lower() if value else ""
+
+
+def _build_relaxed_match_criteria(line: PricingLineItemInput) -> _RelaxedMatchCriteria:
+    return _RelaxedMatchCriteria(
+        target_region=_normalize_match_value(line.arm_region_name),
+        sku_name=_normalize_match_value(line.sku_name),
+        product_name_contains=_normalize_match_value(line.product_name_contains),
+        meter_name_contains=_normalize_match_value(line.meter_name_contains),
+        service_name=_normalize_match_value(line.service_name),
+        terms=tuple(_normalize_match_value(term) for term in _extract_search_terms(line)),
+    )
+
+
+def _score_catalog_item(
+    *,
+    item: dict[str, Any],
+    criteria: _RelaxedMatchCriteria,
+) -> tuple[int, float] | None:
+    if _normalize_match_value(str(item.get("armRegionName") or "")) != criteria.target_region:
+        return None
+
+    unit_price = extract_unit_price(item)
+    if unit_price is None or unit_price <= 0:
+        return None
+
+    service = _normalize_match_value(str(item.get("serviceName") or ""))
+    product = _normalize_match_value(str(item.get("productName") or ""))
+    meter = _normalize_match_value(str(item.get("meterName") or ""))
+    sku = _normalize_match_value(str(item.get("armSkuName") or item.get("skuName") or ""))
+    item_type = _normalize_match_value(str(item.get("type") or ""))
+
+    score = 0
+    if criteria.sku_name and criteria.sku_name == sku:
+        score += 15
+    if criteria.product_name_contains and criteria.product_name_contains in product:
+        score += 8
+    if criteria.meter_name_contains and criteria.meter_name_contains in meter:
+        score += 6
+    if criteria.service_name and criteria.service_name in service:
+        score += 5
+
+    for term in criteria.terms:
+        if term and (term in service or term in product or term in meter or term in sku):
+            score += 1
+
+    if item_type == "consumption":
+        score += 2
+
+    return score, unit_price
 
 
 def _find_relaxed_match(
@@ -348,50 +417,24 @@ def _find_relaxed_match(
     line: PricingLineItemInput,
     catalog_items: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
-    target_region = line.arm_region_name.strip().lower()
-    terms = [t.lower() for t in _extract_search_terms(line)]
+    criteria = _build_relaxed_match_criteria(line)
 
     best_item: dict[str, Any] | None = None
     best_score = -1
     best_price = float("inf")
 
     for item in catalog_items:
-        if str(item.get("armRegionName") or "").strip().lower() != target_region:
+        scored = _score_catalog_item(item=item, criteria=criteria)
+        if scored is None:
             continue
-
-        unit_price = extract_unit_price(item)
-        if unit_price is None or unit_price <= 0:
-            continue
-
-        service = str(item.get("serviceName") or "").lower()
-        product = str(item.get("productName") or "").lower()
-        meter = str(item.get("meterName") or "").lower()
-        sku = str(item.get("armSkuName") or item.get("skuName") or "").lower()
-        item_type = str(item.get("type") or "").lower()
-
-        score = 0
-        if line.sku_name and line.sku_name.strip().lower() == sku:
-            score += 15
-        if line.product_name_contains and line.product_name_contains.strip().lower() in product:
-            score += 8
-        if line.meter_name_contains and line.meter_name_contains.strip().lower() in meter:
-            score += 6
-        if line.service_name and line.service_name.strip().lower() in service:
-            score += 5
-
-        for term in terms:
-            if term in service or term in product or term in meter or term in sku:
-                score += 1
-
-        if item_type == "consumption":
-            score += 2
+        score, unit_price = scored
 
         if score > best_score or (score == best_score and unit_price < best_price):
             best_item = item
             best_score = score
             best_price = unit_price
 
-    if best_score < 3:
+    if best_score < _MIN_RELAXED_MATCH_SCORE:
         return None
     return best_item
 

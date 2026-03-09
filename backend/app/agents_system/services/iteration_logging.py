@@ -190,7 +190,8 @@ def _has_items(state: dict[str, Any], key: str) -> bool:
 def _check_requirements_gaps(state: dict[str, Any], questions: list[str]) -> None:
     """Check for missing NFRs or requirements."""
     requirements_ok = _has_items(state, "requirements")
-    nfrs = state.get("nfrs") if isinstance(state.get("nfrs"), dict) else {}
+    raw_nfrs = state.get("nfrs")
+    nfrs: dict[str, Any] = raw_nfrs if isinstance(raw_nfrs, dict) else {}
 
     if not requirements_ok:
         questions.append(

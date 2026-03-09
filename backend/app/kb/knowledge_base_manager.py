@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from app.core.app_settings import get_app_settings, get_kb_storage_root
+from app.kb.service import KnowledgeBaseService
 
 from .models import KBConfig
 
@@ -261,18 +262,16 @@ class KBManager:
     def preload_all_indices(self) -> dict[str, float]:
         """
         Preload indices for all active knowledge bases at startup.
-        
+
         This loads all vector indices into memory to avoid lazy-loading delays
         on first queries. Indices are cached globally via KnowledgeBaseService._INDEX_CACHE.
-        
+
         Returns:
             Dict mapping KB ID to load time in seconds
-            
+
         Raises:
             Exception: If any index fails to load (will log error but continue)
         """
-        from app.kb.service import KnowledgeBaseService
-
         timing: dict[str, float] = {}
         active_kbs = self.get_active_kbs()
 

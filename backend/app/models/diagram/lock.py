@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import cast
 
 from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
@@ -43,7 +44,8 @@ class Lock(Base):
 
     def is_expired(self) -> bool:
         """Check if lock has expired."""
-        return datetime.now(timezone.utc) > self.lock_expires_at
+        expires_at = cast(datetime, self.lock_expires_at)
+        return datetime.now(timezone.utc) > expires_at
 
     def __repr__(self) -> str:
         return f"<Lock(id={self.id}, held_by={self.lock_held_by}, expires={self.lock_expires_at})>"

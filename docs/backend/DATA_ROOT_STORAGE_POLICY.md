@@ -24,6 +24,12 @@ These paths are derived from `DATA_ROOT` unless explicitly overridden with env v
 
 `AppSettings` validates at startup that all storage/database paths are inside `DATA_ROOT`.
 
+During validation, `StorageSettingsMixin` also:
+
+- normalizes relative storage paths against the backend root
+- derives unset runtime paths from `DATA_ROOT`
+- creates the parent directories needed for database/file paths and the directories needed for root paths
+
 If any path is outside, startup fails with a clear validation error.
 
 ## Migration Notes

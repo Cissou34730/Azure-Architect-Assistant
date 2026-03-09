@@ -25,23 +25,23 @@ class ChatService:
 
     async def _get_project_context(
         self, project_id: str, db: AsyncSession
-    ) -> tuple[Project, dict[str, Any]]:
+    ) -> tuple[ProjectState, dict[str, Any]]:
         """Load project and its current state record from DB."""
         result = await db.execute(select(Project).where(Project.id == project_id))
         project = result.scalar_one_or_none()
         if not project:
             raise ValueError("Project not found")
 
-        result = await db.execute(
+        state_result = await db.execute(
             select(ProjectState).where(ProjectState.project_id == project_id)
         )
-        state_record = result.scalar_one_or_none()
+        state_record = state_result.scalar_one_or_none()
         if not state_record:
             raise ValueError(
                 "Project state not initialized. Please analyze documents first."
             )
 
-        return project, json.loads(state_record.state)
+        return state_record, json.loads(state_record.state)
 
     def _should_query_kb(self, message: str) -> bool:
         """Heuristic to decide if message warrants a KB lookup."""

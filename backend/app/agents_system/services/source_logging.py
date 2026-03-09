@@ -36,7 +36,7 @@ def new_reference_document(
         category=category,
         title=title,
         url=url,
-        accessedAt=accessed_at or _now_iso(),
+        accessed_at=accessed_at or _now_iso(),
     )
 
 
@@ -51,11 +51,11 @@ def new_mcp_query(  # noqa: PLR0913
 ) -> MCPQuery:
     return MCPQuery(
         id=query_id or str(uuid.uuid4()),
-        queryText=query_text,
+        query_text=query_text,
         phase=phase,
-        resultUrls=result_urls or [],
-        selectedSnippets=selected_snippets,
-        executedAt=executed_at or _now_iso(),
+        result_urls=result_urls or [],
+        selected_snippets=selected_snippets,
+        executed_at=executed_at or _now_iso(),
     )
 
 
@@ -69,7 +69,7 @@ def new_reference_citation(
     return SourceCitation(
         id=citation_id or str(uuid.uuid4()),
         kind=SourceCitationKind.reference_document,
-        referenceDocumentId=reference_document_id,
+        reference_document_id=reference_document_id,
         url=url,
         note=note,
     )
@@ -85,7 +85,7 @@ def new_mcp_citation(
     return SourceCitation(
         id=citation_id or str(uuid.uuid4()),
         kind=SourceCitationKind.mcp,
-        mcpQueryId=mcp_query_id,
+        mcp_query_id=mcp_query_id,
         url=url,
         note=note,
     )

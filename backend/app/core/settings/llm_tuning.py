@@ -40,6 +40,10 @@ class LLMTuningSettingsMixin(BaseModel):
         default=64,
         description="Max tokens used for the lightweight model-availability probe",
     )
+    models_probe_temperature: float = Field(
+        default=0.0,
+        description="Temperature used for the lightweight model-availability probe",
+    )
 
     # ── Decision thresholds ───────────────────────────────────────────────────
     mindmap_confidence_threshold: float = Field(

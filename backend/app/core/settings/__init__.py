@@ -15,8 +15,8 @@ from .storage import StorageSettingsMixin, get_default_env_path
 from .waf import WafSettingsMixin
 
 __all__ = [
-    "AgentsSettingsMixin",
     "AISettingsMixin",
+    "AgentsSettingsMixin",
     "AsyncTimingsMixin",
     "DiagramSettingsMixin",
     "IngestionQueueDefaults",

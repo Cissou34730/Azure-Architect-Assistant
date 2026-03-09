@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -8,6 +9,13 @@ from app.ingestion.domain.indexing import Indexer
 from app.ingestion.infrastructure.job_repository import JobRepository
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class BatchProgress:
+    batch_id: int
+    document_count: int
+    chunk_count: int
 
 
 class JobLifecycleManager:
@@ -81,13 +89,11 @@ class JobLifecycleManager:
         checkpoint: dict[str, Any],
         counters: dict[str, Any],
         *,
-        batch_id: int,
-        batch_doc_count: int,
-        batch_chunk_count: int,
+        batch: BatchProgress,
     ) -> None:
-        checkpoint[self.ACTIVE_BATCH_ID] = batch_id
-        checkpoint[self.ACTIVE_BATCH_DOCS] = batch_doc_count
-        checkpoint[self.ACTIVE_BATCH_CHUNKS] = batch_chunk_count
+        checkpoint[self.ACTIVE_BATCH_ID] = batch.batch_id
+        checkpoint[self.ACTIVE_BATCH_DOCS] = batch.document_count
+        checkpoint[self.ACTIVE_BATCH_CHUNKS] = batch.chunk_count
         checkpoint[self.RESUME_CHUNK_INDEX] = -1
         self.persist_progress(job_id, checkpoint, counters)
 

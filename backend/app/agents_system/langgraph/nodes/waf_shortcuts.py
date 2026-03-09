@@ -254,8 +254,13 @@ def _extract_pillar_items(
         return []
 
     raw_items = waf.get("items")
-    items_iterable = raw_items.values() if isinstance(raw_items, dict) else raw_items
-    if not isinstance(items_iterable, (list, tuple)) and not hasattr(items_iterable, "__iter__"):
+    if isinstance(raw_items, dict):
+        items_iterable: list[Any] = list(raw_items.values())
+    elif isinstance(raw_items, list):
+        items_iterable = raw_items
+    elif isinstance(raw_items, tuple):
+        items_iterable = list(raw_items)
+    else:
         return []
 
     selected: list[dict[str, str]] = []

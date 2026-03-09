@@ -3,15 +3,19 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from app.ingestion.application.job_gate import JobGate
-from app.ingestion.application.job_lifecycle import JobLifecycleManager
+from app.ingestion.application.job_lifecycle import BatchProgress, JobLifecycleManager
 from app.ingestion.application.pipeline_components import PipelineComponents
 from app.ingestion.application.pipeline_stage import PipelineContext
 from app.ingestion.application.policies import RetryPolicy
 from app.ingestion.application.stages.chunking_stage import ChunkingStage
-from app.ingestion.application.stages.embedding_stage import EmbeddingIndexingStage
+from app.ingestion.application.stages.embedding_stage import (
+    EmbeddingIndexingStage,
+    EmbeddingProcessingDeps,
+)
 from app.ingestion.application.stages.loading_stage import LoadingStage
 from app.ingestion.domain.errors import PhaseNotFoundError, PhaseRepositoryError
 from app.ingestion.domain.indexing import Indexer
@@ -20,6 +24,16 @@ from app.ingestion.infrastructure.phase_repository import PhaseRepository
 logger = logging.getLogger(__name__)
 
 _END_OF_LOADER = object()
+
+
+@dataclass(frozen=True)
+class PipelineRunRequest:
+    job_id: str
+    kb_id: str
+    kb_config: dict[str, Any]
+    components: PipelineComponents
+    checkpoint: dict[str, Any]
+    counters: dict[str, int]
 
 
 def _next_or_end(iterator: Any) -> Any:
@@ -46,58 +60,55 @@ class PipelineCoordinator:
 
     async def run(
         self,
-        job_id: str,
-        kb_id: str,
-        kb_config: dict[str, Any],
-        components: PipelineComponents,
-        checkpoint: dict[str, Any],
-        counters: dict[str, int],
+        request: PipelineRunRequest,
     ) -> None:
-        start_batch_id = int(checkpoint.get('last_batch_id', -1)) + 1
+        start_batch_id = int(request.checkpoint.get('last_batch_id', -1)) + 1
 
         phases_started: dict[str, bool] = {'chunking': False, 'embedding': False, 'indexing': False}
         pipeline_context = PipelineContext(
-            kb_id=kb_id,
-            job_id=job_id,
-            config=kb_config,
-            checkpoint=checkpoint,
-            counters=counters,
+            kb_id=request.kb_id,
+            job_id=request.job_id,
+            config=request.kb_config,
+            checkpoint=request.checkpoint,
+            counters=request.counters,
             results={'phases_started': phases_started},
         )
 
         loading_stage = LoadingStage(self._phase_repo)
-        chunking_stage = ChunkingStage(self._phase_repo, components.chunker)
+        chunking_stage = ChunkingStage(self._phase_repo, request.components.chunker)
         embedding_stage = EmbeddingIndexingStage(
             phase_repo=self._phase_repo,
             lifecycle=self._lifecycle,
-            retry_policy=self._retry_policy,
-            embedder=components.embedder,
-            indexer=components.indexer,
-            gate_check=self._job_gate.check,
-            is_shutdown_requested=self._is_shutdown_requested,
+            processing_deps=EmbeddingProcessingDeps(
+                retry_policy=self._retry_policy,
+                embedder=request.components.embedder,
+                indexer=request.components.indexer,
+                gate_check=self._job_gate.check,
+                is_shutdown_requested=self._is_shutdown_requested,
+            ),
         )
 
         batch_id = start_batch_id
         while True:
-            batch = await asyncio.to_thread(_next_or_end, components.loader)
+            batch = await asyncio.to_thread(_next_or_end, request.components.loader)
             if batch is _END_OF_LOADER:
-                logger.info('Loader exhausted', extra={'kb_id': kb_id, 'job_id': job_id, 'last_batch_id': batch_id - 1})
+                logger.info('Loader exhausted', extra={'kb_id': request.kb_id, 'job_id': request.job_id, 'last_batch_id': batch_id - 1})
                 break
 
             pipeline_context.set_batch_state(
                 batch=batch,
                 batch_id=batch_id,
-                resume_active_batch=self._lifecycle.is_resuming_batch(checkpoint, batch_id),
-                resume_chunk_index=self._lifecycle.get_resume_chunk_index(checkpoint, batch_id),
+                resume_active_batch=self._lifecycle.is_resuming_batch(request.checkpoint, batch_id),
+                resume_chunk_index=self._lifecycle.get_resume_chunk_index(request.checkpoint, batch_id),
             )
 
             if self._is_shutdown_requested():
-                logger.warning('Shutdown requested - pausing job at batch', extra={'job_id': job_id, 'batch_id': batch_id})
-                self._lifecycle.pause(job_id, checkpoint, counters)
+                logger.warning('Shutdown requested - pausing job at batch', extra={'job_id': request.job_id, 'batch_id': batch_id})
+                self._lifecycle.pause(request.job_id, request.checkpoint, request.counters)
                 return
 
-            if not await self._job_gate.check(job_id, kb_id, components.indexer):
-                logger.info('Pipeline stopped at gate check', extra={'job_id': job_id, 'batch_id': batch_id})
+            if not await self._job_gate.check(request.job_id, request.kb_id, request.components.indexer):
+                logger.info('Pipeline stopped at gate check', extra={'job_id': request.job_id, 'batch_id': batch_id})
                 return
 
             await loading_stage.execute(pipeline_context)
@@ -106,30 +117,37 @@ class PipelineCoordinator:
             if not pipeline_context.is_resuming_batch():
                 chunks = pipeline_context.require_chunks()
                 self._lifecycle.mark_batch_started(
-                    job_id,
-                    checkpoint,
-                    counters,
-                    batch_id=batch_id,
-                    batch_doc_count=len(pipeline_context.require_batch()),
-                    batch_chunk_count=len(chunks),
+                    request.job_id,
+                    request.checkpoint,
+                    request.counters,
+                    batch=BatchProgress(
+                        batch_id=batch_id,
+                        document_count=len(pipeline_context.require_batch()),
+                        chunk_count=len(chunks),
+                    ),
                 )
 
             await embedding_stage.execute(pipeline_context)
             if not pipeline_context.should_continue():
                 return
 
-            await asyncio.to_thread(components.indexer.persist)
+            await asyncio.to_thread(request.components.indexer.persist)
 
             self._lifecycle.mark_batch_completed(
-                job_id,
-                checkpoint,
-                counters,
+                request.job_id,
+                request.checkpoint,
+                request.counters,
                 batch_id=batch_id,
                 heartbeat=True,
             )
             batch_id += 1
 
-        await self._mark_job_complete(job_id, phases_started, counters, components.indexer)
+        await self._mark_job_complete(
+            request.job_id,
+            phases_started,
+            request.counters,
+            request.components.indexer,
+        )
 
     async def _mark_job_complete(
         self,

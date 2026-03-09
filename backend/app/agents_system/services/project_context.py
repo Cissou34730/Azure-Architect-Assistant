@@ -5,6 +5,7 @@ Provides read/write access to ProjectState from database.
 
 import json
 import logging
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from typing import Any
 
@@ -50,7 +51,7 @@ def _document_to_reference_payload(document: ProjectDocument) -> dict[str, Any]:
     }
 
 
-def _compute_project_document_stats(documents: list[ProjectDocument]) -> dict[str, Any]:
+def _compute_project_document_stats(documents: Sequence[ProjectDocument]) -> dict[str, Any]:
     parsed_documents = 0
     failures: list[dict[str, Any]] = []
     for document in documents:
@@ -105,10 +106,10 @@ async def read_project_state(project_id: str, db: AsyncSession) -> dict[str, Any
     Returns:
         ProjectState dictionary or None if not found
     """
-    result = await db.execute(
+    state_result = await db.execute(
         select(ProjectState).where(ProjectState.project_id == project_id)
     )
-    state_record = result.scalar_one_or_none()
+    state_record = state_result.scalar_one_or_none()
 
     if not state_record:
         logger.warning(f"No ProjectState found for project {project_id}")
@@ -178,10 +179,10 @@ async def update_project_state(
         raise ValueError(f"Project {project_id} not found")
 
     # Get current state
-    result = await db.execute(
+    state_result = await db.execute(
         select(ProjectState).where(ProjectState.project_id == project_id)
     )
-    state_record = result.scalar_one_or_none()
+    state_record = state_result.scalar_one_or_none()
 
     if not state_record:
         raise ValueError(f"ProjectState not initialized for project {project_id}")

@@ -1,5 +1,5 @@
 """
-AI Service Configuration – focused DTO populated from AppSettings.
+AI Service Configuration - focused DTO populated from AppSettings.
 
 ``AIConfig`` is a Pydantic model.  It is **not** a
 ``BaseSettings`` subclass and does **not** read from environment variables

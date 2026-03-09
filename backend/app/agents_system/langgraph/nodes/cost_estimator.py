@@ -7,6 +7,7 @@ using the Azure Retail Prices API and providing optimization recommendations.
 
 import logging
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from app.agents_system.services.state_update_parser import extract_state_updates
@@ -15,6 +16,13 @@ from app.agents_system.tools.aaa_cost_tool import AAAGenerateCostTool
 from ..state import GraphState
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _PricingUsageInputs:
+    instance_count: int
+    storage_gb: int
+    monthly_exec: int
 
 
 async def cost_estimator_node(state: GraphState) -> dict[str, Any]:
@@ -44,7 +52,10 @@ async def cost_estimator_node(state: GraphState) -> dict[str, Any]:
 
     try:
         # Prepare handoff context for cost estimator
-        handoff_context = state.get("agent_handoff_context", {})
+        raw_handoff_context = state.get("agent_handoff_context")
+        handoff_context: dict[str, Any] = (
+            raw_handoff_context if isinstance(raw_handoff_context, dict) else {}
+        )
         project_context = handoff_context.get("project_context", "")
         architecture = handoff_context.get("architecture", "")
         resource_list = handoff_context.get("resource_list", [])
@@ -291,14 +302,11 @@ def _needs_pricing_clarification(
         return True
 
     # If there is no architecture and no sizing hints, avoid tool loops.
-    if (
+    return (
         architecture_missing
         and not minimum_inputs_available
         and not baseline_requested
-    ):
-        return True
-
-    return False
+    )
 
 
 def _is_architecture_missing(architecture: Any) -> bool:
@@ -431,6 +439,11 @@ def _build_heuristic_pricing_lines(
     monthly_exec = _extract_first_int(
         combined_text, r"(\d[\d,]*)\s*(?:executions|execution|requests)"
     ) or 1_000_000
+    usage = _PricingUsageInputs(
+        instance_count=instance_count,
+        storage_gb=storage_gb,
+        monthly_exec=monthly_exec,
+    )
 
     if "swa" in combined_text or "static web app" in combined_text:
         tier_hint = _extract_tier_hint(combined_text)
@@ -502,9 +515,7 @@ def _build_heuristic_pricing_lines(
             combined_text=combined_text,
             resource_list=resource_list,
             region=region,
-            instance_count=instance_count,
-            storage_gb=storage_gb,
-            monthly_exec=monthly_exec,
+            usage=usage,
         )
     )
     lines = _dedupe_pricing_lines(lines)
@@ -568,32 +579,30 @@ def _build_resource_driven_pricing_lines(
     combined_text: str,
     resource_list: list[str],
     region: str,
-    instance_count: int,
-    storage_gb: int,
-    monthly_exec: int,
+    usage: _PricingUsageInputs,
 ) -> list[dict[str, Any]]:
     lines: list[dict[str, Any]] = []
     text = f"{combined_text} {' '.join(resource_list).lower() if resource_list else ''}"
 
     # Generic resource-to-pricing hints. No hardcoded SKU proxy replacement.
     mappings = [
-        ("app service", "Azure App Service", "App Service baseline", "Standard", float(max(instance_count, 1) * 730)),
-        ("storage account", "Storage", "Storage Account baseline", "Data Stored", float(max(storage_gb, 1))),
-        ("blob storage", "Storage", "Blob Storage baseline", "Data Stored", float(max(storage_gb, 1))),
-        ("sql database", "SQL Database", "SQL Database baseline", "General Purpose", float(max(instance_count, 1) * 730)),
-        ("postgresql", "Azure Database for PostgreSQL", "PostgreSQL baseline", "General Purpose", float(max(instance_count, 1) * 730)),
-        ("mysql", "Azure Database for MySQL", "MySQL baseline", "General Purpose", float(max(instance_count, 1) * 730)),
-        ("key vault", "Key Vault", "Key Vault operations baseline", "Operations", float(max(monthly_exec, 100_000))),
-        ("application insights", "Application Insights", "Application Insights baseline", "Data Ingestion", float(max(storage_gb, 10))),
-        ("api management", "API Management", "API Management baseline", "Consumption", float(max(monthly_exec, 1_000_000))),
-        ("service bus", "Service Bus", "Service Bus operations baseline", "Operations", float(max(monthly_exec, 1_000_000))),
-        ("event hub", "Event Hubs", "Event Hubs throughput baseline", "Throughput", float(max(instance_count, 1) * 730)),
-        ("event grid", "Event Grid", "Event Grid operations baseline", "Operations", float(max(monthly_exec, 1_000_000))),
-        ("front door", "Azure Front Door", "Front Door baseline", "Requests", float(max(monthly_exec, 1_000_000))),
-        ("application gateway", "Application Gateway", "Application Gateway baseline", "Gateway", float(max(instance_count, 1) * 730)),
-        ("redis", "Azure Cache for Redis", "Redis baseline", "Cache", float(max(instance_count, 1) * 730)),
-        ("virtual machine", "Virtual Machines", "Virtual Machines baseline", "Compute", float(max(instance_count, 1) * 730)),
-        ("aks", "Virtual Machines", "AKS node compute baseline", "Compute", float(max(instance_count, 3) * 730)),
+        ("app service", "Azure App Service", "App Service baseline", "Standard", float(max(usage.instance_count, 1) * 730)),
+        ("storage account", "Storage", "Storage Account baseline", "Data Stored", float(max(usage.storage_gb, 1))),
+        ("blob storage", "Storage", "Blob Storage baseline", "Data Stored", float(max(usage.storage_gb, 1))),
+        ("sql database", "SQL Database", "SQL Database baseline", "General Purpose", float(max(usage.instance_count, 1) * 730)),
+        ("postgresql", "Azure Database for PostgreSQL", "PostgreSQL baseline", "General Purpose", float(max(usage.instance_count, 1) * 730)),
+        ("mysql", "Azure Database for MySQL", "MySQL baseline", "General Purpose", float(max(usage.instance_count, 1) * 730)),
+        ("key vault", "Key Vault", "Key Vault operations baseline", "Operations", float(max(usage.monthly_exec, 100_000))),
+        ("application insights", "Application Insights", "Application Insights baseline", "Data Ingestion", float(max(usage.storage_gb, 10))),
+        ("api management", "API Management", "API Management baseline", "Consumption", float(max(usage.monthly_exec, 1_000_000))),
+        ("service bus", "Service Bus", "Service Bus operations baseline", "Operations", float(max(usage.monthly_exec, 1_000_000))),
+        ("event hub", "Event Hubs", "Event Hubs throughput baseline", "Throughput", float(max(usage.instance_count, 1) * 730)),
+        ("event grid", "Event Grid", "Event Grid operations baseline", "Operations", float(max(usage.monthly_exec, 1_000_000))),
+        ("front door", "Azure Front Door", "Front Door baseline", "Requests", float(max(usage.monthly_exec, 1_000_000))),
+        ("application gateway", "Application Gateway", "Application Gateway baseline", "Gateway", float(max(usage.instance_count, 1) * 730)),
+        ("redis", "Azure Cache for Redis", "Redis baseline", "Cache", float(max(usage.instance_count, 1) * 730)),
+        ("virtual machine", "Virtual Machines", "Virtual Machines baseline", "Compute", float(max(usage.instance_count, 1) * 730)),
+        ("aks", "Virtual Machines", "AKS node compute baseline", "Compute", float(max(usage.instance_count, 3) * 730)),
     ]
 
     for token, service_name, name, meter_name, monthly_quantity in mappings:
@@ -622,7 +631,7 @@ def _build_resource_driven_pricing_lines(
                 "armRegionName": region,
                 "productNameContains": resource_name,
                 "meterNameContains": None,
-                "monthlyQuantity": float(max(instance_count, 1) * 730),
+                "monthlyQuantity": float(max(usage.instance_count, 1) * 730),
             }
         )
 

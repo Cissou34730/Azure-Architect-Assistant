@@ -8,7 +8,7 @@ from urllib.parse import urljoin, urlparse
 
 import requests
 import trafilatura
-from bs4 import BeautifulSoup, FeatureNotFound
+from bs4 import BeautifulSoup, FeatureNotFound  # type: ignore[import-untyped]
 from llama_index.core import Document
 
 logger = logging.getLogger(__name__)

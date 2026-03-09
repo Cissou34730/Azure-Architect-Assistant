@@ -10,12 +10,14 @@ respected at runtime via the ``default_factory`` loaders below.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-# Anchors – this file lives at backend/app/core/settings/ingestion.py
+# Anchors - this file lives at backend/app/core/settings/ingestion.py
 _CONFIG_DIR: Path = Path(__file__).resolve().parents[3] / "config"
+logger = logging.getLogger(__name__)
 
 
 class IngestionQueueDefaults(BaseModel):
@@ -45,8 +47,8 @@ def _load_ingestion_queue() -> IngestionQueueDefaults:
             return IngestionQueueDefaults.model_validate(
                 json.loads(json_path.read_text(encoding="utf-8"))
             )
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to load ingestion queue defaults from %s: %s", json_path, exc)
     return IngestionQueueDefaults()
 
 
@@ -58,8 +60,8 @@ def _load_kb_defaults() -> KBDefaultsSettings:
             return KBDefaultsSettings.model_validate(
                 json.loads(json_path.read_text(encoding="utf-8"))
             )
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to load KB defaults from %s: %s", json_path, exc)
     return KBDefaultsSettings()
 
 

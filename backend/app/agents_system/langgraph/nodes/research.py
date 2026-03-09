@@ -21,7 +21,7 @@ MINDMAP_PROMPT_BUDGET = 2
 
 
 def _mindmap_gaps(mindmap_coverage: dict[str, Any]) -> list[str]:
-    topics = []
+    topics: list[str] = []
     if not mindmap_coverage:
         return topics
     cov_topics = mindmap_coverage.get("topics")

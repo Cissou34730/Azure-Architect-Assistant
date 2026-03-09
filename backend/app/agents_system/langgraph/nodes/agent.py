@@ -25,6 +25,45 @@ from .waf_shortcuts import (
 logger = logging.getLogger(__name__)
 
 
+def _agent_error_result(message: str) -> dict[str, Any]:
+    return {
+        "agent_output": "",
+        "intermediate_steps": [],
+        "success": False,
+        "error": message,
+    }
+
+
+def _get_shortcut_result(state: GraphState, user_message: str) -> dict[str, Any] | None:
+    """Return an immediate result when the request can bypass LLM execution."""
+    if is_out_of_scope_request(user_message):
+        logger.info("Pre-filter blocked out-of-scope request: %s", user_message[:100])
+        return {
+            "agent_output": _OUT_OF_SCOPE_REDIRECT,
+            "intermediate_steps": [],
+            "success": True,
+            "error": None,
+        }
+
+    single_item_update = build_direct_waf_single_item_update_response(state)
+    if single_item_update is not None:
+        logger.info(
+            "Applying direct WAF single-item update shortcut for message: %s",
+            user_message[:80],
+        )
+        return single_item_update
+
+    direct_update = build_direct_waf_bulk_update_response(state)
+    if direct_update is not None:
+        logger.info(
+            "Applying direct WAF bulk update shortcut for message: %s",
+            user_message[:80],
+        )
+        return direct_update
+
+    return None
+
+
 async def run_agent_node(state: GraphState) -> dict[str, Any]:
     """
     Execute agent with project context and stage directives.
@@ -37,25 +76,9 @@ async def run_agent_node(state: GraphState) -> dict[str, Any]:
     """
     user_message = state["user_message"]
 
-    # ── Pre-filter: block clearly out-of-scope requests before hitting LLM ──
-    if is_out_of_scope_request(user_message):
-        logger.info("Pre-filter blocked out-of-scope request: %s", user_message[:100])
-        return {
-            "agent_output": _OUT_OF_SCOPE_REDIRECT,
-            "intermediate_steps": [],
-            "success": True,
-            "error": None,
-        }
-
-    single_item_update = build_direct_waf_single_item_update_response(state)
-    if single_item_update is not None:
-        logger.info("Applying direct WAF single-item update shortcut for message: %s", user_message[:80])
-        return single_item_update
-
-    direct_update = build_direct_waf_bulk_update_response(state)
-    if direct_update is not None:
-        logger.info("Applying direct WAF bulk update shortcut for message: %s", user_message[:80])
-        return direct_update
+    shortcut_result = _get_shortcut_result(state, user_message)
+    if shortcut_result is not None:
+        return shortcut_result
 
     try:
         # Get the agent runner for shared OpenAI + MCP clients
@@ -79,20 +102,10 @@ async def run_agent_node(state: GraphState) -> dict[str, Any]:
 
     except RuntimeError as e:
         logger.error(f"Agent not initialized: {e}")
-        return {
-            "agent_output": "",
-            "intermediate_steps": [],
-            "success": False,
-            "error": f"Agent system not initialized: {e!s}",
-        }
+        return _agent_error_result(f"Agent system not initialized: {e!s}")
     except Exception as e:
         logger.error(f"Native agent execution failed: {e}", exc_info=True)
-        return {
-            "agent_output": "",
-            "intermediate_steps": [],
-            "success": False,
-            "error": f"LangGraph native agent execution failed: {e!s}",
-        }
+        return _agent_error_result(f"LangGraph native agent execution failed: {e!s}")
 
 
 async def _recover_from_over_refusal(

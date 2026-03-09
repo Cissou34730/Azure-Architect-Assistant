@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 
 from app.ingestion.application.chunk_processor import ChunkProcessor
 from app.ingestion.application.job_lifecycle import JobLifecycleManager
@@ -19,23 +20,32 @@ from app.ingestion.infrastructure.phase_repository import PhaseRepository
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class EmbeddingProcessingDeps:
+    retry_policy: RetryPolicy
+    embedder: Embedder
+    indexer: Indexer
+    gate_check: Callable[[str, str, Indexer], Awaitable[bool]]
+    is_shutdown_requested: Callable[[], bool]
+
+
 class EmbeddingIndexingStage(PipelineStage):
     def __init__(
         self,
         phase_repo: PhaseRepository,
         lifecycle: JobLifecycleManager,
-        retry_policy: RetryPolicy,
-        embedder: Embedder,
-        indexer: Indexer,
-        gate_check: Callable[[str, str, Indexer], Awaitable[bool]],
-        is_shutdown_requested: Callable[[], bool],
+        processing_deps: EmbeddingProcessingDeps,
     ) -> None:
         self._phase_repo = phase_repo
         self._lifecycle = lifecycle
-        self._chunk_processor = ChunkProcessor(retry_policy=retry_policy, embedder=embedder, indexer=indexer)
-        self._indexer = indexer
-        self._gate_check = gate_check
-        self._is_shutdown_requested = is_shutdown_requested
+        self._chunk_processor = ChunkProcessor(
+            retry_policy=processing_deps.retry_policy,
+            embedder=processing_deps.embedder,
+            indexer=processing_deps.indexer,
+        )
+        self._indexer = processing_deps.indexer
+        self._gate_check = processing_deps.gate_check
+        self._is_shutdown_requested = processing_deps.is_shutdown_requested
 
     def get_stage_name(self) -> str:
         return 'embedding_indexing'

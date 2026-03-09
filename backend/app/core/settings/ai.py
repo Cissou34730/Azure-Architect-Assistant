@@ -2,7 +2,7 @@
 
 All AI provider configuration lives here.  Fields are read from the .env file
 by BaseSettings (case-insensitive).  The ``AIConfig`` dataclass at the bottom
-is a focused DTO used by AIService / providers – it is populated from these
+is a focused DTO used by AIService / providers - it is populated from these
 fields via ``AIConfig.from_settings()`` rather than reading env vars directly.
 """
 from __future__ import annotations

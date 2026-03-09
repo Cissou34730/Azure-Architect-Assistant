@@ -81,7 +81,7 @@ def get_kb_manager() -> KBManager:
 
     SINGLETON RATIONALE:
     - Performance: Vector indices are 150MB+ and take 3.2s to load from disk
-    - Memory efficiency: Shared indices across requests (single 150MB vs N×150MB)
+    - Memory efficiency: Shared indices across requests (single 150MB vs Nx150MB)
     - Consistency: All requests see same KB state (creates/updates reflected immediately)
     - Metrics: 100 req/min without singleton = 320s CPU time (impossible!)
 

@@ -40,7 +40,7 @@ def get_azure_openai_client(config: AIConfig) -> AsyncAzureOpenAI:
 def reset_azure_openai_client() -> None:
     """Reset the shared Azure client singleton so the next call recreates it.
 
-    Call this whenever connection parameters change – for example after a
+    Call this whenever connection parameters change - for example after a
     model-switching reinitialisation.
     """
     global _azure_client  # noqa: PLW0603

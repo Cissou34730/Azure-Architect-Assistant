@@ -1,17 +1,18 @@
-"""
-SQLAlchemy models for projects and related entities.
-Migrated from TypeScript backend.
-"""
+"""SQLAlchemy models for projects and related entities."""
+
+from __future__ import annotations
 
 import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import Column, ForeignKey, String, Text
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Base class for project-related SQLAlchemy models."""
 
 
 class Project(Base):
@@ -19,33 +20,33 @@ class Project(Base):
 
     __tablename__ = "projects"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String(255), nullable=False)
-    text_requirements = Column(Text, nullable=True)
-    created_at = Column(
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    text_requirements: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
         default=lambda: datetime.now(timezone.utc).isoformat(),
     )
-    deleted_at = Column(String(30), nullable=True)
+    deleted_at: Mapped[str | None] = mapped_column(String(30), nullable=True)
 
     # Relationships
-    documents = relationship(
+    documents: Mapped[list[ProjectDocument]] = relationship(
         "ProjectDocument", back_populates="project", cascade="all, delete-orphan"
     )
-    states = relationship(
+    states: Mapped[ProjectState | None] = relationship(
         "ProjectState",
         back_populates="project",
         cascade="all, delete-orphan",
         uselist=False,
     )
-    messages = relationship(
+    messages: Mapped[list[ConversationMessage]] = relationship(
         "ConversationMessage", back_populates="project", cascade="all, delete-orphan"
     )
-    checklists = relationship(
+    checklists: Mapped[list[Any]] = relationship(
         "Checklist", back_populates="project", cascade="all, delete-orphan"
     )
-    checklist_evaluations = relationship(
+    checklist_evaluations: Mapped[list[Any]] = relationship(
         "ChecklistItemEvaluation",
         back_populates="project",
         cascade="all, delete-orphan",
@@ -60,33 +61,43 @@ class Project(Base):
             "createdAt": str(self.created_at),
         }
 
+    @property
+    def state(self) -> str | None:
+        """Compatibility accessor for legacy callers expecting project.state."""
+        return self.states.state if self.states is not None else None
+
+    @property
+    def updated_at(self) -> str | None:
+        """Compatibility accessor for legacy callers expecting project.updated_at."""
+        return self.states.updated_at if self.states is not None else None
+
 
 class ProjectDocument(Base):
     """Document uploaded to a project."""
 
     __tablename__ = "documents"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = Column(
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
-    file_name = Column(String(255), nullable=False)
-    mime_type = Column(String(100), nullable=False)
-    raw_text = Column(Text, nullable=False)
-    stored_path = Column(Text, nullable=True)
-    parse_status = Column(String(32), nullable=True)
-    analysis_status = Column(String(32), nullable=True)
-    parse_error = Column(Text, nullable=True)
-    analyzed_at = Column(String(30), nullable=True)
-    last_analysis_run_id = Column(String(36), nullable=True)
-    uploaded_at = Column(
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    raw_text: Mapped[str] = mapped_column(Text, nullable=False)
+    stored_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    parse_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    analysis_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    parse_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    analyzed_at: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    last_analysis_run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    uploaded_at: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
         default=lambda: datetime.now(timezone.utc).isoformat(),
     )
 
     # Relationships
-    project = relationship("Project", back_populates="documents")
+    project: Mapped[Project] = relationship("Project", back_populates="documents")
 
     def to_dict(self) -> dict[str, str | None]:
         """Convert to dictionary for API responses."""
@@ -111,18 +122,18 @@ class ProjectState(Base):
 
     __tablename__ = "project_states"
 
-    project_id = Column(
+    project_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
     )
-    state = Column(Text, nullable=False)  # JSON string
-    updated_at = Column(
+    state: Mapped[str] = mapped_column(Text, nullable=False)  # JSON string
+    updated_at: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
         default=lambda: datetime.now(timezone.utc).isoformat(),
     )
 
     # Relationships
-    project = relationship("Project", back_populates="states")
+    project: Mapped[Project] = relationship("Project", back_populates="states")
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
@@ -137,21 +148,21 @@ class ConversationMessage(Base):
 
     __tablename__ = "messages"
 
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = Column(
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
-    role = Column(String(20), nullable=False)  # "user" or "assistant"
-    content = Column(Text, nullable=False)
-    timestamp = Column(
+    role: Mapped[str] = mapped_column(String(20), nullable=False)  # "user" or "assistant"
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    timestamp: Mapped[str] = mapped_column(
         String(30),
         nullable=False,
         default=lambda: datetime.now(timezone.utc).isoformat(),
     )
-    waf_sources = Column(Text, nullable=True)  # JSON string for WAF sources
+    waf_sources: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string for WAF sources
 
     # Relationships
-    project = relationship("Project", back_populates="messages")
+    project: Mapped[Project] = relationship("Project", back_populates="messages")
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
