@@ -13,6 +13,34 @@ from .openai_llm import OpenAILLMProvider
 
 logger = logging.getLogger(__name__)
 
+# The /openai/models endpoint requires a GA api-version.
+_MODELS_API_VERSION = "2024-10-21"
+
+
+# Model families that are NOT LLMs and should be excluded from the model selector.
+_EXCLUDED_MODEL_PREFIXES = (
+    "text-embedding",
+    "dall-e",
+    "whisper",
+    "sora",
+    "aoai-sora",
+    "gpt-4o-realtime",
+    "gpt-4o-mini-realtime",
+    "gpt-realtime",
+    "gpt-4o-transcribe",
+    "gpt-4o-mini-transcribe",
+    "gpt-4o-mini-tts",
+    "gpt-audio",
+    "computer-use",
+    "model-router",
+)
+
+
+def _is_excluded_model(model_id: str) -> bool:
+    """Return True for models that should not appear in the LLM selector."""
+    lower = model_id.lower()
+    return any(lower.startswith(prefix) for prefix in _EXCLUDED_MODEL_PREFIXES)
+
 
 def _normalize_deployment_entry(item: object) -> dict[str, str] | None:
     if not isinstance(item, dict):
@@ -54,33 +82,40 @@ class AzureOpenAILLMProvider(OpenAILLMProvider):
         self.model = config.azure_llm_deployment
         logger.info("Azure OpenAI LLM Provider initialized with deployment: %s", self.model)
 
-    async def _fetch_remote_deployments(self) -> list[dict[str, str]]:
+    async def _fetch_available_models(self) -> list[dict[str, str]]:
+        """Fetch all chat-capable models from the Azure OpenAI /openai/models endpoint.
+
+        Uses the GA ``2024-10-21`` api-version regardless of the configured
+        preview version.  Filters for models whose ``capabilities`` include
+        both ``chat_completion`` and ``inference``.
+        """
         endpoint = (self.config.azure_openai_endpoint or "").rstrip("/")
         api_key = self.config.azure_openai_api_key
-        api_version = self.config.azure_openai_api_version
-        if not (endpoint and api_key and api_version):
+        if not (endpoint and api_key):
             return []
 
-        url = f"{endpoint}/openai/deployments"
-        params = {"api-version": api_version}
-        headers = {"api-key": api_key}
-        timeout = float(self.config.openai_timeout)
+        url = f"{endpoint}/openai/models"
+        headers: dict[str, str] = {"api-key": api_key}
+        params: dict[str, str] = {"api-version": _MODELS_API_VERSION}
+        timeout = min(10.0, float(self.config.openai_timeout))
 
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(url, params=params, headers=headers)
-            response.raise_for_status()
-            payload: Any = response.json()
+            resp = await client.get(url, params=params, headers=headers)
+            resp.raise_for_status()
 
-        if not isinstance(payload, dict):
-            return []
+        models: list[dict[str, Any]] = resp.json().get("data", [])
+        llm_models: list[dict[str, str]] = []
+        for model in models:
+            caps = model.get("capabilities") or {}
+            if not caps.get("inference"):
+                continue
+            model_id = model.get("id", "")
+            if not model_id or _is_excluded_model(model_id):
+                continue
+            llm_models.append({"id": model_id, "model": model_id})
 
-        data = payload.get("data", [])
-        if not isinstance(data, list):
-            return []
-
-        entries = [entry for item in data if (entry := _normalize_deployment_entry(item)) is not None]
-        entries.sort(key=lambda item: item["id"])
-        return entries
+        llm_models.sort(key=lambda m: m["id"])
+        return llm_models
 
     def _configured_deployments(self) -> list[dict[str, str]]:
         deployments: list[str] = []
@@ -93,16 +128,30 @@ class AzureOpenAILLMProvider(OpenAILLMProvider):
         return _dedupe_deployments(deployments)
 
     async def list_runtime_models(self) -> list[dict[str, str]]:
-        """List runtime-selectable Azure deployment identities."""
+        """List runtime-selectable Azure deployment identities.
+
+        Returns configured deployments (always usable) merged with
+        catalog models from the Azure /openai/models endpoint.
+        """
+        configured = self._configured_deployments()
         try:
-            remote_entries = await self._fetch_remote_deployments()
+            remote_entries = await self._fetch_available_models()
         except Exception as error:  # noqa: BLE001
             logger.warning(
-                "Azure deployment listing failed, falling back to configured metadata: %s",
+                "Azure models listing failed, falling back to configured metadata: %s",
                 error,
             )
-        else:
-            if remote_entries:
-                return remote_entries
+            return configured
 
-        return self._configured_deployments()
+        # Merge: configured deployments first, then catalog entries
+        seen: set[str] = set()
+        merged: list[dict[str, str]] = []
+        for entry in configured:
+            if entry["id"] not in seen:
+                seen.add(entry["id"])
+                merged.append(entry)
+        for entry in remote_entries:
+            if entry["id"] not in seen:
+                seen.add(entry["id"])
+                merged.append(entry)
+        return merged

@@ -49,6 +49,8 @@ npm run backend
 npm run frontend
 ```
 
+`npm run backend` now performs a port preflight before starting uvicorn. If port `8000` is already used by another process, the script exits immediately with the owning PID and command line instead of letting the app complete startup and then fail on bind.
+
 Alternatively you can run the backend directly:
 
 ```powershell
@@ -78,6 +80,7 @@ Default ports:
 - `npm run build` - frontend production build.
 - `npm run lint` - frontend linting.
 - `npm run kill` - stop backend processes (PowerShell).
+- `start-backend.ps1` - starts the backend from the repository root even if invoked from another working directory, and refuses to start if the configured backend port is owned by a different process.
 
 ## Testing
 

@@ -118,7 +118,18 @@ sk set AI_OPENAI_API_KEY "<OPENAI_API_KEY>"
 sk set AI_AZURE_OPENAI_API_KEY "<AZURE_OPENAI_API_KEY>"
 ```
 
-Only non-secret settings stay in `.env`.
+All Azure configuration can be stored in SecretKeeper (recommended):
+
+```powershell
+sk set AI_AZURE_OPENAI_ENDPOINT "https://<AOAI_ACCOUNT_NAME>.openai.azure.com/"
+sk set AI_AZURE_LLM_DEPLOYMENT "<LLM_DEPLOYMENT_NAME>"
+sk set AI_AZURE_LLM_DEPLOYMENTS "<LLM_DEPLOYMENT_NAME>"
+sk set AI_AZURE_EMBEDDING_DEPLOYMENT "<EMBEDDING_DEPLOYMENT_NAME>"
+```
+
+Each Azure setting is resolved through `effective_` properties in `AppSettings`:
+SecretKeeper → environment variable → empty string.
+Only non-secret or provider-level settings need to stay in `.env`.
 
 ### Option A: Azure as primary provider
 
@@ -172,10 +183,17 @@ Validate models endpoint:
 
 Expected behavior:
 
-- Azure primary: model list is derived from deployment metadata.
+- Azure primary: the backend calls `GET /openai/models?api-version=2024-10-21` on the Azure resource to discover all available base models; the UI dropdown shows inference-capable LLMs, including GPT-5.x and Codex families, while embedding, image, audio, realtime, and router models are filtered out. Configured deployments are always merged into the dropdown first so working deployment IDs such as `aaadp` remain selectable even when the catalog returns base model names. Falls back to configured deployment names on API failure.
 - OpenAI primary + Azure fallback: OpenAI is attempted first; fallback only on transient failures.
 - Agent startup and health checks validate the selected AI provider configuration, so Azure-only deployments no longer depend on an OpenAI-specific readiness check.
 - KB creation defaults, ingestion embedding, and LlamaIndex adapter wiring follow the active provider configuration rather than assuming OpenAI model names.
+
+> **Note:** Model discovery uses the Azure OpenAI data-plane
+> `GET /openai/models?api-version=2024-10-21` endpoint which lists all base
+> models available on the resource. Results are cached for 7 days. The
+> selector keeps configured deployments and filters the catalog down to
+> inference-capable LLMs rather than requiring `chat_completion`, which allows
+> Codex deployments and GPT-5 Codex variants to appear alongside chat models.
 
 ## 10) Fallback validation (manual)
 
@@ -216,6 +234,13 @@ Set at least:
 Optionally add:
 
 - `AI_AZURE_LLM_DEPLOYMENTS` (comma-separated)
+
+### GPT-5 or Codex models do not appear in the selector
+
+- Refresh `GET /api/settings/llm-options?refresh=true` after switching to the Azure provider.
+- Verify the Azure resource returns the expected catalog entries from `GET /openai/models?api-version=2024-10-21`.
+- Keep `AI_AZURE_LLM_DEPLOYMENT` set to a known working deployment ID so the selector still includes a deployable model even if the catalog changes.
+- If the UI lists base model IDs but chat fails with 404, select the configured deployment ID instead of the base catalog model.
 
 ## 12) Related docs
 
