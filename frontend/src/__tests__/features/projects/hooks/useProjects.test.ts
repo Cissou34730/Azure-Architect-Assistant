@@ -1,16 +1,16 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useProjects } from "../../../../features/projects/hooks/useProjects";
-import type { Project } from "../../../../types/api";
+import type { Project } from "../../../../features/projects/types/api-project";
 
-vi.mock("../../../../services/projectService", () => ({
+vi.mock("../../../../features/projects/api/projectService", () => ({
   projectApi: {
     fetchAll: vi.fn(),
     create: vi.fn(),
   },
 }));
 
-import { projectApi } from "../../../../services/projectService";
+import { projectApi } from "../../../../features/projects/api/projectService";
 
 const mockProjectApi = vi.mocked(projectApi);
 

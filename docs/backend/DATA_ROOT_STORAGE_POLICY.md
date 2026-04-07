@@ -15,7 +15,7 @@ These paths are derived from `DATA_ROOT` unless explicitly overridden with env v
 - `PROJECTS_DATABASE` → `${DATA_ROOT}/projects.db`
 - `INGESTION_DATABASE` → `${DATA_ROOT}/ingestion.db`
 - `DIAGRAMS_DATABASE` → `${DATA_ROOT}/diagrams.db`
-- `MODELS_CACHE_PATH` (`models_cache_path`) → `${DATA_ROOT}/openai_models_cache.json`
+- `MODELS_CACHE_PATH` (`models_cache_path`) → `${DATA_ROOT}/models_cache.json`
 - `KNOWLEDGE_BASES_ROOT` → `${DATA_ROOT}/knowledge_bases`
 - `PROJECT_DOCUMENTS_ROOT` (`project_documents_root`) → `${DATA_ROOT}/project_documents`
 - `WAF_TEMPLATE_CACHE_DIR` (`waf_template_cache_dir`) → `${DATA_ROOT}/waf_template_cache`

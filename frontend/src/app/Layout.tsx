@@ -4,7 +4,8 @@ import {
   Banner,
   Navigation,
   PageLoader,
-} from "../components/common";
+} from "../shared/ui";
+import { NavigationSettingsControls } from "../features/settings/components/NavigationSettingsControls";
 import { ToastProvider } from "../contexts/ToastContext";
 
 export function Layout() {
@@ -12,7 +13,7 @@ export function Layout() {
     <ToastProvider>
       <div className="min-h-screen bg-surface">
         <Banner />
-        <Navigation />
+        <Navigation trailingContent={<NavigationSettingsControls />} />
 
         <main role="main">
           <Suspense fallback={<PageLoader />}>
@@ -23,4 +24,5 @@ export function Layout() {
     </ToastProvider>
   );
 }
+
 

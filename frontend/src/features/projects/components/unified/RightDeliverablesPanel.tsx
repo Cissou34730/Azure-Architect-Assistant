@@ -9,7 +9,7 @@ import { AdrsSection } from "./RightDeliverablesPanel/AdrsSection";
 import { FindingsSection } from "./RightDeliverablesPanel/FindingsSection";
 import { CostsSection } from "./RightDeliverablesPanel/CostsSection";
 import { PanelHeader } from "./RightDeliverablesPanel/PanelHeader";
-import { useRenderCount } from "../../../../hooks/useRenderCount";
+import { useRenderCount } from "../../../../shared/hooks/useRenderCount";
 
 interface RightDeliverablesPanelProps {
   readonly isOpen: boolean;
@@ -117,6 +117,7 @@ function RightDeliverablesPanel({
 
 const rightDeliverablesPanel = memo(RightDeliverablesPanel);
 export { rightDeliverablesPanel as RightDeliverablesPanel };
+
 
 
 

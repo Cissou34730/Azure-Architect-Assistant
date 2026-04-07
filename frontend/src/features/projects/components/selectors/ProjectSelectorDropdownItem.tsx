@@ -1,4 +1,4 @@
-import { Project } from "../../../../types/api";
+import type { Project } from "../../types/api-project";
 import { Folder, Check, Trash2 } from "lucide-react";
 
 interface ProjectSelectorDropdownItemProps {

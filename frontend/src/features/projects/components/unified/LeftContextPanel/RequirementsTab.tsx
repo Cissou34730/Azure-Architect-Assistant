@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { GroupedVirtuoso } from "react-virtuoso";
-import type { Requirement } from "../../../../../types/api";
+import type { Requirement } from "../../../types/api-project";
 
 interface RequirementsTabProps {
   readonly requirements: readonly Requirement[];

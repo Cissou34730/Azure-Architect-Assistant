@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
-import { Project } from "../../../../types/api";
+import type { Project } from "../../types/api-project";
 import { DeleteProjectModalContent } from "./DeleteProjectModalContent";
-import { Button } from "../../../../components/common/Button";
-import { useFocusTrap } from "../../../../hooks/useFocusTrap";
+import { Button } from "../../../../shared/ui/Button";
+import { useFocusTrap } from "../../../../shared/hooks/useFocusTrap";
 
 interface DeleteProjectModalProps {
   readonly project: Project;
@@ -114,6 +114,7 @@ export function DeleteProjectModal({
     </>
   );
 }
+
 
 
 

@@ -18,7 +18,7 @@ MODIFIED PRINCIPLES:
 
 ADDED SECTIONS:
   ✓ Core Principles (I-V including automated deployment)
-  ✓ Technology Stack (mandatory versions: TypeScript 5+, React 19+, TailwindCSS 4.1, Python 3.10+)
+  ✓ Technology Stack (mandatory versions: TypeScript 6+, React 19+, TailwindCSS 4.1, Python 3.10+)
   ✓ Mandatory Instruction Files reference
   ✓ Development Workflow & Quality Gates
   ✓ Governance framework
@@ -131,7 +131,7 @@ All new code MUST integrate with the existing codebase and reuse existing capabi
 **Mandatory Versions** (MUST NOT deviate without constitutional amendment):
 
 **Frontend**:
-- TypeScript 5+ (strict mode enabled)
+- TypeScript 6+ (strict mode enabled)
 - React 19+
 - TailwindCSS 4.1 (exclusive styling solution — no other CSS frameworks)
 - Vite (build tool)

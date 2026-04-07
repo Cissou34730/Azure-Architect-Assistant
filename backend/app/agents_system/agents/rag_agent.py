@@ -7,8 +7,8 @@ produce context-grounded answers with citations, without adding new endpoints.
 import logging
 from typing import Any
 
-from app.kb.multi_query import QueryProfile
-from app.service_registry import get_multi_query_service
+from app.dependencies import get_multi_query_service_dependency
+from app.features.knowledge.application.query_service import QueryProfile
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +16,12 @@ logger = logging.getLogger(__name__)
 class RAGAgent:
     """Thin wrapper agent around the existing RAG query services."""
 
-    def __init__(self):
-        self.query_service = get_multi_query_service()
+    def __init__(self, query_service: Any | None = None):
+        self.query_service = (
+            query_service
+            if query_service is not None
+            else get_multi_query_service_dependency()
+        )
         logger.info("RAGAgent initialized")
 
     def execute(

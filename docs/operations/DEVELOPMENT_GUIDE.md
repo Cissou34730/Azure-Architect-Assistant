@@ -51,6 +51,11 @@ npm run frontend
 
 `npm run backend` now performs a port preflight before starting uvicorn. If port `8000` is already used by another process, the script exits immediately with the owning PID and command line instead of letting the app complete startup and then fail on bind.
 
+<<<<<<< HEAD
+On Windows, the backend now suppresses the known benign asyncio Proactor `WinError 10054` callback that can occur while the Copilot SDK stdio transport is closing. If model discovery still fails, rely on the provider-specific error payload or HTTP response rather than that previously noisy traceback.
+
+=======
+>>>>>>> be536aa15875255d880a30a8b2ca1e88a15dfb7d
 Alternatively you can run the backend directly:
 
 ```powershell

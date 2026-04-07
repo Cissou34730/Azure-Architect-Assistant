@@ -2,12 +2,11 @@
 
 import pytest
 
-from app.services.ai.json_repair import (
+from app.shared.ai.json_repair import (
     extract_json_candidate,
     parse_json_with_repair,
     repair_json_content,
 )
-
 
 # ---------------------------------------------------------------------------
 # extract_json_candidate
@@ -144,3 +143,4 @@ class TestRepairJsonContent:
         assert "JSON repair" in captured["system"]
         assert "{bad" in captured["user"]
         assert captured["tokens"] == 200
+

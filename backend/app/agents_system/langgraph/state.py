@@ -19,8 +19,15 @@ class GraphState(TypedDict, total=False):
     project_id: str
     user_message: str
 
+    # Thread memory (Phase 1+)
+    thread_id: str | None
+    thread_summary: str | None
+    compaction_applied: bool
+    context_budget_meta: dict[str, Any] | None
+
     # Context loading
     context_summary: str | None
+    context_pack: dict[str, Any] | None  # Stage-specific context pack (Phase 3)
     current_project_state: dict[str, Any]
     mindmap: dict[str, Any] | None
     mindmap_coverage: dict[str, Any] | None
@@ -47,6 +54,7 @@ class GraphState(TypedDict, total=False):
     # Phase 4+ fields
     user_message_id: str | None
     agent_message_id: str | None
+    event_callback: Any
 
     # Phase 5 fields (stage routing and retry)
     next_stage: str | None

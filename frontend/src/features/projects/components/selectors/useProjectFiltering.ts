@@ -1,5 +1,5 @@
 import { useMemo, useEffect } from "react";
-import { Project } from "../../../../types/api";
+import type { Project } from "../../types/api-project";
 
 interface UseProjectFilteringProps {
   projects: readonly Project[];

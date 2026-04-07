@@ -4,7 +4,7 @@ import { useProposal } from "../../../../features/projects/hooks/useProposal";
 
 const mockShowError = vi.fn();
 
-vi.mock("../../../../hooks/useToast", () => ({
+vi.mock("../../../../shared/hooks/useToast", () => ({
   useToast: () => ({
     error: mockShowError,
     success: vi.fn(),
@@ -129,3 +129,4 @@ describe("useProposal", () => {
     expect(mockClose).toHaveBeenCalled();
   });
 });
+

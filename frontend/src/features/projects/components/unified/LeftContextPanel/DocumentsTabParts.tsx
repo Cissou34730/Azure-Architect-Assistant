@@ -5,12 +5,12 @@ import {
   File,
 } from "lucide-react";
 import { Virtuoso } from "react-virtuoso";
-import { featureFlags } from "../../../../../config/featureFlags";
+import { featureFlags } from "../../../../../shared/config/featureFlags";
 import type {
   AnalysisSummary,
   ReferenceDocument,
   UploadSummary,
-} from "../../../../../types/api";
+} from "../../../types/api-artifacts";
 
 export interface InitializationSetupPanelProps {
   readonly hasInputs: boolean;
@@ -245,3 +245,4 @@ export function DocumentsList({
     </div>
   );
 }
+

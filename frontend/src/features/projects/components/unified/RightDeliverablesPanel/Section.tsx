@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import { Badge } from "../../../../../components/common";
+import { Badge } from "../../../../../shared/ui";
 
 interface SectionProps {
   readonly title: string;
@@ -41,4 +41,5 @@ export function Section({ title, expanded, onToggle, count, onViewAll, children 
     </div>
   );
 }
+
 

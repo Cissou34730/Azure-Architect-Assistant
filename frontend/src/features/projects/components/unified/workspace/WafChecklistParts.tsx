@@ -1,5 +1,5 @@
 import { CheckCircle2, Circle, MinusCircle } from "lucide-react";
-import type { WafChecklist } from "../../../../../types/api";
+import type { WafChecklist } from "../../../types/api-artifacts";
 
 interface WafChecklistGroup {
   readonly checklistKey: string;

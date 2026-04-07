@@ -1,4 +1,4 @@
-import { Message } from "../../../types/api";
+import type { Message } from "../../knowledge/types/api-kb";
 
 const ARCHIVE_KEY_PREFIX = "chat_archive_";
 const MAX_IN_MEMORY = 200;

@@ -2,7 +2,7 @@ import { useMemo, type ReactNode, type RefObject } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { messageBubbleComp as MessageBubble } from "./MessageBubble";
 import { ChatEmptyStateComp as ChatEmptyState } from "./ChatEmptyState";
-import type { Message } from "../../../../types/api";
+import type { Message } from "../../../knowledge/types/api-kb";
 
 interface ChatMessagesListProps {
   readonly messages: readonly Message[];

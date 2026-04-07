@@ -22,7 +22,7 @@ The implementation is **integration-first**:
 
 ## Technical Context
 
-**Language/Version**: Python 3.10+ (FastAPI async); TypeScript 5+ with React 19 and TailwindCSS 4.1; Vite
+**Language/Version**: Python 3.10+ (FastAPI async); TypeScript 6+ with React 19 and TailwindCSS 4.1; Vite
 **Primary Dependencies**: FastAPI, Pydantic, SQLAlchemy async, aiosqlite; pytest; existing MCP client under `backend/app/services/mcp/`; existing Agent System under `backend/app/agents_system/`
 **Storage**:
 - Project DB: async SQLite at `backend/data/projects.db` via `backend/app/projects_database.py`

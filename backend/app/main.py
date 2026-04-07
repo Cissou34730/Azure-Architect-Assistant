@@ -14,24 +14,23 @@ from pydantic import BaseModel
 
 # Import lifecycle management
 from app import lifecycle
-from app.core.app_logging import configure_logging
-from app.core.app_settings import get_app_settings
-from app.core.router_guardrails import enforce_router_guardrails
-from app.core.signals import install_ingestion_signal_handlers
-
-# Import routers
-from app.routers import (
-    agent_router,
-    checklist_router,
-    cleanup_running_tasks,
-    diagram_generation_router,
-    ingestion_router,
+from app.features.agent.api import router as agent_router
+from app.features.checklists.api import router as checklist_router
+from app.features.diagrams.api import diagram_generation_router
+from app.features.diagrams.application.database import close_diagram_database
+from app.features.ingestion.api import cleanup_running_tasks
+from app.features.ingestion.api import router as ingestion_router
+from app.features.ingestion.application.signals import install_ingestion_signal_handlers
+from app.features.knowledge.api import (
     kb_management_router,
     kb_query_router,
-    project_router,
-    settings_router,
 )
-from app.services.diagram.database import close_diagram_database
+from app.features.projects.api import project_management_router as project_router
+from app.features.settings.api import router as settings_router
+from app.shared.config.app_settings import get_app_settings
+from app.shared.http.router_guardrails import enforce_router_guardrails
+from app.shared.logging.app_logging import configure_logging
+from app.shared.runtime.asyncio_exception_filter import install_asyncio_exception_filter
 
 # Suppress third-party Pydantic v2 warnings from dependencies not yet updated
 warnings.filterwarnings(
@@ -50,6 +49,11 @@ API_BASE_PREFIX = "/api"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle application startup and shutdown using FastAPI lifespan."""
+    # Install ingestion signal handlers *after* uvicorn has set up its own,
+    # so we chain correctly and stale SIGINT from process launch doesn't
+    # trigger premature shutdown.
+    install_ingestion_signal_handlers()
+    install_asyncio_exception_filter()
     await lifecycle.startup()
     try:
         yield
@@ -83,8 +87,6 @@ app.add_middleware(
     allow_methods=["*"],  # Ideally restricted in production
     allow_headers=["*"],  # Ideally restricted in production
 )
-
-install_ingestion_signal_handlers()
 
 # Include routers
 app.include_router(project_router)  # Project management

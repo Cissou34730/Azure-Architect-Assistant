@@ -7,8 +7,11 @@ Builds graphs with stage routing, retry logic, and multi-agent support.
 import logging
 from typing import Literal
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.shared.config.app_settings import get_app_settings
 
 from .nodes.agent import run_agent_node
 from .nodes.context import build_context_summary_node, load_project_state_node
@@ -67,7 +70,11 @@ def build_project_chat_graph(
     # Build workflow
     _build_workflow_edges(workflow, enable_stage_routing, enable_multi_agent)
 
-    return workflow.compile()
+    # Add checkpointer for thread-scoped memory when enabled
+    settings = get_app_settings()
+    checkpointer = MemorySaver() if settings.aaa_thread_memory_enabled else None
+
+    return workflow.compile(checkpointer=checkpointer)
 
 
 def _wrap_load_state(db: AsyncSession):

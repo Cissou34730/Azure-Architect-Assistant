@@ -1,5 +1,5 @@
 import { Share2 } from "lucide-react";
-import type { DiagramData } from "../../../../../types/api";
+import type { DiagramData } from "../../../../diagrams/types/api-diagrams";
 import { BaseCard } from "./BaseCard";
 
 interface DiagramPreviewCardProps {

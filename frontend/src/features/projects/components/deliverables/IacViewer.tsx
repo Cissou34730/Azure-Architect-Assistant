@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Code } from "lucide-react";
-import { EmptyState } from "../../../../components/common";
-import type { IacArtifact } from "../../../../types/api";
+import { EmptyState } from "../../../../shared/ui";
+import type { IacArtifact } from "../../types/api-artifacts";
 import { ArtifactSelector, ArtifactBoard } from "./IacViewerParts";
 
 interface IacViewerProps {
@@ -9,7 +9,7 @@ interface IacViewerProps {
 }
 
 export function IacViewer({ iacArtifacts }: IacViewerProps) {
-  const [selectedArtifact, setSelectedArtifact] = useState<IacArtifact | null>(
+  const [selectedArtifact, setSelectedArtifact] = useState(
     iacArtifacts.length > 0 ? (iacArtifacts[0] ?? null) : null,
   );
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
@@ -53,5 +53,6 @@ export function IacViewer({ iacArtifacts }: IacViewerProps) {
     </div>
   );
 }
+
 
 

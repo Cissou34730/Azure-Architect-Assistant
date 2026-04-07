@@ -5,11 +5,14 @@ Uses MCP + KB + AAA tools with explicit directives to research,
 cite sources, and avoid pushback.
 """
 
+import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, Literal, TypedDict, cast
 
 from langchain_core.messages import (
     AIMessage,
+    AIMessageChunk,
     BaseMessage,
     HumanMessage,
     SystemMessage,
@@ -19,11 +22,11 @@ from langchain_core.tools import BaseTool, Tool
 from langgraph.graph import END, StateGraph, add_messages
 from langgraph.prebuilt import ToolNode
 
-from app.core.app_settings import get_app_settings
-from app.services.ai.ai_service import get_ai_service
+from app.shared.ai.ai_service import get_ai_service
+from app.shared.config.app_settings import get_app_settings
+from app.shared.db.projects_database import AsyncSessionLocal
+from app.shared.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
-from ....projects_database import AsyncSessionLocal
-from ....services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from ...config.prompt_loader import get_prompt_loader
 from ...tools.aaa_candidate_tool import create_aaa_tools
 from ...tools.kb_tool import create_kb_tools
@@ -43,6 +46,9 @@ class AgentState(TypedDict):
 
     messages: Annotated[list[BaseMessage], add_messages]
     iterations: int
+
+
+StreamEventCallback = Callable[[str, dict[str, Any]], Awaitable[None] | None]
 
 
 def _format_mindmap_gaps(coverage: Any) -> str:
@@ -224,8 +230,6 @@ async def run_stage_aware_agent(
     base_llm = ai_service.create_chat_llm(temperature=temperature)
     llm = base_llm.bind_tools(tools)
 
-    agent_graph = _compile_agent_graph(llm, tools, base_llm)
-
     agent_initial_state: AgentState = {
         "messages": [
             SystemMessage(content=system_directives),
@@ -233,6 +237,19 @@ async def run_stage_aware_agent(
         ],
         "iterations": 0,
     }
+
+    event_callback = state.get("event_callback")
+    if callable(event_callback):
+        logger.info("Running stage-aware native agent with streaming events")
+        return await _run_streaming_agent_loop(
+            llm=llm,
+            tools=tools,
+            final_llm=base_llm,
+            agent_initial_state=agent_initial_state,
+            event_callback=event_callback,
+        )
+
+    agent_graph = _compile_agent_graph(llm, tools, base_llm)
 
     logger.info("Running stage-aware native agent")
     result_state = cast(dict[str, Any], await agent_graph.ainvoke(agent_initial_state))
@@ -293,6 +310,138 @@ def _compile_agent_graph(llm: Any, tools: list[BaseTool], final_llm: Any) -> Any
     workflow.add_edge("tools", "agent")
     workflow.add_edge("final", END)
     return workflow.compile()
+
+
+async def _run_streaming_agent_loop(
+    *,
+    llm: Any,
+    tools: list[BaseTool],
+    final_llm: Any,
+    agent_initial_state: AgentState,
+    event_callback: StreamEventCallback,
+) -> dict[str, Any]:
+    tool_node = ToolNode(tools)
+    messages = list(agent_initial_state["messages"])
+    iterations = int(agent_initial_state.get("iterations", 0))
+    final_directive = (
+        "Tool iteration budget reached. Provide the best possible final answer now "
+        "using the information already in the conversation and tool outputs. "
+        "Do NOT call any tools. If key information is missing, ask up to 5 focused "
+        "clarifying questions and propose the next concrete step."
+    )
+    await _emit_stream_event(event_callback, "message_start", {"role": "assistant"})
+
+    while True:
+        if iterations >= MAX_AGENT_ITERATIONS:
+            logger.warning("Reached max iterations in streaming agent loop")
+            final_messages = [*messages, SystemMessage(content=final_directive)]
+            final_response = await _astream_final_response(
+                final_llm,
+                final_messages,
+                event_callback,
+            )
+            messages.append(final_response)
+            break
+
+        response = await llm.ainvoke(messages)
+        iterations += 1
+        messages.append(response)
+
+        if hasattr(response, "tool_calls") and response.tool_calls:
+            for tool_call in response.tool_calls:
+                await _emit_stream_event(
+                    event_callback,
+                    "tool_start",
+                    {
+                        "tool": tool_call.get("name", ""),
+                        "tool_input": tool_call.get("args", {}),
+                    },
+                )
+
+            tool_result = await tool_node.ainvoke({"messages": [response]})
+            tool_messages = tool_result.get("messages", [])
+            for tool_message in tool_messages:
+                messages.append(tool_message)
+                if isinstance(tool_message, ToolMessage):
+                    await _emit_stream_event(
+                        event_callback,
+                        "tool_result",
+                        {
+                            "tool_call_id": tool_message.tool_call_id,
+                            "tool": tool_message.name or "",
+                            "content": str(tool_message.content),
+                            "status": getattr(tool_message, "status", "success"),
+                        },
+                    )
+            continue
+
+        response_content = _message_text(response)
+        if response_content:
+            await _emit_stream_event(event_callback, "token", {"text": response_content})
+        break
+
+    return _parse_agent_results({"messages": messages})
+
+
+async def _astream_final_response(
+    llm: Any,
+    messages: list[BaseMessage],
+    event_callback: StreamEventCallback,
+) -> AIMessage:
+    chunks: list[str] = []
+    try:
+        async for chunk in llm.astream(messages):
+            text = _chunk_text(chunk)
+            if not text:
+                continue
+            chunks.append(text)
+            await _emit_stream_event(event_callback, "token", {"text": text})
+    except Exception:  # noqa: BLE001
+        response = await llm.ainvoke(messages)
+        content = _message_text(response)
+        if content:
+            await _emit_stream_event(event_callback, "token", {"text": content})
+        return AIMessage(content=content)
+
+    return AIMessage(content="".join(chunks))
+
+
+def _message_text(message: Any) -> str:
+    content = getattr(message, "content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text")
+                if isinstance(text, str):
+                    parts.append(text)
+        return "\n".join(parts)
+    return str(content or "")
+
+
+def _chunk_text(chunk: Any) -> str:
+    if isinstance(chunk, AIMessageChunk):
+        return _message_text(chunk)
+    content = getattr(chunk, "content", None)
+    if isinstance(content, str):
+        return content
+    if isinstance(chunk, str):
+        return chunk
+    return ""
+
+
+async def _emit_stream_event(
+    callback: StreamEventCallback,
+    event_type: str,
+    payload: dict[str, Any],
+) -> None:
+    result = callback(event_type, payload)
+    if asyncio.iscoroutine(result):
+        await result
 
 
 def _parse_agent_results(result_state: dict[str, Any]) -> dict[str, Any]:

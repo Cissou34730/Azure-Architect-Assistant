@@ -3,14 +3,18 @@ import asyncio
 import json
 import sys
 import uuid
+from importlib import import_module
 from pathlib import Path
 
 # Add backend to path
 backend_path = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(backend_path))
 
-from app.models.project import Project, ProjectState
-from app.projects_database import AsyncSessionLocal
+project_models = import_module("app.models.project")
+projects_database = import_module("app.shared.db.projects_database")
+Project = project_models.Project
+ProjectState = project_models.ProjectState
+AsyncSessionLocal = projects_database.AsyncSessionLocal
 
 
 async def create_data():

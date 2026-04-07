@@ -1,5 +1,5 @@
 import { Calculator } from "lucide-react";
-import type { CostEstimate } from "../../../../../types/api";
+import type { CostEstimate } from "../../../types/api-artifacts";
 import { BaseCard } from "./BaseCard";
 
 interface CostCardProps {

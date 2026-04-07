@@ -5,7 +5,7 @@ import { useProposal } from "./useProposal";
 import { useProjectData } from "./useProjectData";
 import { useChatHandlers } from "./useChatHandlers";
 import { useProjectOperations } from "./useProjectOperations";
-import type { ProjectState } from "../../../types/api";
+import type { ProjectState } from "../types/api-project";
 
 import { useProjectLoading } from "./useProjectLoading";
 
@@ -24,6 +24,7 @@ export function useProjectDetails(projectId: string | undefined) {
         onStateUpdate?.(nextState);
       });
     },
+    // oxlint-disable-next-line exhaustive-deps -- chatHook and stateHook methods are stable references from custom hooks
     [chatHook.sendMessage, stateHook.setProjectState],
   );
 
@@ -79,6 +80,9 @@ export function useProjectDetails(projectId: string | undefined) {
     [
       projectData,
       loading,
+      stateHook.loading,
+      chatHook.loading,
+      proposalHook.loading,
       chatHook.loadingMessage,
       stateHook.projectState,
       chatHook.messages,

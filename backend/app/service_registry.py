@@ -10,11 +10,11 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+    from app.shared.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
-from app.kb import KBManager
-from app.services.ingestion_runtime import IngestionRuntimeService
-from app.services.kb import MultiKBQueryService
+from app.features.ingestion.application.runtime import IngestionRuntimeService
+from app.features.knowledge.application.query_service import MultiKBQueryService
+from app.features.knowledge.infrastructure import KBManager
 
 logger = logging.getLogger(__name__)
 
@@ -119,4 +119,5 @@ def get_ingestion_runtime_service() -> IngestionRuntimeService:
 def invalidate_kb_manager():
     """Compatibility wrapper for invalidate_kb_manager."""
     ServiceRegistry.invalidate_kb_manager()
+
 

@@ -1,5 +1,5 @@
-import { Project } from "../../../types/api";
-import { Button } from "../../../components/common";
+import type { Project } from "../types/api-project";
+import { Button } from "../../../shared/ui";
 
 interface ProjectListProps {
   projects: readonly Project[];
@@ -60,5 +60,6 @@ export function ProjectList({
     </div>
   );
 }
+
 
 

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.ingestion.domain.chunking.adapter import Chunk
-from app.services.ai import get_ai_service
+from app.shared.ai import get_ai_service
 
 logger = logging.getLogger(__name__)
 

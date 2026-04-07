@@ -1,5 +1,5 @@
 import { type ReactElement } from "react";
-import type { ProjectState } from "../../../../../types/api";
+import type { ProjectState } from "../../../types/api-project";
 import { RequirementsTab } from "../LeftContextPanel/RequirementsTab";
 import { AssumptionsTab } from "../LeftContextPanel/AssumptionsTab";
 import { QuestionsTab } from "../LeftContextPanel/QuestionsTab";

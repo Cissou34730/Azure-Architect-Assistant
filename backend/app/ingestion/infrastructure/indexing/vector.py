@@ -19,8 +19,8 @@ from llama_index.core import (
 )
 
 from app.ingestion.domain.enums import IngestionPhase
-from app.services.ai import get_ai_service
-from app.services.ai.adapters import AIServiceLLM
+from app.shared.ai import get_ai_service
+from app.shared.ai.adapters import AIServiceLLM
 
 logger = logging.getLogger(__name__)
 

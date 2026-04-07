@@ -1,0 +1,18 @@
+"""Domain layer for ingestion - contains models, enums, interfaces, and errors."""
+
+from .enums import JobPhase, PhaseStatus
+from .models import (
+    IngestionState,
+    IngestionStateSchema,
+    PhaseState,
+    PhaseStateSchema,
+)
+
+__all__ = [
+    'IngestionState',
+    'IngestionStateSchema',
+    'JobPhase',
+    'PhaseState',
+    'PhaseStateSchema',
+    'PhaseStatus',
+]

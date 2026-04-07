@@ -7,8 +7,8 @@ import {
 } from "react";
 import type { VirtuosoHandle } from "react-virtuoso";
 import { useChatInput } from "./useChatInput";
-import type { Message } from "../../../../types/api";
-import { useRenderCount } from "../../../../hooks/useRenderCount";
+import type { Message } from "../../../knowledge/types/api-kb";
+import { useRenderCount } from "../../../../shared/hooks/useRenderCount";
 import type { FailedMessage } from "../../hooks/useChatMessaging";
 import { ChatListHeader } from "./ChatListHeader";
 import { ChatListFooter } from "./ChatListFooter";
@@ -125,6 +125,7 @@ export function ChatPanel({
     </div>
   );
 }
+
 
 
 

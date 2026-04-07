@@ -7,7 +7,7 @@ import asyncio
 import json
 import pprint
 
-from app.services.mcp import MicrosoftLearnMCPClient
+from app.shared.mcp import MicrosoftLearnMCPClient
 
 
 async def _test_search_docs(client):
@@ -153,4 +153,5 @@ async def inspect_responses():
 
 if __name__ == "__main__":
     asyncio.run(inspect_responses())
+
 

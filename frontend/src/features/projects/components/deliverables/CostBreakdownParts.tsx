@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 import { TableVirtuoso } from "react-virtuoso";
-import { Badge } from "../../../../components/common";
-import type { CostEstimate } from "../../../../types/api";
+import { Badge } from "../../../../shared/ui";
+import type { CostEstimate } from "../../types/api-artifacts";
 
 const VIRTUALIZE_THRESHOLD = 20;
 
@@ -196,6 +196,7 @@ export function LineItemsTable({
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-restricted-types -- extends Record<string, unknown> to accept opaque API pricing gap fields
 interface PricingGap extends Record<string, unknown> {
   readonly name?: string;
   readonly reason?: string;
@@ -249,6 +250,7 @@ export function ChartSkeleton() {
     </div>
   );
 }
+
 
 
 

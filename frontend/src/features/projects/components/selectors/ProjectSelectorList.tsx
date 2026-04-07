@@ -1,4 +1,4 @@
-import { Project } from "../../../../types/api";
+import type { Project } from "../../types/api-project";
 import { ProjectSelectorDropdownItem } from "./ProjectSelectorDropdownItem";
 
 interface ProjectSelectorListProps {

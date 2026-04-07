@@ -1,7 +1,6 @@
 """Tests for diagram generation router endpoints."""
 
 import uuid
-from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 import pytest_asyncio
@@ -9,10 +8,9 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.features.diagrams.application.database import get_diagram_session
+from app.features.diagrams.infrastructure.models import Base as DiagramBase
 from app.main import app
-from app.models.diagram import Base as DiagramBase
-from app.projects_database import get_db
-from app.services.diagram.database import get_diagram_session
 
 
 @pytest_asyncio.fixture

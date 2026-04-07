@@ -1,11 +1,11 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.ai.config import AIConfig
-from app.services.ai.interfaces import ChatMessage
-from app.services.ai.providers.openai_llm import OpenAILLMProvider
+from app.shared.ai.config import AIConfig
+from app.shared.ai.interfaces import ChatMessage
+from app.shared.ai.providers.openai_llm import OpenAILLMProvider
 
 
 class _FakeAsyncChunkStream:
@@ -31,7 +31,7 @@ def provider(monkeypatch: pytest.MonkeyPatch) -> OpenAILLMProvider:
     mock_client = SimpleNamespace(chat=mock_chat)
 
     monkeypatch.setattr(
-        "app.services.ai.providers.openai_client._client",
+        "app.shared.ai.providers.openai_client._client",
         mock_client,
     )
 
@@ -122,3 +122,4 @@ async def test_stream_yields_delta_chunks(
         chunks.append(chunk)
 
     assert chunks == ["streamed ", "answer"]
+

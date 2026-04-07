@@ -6,8 +6,8 @@ import json
 import logging
 from pathlib import Path
 
-from app.core.app_settings import AppSettings
 from app.models.checklist import ChecklistTemplate
+from app.shared.config.app_settings import AppSettings
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 import { useParams, Outlet } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useProjectDetails } from "../hooks/useProjectDetails";
-import { ErrorBoundary } from "../../../components/common";
+import { ErrorBoundary } from "../../../shared/ui";
 import { ProjectProvider } from "../context/ProjectProvider";
 import { CommandPalette } from "../components/common/CommandPalette";
 
@@ -62,4 +62,5 @@ export default function ProjectDetailPage() {
     </ErrorBoundary>
   );
 }
+
 

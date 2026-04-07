@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Azure OpenAI models not displayed in frontend**
+  - The data-plane API endpoint `/openai/deployments` does not exist; the listing call always returned 404, falling back to cryptic deployment names (e.g. `aaadp`) with no model identity.
+  - Replaced the per-deployment probe approach with a call to `GET /openai/models?api-version=2024-10-21` which returns all available base models on the Azure resource.
+  - Only chat-capable models (`capabilities.chat_completion=true` and `capabilities.inference=true`) are shown in the frontend dropdown — embedding and image-generation models are filtered out.
+  - Falls back to configured deployment names on API failure.
+  - Added 5 backend unit tests for models API listing (happy path, failure fallback, sorting, no-credentials, GA api-version).
+  - Added 3 Playwright E2E tests verifying Azure model dropdown renders multiple models correctly.
+
+- **Azure OpenAI configuration not resolving from SecretKeeper**
+  - `AppSettings` only resolved `azure_openai_api_key` via SecretKeeper; endpoint, deployment, and other Azure config read directly from env vars (which were empty).
+  - Added `effective_azure_openai_endpoint`, `effective_azure_llm_deployments`, and `effective_azure_embedding_deployment` properties that check SecretKeeper before env fallback.
+  - Updated `effective_azure_llm_deployment` to also check SecretKeeper (after runtime override, before env var).
+  - Updated `AIConfig.from_settings()` to route all Azure fields through their `effective_` properties.
+  - Installed `secretkeeper` Python SDK as a project dependency.
+  - Stored Azure endpoint and deployment config in SecretKeeper vault.
+  - Added 10 unit tests covering SecretKeeper resolution, env fallback, and AIConfig integration.
+
+- **Model selector infinite loop when provider returns 0 models**
+  - `useModelSelector` third useEffect auto-refresh could loop endlessly when a non-active provider (e.g. Azure OpenAI not configured) consistently returned an empty model list.
+  - Added `autoRefreshedProviders` ref to track already-attempted providers and skip re-fetch.
+  - Manual refresh via `refreshOptions` resets the guard so users can intentionally retry.
+  - Added 2 regression tests covering error-status and ready-status empty-model scenarios.
+
 ### Added
 
 - **Mindmap-Guided Advisory Conversation Flow (non-blocking)**

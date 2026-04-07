@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from app.core.app_settings import get_app_settings
+from app.shared.config.app_settings import get_app_settings
 
 REQUIRED_TOP_LEVEL_TOPIC_KEYS: tuple[str, ...] = (
     "1_foundations",

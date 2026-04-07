@@ -23,6 +23,7 @@ This section tracks what’s already true in the repo vs. what this plan still n
 - [x] Removed `asyncio.run()` + `run_until_complete()` fallback pattern in ingestion OpenAI embedder (now fails fast with clear message if called in a running event loop)
 - [x] Confirmed orchestrator no longer uses module-level global shutdown event
 - [x] Ingestion schema migrations now use Alembic (ingestion environment + initial migration)
+- [x] Feature-owned ingestion schema resolves `alembic_ingestion.ini` from the backend root (startup fix on 2026-04-07)
 - [x] Confirmed SQLAlchemy datetime columns still use `default=lambda: datetime.now(timezone.utc)`
 - [x] Confirmed ingestion “Prometheus-style” metrics are still custom (not `prometheus_client`)
 - [x] Confirmed frontend ingestion components still contain `void ` promise casts

@@ -11,8 +11,10 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents_system.checklists.service import get_checklist_service
-from app.core.app_settings import get_app_settings
+from app.agents_system.memory.telemetry import emit_trace_event
+from app.agents_system.memory.token_counter import TokenCounter
+from app.features.checklists.infrastructure.service import get_checklist_service
+from app.shared.config.app_settings import get_app_settings
 
 from ....models.project import ConversationMessage
 from ...services.iteration_logging import derive_uncovered_topic_questions
@@ -43,6 +45,7 @@ async def persist_messages_node(
     user_message = state["user_message"]
     agent_output = state.get("agent_output", "")
     sanitized_agent_output = sanitize_agent_output(str(agent_output))
+    thread_id = state.get("thread_id")
 
     try:
         # Save user message
@@ -52,6 +55,7 @@ async def persist_messages_node(
             role="user",
             content=user_message,
             timestamp=datetime.now(timezone.utc).isoformat(),
+            thread_id=thread_id,
         )
         db.add(user_msg)
 
@@ -62,12 +66,29 @@ async def persist_messages_node(
             role="assistant",
             content=sanitized_agent_output,
             timestamp=datetime.now(timezone.utc).isoformat(),
+            thread_id=thread_id,
         )
         db.add(agent_msg)
 
         await db.flush()
 
         logger.info(f"Persisted messages for project {project_id}")
+
+        # Emit telemetry if enabled
+        settings = get_app_settings()
+        if settings.aaa_context_debug_enabled:
+            counter = TokenCounter()
+            await emit_trace_event(
+                db,
+                project_id=project_id,
+                thread_id=thread_id,
+                event_type="messages_persisted",
+                payload={
+                    "user_tokens": counter.count_tokens(user_message),
+                    "agent_tokens": counter.count_tokens(sanitized_agent_output),
+                    "stage": state.get("current_stage"),
+                },
+            )
 
         return {
             "user_message_id": user_msg.id,
@@ -139,6 +160,24 @@ async def apply_state_updates_node(
         )
 
         logger.info(f"State updates applied successfully for project {project_id}")
+
+        # Emit telemetry if enabled
+        settings = get_app_settings()
+        if settings.aaa_context_debug_enabled:
+            await emit_trace_event(
+                db,
+                project_id=project_id,
+                thread_id=state.get("thread_id"),
+                event_type="state_updated",
+                payload={
+                    "update_keys": sorted(
+                        dict(raw_updates).keys()
+                        if isinstance(raw_updates, dict)
+                        else []
+                    ),
+                    "stage": state.get("current_stage"),
+                },
+            )
 
         return {
             "updated_project_state": updated_state,
@@ -318,4 +357,5 @@ def _count_open_waf_items(updated_state: dict[str, Any]) -> int:
         if status not in {"fixed", "false_positive"}:
             remaining += 1
     return remaining
+
 

@@ -46,7 +46,6 @@ test.describe("Azure OpenAI E2E", () => {
     }).toPass({ timeout: 15_000 });
 
     // Collect all option values
-    const options = await modelSelect.locator("option").allTextContents();
     const values = await modelSelect.locator("option").evaluateAll(
       (opts) => opts.map((o) => (o as HTMLOptionElement).value),
     );

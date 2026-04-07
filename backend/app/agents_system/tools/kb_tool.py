@@ -11,7 +11,7 @@ from typing import Any
 from langchain_core.tools import BaseTool, Tool
 from pydantic import PrivateAttr
 
-from app.core.app_settings import get_kb_storage_root
+from app.shared.config.app_settings import get_kb_storage_root
 
 from ..agents.rag_agent import RAGAgent, build_cited_reply
 

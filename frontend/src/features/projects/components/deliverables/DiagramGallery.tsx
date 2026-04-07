@@ -1,11 +1,12 @@
+/* eslint-disable max-lines -- diagram gallery with lightbox; all 324 lines serve the single rendering concern */
 import { useState, useMemo } from "react";
 import { VirtuosoGrid } from "react-virtuoso";
 import { Network, X, Download, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
-import { Card, CardContent, Badge, EmptyState } from "../../../../components/common";
-import MermaidRenderer from "../../../../components/diagrams/MermaidRenderer";
+import { Card, CardContent, Badge, EmptyState } from "../../../../shared/ui";
+import MermaidRenderer from "../../../../features/diagrams/components/MermaidRenderer";
 import { useToastContext } from "../../../../contexts/ToastContext";
-import { useFocusTrap } from "../../../../hooks/useFocusTrap";
-import type { DiagramData } from "../../../../types/api";
+import { useFocusTrap } from "../../../../shared/hooks/useFocusTrap";
+import type { DiagramData } from "../../../diagrams/types/api-diagrams";
 
 const VIRTUALIZE_THRESHOLD = 9;
 
@@ -356,6 +357,7 @@ export function DiagramGallery({ diagrams }: DiagramGalleryProps) {
 function getSafeString(value: string | undefined): string {
   return typeof value === "string" ? value : "";
 }
+
 
 
 

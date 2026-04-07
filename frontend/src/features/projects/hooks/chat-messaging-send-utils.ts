@@ -1,7 +1,12 @@
+/* eslint-disable max-lines -- SSE messaging utilities; each helper is minimal but the full send-message flow requires these lines */
 import type { Dispatch, SetStateAction } from "react";
-import { chatApi } from "../../../services/chatService";
-import { Message, ProjectState, SendMessageResponse } from "../../../types/api";
-import { isFeatureEnabled } from "../../../config/featureFlags";
+import { chatApi } from "../api/chatService";
+import type {
+  SendMessageResponse,
+  Message,
+} from "../../knowledge/types/api-kb";
+import type { ProjectState } from "../types/api-project";
+import { isFeatureEnabled } from "../../../shared/config/featureFlags";
 import type { FailedMessage } from "./chat-messaging-types";
 
 function ensureValidSend(projectId: string | null, message: string): string {
@@ -23,6 +28,50 @@ function createOptimisticMessage(
     content,
     timestamp: new Date().toISOString(),
   };
+}
+
+function createStreamingAssistantMessage(
+  projectId: string,
+  assistantId: string,
+): Message {
+  return {
+    id: assistantId,
+    projectId,
+    role: "assistant",
+    content: "",
+    timestamp: new Date().toISOString(),
+    streamingState: "streaming",
+    toolActivity: [],
+  };
+}
+
+function upsertStreamingAssistant({
+  setMessages,
+  projectId,
+  assistantId,
+  update,
+}: {
+  setMessages: Dispatch<SetStateAction<readonly Message[]>>;
+  projectId: string;
+  assistantId: string;
+  update: (message: Message) => Message;
+}) {
+  setMessages((prev) => {
+    const index = prev.findIndex((message) => message.id === assistantId);
+    if (index === -1) {
+      return [...prev, update(createStreamingAssistantMessage(projectId, assistantId))];
+    }
+    const next = [...prev];
+    next[index] = update(next[index]);
+    return next;
+  });
+}
+
+function removeStreamingAssistant(
+  setMessages: Dispatch<SetStateAction<readonly Message[]>>,
+  assistantId: string,
+) {
+  setMessages((prev) => prev.filter((message) => message.id !== assistantId));
 }
 
 function applyOptimisticMessage({
@@ -49,28 +98,56 @@ function applyOptimisticMessage({
   return { optimisticId, useOptimistic };
 }
 
+function buildStreamCallbacks({
+  setMessages,
+  projectId,
+  assistantId,
+}: {
+  setMessages: Dispatch<SetStateAction<readonly Message[]>>;
+  projectId: string;
+  assistantId: string;
+}) {
+  const upsert = (update: (m: Message) => Message) =>
+    { upsertStreamingAssistant({ setMessages, projectId, assistantId, update }); };
+  return {
+    onMessageStart: () => { upsert((c) => c); },
+    onToken: ({ text }: { text: string }) => {
+      upsert((c) => ({ ...c, content: `${c.content}${text}`, timestamp: new Date().toISOString() }));
+    },
+    onToolStart: ({ tool }: { tool: string }) => {
+      upsert((c) => ({ ...c, toolActivity: [...(c.toolActivity ?? []), `Running ${tool}`] }));
+    },
+    onToolResult: ({ tool, status }: { tool: string; status?: string }) => {
+      const label = status === "error" ? "failed" : "completed";
+      upsert((c) => ({ ...c, toolActivity: [...(c.toolActivity ?? []), `${tool} ${label}`] }));
+    },
+    onFinal: ({ answer }: { answer: string }) => {
+      upsert((c) => ({ ...c, content: answer }));
+    },
+  };
+}
+
 async function sendMessageRequest({
   projectId,
   message,
   optimisticId,
   onStateUpdate,
+  setMessages,
   fetchMessages,
 }: {
   projectId: string;
   message: string;
   optimisticId: string;
   onStateUpdate?: (state: ProjectState) => void;
+  setMessages: Dispatch<SetStateAction<readonly Message[]>>;
   fetchMessages: () => Promise<void>;
 }): Promise<SendMessageResponse> {
-  const response = await chatApi.sendMessage(projectId, message, {
-    idempotencyKey: optimisticId,
-  });
-
-  if (onStateUpdate !== undefined) {
-    onStateUpdate(response.projectState);
-  }
-
+  const assistantId = `assistant-${optimisticId}`;
+  const callbacks = buildStreamCallbacks({ setMessages, projectId, assistantId });
+  const response = await chatApi.sendMessage(projectId, message, { idempotencyKey: optimisticId, callbacks });
+  if (onStateUpdate !== undefined) onStateUpdate(response.projectState);
   await fetchMessages();
+  removeStreamingAssistant(setMessages, assistantId);
   return response;
 }
 
@@ -136,6 +213,7 @@ export async function handleSendMessage({
       message,
       optimisticId,
       onStateUpdate,
+      setMessages,
       fetchMessages,
     });
 
@@ -145,6 +223,7 @@ export async function handleSendMessage({
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Failed to send";
+    removeStreamingAssistant(setMessages, `assistant-${optimisticId}`);
     recordSendFailure({
       errorMessage,
       useOptimistic,
@@ -159,3 +238,4 @@ export async function handleSendMessage({
     setLoadingMessage("");
   }
 }
+

@@ -3,7 +3,12 @@ import { AssumptionsTab } from "./AssumptionsTab";
 import { QuestionsTab } from "./QuestionsTab";
 import { DocumentsTab } from "./DocumentsTab";
 import { type TabType } from "./TabHeader";
-import { type Requirement, type Assumption, type ClarificationQuestion, type ReferenceDocument } from "../../../../../types/api";
+import type {
+  Assumption,
+  ClarificationQuestion,
+  Requirement,
+} from "../../../types/api-project";
+import type { ReferenceDocument } from "../../../types/api-artifacts";
 
 interface TabContentProps {
   readonly activeTab: TabType;

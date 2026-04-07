@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, text
 
-from app.projects_database import _run_additive_schema_migrations
+from app.shared.db.projects_database import _run_additive_schema_migrations
 
 
 def _list_document_columns(connection) -> set[str]:

@@ -1,13 +1,13 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useProjectOperations } from "../../../../features/projects/hooks/useProjectOperations";
-import type { Project, ProjectState } from "../../../../types/api";
+import type { Project, ProjectState } from "../../../../features/projects/types/api-project";
 
 const mockSuccess = vi.fn();
 const mockShowError = vi.fn();
 const mockWarning = vi.fn();
 
-vi.mock("../../../../hooks/useToast", () => ({
+vi.mock("../../../../shared/hooks/useToast", () => ({
   useToast: () => ({
     success: mockSuccess,
     error: mockShowError,
@@ -132,3 +132,4 @@ describe("useProjectOperations", () => {
     expect(preventDefault).toHaveBeenCalled();
   });
 });
+

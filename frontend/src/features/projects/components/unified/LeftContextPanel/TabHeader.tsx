@@ -1,4 +1,4 @@
-import { Badge } from "../../../../../components/common/Badge";
+import { Badge } from "../../../../../shared/ui/Badge";
 
 export type TabType = "requirements" | "assumptions" | "questions" | "documents";
 
@@ -62,5 +62,6 @@ function TabButton({ tab, isActive, onClick }: TabButtonProps) {
     </button>
   );
 }
+
 
 

@@ -8,21 +8,21 @@ from logging.config import fileConfig
 from pathlib import Path
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import MetaData, pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+
+from app.shared.config.app_settings import get_app_settings
 
 backend_path = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(backend_path))
 
 # Import models Base for autogenerate
-from app.models.diagram import Base as DiagramBase  # noqa: E402
+from app.features.diagrams.infrastructure.models import Base as DiagramBase  # noqa: E402
 from app.models.project import Base as ProjectBase  # noqa: E402
 
 # Alembic Config object
 config = context.config
-
-from app.core.app_settings import get_app_settings
 
 settings = get_app_settings()
 db_path = settings.projects_database
@@ -38,10 +38,6 @@ if db_path:
 # Interpret the config file for Python logging
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-# Add your model's MetaData object here for 'autogenerate' support
-# We combine metadata from both diagram and project bases
-from sqlalchemy import MetaData
 
 target_metadata = MetaData()
 for base in [DiagramBase, ProjectBase]:

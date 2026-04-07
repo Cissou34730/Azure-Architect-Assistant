@@ -1,5 +1,5 @@
 import { FileText, Download } from "lucide-react";
-import { Button } from "../../../components/common/Button";
+import { Button } from "../../../shared/ui/Button";
 
 interface ProjectHeaderActionsProps {
   onAdrClick?: () => void;
@@ -41,3 +41,4 @@ export function ProjectHeaderActions({
     </div>
   );
 }
+

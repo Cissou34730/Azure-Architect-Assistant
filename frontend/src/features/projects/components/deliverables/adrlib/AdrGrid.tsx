@@ -1,6 +1,6 @@
 import { VirtuosoGrid } from "react-virtuoso";
-import { Card, CardContent, Badge } from "../../../../../components/common";
-import type { AdrArtifact } from "../../../../../types/api";
+import { Card, CardContent, Badge } from "../../../../../shared/ui";
+import type { AdrArtifact } from "../../../types/api-artifacts";
 import { getStatusVariant } from "./AdrUtils";
 
 const VIRTUALIZE_THRESHOLD = 12;
@@ -86,4 +86,5 @@ export function AdrGrid({ adrs, onSelect }: AdrGridProps) {
     </div>
   );
 }
+
 

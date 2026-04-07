@@ -1,7 +1,7 @@
 import { createContext, useContext, ReactNode } from "react";
-import { useToast } from "../hooks/useToast";
-import { ToastContainer } from "../components/common";
-import type { Toast } from "../components/common/Toast";
+import { useToast } from "../shared/hooks/useToast";
+import { ToastContainer } from "../shared/ui";
+import type { Toast } from "../shared/ui/Toast";
 
 interface ToastContextValue {
   readonly toasts: Toast[];
@@ -31,6 +31,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook co-located with its provider by convention
 export function useToastContext(): ToastContextValue {
   const ctx = useContext(toastContext);
   if (ctx === null) {
@@ -38,3 +39,4 @@ export function useToastContext(): ToastContextValue {
   }
   return ctx;
 }
+

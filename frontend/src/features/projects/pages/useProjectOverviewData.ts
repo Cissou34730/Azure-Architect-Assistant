@@ -1,4 +1,4 @@
-import { ProjectState } from "../../../types/api";
+import type { ProjectState } from "../types/api-project";
 
 function getProjectCounts(p: ProjectState) {
   return {

@@ -1,9 +1,8 @@
 import { useProjectStateContext } from "../../../context/useProjectStateContext";
-import type { ReferenceDocument } from "../../../../../types/api";
-import { DocumentsTab } from "../LeftContextPanel/DocumentsTab";
+import type { ReferenceDocument } from "../../../types/api-artifacts";
 import { InputDocumentView } from "./InputDocumentView";
-import { ArtifactViews } from "./ArtifactViews";
-import type { WorkspaceTab, ArtifactWorkspaceTab } from "./types";
+import type { WorkspaceTab } from "./types";
+import { renderProjectWorkspaceStaticTabContent } from "../../../workspaceTabRegistry";
 
 interface WorkspaceTabContentProps {
   readonly tab: WorkspaceTab;
@@ -16,7 +15,7 @@ function getDocumentById(
   documents: readonly ReferenceDocument[],
   documentId: string,
 ): ReferenceDocument | undefined {
-  return documents.find((doc) => doc.id === documentId);
+  return documents.find((document) => document.id === documentId);
 }
 
 export function WorkspaceTabContent({
@@ -35,31 +34,6 @@ export function WorkspaceTabContent({
     );
   }
 
-  if (tab.kind === "input-overview") {
-    return (
-      <div className="h-full">
-        <DocumentsTab
-          documents={documents}
-          onOpenDocument={(documentId) => {
-            const document = getDocumentById(documents, documentId);
-            if (document === undefined) {
-              return;
-            }
-            onOpenTab({
-              id: `input-document-${document.id}`,
-              kind: "input-document",
-              title: document.title,
-              group: "input",
-              documentId: document.id,
-              pinned: false,
-              dirty: false,
-            });
-          }}
-        />
-      </div>
-    );
-  }
-
   if (tab.kind === "input-document") {
     const document = getDocumentById(documents, tab.documentId);
     if (document === undefined) {
@@ -72,24 +46,11 @@ export function WorkspaceTabContent({
     return <InputDocumentView document={document} />;
   }
 
-  if (isArtifactTab(tab)) {
-    return (
-      <ArtifactViews
-        tabKind={tab.kind}
-        projectState={projectState}
-        hasArtifacts={hasArtifacts}
-      />
-    );
-  }
-
-  return (
-    <div className="p-6 text-sm text-dim">
-      Select an item to view details.
-    </div>
-  );
-}
-
-function isArtifactTab(tab: WorkspaceTab): tab is ArtifactWorkspaceTab {
-  return tab.group === "artifact";
+  return renderProjectWorkspaceStaticTabContent(tab.kind, {
+    projectState,
+    documents,
+    hasArtifacts,
+    onOpenTab,
+  });
 }
 

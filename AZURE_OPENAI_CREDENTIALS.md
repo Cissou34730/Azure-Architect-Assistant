@@ -42,7 +42,5 @@ AI_AZURE_EMBEDDING_DEPLOYMENT=text-embedding-3-small
 ## SecretKeeper
 
 ```powershell
-# Secret removed from this repository to comply with push-protection.
-# Use SecretKeeper locally to set the key instead of storing it in the repo:
-# sk set AI_AZURE_OPENAI_API_KEY "<REDACTED_API_KEY>"
+sk set AI_AZURE_OPENAI_API_KEY "<redacted-secretkeeper-value>"
 ```

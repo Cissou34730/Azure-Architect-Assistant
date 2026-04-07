@@ -12,9 +12,9 @@ from tenacity import (
     wait_exponential,
 )
 
-from app.core.app_settings import get_app_settings
-from app.services.ai.ai_service import AIService, AIServiceManager
-from app.services.ai.interfaces import ChatMessage, LLMResponse
+from app.shared.ai.ai_service import AIService, AIServiceManager
+from app.shared.ai.interfaces import ChatMessage, LLMResponse
+from app.shared.config.app_settings import get_app_settings
 
 logger = logging.getLogger(__name__)
 

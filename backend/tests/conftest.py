@@ -13,9 +13,9 @@ from sqlalchemy.pool import StaticPool
 from app.agents_system.checklists.engine import ChecklistEngine
 from app.agents_system.checklists.registry import ChecklistRegistry
 from app.agents_system.checklists.service import ChecklistService
-from app.core.app_settings import get_settings
 from app.models.checklist import ChecklistTemplate
 from app.models.project import Base
+from app.shared.config.app_settings import get_settings
 
 
 @pytest.fixture(scope="session")
@@ -155,7 +155,7 @@ def mock_kb_manager():
     """
     from unittest.mock import AsyncMock, Mock
 
-    from app.kb import KBManager
+    from app.features.knowledge.infrastructure import KBManager
 
     manager = Mock(spec=KBManager)
     manager.list_kbs = Mock(return_value=["test-kb"])
@@ -180,7 +180,7 @@ def mock_llm_service():
     """
     from unittest.mock import AsyncMock, Mock
 
-    from app.services.llm_service import LLMService
+    from app.shared.ai.llm_service import LLMService
 
     service = Mock(spec=LLMService)
     service.generate_text = AsyncMock(return_value="Generated text")
@@ -203,7 +203,7 @@ def mock_ai_service():
     """
     from unittest.mock import AsyncMock, Mock
 
-    from app.services.ai import AIService
+    from app.shared.ai import AIService
 
     service = Mock(spec=AIService)
     service.chat = AsyncMock(return_value="AI response")
@@ -231,3 +231,4 @@ def mock_prompt_loader():
     loader.get_prompt = Mock(return_value="Test prompt")
     loader.reload = Mock()
     return loader
+

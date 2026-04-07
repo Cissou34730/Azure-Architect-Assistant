@@ -6,9 +6,9 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.checklists.application.backfill_service import BackfillService
 from app.models.checklist import Checklist, ChecklistItem, ChecklistTemplate
 from app.models.project import Project, ProjectState
-from app.services.backfill_service import BackfillService
 
 
 @pytest.fixture
@@ -82,3 +82,4 @@ async def test_verify_project_consistency_checks_normalized_rows(
     consistent_after, diffs = await backfill_service.verify_project_consistency(project_id)
     assert consistent_after is True
     assert diffs == []
+

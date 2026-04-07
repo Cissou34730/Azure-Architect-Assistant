@@ -19,7 +19,6 @@ from app.agents_system.checklists.read_assembler import ChecklistReadAssembler
 from app.agents_system.checklists.registry import ChecklistRegistry
 from app.agents_system.checklists.sync_writer import ChecklistSyncWriter
 from app.agents_system.checklists.template_resolver import ChecklistTemplateResolver
-from app.core.app_settings import AppSettings
 from app.models.checklist import (
     Checklist,
     ChecklistItem,
@@ -27,6 +26,7 @@ from app.models.checklist import (
     EvaluationStatus,
     SeverityLevel,
 )
+from app.shared.config.app_settings import AppSettings
 
 logger = logging.getLogger(__name__)
 

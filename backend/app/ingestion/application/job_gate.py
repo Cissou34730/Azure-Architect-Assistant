@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from app.core.app_settings import get_app_settings
 from app.ingestion.application.job_lifecycle import JobLifecycleManager
 from app.ingestion.domain.indexing import Indexer
 from app.ingestion.infrastructure.job_repository import JobRepository
+from app.shared.config.app_settings import get_app_settings
 
 logger = logging.getLogger(__name__)
 

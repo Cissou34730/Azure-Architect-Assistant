@@ -7,13 +7,13 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import app
-from app.projects_database import get_db
-from app.routers.ingestion import (
+from app.features.ingestion.api import (
     get_ingestion_runtime_service_dep,
     get_job_repository_dep,
 )
+from app.main import app
 from app.service_registry import get_kb_manager as sr_get_kb_manager
+from app.shared.db.projects_database import get_db
 
 
 @pytest.fixture

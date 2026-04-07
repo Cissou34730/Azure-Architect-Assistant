@@ -1,0 +1,219 @@
+[importlinter]
+root_package = app
+
+# Conservative backend hardening baseline after the feature/shared carve-out.
+# Keep contracts aligned with the current tree and only promote rules that are
+# already true across the codebase.
+
+[importlinter:contract:core-layers]
+name = Shared modules depend downward on models
+type = layers
+layers =
+    app.shared
+    app.models
+
+[importlinter:contract:selected-router-independence]
+name = Selected API packages stay independent
+type = independence
+modules =
+    app.features.agent.api
+    app.features.projects.api
+    app.features.knowledge.api
+    app.features.settings.api
+
+# app.agents_system is currently a platform/orchestration layer. The initial
+# baseline allows it to depend on services and models, but not feature API modules.
+[importlinter:contract:agents-platform]
+name = Agents platform avoids feature API modules
+type = forbidden
+source_modules =
+    app.agents_system
+forbidden_modules =
+    app.features.agent.api
+    app.features.checklists.api
+    app.features.diagrams.api
+    app.features.ingestion.api
+    app.features.knowledge.api
+    app.features.projects.api
+    app.features.settings.api
+
+[importlinter:contract:shared-foundation]
+name = Shared package does not depend on feature packages
+type = forbidden
+source_modules =
+    app.shared
+forbidden_modules =
+    app.features
+
+[importlinter:contract:feature-api-independence]
+name = Feature API packages stay independent
+type = independence
+modules =
+    app.features.agent.api
+    app.features.checklists.api
+    app.features.diagrams.api
+    app.features.ingestion.api
+    app.features.knowledge.api
+    app.features.projects.api
+    app.features.settings.api
+
+[importlinter:contract:projects-feature-layers]
+name = Projects feature layers stay ordered
+type = layers
+layers =
+    app.features.projects.api
+    app.features.projects.application
+    app.features.projects.infrastructure
+
+[importlinter:contract:knowledge-feature-layers]
+name = Knowledge feature layers stay ordered
+type = layers
+layers =
+    app.features.knowledge.api
+    app.features.knowledge.application
+    app.features.knowledge.infrastructure
+
+[importlinter:contract:ingestion-feature-layers]
+name = Ingestion feature layers stay ordered
+type = layers
+layers =
+    app.features.ingestion.api
+    app.features.ingestion.application
+    app.features.ingestion.infrastructure
+    app.features.ingestion.domain
+
+[importlinter:contract:checklists-feature-layers]
+name = Checklists feature layers stay ordered
+type = layers
+layers =
+    app.features.checklists.api
+    app.features.checklists.infrastructure
+    app.features.checklists.domain
+
+[importlinter:contract:agent-feature-layers]
+name = Agent feature layers stay ordered
+type = layers
+layers =
+    app.features.agent.api
+    app.features.agent.application
+    app.features.agent.infrastructure
+
+[importlinter:contract:settings-feature-layers]
+name = Settings feature layers stay ordered
+type = layers
+layers =
+    app.features.settings.api
+    app.features.settings.application
+
+[importlinter:contract:projects-application-avoids-projects-api]
+name = Projects application avoids its API package
+type = forbidden
+source_modules =
+    app.features.projects.application
+forbidden_modules =
+    app.features.projects.api
+
+[importlinter:contract:projects-application-avoids-other-feature-internals]
+name = Projects application avoids other feature internals
+type = forbidden
+source_modules =
+    app.features.projects.application
+forbidden_modules =
+    app.features.agent.api
+    app.features.agent.application
+    app.features.agent.domain
+    app.features.agent.infrastructure
+    app.features.checklists.api
+    app.features.checklists.application
+    app.features.checklists.domain
+    app.features.checklists.infrastructure
+    app.features.diagrams.api
+    app.features.diagrams.application
+    app.features.diagrams.domain
+    app.features.diagrams.infrastructure
+    app.features.ingestion.api
+    app.features.ingestion.application
+    app.features.ingestion.domain
+    app.features.ingestion.infrastructure
+    app.features.knowledge.api
+    app.features.knowledge.application
+    app.features.knowledge.domain
+    app.features.knowledge.infrastructure
+    app.features.settings.api
+    app.features.settings.application
+    app.features.settings.domain
+    app.features.settings.infrastructure
+
+[importlinter:contract:projects-feature-api-avoids-legacy-core]
+name = Projects feature API avoids legacy core shims
+type = forbidden
+source_modules =
+    app.features.projects.api
+forbidden_modules =
+    app.core
+
+[importlinter:contract:app-packages-avoid-legacy-app-settings]
+name = App packages avoid legacy app_settings shim
+type = forbidden
+source_modules =
+    app.agents_system
+    app.architecture
+    app.dependencies
+    app.features
+    app.ingestion
+    app.lifecycle
+    app.main
+    app.service_registry
+    app.shared
+forbidden_modules =
+    app.core.app_settings
+
+[importlinter:contract:features-and-shared-avoid-legacy-ai-mcp-core]
+name = Features and shared avoid legacy core shims
+type = forbidden
+source_modules =
+    app.features
+    app.shared
+forbidden_modules =
+    app.core.settings
+    app.core.db
+
+[importlinter:contract:retired-kb-shim]
+name = Codebase does not import retired app.kb shim
+type = forbidden
+source_modules =
+    app.agents_system
+    app.architecture
+    app.dependencies
+    app.features
+    app.ingestion
+    app.lifecycle
+    app.main
+    app.service_registry
+    app.shared
+forbidden_modules =
+    app.kb
+
+[importlinter:contract:retired-diagram-model-shim]
+name = Codebase does not import retired app.models.diagram shim
+type = forbidden
+source_modules =
+    app.agents_system
+    app.architecture
+    app.dependencies
+    app.features
+    app.ingestion
+    app.lifecycle
+    app.main
+    app.service_registry
+    app.shared
+forbidden_modules =
+    app.models.diagram
+
+[importlinter:contract:checklists-feature-avoids-legacy-agents-checklists]
+name = Checklists feature avoids legacy agents checklists package
+type = forbidden
+source_modules =
+    app.features.checklists
+forbidden_modules =
+    app.agents_system.checklists

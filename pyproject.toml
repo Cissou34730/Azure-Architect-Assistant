@@ -48,6 +48,7 @@ dependencies = [
     "frozenlist==1.8.0",
     "fsspec==2025.10.0",
     "greenlet==3.2.4",
+    "github-copilot-sdk==0.1.25",
     "griffe==1.15.0",
     "h11==0.16.0",
     "html2text==2024.2.26",
@@ -178,6 +179,7 @@ dependencies = [
     "pytest==9.0.1",
     "openpyxl>=3.1.5",
     "xlrd>=2.0.2",
+    "secretkeeper",
 ]
 
 [project.optional-dependencies]
@@ -207,6 +209,9 @@ markers = [
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
+[tool.uv.sources]
+secretkeeper = { path = "../SecretKeeper/sdk/python" }
+
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",
@@ -214,4 +219,5 @@ dev = [
     "pytest-cov>=4.1.0",
     "types-requests>=2.32.4.20260107",
     "pyright>=1.1.390",
+    "import-linter>=2.11",
 ]

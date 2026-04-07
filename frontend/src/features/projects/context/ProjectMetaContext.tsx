@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { Project } from "../../../types/api";
+import type { Project } from "../types/api-project";
 
 interface ProjectMetaContextType {
   readonly selectedProject: Project | null;

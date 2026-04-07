@@ -12,8 +12,8 @@ from llama_index.core import Document
 from llama_index.readers.youtube_transcript import YoutubeTranscriptReader
 from pydantic import BaseModel, Field
 
-from app.services.ai import get_ai_service
-from app.services.ai.adapters import AIServiceLLM
+from app.shared.ai import get_ai_service
+from app.shared.ai.adapters import AIServiceLLM
 
 from .handler_base import BaseSourceHandler
 

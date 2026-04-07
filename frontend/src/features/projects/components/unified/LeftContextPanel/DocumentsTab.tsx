@@ -3,12 +3,15 @@ import {
   Sparkles,
   UploadCloud,
 } from "lucide-react";
-import { featureFlags } from "../../../../../config/featureFlags";
+import { featureFlags } from "../../../../../shared/config/featureFlags";
+import type {
+  ProjectState,
+} from "../../../types/api-project";
 import type {
   AnalysisSummary,
   ReferenceDocument,
   UploadSummary,
-} from "../../../../../types/api";
+} from "../../../types/api-artifacts";
 import { useProjectInputContext } from "../../../context/useProjectInputContext";
 import { useProjectMetaContext } from "../../../context/useProjectMetaContext";
 import { useProjectStateContext } from "../../../context/useProjectStateContext";
@@ -24,6 +27,16 @@ interface DocumentsTabProps {
   readonly onOpenDocument?: (documentId: string) => void;
 }
 
+function deriveSummaries(
+  inputWorkflow: { uploadSummary: UploadSummary | null; analysisSummary: AnalysisSummary | null; setupCompleted: boolean },
+  projectState: ProjectState | null,
+) {
+  const uploadSummary = inputWorkflow.uploadSummary ?? projectState?.projectDocumentStats ?? null;
+  const analysisSummary = projectState?.analysisSummary ?? inputWorkflow.analysisSummary;
+  const setupCompleted = inputWorkflow.setupCompleted || analysisSummary?.status === "success";
+  return { uploadSummary, analysisSummary, setupCompleted };
+}
+
 function useDocumentsTabDerivedState(documents: readonly ReferenceDocument[]) {
   const inputCtx = useProjectInputContext();
   const { selectedProject } = useProjectMetaContext();
@@ -33,12 +46,7 @@ function useDocumentsTabDerivedState(documents: readonly ReferenceDocument[]) {
   const hasUploadedDocuments = documents.length > 0;
   const hasPendingFiles = inputCtx.files !== null && inputCtx.files.length > 0;
   const hasInputs = hasTextInput || hasUploadedDocuments || hasPendingFiles;
-  const uploadSummary =
-    inputCtx.inputWorkflow.uploadSummary ?? projectState?.projectDocumentStats ?? null;
-  const analysisSummary =
-    projectState?.analysisSummary ?? inputCtx.inputWorkflow.analysisSummary;
-  const setupCompleted =
-    inputCtx.inputWorkflow.setupCompleted || analysisSummary?.status === "success";
+  const { uploadSummary, analysisSummary, setupCompleted } = deriveSummaries(inputCtx.inputWorkflow, projectState);
   return {
     ...inputCtx,
     selectedProject,
@@ -270,4 +278,5 @@ function UploadDocumentsSection({
     </form>
   );
 }
+
 

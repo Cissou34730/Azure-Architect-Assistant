@@ -7,18 +7,25 @@ Concise architecture reference for agents performing coding and documentation ta
 ## Current State
 
 - Runtime topology: frontend (React/Vite) -> backend (FastAPI) -> external AI/knowledge services.
-- Backend layers:
-  - API routers in `backend/app/routers`
-  - service logic in `backend/app/services` and feature service modules
-  - domain/persistence in `backend/app/models`, `backend/app/ingestion`, `backend/app/kb`
+- Backend ownership:
+  - canonical feature APIs in `backend/app/features/*`
+  - shared runtime code in `backend/app/shared/*`
+  - orchestration/platform in `backend/app/agents_system`
+  - legacy compatibility and not-yet-migrated surfaces still exist in `backend/app/{routers,services,core}`
+- Frontend ownership:
+  - shell and route registry in `frontend/src/app`
+  - feature-local UI/hooks/api/types in `frontend/src/features/*`
+  - reusable UI/hooks/http/config/lib in `frontend/src/shared/*`
 - Startup lifecycle initializes DBs and key services; KB index loading is lazy.
 - Persistent storage includes project, ingestion, and diagram SQLite databases plus file-based KB indices.
+- Project state reads are composed: architecture inputs live in `project_architecture_inputs`, stable artifact families live in `project_state_components`, and `/api/projects/{project_id}/workspace` is the canonical read surface.
 
 ## Do / Don't
 
 ### Do
 
 - Keep feature changes within layer boundaries.
+- Prefer `features/*` and `shared/*` imports over legacy root folders.
 - Update this document for architecture-level behavior changes.
 - Use human docs only when deeper implementation detail is required by maintainers.
 
@@ -29,7 +36,9 @@ Concise architecture reference for agents performing coding and documentation ta
 
 ## Decision Summary
 
-- Maintain backend-centric architecture and modular feature boundaries.
+- Maintain a feature/shared architecture on both backend and frontend.
+- Treat `agents_system` as platform/orchestration, not a feature package.
+- Use `/api/projects/{project_id}/workspace` as the canonical composed state/workspace read; `/state` is compatibility-only.
 - Keep this file as stable architecture snapshot, not project log.
 
 ## Update Triggers
@@ -43,5 +52,5 @@ Update this file when:
 ## Metadata
 
 - Status: Active
-- Last Updated: 2026-02-15
+- Last Updated: 2026-04-02
 - Owner: Engineering

@@ -5,9 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.features.projects.application.document_service import DocumentService
 from app.models import Project, ProjectDocument, ProjectState
-from app.models.project import Base
-from app.services.project.document_service import DocumentService
+from app.models.project import Base, ProjectArchitectureInputs, ProjectStateComponent
 
 
 @pytest.fixture
@@ -32,6 +32,20 @@ async def test_analyze_docs_persists_ingestion_stats_and_requirements(monkeypatc
     class _StubLlmService:
         async def analyze_documents(self, document_texts: list[str]) -> dict:
             return {
+                "context": {
+                    "summary": "Architecture summary",
+                    "scenarioType": "greenfield",
+                },
+                "nfrs": {
+                    "availability": "99.95%",
+                },
+                "applicationStructure": {
+                    "components": [{"name": "api", "description": "Public API"}],
+                },
+                "technicalConstraints": {
+                    "constraints": ["Azure only"],
+                },
+                "openQuestions": [{"id": "q-1", "question": "Which region?"}],
                 "requirements": [
                     {
                         "category": "business",
@@ -43,7 +57,7 @@ async def test_analyze_docs_persists_ingestion_stats_and_requirements(monkeypatc
                 "clarificationQuestions": [],
             }
 
-    from app.services import llm_service  # noqa: PLC0415
+    from app.shared.ai import llm_service  # noqa: PLC0415
     monkeypatch.setattr(llm_service, "get_llm_service", lambda: _StubLlmService())
 
     async with async_session() as session:
@@ -79,7 +93,36 @@ async def test_analyze_docs_persists_ingestion_stats_and_requirements(monkeypatc
         result = await session.execute(select(ProjectState).where(ProjectState.project_id == project.id))
         persisted = result.scalar_one_or_none()
         assert persisted is not None
-        assert "ingestionStats" in json.loads(persisted.state)
+        persisted_blob = json.loads(persisted.state)
+        assert persisted_blob == {}
+        assert "context" not in persisted_blob
+        assert "nfrs" not in persisted_blob
+        assert "applicationStructure" not in persisted_blob
+        assert "technicalConstraints" not in persisted_blob
+        assert "openQuestions" not in persisted_blob
+
+        inputs_result = await session.execute(
+            select(ProjectArchitectureInputs).where(ProjectArchitectureInputs.project_id == project.id)
+        )
+        inputs = inputs_result.scalar_one_or_none()
+        assert inputs is not None
+        assert json.loads(inputs.context_json or "{}") == {
+            "summary": "Architecture summary",
+            "scenarioType": "greenfield",
+        }
+        assert json.loads(inputs.nfrs_json or "{}") == {"availability": "99.95%"}
+
+        components_result = await session.execute(
+            select(ProjectStateComponent).where(ProjectStateComponent.project_id == project.id)
+        )
+        components = {
+            row.component_key: json.loads(row.payload_json)
+            for row in components_result.scalars().all()
+        }
+        assert components["projectDocumentStats"]["attemptedDocuments"] == 2
+        assert components["requirements"][0]["category"] == "business"
+        assert components["analysisSummary"]["status"] == "success"
+        assert len(components["referenceDocuments"]) == 2
 
 
 def _verify_ingestion_stats(state: dict) -> None:
@@ -127,5 +170,6 @@ def _verify_reference_documents(state: dict) -> None:
     assert isinstance(second_doc, dict)
     assert second_doc.get("parseStatus") == "parse_failed"
     assert second_doc.get("analysisStatus") == "skipped"
+
 
 

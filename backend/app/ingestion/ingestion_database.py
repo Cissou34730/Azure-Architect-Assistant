@@ -13,8 +13,8 @@ from pydantic_settings import SettingsError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.app_settings import get_app_settings
 from app.ingestion import ingestion_schema
+from app.shared.config.app_settings import get_app_settings
 
 # Point to consolidated data directory at backend/data
 BACKEND_ROOT = Path(__file__).parent.parent.parent

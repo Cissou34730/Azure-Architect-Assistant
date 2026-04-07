@@ -1,0 +1,251 @@
+"""
+Job repository for orchestrator-based ingestion.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any, cast
+
+from sqlalchemy import select, update
+
+from app.features.ingestion.domain.enums import JobPhase, PhaseStatus
+from app.features.ingestion.domain.errors import JobNotFoundError
+from app.features.ingestion.domain.models import IngestionState
+from app.features.ingestion.infrastructure.ingestion_database import get_session
+from app.features.ingestion.infrastructure.models import (
+    IngestionJob,
+    IngestionPhaseStatus,
+)
+from app.features.ingestion.infrastructure.models import (
+    JobStatus as DBJobStatus,
+)
+
+
+@dataclass
+class JobView:
+    """Snapshot of a job record detached from the DB session."""
+
+    id: str
+    kb_id: str
+    status: str
+    checkpoint: dict[str, Any] | None
+    counters: dict[str, Any] | None
+    finished_at: datetime | None
+    last_error: str | None
+    created_at: datetime
+
+
+class JobRepository:
+    """SQLAlchemy-based repository for job persistence."""
+
+    @staticmethod
+    def _map_status_to_db(status: str) -> str:
+        status_map: dict[str, str] = {
+            'not_started': DBJobStatus.NOT_STARTED.value,
+            'running': DBJobStatus.RUNNING.value,
+            'paused': DBJobStatus.PAUSED.value,
+            'completed': DBJobStatus.COMPLETED.value,
+            'failed': DBJobStatus.FAILED.value,
+            'canceled': DBJobStatus.CANCELED.value,
+        }
+        if status not in status_map:
+            raise ValueError(f'Invalid status: {status}')
+        return status_map[status]
+
+    @staticmethod
+    def _map_status_from_db(db_status: str) -> str:
+        reverse_map: dict[str, str] = {
+            DBJobStatus.NOT_STARTED.value: 'not_started',
+            DBJobStatus.RUNNING.value: 'running',
+            DBJobStatus.PAUSED.value: 'paused',
+            DBJobStatus.COMPLETED.value: 'completed',
+            DBJobStatus.FAILED.value: 'failed',
+            DBJobStatus.CANCELED.value: 'canceled',
+        }
+        return reverse_map.get(db_status, db_status)
+
+    def create_job(
+        self,
+        kb_id: str,
+        source_type: str,
+        source_config: dict[str, Any],
+        priority: int = 0,
+    ) -> str:
+        """Create a new ingestion job and return its ID."""
+        now = datetime.now(timezone.utc)
+        with get_session() as session:
+            job = IngestionJob(
+                kb_id=kb_id,
+                status=DBJobStatus.RUNNING.value,
+                source_type=source_type,
+                source_config=source_config,
+                created_at=now,
+                updated_at=now,
+                total_items=0,
+                processed_items=0,
+                priority=priority,
+            )
+            session.add(job)
+            session.flush()
+            job_id = job.id
+
+        self.initialize_phase_statuses(job_id)
+        return cast(str, job_id)
+
+    def get_latest_job(self, kb_id: str) -> IngestionState | None:
+        """Get the most recent job for a knowledge base."""
+        with get_session() as session:
+            result = session.execute(
+                select(IngestionJob)
+                .where(IngestionJob.kb_id == kb_id)
+                .order_by(IngestionJob.created_at.desc())
+                .limit(1)
+            )
+            job = result.scalars().first()
+            if not job:
+                return None
+            return self._job_to_state(job)
+
+    def get_latest_job_record(self, kb_id: str) -> IngestionJob | None:
+        """Return the latest ORM job record for a KB (raw DB model)."""
+        with get_session() as session:
+            result = session.execute(
+                select(IngestionJob)
+                .where(IngestionJob.kb_id == kb_id)
+                .order_by(IngestionJob.created_at.desc())
+                .limit(1)
+            )
+            return result.scalars().first()
+
+    def get_latest_job_id(self, kb_id: str) -> str | None:
+        """Return the latest job_id (UUID) for a KB."""
+        with get_session() as session:
+            result = session.execute(
+                select(IngestionJob.id)
+                .where(IngestionJob.kb_id == kb_id)
+                .order_by(IngestionJob.created_at.desc())
+                .limit(1)
+            )
+            row = result.first()
+            return row[0] if row else None
+
+    def update_job_status(self, job_id: str, status: str) -> None:
+        """Update job status and timestamp (expects canonical job statuses)."""
+        db_status = self._map_status_to_db(status)
+
+        with get_session() as session:
+            session.execute(
+                update(IngestionJob)
+                .where(IngestionJob.id == job_id)
+                .values(status=db_status, updated_at=datetime.now(timezone.utc))
+            )
+
+    def initialize_phase_statuses(self, job_id: str) -> None:
+        """Initialize phase status records for all phases (idempotent)."""
+        with get_session() as session:
+            existing = (
+                session.execute(
+                    select(IngestionPhaseStatus.phase_name).where(
+                        IngestionPhaseStatus.job_id == job_id
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            existing_set = set(existing)
+            for phase in JobPhase:
+                if phase.value in existing_set:
+                    continue
+                phase_status = IngestionPhaseStatus(
+                    job_id=job_id,
+                    phase_name=phase.value,
+                    status=PhaseStatus.NOT_STARTED.value,
+                )
+                session.add(phase_status)
+
+    def set_job_status(
+        self,
+        job_id: str,
+        status: str,
+        finished_at: datetime | None = None,
+        last_error: str | None = None,
+    ) -> None:
+        """Set job status and optional completion info."""
+        db_status = self._map_status_to_db(status)
+
+        with get_session() as session:
+            job = session.get(IngestionJob, job_id)
+            if not job:
+                raise JobNotFoundError(f'Job not found: {job_id}')
+            job.status = db_status
+            job.finished_at = finished_at
+            job.last_error = last_error
+            job.updated_at = datetime.now(timezone.utc)
+
+    def update_job(
+        self,
+        job_id: str,
+        checkpoint: dict[str, Any] | None = None,
+        counters: dict[str, Any] | None = None,
+    ) -> None:
+        """Update job progress fields."""
+        with get_session() as session:
+            job = session.get(IngestionJob, job_id)
+            if not job:
+                raise JobNotFoundError(f'Job not found: {job_id}')
+
+            if checkpoint is not None:
+                job.checkpoint = checkpoint
+            if counters is not None:
+                job.counters = counters
+            job.updated_at = datetime.now(timezone.utc)
+
+    def update_heartbeat(self, job_id: str) -> None:
+        """Update job heartbeat timestamp."""
+        with get_session() as session:
+            session.execute(
+                update(IngestionJob)
+                .where(IngestionJob.id == job_id)
+                .values(heartbeat_at=datetime.now(timezone.utc))
+            )
+
+    def get_job(self, job_id: str) -> JobView:
+        """Fetch job by id as a detached snapshot."""
+        with get_session() as session:
+            job = session.get(IngestionJob, job_id)
+            if not job:
+                raise JobNotFoundError(f'Job not found: {job_id}')
+            return JobView(
+                id=job.id,
+                kb_id=job.kb_id,
+                status=job.status.lower(),
+                checkpoint=job.checkpoint,
+                counters=job.counters,
+                finished_at=job.finished_at,
+                last_error=job.last_error,
+                created_at=job.created_at,
+            )
+
+    def get_job_status(self, job_id: str) -> str:
+        """Return job status string (lowercased)."""
+        job = self.get_job(job_id)
+        return job.status.lower()
+
+    def _job_to_state(self, job: IngestionJob) -> IngestionState:
+        """Convert ORM job to domain state."""
+        return IngestionState(
+            job_id=job.id,
+            kb_id=job.kb_id,
+            status=job.status.lower(),
+            created_at=job.created_at,
+            phase=JobPhase.LOADING.value,
+            progress=job.processed_items,
+        )
+
+
+def create_job_repository() -> JobRepository:
+    return JobRepository()
+
+

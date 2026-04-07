@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.main import app
 from app.models import Project, ProjectDocument, ProjectState
-from app.projects_database import get_db
+from app.shared.db.projects_database import get_db
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ async def test_upload_documents_returns_summary_and_persists_statuses(
         return "ok text", None
 
     monkeypatch.setattr(
-        "app.services.project.document_service.extract_text_from_upload",
+        "app.features.projects.application.document_service.extract_text_from_upload",
         fake_extract_text,
     )
 
@@ -121,7 +121,7 @@ async def test_document_content_guesses_pdf_content_type_for_generic_upload(
         return "pdf text", None
 
     monkeypatch.setattr(
-        "app.services.project.document_service.extract_text_from_upload",
+        "app.features.projects.application.document_service.extract_text_from_upload",
         fake_extract_text,
     )
 
@@ -167,7 +167,7 @@ async def test_architecture_proposal_streams_progress_events(
     test_db_session.add(ProjectState(project_id=project.id, state="{}", updated_at="now"))
     await test_db_session.commit()
 
-    async def fake_generate_proposal(project_id: str, db, on_progress=None):
+    async def fake_generate_proposal(self, project_id: str, db, on_progress=None):
         if on_progress is not None:
             on_progress("phase_1", "Gathering context")
             await asyncio.sleep(0.01)
@@ -175,7 +175,7 @@ async def test_architecture_proposal_streams_progress_events(
         return "final proposal"
 
     monkeypatch.setattr(
-        "app.routers.project_management.project_router.document_service.generate_proposal",
+        "app.features.projects.application.document_service.DocumentService.generate_proposal",
         fake_generate_proposal,
     )
 

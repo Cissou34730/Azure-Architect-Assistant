@@ -11,7 +11,7 @@ from typing import Any
 from llama_index.core import Document as LlamaDocument
 
 from app.ingestion.domain.enums import IngestionPhase
-from app.services.ai import get_ai_service
+from app.shared.ai import get_ai_service
 
 logger = logging.getLogger(__name__)
 

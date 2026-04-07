@@ -7,7 +7,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.agents_system.services.project_context import update_project_state
 from app.models import Project, ProjectState
-from app.models.project import Base
+from app.models.project import Base, ProjectArchitectureInputs
 
 
 @pytest.mark.asyncio
@@ -53,5 +53,12 @@ async def test_update_project_state_no_overwrite_surfaces_conflicts() -> None:
         persisted = result.scalar_one_or_none()
         assert persisted is not None
         persisted_state = json.loads(persisted.state)
-        assert persisted_state.get("nfrs", {}).get("availability") == "99.9%"
+        assert "nfrs" not in persisted_state
+
+        inputs_result = await session.execute(
+            select(ProjectArchitectureInputs).where(ProjectArchitectureInputs.project_id == project.id)
+        )
+        inputs = inputs_result.scalar_one_or_none()
+        assert inputs is not None
+        assert json.loads(inputs.nfrs_json or "{}") == {"availability": "99.9%"}
 

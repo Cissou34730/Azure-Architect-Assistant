@@ -1,7 +1,7 @@
 import { useState, useMemo, lazy, Suspense } from "react";
 import { DollarSign, Download } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent, EmptyState } from "../../../../components/common";
-import type { CostEstimate } from "../../../../types/api";
+import { Card, CardHeader, CardTitle, CardContent, EmptyState } from "../../../../shared/ui";
+import type { CostEstimate } from "../../types/api-artifacts";
 import {
   ChartSkeleton,
   EstimateSelector,
@@ -49,7 +49,7 @@ function handleExportCSV(estimate: CostEstimate): void {
 }
 
 export function CostBreakdown({ costEstimates }: CostBreakdownProps) {
-  const [selectedEstimate, setSelectedEstimate] = useState<CostEstimate | null>(
+  const [selectedEstimate, setSelectedEstimate] = useState(
     costEstimates.length > 0
       ? (costEstimates[costEstimates.length - 1] ?? null)
       : null,
@@ -149,5 +149,6 @@ export function CostBreakdown({ costEstimates }: CostBreakdownProps) {
     </div>
   );
 }
+
 
 

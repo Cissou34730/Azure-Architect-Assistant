@@ -5,7 +5,7 @@ export function useWorkspaceTabs(
   initialTabs: readonly WorkspaceTab[],
   resetKey?: string,
 ) {
-  const [tabs, setTabs] = useState<readonly WorkspaceTab[]>(initialTabs);
+  const [tabs, setTabs] = useState(initialTabs);
   const [activeTabId, setActiveTabId] = useState(initialTabs[0]?.id ?? "");
 
   useEffect(() => {
@@ -15,13 +15,18 @@ export function useWorkspaceTabs(
 
   const orderedTabs = useMemo(() => normalizeTabs(tabs), [tabs]);
 
+  // oxlint-disable-next-line exhaustive-deps -- factory function creates callback over stable useState setters
   const openTab = useCallback(createOpenTab(setTabs, setActiveTabId), []);
+  // oxlint-disable-next-line exhaustive-deps -- factory function creates callback over stable useState setters
   const closeTab = useCallback(
     createCloseTab(setTabs, setActiveTabId, activeTabId),
     [activeTabId],
   );
+  // oxlint-disable-next-line exhaustive-deps -- factory function creates callback over stable useState setter
   const togglePin = useCallback(createTogglePin(setTabs), []);
+  // oxlint-disable-next-line exhaustive-deps -- factory function creates callback over stable useState setter
   const setDirty = useCallback(createSetDirty(setTabs), []);
+  // oxlint-disable-next-line exhaustive-deps -- factory function creates callback over stable useState setter
   const reorderTabs = useCallback(createReorderTabs(setTabs), []);
 
   return {

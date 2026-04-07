@@ -9,12 +9,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.projects.api import _deps as project_feature_deps
 from app.main import app
 from app.models import Project
-from app.models.diagram import DiagramSet
 from app.models.project import ProjectState
-from app.projects_database import get_db
-from app.services.diagram.database import get_diagram_session
+from app.shared.db.projects_database import get_db
 
 
 @pytest.fixture
@@ -265,7 +264,6 @@ async def test_delete_project_cleans_up_diagram_references(
         class MockSession:
             async def execute(self, *args, **kwargs):
                 cleanup_called.append(True)
-                return None
 
             async def __aenter__(self):
                 return self
@@ -275,10 +273,7 @@ async def test_delete_project_cleans_up_diagram_references(
 
         yield MockSession()
 
-    monkeypatch.setattr(
-        "app.services.project.project_service.get_diagram_session",
-        mock_diagram_session,
-    )
+    project_feature_deps._project_service._diagram_session_factory = mock_diagram_session
 
     response = await async_client.delete(f"/api/projects/{project.id}")
     assert response.status_code == 200

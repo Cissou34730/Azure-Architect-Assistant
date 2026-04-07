@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { Message } from "../../../types/api";
+import type { Message } from "../../knowledge/types/api-kb";
 import { useChatMessaging } from "./useChatMessaging";
 import { archiveOldMessages } from "../utils/messageArchive";
 

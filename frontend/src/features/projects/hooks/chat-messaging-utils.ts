@@ -1,4 +1,4 @@
-import type { Message } from "../../../types/api";
+import type { Message } from "../../knowledge/types/api-kb";
 
 function serializeKbSources(message: Message): string {
   if (message.kbSources === undefined || message.kbSources.length === 0) {

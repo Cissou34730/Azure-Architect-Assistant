@@ -1,7 +1,7 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { useInputAnalysisWorkflow } from "../../../../features/projects/hooks/useInputAnalysisWorkflow";
-import type { AnalysisSummary } from "../../../../types/api-artifacts";
+import type { AnalysisSummary } from "../../../../features/projects/types/api-artifacts";
 
 describe("useInputAnalysisWorkflow", () => {
   it("starts with default idle state", () => {

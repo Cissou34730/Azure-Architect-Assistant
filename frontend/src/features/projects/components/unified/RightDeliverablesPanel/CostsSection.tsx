@@ -1,5 +1,5 @@
 import { Virtuoso } from "react-virtuoso";
-import type { CostEstimate } from "../../../../../types/api";
+import type { CostEstimate } from "../../../types/api-artifacts";
 import { Section } from "./Section";
 import { CostCard } from "./CostCard";
 

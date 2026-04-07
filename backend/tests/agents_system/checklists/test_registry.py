@@ -3,8 +3,8 @@ import json
 import pytest
 
 from app.agents_system.checklists.registry import ChecklistRegistry
-from app.core.app_settings import AppSettings
 from app.models.checklist import ChecklistTemplate
+from app.shared.config.app_settings import AppSettings
 
 
 @pytest.fixture

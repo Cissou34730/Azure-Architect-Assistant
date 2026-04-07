@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useProjectDetails } from "../../../../features/projects/hooks/useProjectDetails";
-import type { ProjectState, Project } from "../../../../types/api";
+import type { Project, ProjectState } from "../../../../features/projects/types/api-project";
 
 const fakeProject: Project = {
   id: "p1",

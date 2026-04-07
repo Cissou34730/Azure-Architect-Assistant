@@ -2,9 +2,8 @@
 
 import logging
 
-from app.services.ai.config import AIConfig
-
-from ..services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from app.shared.ai.config import AIConfig
+from app.shared.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
 logger = logging.getLogger(__name__)
 

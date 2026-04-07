@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.services.ingestion_metrics_service import (
+from app.features.ingestion.application.metrics import (
     IngestionMetrics,
     JobCounters,
     apply_counter_overrides,

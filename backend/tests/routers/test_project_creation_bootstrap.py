@@ -6,11 +6,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.app_settings import get_settings
 from app.main import app
 from app.models.checklist import Checklist, ChecklistItem
 from app.models.project import ProjectState
-from app.projects_database import get_db
+from app.shared.config.app_settings import get_app_settings
+from app.shared.db.projects_database import get_db
 
 
 @pytest.fixture
@@ -67,13 +67,11 @@ async def test_create_project_bootstraps_state_and_waf_checklist(
     cache_dir = tmp_path / "checklists"
     _write_template(cache_dir)
 
-    settings = get_settings().model_copy(deep=True)
+    settings = get_app_settings().model_copy(deep=True)
     settings.waf_template_cache_dir = cache_dir
 
-    monkeypatch.setattr(
-        "app.services.project.project_service.get_app_settings",
-        lambda: settings,
-    )
+    monkeypatch.setattr("app.features.projects.api._deps.get_app_settings", lambda: settings)
+    app.dependency_overrides[get_app_settings] = lambda: settings
 
     response = await async_client.post("/api/projects", json={"name": "Bootstrap Project"})
     assert response.status_code == 200
@@ -89,8 +87,10 @@ async def test_create_project_bootstraps_state_and_waf_checklist(
     state_data = json.loads(state_row.state)
     assert "wafChecklist" not in state_data
 
+    await test_db_session.commit()
+
     state_response = await async_client.get(f"/api/projects/{project_id}/state")
-    assert state_response.status_code == 200
+    assert state_response.status_code == 200, state_response.text
     state_payload = state_response.json()["projectState"]
     assert isinstance(state_payload.get("wafChecklist", {}).get("items"), list)
     assert len(state_payload["wafChecklist"]["items"]) >= 2

@@ -17,9 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents_system.checklists.engine import ChecklistEngine
 from app.agents_system.checklists.registry import ChecklistRegistry
-from app.core.app_settings import AppSettings, get_app_settings
 from app.models.checklist import ChecklistItemEvaluation
-from app.projects_database import get_db
+from app.shared.config.app_settings import AppSettings, get_app_settings
+from app.shared.db.projects_database import get_db
 
 logger = logging.getLogger(__name__)
 

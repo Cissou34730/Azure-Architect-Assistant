@@ -2,12 +2,12 @@ import { useState, useRef, useCallback, memo } from "react";
 import { Command } from "lucide-react";
 import { ProjectSelectorDropdown, DeleteProjectModal } from "./selectors";
 import type { ProjectSelectorDropdownRef } from "./selectors";
-import { useProjectSelector } from "../../../hooks/useProjectSelector";
-import { Project } from "../../../types/api";
+import { useProjectSelector } from "../hooks/useProjectSelector";
+import type { Project } from "../types/api-project";
 import { useProjectHeaderKeyboard } from "./useProjectHeaderKeyboard";
 import { ProjectHeaderShortcuts } from "./ProjectHeaderShortcuts";
 import { ProjectHeaderActions } from "./ProjectHeaderActions";
-import { useRenderCount } from "../../../hooks/useRenderCount";
+import { useRenderCount } from "../../../shared/hooks/useRenderCount";
 
 interface ProjectHeaderProps {
   readonly onUploadClick?: () => void;
@@ -108,5 +108,6 @@ function ProjectHeader({
 
 const projectHeader = memo(ProjectHeader);
 export { projectHeader as ProjectHeader };
+
 
 

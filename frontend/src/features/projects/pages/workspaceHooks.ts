@@ -2,11 +2,16 @@ import { useCallback, useEffect } from "react";
 import type { SetURLSearchParams } from "react-router-dom";
 import type { WorkspaceTab } from "../components/unified/workspace/types";
 import {
-  createAdrTab,
-  createInputOverviewTab,
-  normalizeParam,
-  resolveTabIntent,
-} from "./workspaceHelpers";
+  createProjectWorkspaceTab,
+  resolveProjectWorkspaceTabIntent,
+} from "../workspace.manifest";
+
+function normalizeParam(value: string | null): string {
+  if (value === null) {
+    return "";
+  }
+  return value.trim().toLowerCase();
+}
 
 export function useInputDirtyIndicator({
   savedText,
@@ -29,21 +34,46 @@ export function useWorkspaceQuickOpen(
 ) {
   const handleUploadClick = useCallback(() => {
     openLeftPanel();
-    openTab(createInputOverviewTab());
+    openTab(createProjectWorkspaceTab("input-overview"));
   }, [openLeftPanel, openTab]);
 
   const handleAdrClick = useCallback(() => {
-    openTab({
-      id: "artifact-adrs",
-      kind: "artifact-adrs",
-      title: "ADRs",
-      group: "artifact",
-      pinned: false,
-      dirty: false,
-    });
+    openTab(createProjectWorkspaceTab("artifact-adrs"));
   }, [openTab]);
 
   return { handleUploadClick, handleAdrClick };
+}
+
+function processTabIntent(
+  tabIntent: string,
+  nextParams: URLSearchParams,
+  { openLeftPanel, openTab }: { openLeftPanel: () => void; openTab: (tab: WorkspaceTab) => void },
+): boolean {
+  if (tabIntent === "") return false;
+  const tab = resolveProjectWorkspaceTabIntent(tabIntent);
+  if (tab === null) return false;
+  if (tab.group === "input") openLeftPanel();
+  openTab(tab);
+  nextParams.delete("tab");
+  return true;
+}
+
+function processActionIntent(
+  runIntent: string,
+  nextParams: URLSearchParams,
+  { openTab, onGenerateCandidate }: { openTab: (tab: WorkspaceTab) => void; onGenerateCandidate: () => void },
+): boolean {
+  if (runIntent === "") return false;
+  if (runIntent === "generate-candidate") {
+    onGenerateCandidate();
+  } else if (runIntent === "create-adr") {
+    openTab(createProjectWorkspaceTab("artifact-adrs"));
+  } else {
+    return false;
+  }
+  nextParams.delete("action");
+  nextParams.delete("prompt");
+  return true;
 }
 
 export function useRouteIntentHandlers({
@@ -61,49 +91,15 @@ export function useRouteIntentHandlers({
 }) {
   useEffect(() => {
     const nextParams = new URLSearchParams(searchParams);
-    let shouldUpdateUrl = false;
-
-    const tabIntent = normalizeParam(searchParams.get("tab"));
-    if (tabIntent !== "") {
-      const tab = resolveTabIntent(tabIntent);
-      if (tab !== null) {
-        if (tab.group === "input") {
-          openLeftPanel();
-        }
-        openTab(tab);
-        nextParams.delete("tab");
-        shouldUpdateUrl = true;
-      }
-    }
-
-    const actionIntent = normalizeParam(searchParams.get("action"));
-    const promptIntent = normalizeParam(searchParams.get("prompt"));
-    const runIntent = actionIntent !== "" ? actionIntent : promptIntent;
-    let consumedAction = false;
-    if (runIntent !== "") {
-      if (runIntent === "generate-candidate") {
-        onGenerateCandidate();
-        consumedAction = true;
-        shouldUpdateUrl = true;
-      } else if (runIntent === "create-adr") {
-        openTab(createAdrTab());
-        consumedAction = true;
-        shouldUpdateUrl = true;
-      }
-      if (consumedAction) {
-        nextParams.delete("action");
-        nextParams.delete("prompt");
-      }
-    }
-
-    if (shouldUpdateUrl) {
+    const tabUpdated = processTabIntent(
+      normalizeParam(searchParams.get("tab")),
+      nextParams,
+      { openLeftPanel, openTab },
+    );
+    const runIntent = normalizeParam(searchParams.get("action")) || normalizeParam(searchParams.get("prompt"));
+    const actionUpdated = processActionIntent(runIntent, nextParams, { openTab, onGenerateCandidate });
+    if (tabUpdated || actionUpdated) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [
-    onGenerateCandidate,
-    openLeftPanel,
-    openTab,
-    searchParams,
-    setSearchParams,
-  ]);
+  }, [onGenerateCandidate, openLeftPanel, openTab, searchParams, setSearchParams]);
 }

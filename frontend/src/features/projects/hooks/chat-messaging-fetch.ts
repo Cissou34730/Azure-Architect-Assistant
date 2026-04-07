@@ -1,12 +1,12 @@
 import { useCallback, useRef, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { chatApi } from "../../../services/chatService";
-import { Message } from "../../../types/api";
+import { chatApi } from "../api/chatService";
+import type { Message } from "../../knowledge/types/api-kb";
 import {
   restoreLastBatchFromArchive,
   archiveOldMessages,
 } from "../utils/messageArchive";
-import { isFeatureEnabled } from "../../../config/featureFlags";
+import { isFeatureEnabled } from "../../../shared/config/featureFlags";
 import {
   findLastNonOptimisticId,
   reconcileMessages,
@@ -135,3 +135,4 @@ export function useFetchOlderMessages({
     [projectId, setMessages],
   );
 }
+

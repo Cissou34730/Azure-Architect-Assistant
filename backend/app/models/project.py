@@ -40,6 +40,17 @@ class Project(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    architecture_inputs: Mapped[ProjectArchitectureInputs | None] = relationship(
+        "ProjectArchitectureInputs",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    state_components: Mapped[list[ProjectStateComponent]] = relationship(
+        "ProjectStateComponent",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
     messages: Mapped[list[ConversationMessage]] = relationship(
         "ConversationMessage", back_populates="project", cascade="all, delete-orphan"
     )
@@ -50,6 +61,9 @@ class Project(Base):
         "ChecklistItemEvaluation",
         back_populates="project",
         cascade="all, delete-orphan",
+    )
+    threads: Mapped[list[ProjectThread]] = relationship(
+        "ProjectThread", back_populates="project", cascade="all, delete-orphan"
     )
 
     def to_dict(self) -> dict[str, str | None]:
@@ -143,6 +157,48 @@ class ProjectState(Base):
         return state_data
 
 
+class ProjectArchitectureInputs(Base):
+    """Dedicated persisted store for architecture-input families."""
+
+    __tablename__ = "project_architecture_inputs"
+
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    context_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    nfrs_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    application_structure_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    data_compliance_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    technical_constraints_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    open_questions_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+    )
+
+    project: Mapped[Project] = relationship("Project", back_populates="architecture_inputs")
+
+
+class ProjectStateComponent(Base):
+    """Generic persisted store for decomposed top-level ProjectState families."""
+
+    __tablename__ = "project_state_components"
+
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    component_key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+    )
+
+    project: Mapped[Project] = relationship("Project", back_populates="state_components")
+
+
 class ConversationMessage(Base):
     """Chat message in project conversation."""
 
@@ -151,6 +207,9 @@ class ConversationMessage(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     project_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    thread_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("project_threads.id", ondelete="SET NULL"), nullable=True
     )
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # "user" or "assistant"
     content: Mapped[str] = mapped_column(Text, nullable=False)
@@ -163,6 +222,7 @@ class ConversationMessage(Base):
 
     # Relationships
     project: Mapped[Project] = relationship("Project", back_populates="messages")
+    thread: Mapped[ProjectThread | None] = relationship("ProjectThread", back_populates="messages")
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API responses."""
@@ -173,7 +233,90 @@ class ConversationMessage(Base):
             "content": str(self.content),
             "timestamp": str(self.timestamp),
         }
+        if self.thread_id:
+            result["threadId"] = str(self.thread_id)
         if self.waf_sources:
             result["wafSources"] = json.loads(str(self.waf_sources))
         return result
+
+
+class ProjectThread(Base):
+    """Thread for conversation continuity within a project."""
+
+    __tablename__ = "project_threads"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    stage: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+    )
+    updated_at: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+    )
+
+    # Relationships
+    project: Mapped[Project] = relationship("Project", back_populates="threads")
+    messages: Mapped[list[ConversationMessage]] = relationship(
+        "ConversationMessage", back_populates="thread"
+    )
+    trace_events: Mapped[list[ProjectTraceEvent]] = relationship(
+        "ProjectTraceEvent", back_populates="thread"
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for API responses."""
+        return {
+            "id": str(self.id),
+            "projectId": str(self.project_id),
+            "stage": self.stage,
+            "title": self.title,
+            "isActive": self.is_active,
+            "createdAt": str(self.created_at),
+            "updatedAt": str(self.updated_at),
+        }
+
+
+class ProjectTraceEvent(Base):
+    """Trace event for cold storage of execution data."""
+
+    __tablename__ = "project_trace_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    thread_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("project_threads.id", ondelete="SET NULL"), nullable=True
+    )
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    payload: Mapped[str] = mapped_column(Text, nullable=False, default="{}")  # JSON string
+    created_at: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+    )
+
+    # Relationships
+    project: Mapped[Project] = relationship("Project")
+    thread: Mapped[ProjectThread | None] = relationship("ProjectThread", back_populates="trace_events")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for API responses."""
+        return {
+            "id": str(self.id),
+            "projectId": str(self.project_id),
+            "threadId": self.thread_id,
+            "eventType": str(self.event_type),
+            "payload": json.loads(str(self.payload)),
+            "createdAt": str(self.created_at),
+        }
 

@@ -1,15 +1,13 @@
 """Unit tests for MicrosoftLearnMCPClient with mocked MCP session."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.services.mcp.exceptions import (
-    MCPCapabilityError,
+from app.shared.mcp.exceptions import (
     MCPConnectionError,
-    MCPTimeoutError,
 )
-from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from app.shared.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
 
 def _make_client() -> MicrosoftLearnMCPClient:
@@ -80,3 +78,4 @@ class TestListToolsMocked:
 
         tools = client.list_tools()
         assert tools == []
+

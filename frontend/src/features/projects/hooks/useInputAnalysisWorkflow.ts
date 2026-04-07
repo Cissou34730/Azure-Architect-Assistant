@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import type { AnalysisSummary, UploadSummary } from "../../../types/api";
+import type { AnalysisSummary, UploadSummary } from "../types/api-artifacts";
 
 export type WorkflowPhaseState = "idle" | "running" | "success" | "error";
 
@@ -73,19 +73,19 @@ function makeAnalysisSuccessPatch(analysisSummary: AnalysisSummary | null): Work
 }
 
 export function useInputAnalysisWorkflow() {
-  const [state, setState] = useState<InputAnalysisWorkflowState>(DEFAULT_WORKFLOW_STATE);
+  const [state, setState] = useState(DEFAULT_WORKFLOW_STATE);
 
   const patchState = useCallback((patch: WorkflowPatch) => {
     setState((current) => ({ ...current, ...patch }));
   }, []);
 
-  const markUploadRunning = useCallback(() => patchState(UPLOAD_RUNNING_PATCH), [patchState]);
-  const markUploadSuccess = useCallback((s: UploadSummary) => patchState(makeUploadSuccessPatch(s)), [patchState]);
-  const markUploadError = useCallback((message: string) => patchState({ uploadState: "error", currentStep: "idle", message }), [patchState]);
-  const markAnalysisRunning = useCallback(() => patchState(ANALYSIS_RUNNING_PATCH), [patchState]);
-  const markAnalysisSuccess = useCallback((s: AnalysisSummary | null) => patchState(makeAnalysisSuccessPatch(s)), [patchState]);
-  const markAnalysisError = useCallback((message: string) => patchState({ analysisState: "error", currentStep: "idle", message }), [patchState]);
-  const clearWorkflowMessage = useCallback(() => patchState({ message: "" }), [patchState]);
+  const markUploadRunning = useCallback(() => { patchState(UPLOAD_RUNNING_PATCH); }, [patchState]);
+  const markUploadSuccess = useCallback((s: UploadSummary) => { patchState(makeUploadSuccessPatch(s)); }, [patchState]);
+  const markUploadError = useCallback((message: string) => { patchState({ uploadState: "error", currentStep: "idle", message }); }, [patchState]);
+  const markAnalysisRunning = useCallback(() => { patchState(ANALYSIS_RUNNING_PATCH); }, [patchState]);
+  const markAnalysisSuccess = useCallback((s: AnalysisSummary | null) => { patchState(makeAnalysisSuccessPatch(s)); }, [patchState]);
+  const markAnalysisError = useCallback((message: string) => { patchState({ analysisState: "error", currentStep: "idle", message }); }, [patchState]);
+  const clearWorkflowMessage = useCallback(() => { patchState({ message: "" }); }, [patchState]);
 
   return useMemo(
     () => ({

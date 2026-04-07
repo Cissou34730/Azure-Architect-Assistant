@@ -1,0 +1,142 @@
+/**
+ * Service Error Handler
+ * Standardized error handling for API services
+ */
+
+class ServiceError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly detail?: string,
+  ) {
+    super(message);
+    this.name = "ServiceError";
+  }
+}
+
+import { keysToCamel } from "../lib/apiMapping";
+import { isRecord } from "../lib/typeGuards";
+
+// ... (ServiceError class)
+
+function getErrorMessageFromData(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
+  rawData: Record<string, unknown>,
+): string | null {
+  if (typeof rawData.error === "string" && rawData.error !== "") {
+    return rawData.error;
+  }
+
+  if (typeof rawData.message === "string" && rawData.message !== "") {
+    return rawData.message;
+  }
+
+  return null;
+}
+
+function getErrorDetailFromData(
+  // eslint-disable-next-line @typescript-eslint/no-restricted-types
+  rawData: Record<string, unknown>,
+): string | null {
+  if (typeof rawData.detail === "string" && rawData.detail !== "") {
+    return rawData.detail;
+  }
+
+  // FastAPI validation errors often return `detail` as an array
+  // e.g. [{ loc: ["body", "kb_id"], msg: "field required", type: "missing" }]
+  if (Array.isArray(rawData.detail)) {
+    const lines: string[] = [];
+    for (const entry of rawData.detail) {
+      if (!isRecord(entry)) {
+        continue;
+      }
+
+      const msg = typeof entry.msg === "string" ? entry.msg : "Invalid value";
+      const loc = Array.isArray(entry.loc)
+        ? entry.loc.filter((p) => typeof p === "string").join(".")
+        : "";
+
+      lines.push(loc !== "" ? `${loc}: ${msg}` : msg);
+    }
+
+    const detailText = lines.join("\n").trim();
+    if (detailText !== "") {
+      return detailText;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Handle fetch response errors consistently
+ */
+async function handleResponseError(
+  response: Response,
+  operation: string,
+): Promise<never> {
+  let errorMessage = `Failed to ${operation}`;
+  let detail: string | undefined;
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
+    const rawData: unknown = await response.json();
+    if (isRecord(rawData)) {
+      const extractedMsg = getErrorMessageFromData(rawData);
+      if (extractedMsg !== null) {
+        errorMessage = extractedMsg;
+      }
+
+      const extractedDetail = getErrorDetailFromData(rawData);
+      if (extractedDetail !== null) {
+        detail = extractedDetail;
+      }
+    }
+  } catch {
+    // Response wasn't JSON, use status text
+    errorMessage = `${operation} failed: ${response.statusText}`;
+  }
+
+  if (detail !== undefined && detail !== "" && !errorMessage.includes(detail)) {
+    errorMessage = `${errorMessage}: ${detail}`;
+  }
+
+  throw new ServiceError(errorMessage, response.status, detail);
+}
+
+/**
+ * Wrap fetch calls with consistent error handling
+ */
+export async function fetchWithErrorHandling<T>(
+  url: string,
+  options: RequestInit = {},
+  operation = "fetch",
+): Promise<T> {
+  try {
+    const response = await fetch(url, options);
+
+    if (!response.ok) {
+      await handleResponseError(response, operation);
+    }
+
+    const text = await response.text();
+    if (text === "") {
+      return keysToCamel<T>({});
+    }
+    // eslint-disable-next-line @typescript-eslint/no-restricted-types
+    const data: unknown = JSON.parse(text);
+    return keysToCamel<T>(data);
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      throw error;
+    }
+    // Network error or other fetch failure
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    throw new ServiceError(
+      `Network error during ${operation}: ${errorMsg}`,
+      undefined,
+      errorMsg,
+    );
+  }
+}
+

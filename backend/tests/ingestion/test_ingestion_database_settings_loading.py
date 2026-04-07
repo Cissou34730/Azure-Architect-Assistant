@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 from pydantic_settings import SettingsError
 
-import app.core.app_settings as app_settings_module
+import app.shared.config.app_settings as app_settings_module
 
 
 def _reload_ingestion_database():

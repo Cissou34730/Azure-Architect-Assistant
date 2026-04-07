@@ -1,7 +1,7 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useChat } from "../../../../features/projects/hooks/useChat";
-import type { Message, SendMessageResponse } from "../../../../types/api";
+import type { Message, SendMessageResponse } from "../../../../features/knowledge/types/api-kb";
 
 const mockFetchMessages = vi.fn().mockResolvedValue(undefined);
 const mockFetchOlderMessages = vi.fn().mockResolvedValue([]);

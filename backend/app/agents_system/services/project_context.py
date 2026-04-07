@@ -3,7 +3,6 @@ Project context services for agent system.
 Provides read/write access to ProjectState from database.
 """
 
-import json
 import logging
 from collections.abc import Sequence
 from datetime import datetime, timezone
@@ -12,6 +11,13 @@ from typing import Any
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.features.projects.infrastructure.project_state_decomposition import (
+    compose_project_state,
+)
+from app.features.projects.infrastructure.project_state_store import ProjectStateStore
+from app.models.checklist import Checklist, ChecklistItem
 
 from ...models import Project, ProjectDocument, ProjectState
 from .aaa_state_models import AAAProjectState, apply_us6_enrichment, ensure_aaa_defaults
@@ -19,6 +25,7 @@ from .mindmap_loader import is_mindmap_initialized, update_mindmap_coverage
 from .state_update_parser import merge_state_updates_no_overwrite
 
 logger = logging.getLogger(__name__)
+_project_state_store = ProjectStateStore()
 
 
 def _normalize_parse_status(document: ProjectDocument) -> str:
@@ -95,6 +102,35 @@ def _merge_uploaded_reference_documents(
     return list(merged_by_id.values())
 
 
+async def _get_waf_checklist_state(
+    project_id: str,
+    db: AsyncSession,
+) -> dict[str, Any] | None:
+    result = await db.execute(
+        select(Checklist)
+        .where(Checklist.project_id == project_id)
+        .options(selectinload(Checklist.items).selectinload(ChecklistItem.evaluations))
+    )
+    checklists = result.scalars().all()
+    if not checklists:
+        return None
+
+    items: list[dict[str, Any]] = []
+    for checklist in checklists:
+        for item in checklist.items:
+            items.append(
+                {
+                    "id": item.template_item_id,
+                    "title": item.title,
+                    "description": item.description,
+                    "pillar": item.pillar,
+                    "severity": item.severity.value if hasattr(item.severity, "value") else item.severity,
+                }
+            )
+
+    return {"items": items}
+
+
 async def read_project_state(project_id: str, db: AsyncSession) -> dict[str, Any] | None:
     """
     Read ProjectState from database.
@@ -115,7 +151,15 @@ async def read_project_state(project_id: str, db: AsyncSession) -> dict[str, Any
         logger.warning(f"No ProjectState found for project {project_id}")
         return None
 
-    raw_state = json.loads(state_record.state)
+    blob_state = await _project_state_store.get_blob_state(project_id=project_id, db=db)
+    raw_state = await compose_project_state(
+        project_id=project_id,
+        state=blob_state or {},
+        db=db,
+    )
+    waf_checklist = await _get_waf_checklist_state(project_id, db)
+    if waf_checklist is not None:
+        raw_state["wafChecklist"] = waf_checklist
     raw_state = ensure_aaa_defaults(raw_state)
     try:
         state_data = AAAProjectState.model_validate(raw_state).model_dump(
@@ -133,6 +177,8 @@ async def read_project_state(project_id: str, db: AsyncSession) -> dict[str, Any
         select(ProjectDocument).where(ProjectDocument.project_id == project_id)
     )
     project_documents = docs_result.scalars().all()
+    if "projectDocumentStats" in state_data and "ingestionStats" not in state_data:
+        state_data["ingestionStats"] = state_data["projectDocumentStats"]
     if project_documents:
         uploaded_reference_documents = [
             _document_to_reference_payload(document) for document in project_documents
@@ -178,13 +224,8 @@ async def update_project_state(
     if not project:
         raise ValueError(f"Project {project_id} not found")
 
-    # Get current state
-    state_result = await db.execute(
-        select(ProjectState).where(ProjectState.project_id == project_id)
-    )
-    state_record = state_result.scalar_one_or_none()
-
-    if not state_record:
+    blob_state = await _project_state_store.get_blob_state(project_id=project_id, db=db)
+    if blob_state is None:
         raise ValueError(f"ProjectState not initialized for project {project_id}")
 
     sanitized_updates = dict(updates)
@@ -193,7 +234,13 @@ async def update_project_state(
     # Merge or replace
     conflicts = []
     if merge:
-        current_state = ensure_aaa_defaults(json.loads(state_record.state))
+        current_state = ensure_aaa_defaults(
+            await compose_project_state(
+                project_id=project_id,
+                state=blob_state,
+                db=db,
+            )
+        )
         current_state.pop("wafChecklist", None)
         merge_result = merge_state_updates_no_overwrite(current_state, sanitized_updates)
         updated_state = ensure_aaa_defaults(merge_result.merged_state)
@@ -214,8 +261,14 @@ async def update_project_state(
         raise ValueError(f"Invalid project state update payload: {exc}") from exc
 
     # Update database record
-    state_record.state = json.dumps(updated_state)
-    state_record.updated_at = datetime.now(timezone.utc).isoformat()
+    updated_at = datetime.now(timezone.utc).isoformat()
+    await _project_state_store.persist_composed_state(
+        project_id=project_id,
+        state=updated_state,
+        db=db,
+        replace_missing=True,
+        updated_at=updated_at,
+    )
 
     # Don't commit here - let the dependency handle it
     await db.flush()  # Flush to get updated values but don't commit
@@ -223,23 +276,12 @@ async def update_project_state(
     # Return with metadata
     response_state = dict(updated_state)
     response_state["projectId"] = project_id
-    response_state["lastUpdated"] = state_record.updated_at
+    response_state["lastUpdated"] = updated_at
     if conflicts:
         response_state["conflicts"] = conflicts
 
     logger.info(f"Updated ProjectState for project {project_id}")
     return response_state
-
-
-def _deep_merge(base: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
-    """Deprecated: retained for compatibility, prefer merge_state_updates_no_overwrite."""
-    result = base.copy()
-    for key, value in updates.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = _deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
 
 
 async def get_project_context_summary(project_id: str, db: AsyncSession) -> str:

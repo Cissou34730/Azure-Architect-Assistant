@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProjectList } from "../components/ProjectList";
 import { useProjects } from "../hooks/useProjects";
-import { Card } from "../../../components/common";
+import { Card } from "../../../shared/ui";
 
 export default function ProjectsPage() {
   const { projects, createProject, loading, fetchProjects } = useProjects();
@@ -45,4 +45,5 @@ export default function ProjectsPage() {
     </div>
   );
 }
+
 

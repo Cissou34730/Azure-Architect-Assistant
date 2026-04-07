@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.main import app
 from app.models.checklist import Checklist, ChecklistItem, ChecklistItemEvaluation
 from app.models.project import Project, ProjectState
-from app.projects_database import get_db
+from app.shared.db.projects_database import get_db
 
 
 @pytest.fixture

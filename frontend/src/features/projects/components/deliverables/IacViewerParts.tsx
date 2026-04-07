@@ -1,8 +1,8 @@
 import { useState, lazy } from "react";
 import { Code, Download, Copy, CheckCircle, AlertCircle } from "lucide-react";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { Card, CardHeader, CardTitle, CardContent, Badge } from "../../../../components/common";
-import type { IacArtifact, IacFile } from "../../../../types/api";
+import { Card, CardHeader, CardTitle, CardContent, Badge } from "../../../../shared/ui";
+import type { IacArtifact, IacFile } from "../../types/api-artifacts";
 
 // Lazy load SyntaxHighlighter to reduce initial bundle size
 // eslint-disable-next-line @typescript-eslint/naming-convention -- React lazy component must be PascalCase
@@ -310,6 +310,7 @@ export function ArtifactBoard({
     </Card>
   );
 }
+
 
 
 

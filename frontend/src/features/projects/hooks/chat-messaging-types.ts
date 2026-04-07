@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { Message } from "../../../types/api";
+import type { Message } from "../../knowledge/types/api-kb";
 
 export interface UseChatMessagingProps {
   readonly projectId: string | null;

@@ -4,8 +4,8 @@ import { projectInputContext } from "./ProjectInputContext";
 import { projectChatContext } from "./ProjectChatContext";
 import { projectStateContext } from "./ProjectStateContext";
 import { projectMetaContext } from "./ProjectMetaContext";
-import { ErrorBoundary } from "../../../components/common/ErrorBoundary";
-import { useRenderCount } from "../../../hooks/useRenderCount";
+import { ErrorBoundary } from "../../../shared/ui/ErrorBoundary";
+import { useRenderCount } from "../../../shared/hooks/useRenderCount";
 
 export function ProjectProvider({
   value,
@@ -113,3 +113,4 @@ export function ProjectProvider({
     </ErrorBoundary>
   );
 }
+

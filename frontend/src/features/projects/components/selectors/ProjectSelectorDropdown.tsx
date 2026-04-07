@@ -1,12 +1,12 @@
 import { useState, useRef, forwardRef, useImperativeHandle, useCallback } from "react";
 import { ChevronDown, Folder } from "lucide-react";
-import { Project } from "../../../../types/api";
+import type { Project } from "../../types/api-project";
 import { ProjectSelectorDropdownFooter } from "./ProjectSelectorDropdownFooter";
 import { ProjectSelectorSearch } from "./ProjectSelectorSearch";
 import { ProjectSelectorList } from "./ProjectSelectorList";
 import { useProjectFiltering } from "./useProjectFiltering";
 import { useProjectKeyboardNav } from "./useProjectKeyboardNav";
-import { useClickOutside } from "../../../../hooks/useClickOutside";
+import { useClickOutside } from "../../../../shared/hooks/useClickOutside";
 
 interface ProjectSelectorDropdownProps {
   readonly projects: readonly Project[];
@@ -190,4 +190,5 @@ function ProjectSelectorMenu({
     </div>
   );
 }
+
 

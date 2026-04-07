@@ -1,6 +1,6 @@
 import { FileText, AlertCircle } from "lucide-react";
-import type { AdrArtifact, FindingArtifact } from "../../../../../types/api";
-import { Badge } from "../../../../../components/common";
+import type { AdrArtifact, FindingArtifact } from "../../../types/api-artifacts";
+import { Badge } from "../../../../../shared/ui";
 import { BaseCard } from "./BaseCard";
 
 interface DeliverableCardProps {
@@ -51,4 +51,5 @@ export function DeliverableCard({ artifact, onClick }: DeliverableCardProps) {
     </BaseCard>
   );
 }
+
 

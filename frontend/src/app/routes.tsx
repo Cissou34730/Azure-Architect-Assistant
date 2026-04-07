@@ -2,11 +2,26 @@ import { lazy } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "./Layout";
 import { LegacyProjectAliasRedirect } from "./LegacyProjectAliasRedirect";
+import { workspaceManifestById } from "./workspaceRegistry";
+
+const projectsWorkspaceRoute = workspaceManifestById.projects.route;
+const knowledgeWorkspaceRoute = workspaceManifestById.knowledge.route;
+const ingestionWorkspaceRoute = workspaceManifestById.ingestion.route;
+
+if (
+  projectsWorkspaceRoute === undefined ||
+  knowledgeWorkspaceRoute === undefined ||
+  ingestionWorkspaceRoute === undefined
+) {
+  throw new Error("Required workspace route manifests are missing.");
+}
+
+function toChildPath(path: string): string {
+  return path.startsWith("/") ? path.slice(1) : path;
+}
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-const ProjectsPage = lazy(
-  () => import("../features/projects/pages/ProjectsPage"),
-);
+const ProjectsPage = lazy(projectsWorkspaceRoute.importRoute);
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const ProjectDetailPage = lazy(
   () => import("../features/projects/pages/ProjectDetailPage"),
@@ -16,15 +31,9 @@ const UnifiedProjectPage = lazy(
   () => import("../features/projects/pages/UnifiedProjectPage"),
 );
 // eslint-disable-next-line @typescript-eslint/naming-convention
-const KBWorkspace = lazy(() =>
-  import("../components/kb").then((m) => ({ default: m.KBWorkspace })),
-);
+const KBWorkspace = lazy(knowledgeWorkspaceRoute.importRoute);
 // eslint-disable-next-line @typescript-eslint/naming-convention
-const IngestionWorkspace = lazy(() =>
-  import("../components/ingestion/IngestionWorkspace").then((m) => ({
-    default: m.IngestionWorkspace,
-  })),
-);
+const IngestionWorkspace = lazy(ingestionWorkspaceRoute.importRoute);
 
 export const router = createBrowserRouter([
   {
@@ -36,7 +45,7 @@ export const router = createBrowserRouter([
         element: <Navigate to="/project" replace />,
       },
       {
-        path: "project",
+        path: toChildPath(projectsWorkspaceRoute.path),
         element: <ProjectsPage />,
       },
       {
@@ -62,13 +71,14 @@ export const router = createBrowserRouter([
         element: <LegacyProjectAliasRedirect />,
       },
       {
-        path: "kb",
+        path: toChildPath(knowledgeWorkspaceRoute.path),
         element: <KBWorkspace />,
       },
       {
-        path: "kb-management",
+        path: toChildPath(ingestionWorkspaceRoute.path),
         element: <IngestionWorkspace />,
       },
     ],
   },
 ]);
+

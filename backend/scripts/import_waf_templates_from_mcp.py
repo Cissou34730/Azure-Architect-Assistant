@@ -26,11 +26,12 @@ _ensure_backend_on_path()
 from app.agents_system.checklists.default_templates import (  # noqa: E402
     WAF_PILLAR_TEMPLATES,
 )
-from app.core.app_settings import get_app_settings  # noqa: E402
-from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient  # noqa: E402
-from app.services.mcp.operations.learn_operations import fetch_documentation  # noqa: E402
+from app.shared.config.app_settings import get_app_settings  # noqa: E402
+from app.shared.mcp.learn_mcp_client import MicrosoftLearnMCPClient  # noqa: E402
+from app.shared.mcp.operations.learn_operations import fetch_documentation  # noqa: E402
 
 _CHECKLIST_ROW_PREFIX = "|"
+_CHECKLIST_MIN_PARTS = 3
 _CODE_LINK_RE = re.compile(r"\[([A-Z]{2}:\d{2})\]\(([^)]+)\)")
 _BOLD_RE = re.compile(r"\*\*([^*]+)\*\*")
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -81,7 +82,7 @@ def _parse_markdown_rows(markdown: str, source_url: str, pillar: str) -> list[di
             continue
 
         parts = [segment.strip() for segment in line.strip("|").split("|")]
-        if len(parts) < 3:
+        if len(parts) < _CHECKLIST_MIN_PARTS:
             continue
 
         code_column = parts[1]

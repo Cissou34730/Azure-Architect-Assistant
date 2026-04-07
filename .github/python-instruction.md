@@ -16,6 +16,8 @@ applyTo: '**/*.py'
 - Add docstrings for public modules, classes, and functions.
 - Follow project typing/lint configs (`ruff.toml`, `mypy.ini`, `pyrightconfig.json`).
 - Keep imports at module top except justified exceptions (circular/optional/heavy).
+- Typing is mandatory of all ojects, never all any or implicit type
+- Respect at any cost Single Responsability Principalss
 
 ## Naming and Structure
 
@@ -29,4 +31,4 @@ applyTo: '**/*.py'
 - Use clear error paths and explicit return contracts.
 - Keep module responsibilities narrow.
 - Add concise comments only for non-obvious intent.
-
+- All names must be understandable and selfexplanable

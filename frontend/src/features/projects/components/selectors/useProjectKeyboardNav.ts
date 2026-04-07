@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from "react";
-import { Project } from "../../../../types/api";
+import type { Project } from "../../types/api-project";
 
 interface UseProjectKeyboardNavProps {
   isOpen: boolean;

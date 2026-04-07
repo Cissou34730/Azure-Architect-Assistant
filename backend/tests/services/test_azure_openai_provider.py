@@ -10,11 +10,11 @@ import httpx
 import pytest
 from langchain_openai import AzureChatOpenAI
 
-from app.services.ai.ai_service import AIService, AIServiceManager
-from app.services.ai.config import AIConfig
-from app.services.ai.interfaces import ChatMessage
-from app.services.ai.providers.azure_openai_embedding import AzureOpenAIEmbeddingProvider
-from app.services.ai.providers.azure_openai_llm import (
+from app.shared.ai.ai_service import AIService, AIServiceManager
+from app.shared.ai.config import AIConfig
+from app.shared.ai.interfaces import ChatMessage
+from app.shared.ai.providers.azure_openai_embedding import AzureOpenAIEmbeddingProvider
+from app.shared.ai.providers.azure_openai_llm import (
     AzureOpenAILLMProvider,
     _dedupe_deployments,
     _normalize_deployment_entry,
@@ -79,7 +79,7 @@ def llm_provider(monkeypatch: pytest.MonkeyPatch) -> AzureOpenAILLMProvider:
     mock_client = SimpleNamespace(chat=mock_chat)
 
     monkeypatch.setattr(
-        "app.services.ai.providers.azure_openai_client._azure_client",
+        "app.shared.ai.providers.azure_openai_client._azure_client",
         mock_client,
     )
 
@@ -94,7 +94,7 @@ def embedding_provider(monkeypatch: pytest.MonkeyPatch) -> AzureOpenAIEmbeddingP
     mock_client = SimpleNamespace(embeddings=mock_embeddings)
 
     monkeypatch.setattr(
-        "app.services.ai.providers.azure_openai_client._azure_client",
+        "app.shared.ai.providers.azure_openai_client._azure_client",
         mock_client,
     )
 
@@ -190,7 +190,7 @@ class TestAzureOpenAILLMChat:
 
 class TestAzureOpenAILLMModelListing:
     @pytest.mark.asyncio
-    async def test_list_runtime_models_from_models_api(
+    async def test_fetch_available_models_filters_to_chat_capable_catalog_entries(
         self, llm_provider: AzureOpenAILLMProvider, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """GET /openai/models returns available models, filtered to chat-capable."""
@@ -210,7 +210,7 @@ class TestAzureOpenAILLMModelListing:
 
         monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
 
-        result = await llm_provider.list_runtime_models()
+        result = await llm_provider._fetch_available_models()
         ids = [entry["id"] for entry in result]
         # Chat-capable models included
         assert "gpt-4o-mini" in ids
@@ -221,7 +221,7 @@ class TestAzureOpenAILLMModelListing:
         assert "dall-e-3" not in ids
 
     @pytest.mark.asyncio
-    async def test_list_runtime_models_includes_codex_models(
+    async def test_fetch_available_models_includes_codex_models(
         self, llm_provider: AzureOpenAILLMProvider, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Codex models (inference-only, no chat_completion) must appear in the list."""
@@ -245,7 +245,7 @@ class TestAzureOpenAILLMModelListing:
 
         monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
 
-        result = await llm_provider.list_runtime_models()
+        result = await llm_provider._fetch_available_models()
         ids = [entry["id"] for entry in result]
         # Codex models MUST be included (inference-capable LLMs)
         assert "gpt-5.3-codex-2026-02-20" in ids
@@ -259,7 +259,7 @@ class TestAzureOpenAILLMModelListing:
         assert "sora-2025-05-02" not in ids
 
     @pytest.mark.asyncio
-    async def test_list_runtime_models_includes_gpt5_models(
+    async def test_fetch_available_models_includes_gpt5_models(
         self, llm_provider: AzureOpenAILLMProvider, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """GPT-5.3, GPT-5.4 and related models must be in the listing."""
@@ -278,7 +278,7 @@ class TestAzureOpenAILLMModelListing:
 
         monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
 
-        result = await llm_provider.list_runtime_models()
+        result = await llm_provider._fetch_available_models()
         ids = [entry["id"] for entry in result]
         assert "gpt-5.3-chat-2026-03-03" in ids
         assert "gpt-5.4-nano-2026-03-17" in ids
@@ -286,15 +286,15 @@ class TestAzureOpenAILLMModelListing:
         assert "gpt-5.3-codex-2026-02-20" in ids
 
     @pytest.mark.asyncio
-    async def test_list_runtime_models_merges_configured_deployments(
+    async def test_list_runtime_models_returns_configured_deployments_only(
         self, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Configured deployments are always included alongside catalog models."""
+        """Runtime selection must expose Azure deployment names, not catalog model ids."""
         mock_client = SimpleNamespace(
             chat=SimpleNamespace(completions=MagicMock()),
         )
         monkeypatch.setattr(
-            "app.services.ai.providers.azure_openai_client._azure_client",
+            "app.shared.ai.providers.azure_openai_client._azure_client",
             mock_client,
         )
         config = _azure_config(azure_llm_deployments="deploy-a,deploy-b")
@@ -315,13 +315,7 @@ class TestAzureOpenAILLMModelListing:
 
         result = await provider.list_runtime_models()
         ids = [entry["id"] for entry in result]
-        # Configured deployments present
-        assert "aaadp" in ids
-        assert "deploy-a" in ids
-        assert "deploy-b" in ids
-        # Catalog models also present
-        assert "gpt-4o-mini" in ids
-        assert "gpt-4o" in ids
+        assert ids == ["aaadp", "deploy-a", "deploy-b"]
 
     @pytest.mark.asyncio
     async def test_models_api_failure_falls_back_to_configured(
@@ -337,7 +331,7 @@ class TestAzureOpenAILLMModelListing:
         assert result == [{"id": "aaadp", "model": "aaadp"}]
 
     @pytest.mark.asyncio
-    async def test_models_api_returns_sorted_by_id(
+    async def test_fetch_available_models_returns_sorted_by_id(
         self, llm_provider: AzureOpenAILLMProvider, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Results are sorted alphabetically by model id."""
@@ -355,7 +349,7 @@ class TestAzureOpenAILLMModelListing:
 
         monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
 
-        result = await llm_provider.list_runtime_models()
+        result = await llm_provider._fetch_available_models()
         ids = [entry["id"] for entry in result]
         assert ids == sorted(ids)
 
@@ -368,7 +362,7 @@ class TestAzureOpenAILLMModelListing:
             chat=SimpleNamespace(completions=MagicMock()),
         )
         monkeypatch.setattr(
-            "app.services.ai.providers.azure_openai_client._azure_client",
+            "app.shared.ai.providers.azure_openai_client._azure_client",
             mock_client,
         )
         config = _azure_config(azure_openai_endpoint="", azure_openai_api_key="")
@@ -503,7 +497,7 @@ class TestAzureChatLLMCreation:
         self, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.ai.providers.azure_openai_client._azure_client",
+            "app.shared.ai.providers.azure_openai_client._azure_client",
             MagicMock(),
         )
 
@@ -518,7 +512,7 @@ class TestAzureChatLLMCreation:
         self, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.ai.providers.azure_openai_client._azure_client",
+            "app.shared.ai.providers.azure_openai_client._azure_client",
             MagicMock(),
         )
 
@@ -579,3 +573,4 @@ class TestBuildConfigForSelectionAzure:
         assert new_config.azure_openai_endpoint == "https://aaaoi.openai.azure.com"
         assert new_config.azure_openai_api_key == "test-azure-key"
         assert new_config.azure_embedding_deployment == "text-embedding-3-small"
+

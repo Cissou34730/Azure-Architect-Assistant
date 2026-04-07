@@ -6,10 +6,10 @@ from unittest.mock import patch
 
 import pytest
 
-from app.services.ai.config import AIConfig
+from app.shared.ai.config import AIConfig
 
 # Patches applied before KBManager import resolves get_kb_storage_root
-_MODULE = "app.kb.knowledge_base_manager"
+_MODULE = "app.features.knowledge.infrastructure.knowledge_base_manager"
 
 
 def _write_config(config_path: Path, kbs: list[dict]) -> None:
@@ -44,13 +44,13 @@ def kb_env(tmp_path: Path):
     )
 
     with patch(f"{_MODULE}.get_kb_storage_root", return_value=tmp_path), \
-         patch("app.kb.models.get_kb_storage_root", return_value=tmp_path), \
-         patch("app.kb.models.AIConfig.default", return_value=ai_config), \
-         patch("app.kb.models.get_kb_defaults") as mock_defs:
+         patch("app.features.knowledge.infrastructure.models.get_kb_storage_root", return_value=tmp_path), \
+         patch("app.features.knowledge.infrastructure.models.AIConfig.default", return_value=ai_config), \
+         patch("app.features.knowledge.infrastructure.models.get_kb_defaults") as mock_defs:
         mock_defs.return_value.chunk_size = 1024
         mock_defs.return_value.chunk_overlap = 200
 
-        from app.kb.knowledge_base_manager import KBManager
+        from app.features.knowledge.infrastructure.knowledge_base_manager import KBManager
 
         mgr = KBManager(config_path=str(config_path))
         yield mgr, config_path, tmp_path
@@ -163,13 +163,13 @@ class TestEdgeCases:
         )
 
         with patch(f"{_MODULE}.get_kb_storage_root", return_value=tmp_path), \
-             patch("app.kb.models.get_kb_storage_root", return_value=tmp_path), \
-             patch("app.kb.models.AIConfig.default", return_value=ai_config), \
-             patch("app.kb.models.get_kb_defaults") as mock_defs:
+             patch("app.features.knowledge.infrastructure.models.get_kb_storage_root", return_value=tmp_path), \
+             patch("app.features.knowledge.infrastructure.models.AIConfig.default", return_value=ai_config), \
+             patch("app.features.knowledge.infrastructure.models.get_kb_defaults") as mock_defs:
             mock_defs.return_value.chunk_size = 1024
             mock_defs.return_value.chunk_overlap = 200
 
-            from app.kb.knowledge_base_manager import KBManager
+            from app.features.knowledge.infrastructure.knowledge_base_manager import KBManager
 
             mgr = KBManager(config_path=str(tmp_path / "missing.json"))
             assert mgr.list_kbs() == []
@@ -187,3 +187,4 @@ class TestEdgeCases:
         assert mgr.kb_exists("inactive-kb")
         active = mgr.get_active_kbs()
         assert all(kb.id != "inactive-kb" for kb in active)
+

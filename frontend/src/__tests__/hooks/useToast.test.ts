@@ -1,6 +1,6 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import { useToast } from "../../hooks/useToast";
+import { useToast } from "../../shared/hooks/useToast";
 
 describe("useToast", () => {
   it("starts with empty toasts", () => {
@@ -58,3 +58,4 @@ describe("useToast", () => {
     expect(result.current.toasts).toEqual([]);
   });
 });
+

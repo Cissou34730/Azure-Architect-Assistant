@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ProjectState, WafChecklist } from "../../../../../types/api";
-import { checklistApi } from "../../../../../services/checklistService";
+import type { WafChecklist } from "../../../types/api-artifacts";
+import type { ProjectState } from "../../../types/api-project";
+import { checklistApi } from "../../../api/checklistService";
 import {
   ChecklistGroupTabs,
   WafChecklistHeader,
@@ -77,7 +78,7 @@ function useWafChecklist(projectState: ProjectState) {
     () => ({ items: [], pillars: [], version: undefined }),
     [],
   );
-  const [checklist, setChecklist] = useState<WafChecklist>(emptyChecklist);
+  const [checklist, setChecklist] = useState(emptyChecklist);
   const [loading, setLoading] = useState(false);
   const projectId = projectState.projectId;
 
@@ -104,7 +105,7 @@ function useWafChecklist(projectState: ProjectState) {
 }
 
 function WafChecklistBody({ groupedItems }: { readonly groupedItems: readonly WafChecklistGroup[] }) {
-  const [selectedChecklistKey, setSelectedChecklistKey] = useState<string>("");
+  const [selectedChecklistKey, setSelectedChecklistKey] = useState("");
   const activeGroup = useMemo(
     () => groupedItems.find((g) => g.checklistKey === selectedChecklistKey) ?? groupedItems[0],
     [groupedItems, selectedChecklistKey],

@@ -174,7 +174,16 @@ def _merge_into(
     path: str,
 ) -> None:
     for key, incoming in updates.items():
+        # Skip internal control flags consumed below.
+        if key.startswith("_replace_"):
+            continue
+
         next_path = f"{path}.{key}" if path else str(key)
+
+        # Check for a full-replace flag (e.g., _replace_clarificationQuestions).
+        if updates.get(f"_replace_{key}") and isinstance(incoming, list):
+            base[key] = incoming
+            continue
 
         if key not in base or _is_missing(base.get(key)):
             base[key] = incoming
@@ -204,6 +213,12 @@ def _merge_list_item(
     item_id = (
         str(item.get("id")) if isinstance(item, dict) and "id" in item else None
     )
+
+    # Handle removal requests (items with _remove: True).
+    if isinstance(item, dict) and item.get("_remove") and item_id:
+        if item_id in existing_id_index:
+            existing_list.remove(existing_id_index.pop(item_id))
+        return
 
     if item_id and existing_id_index:
         existing_item = existing_id_index.get(item_id)

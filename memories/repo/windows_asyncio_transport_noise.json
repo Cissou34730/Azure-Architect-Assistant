@@ -1,0 +1,11 @@
+{
+  "subject": "Windows asyncio Proactor transport noise",
+  "fact": "The backend installs a Windows-only asyncio exception filter during FastAPI lifespan startup to suppress the benign Proactor `_call_connection_lost` `ConnectionResetError` with WinError 10054 that can occur while the Copilot SDK stdio transport is closing.",
+  "citations": [
+    "backend/app/core/asyncio_exception_filter.py",
+    "backend/app/main.py",
+    "backend/tests/core/test_asyncio_exception_filter.py"
+  ],
+  "reason": "This prevents future debugging sessions from treating a noisy Windows transport shutdown callback as a real provider or model-discovery failure.",
+  "category": "runtime-behavior"
+}

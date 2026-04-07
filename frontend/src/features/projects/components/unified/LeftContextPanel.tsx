@@ -4,7 +4,7 @@ import { useProjectStateContext } from "../../context/useProjectStateContext";
 import { TabHeader } from "./LeftContextPanel/TabHeader";
 import { TabContent } from "./LeftContextPanel/TabContent";
 import type { TabType, TabItem } from "./LeftContextPanel/TabHeader";
-import { useRenderCount } from "../../../../hooks/useRenderCount";
+import { useRenderCount } from "../../../../shared/hooks/useRenderCount";
 
 interface LeftContextPanelProps {
   readonly isOpen: boolean;
@@ -108,5 +108,6 @@ function LeftContextPanelBase({ isOpen, onToggle }: LeftContextPanelProps) {
 
 const leftContextPanel = memo(LeftContextPanelBase);
 export { leftContextPanel as LeftContextPanel };
+
 
 

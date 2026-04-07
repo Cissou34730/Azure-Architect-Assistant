@@ -2,12 +2,12 @@
 
 import pytest
 
-from app.services.mcp.exceptions import (
+from app.shared.mcp.exceptions import (
     MCPCapabilityError,
     MCPConfigurationError,
     MCPConnectionError,
 )
-from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from app.shared.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
 
 class TestMicrosoftLearnMCPClient:
@@ -182,4 +182,5 @@ class TestMicrosoftLearnMCPClientIntegration:
         async with MicrosoftLearnMCPClient(config) as client:
             with pytest.raises(MCPCapabilityError, match=r"Tool.*not found"):
                 await client.call_tool("nonexistent_tool", {})
+
 

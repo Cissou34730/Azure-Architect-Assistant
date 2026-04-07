@@ -9,6 +9,9 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.shared.config.app_settings import get_app_settings
+
+from ...memory.context_packs.service import build_context_pack
 from ...services.mindmap_loader import (
     compute_top_level_coverage,
     get_mindmap,
@@ -84,6 +87,10 @@ async def build_context_summary_node(
     """
     Build formatted context summary for agent.
 
+    When context-pack feature is enabled, assembles a stage-specific
+    context pack within a token budget.  Otherwise falls back to the
+    legacy monolithic summary.
+
     Args:
         state: Current graph state
         db: Database session
@@ -92,8 +99,35 @@ async def build_context_summary_node(
         State update with context summary
     """
     project_id = state["project_id"]
+    settings = get_app_settings()
 
     try:
+        if settings.aaa_context_compaction_enabled:
+            stage = state.get("current_stage", "clarify")
+            project_state = state.get("current_project_state", {})
+            thread_summary = state.get("thread_summary")
+
+            pack = build_context_pack(
+                stage,
+                project_state,
+                budget_tokens=settings.aaa_context_compact_threshold_tokens,
+                thread_summary=thread_summary,
+            )
+
+            context_summary = pack.to_prompt()
+            logger.info(
+                "Built context pack for %s stage=%s (%d tokens, %d sections, dropped=%s)",
+                project_id,
+                stage,
+                pack.budget_meta.get("used_tokens", 0),
+                len(pack.sections),
+                pack.budget_meta.get("dropped_sections", []),
+            )
+            return {
+                "context_summary": context_summary,
+                "context_budget_meta": pack.budget_meta,
+            }
+
         context_summary = await get_project_context_summary(project_id, db)
 
         logger.info(f"Built context summary for {project_id} ({len(context_summary)} chars)")

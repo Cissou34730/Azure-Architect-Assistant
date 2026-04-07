@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { projectApi } from "../../../services/projectService";
-import { Project } from "../../../types/api";
-import { useToast } from "../../../hooks/useToast";
+import { projectApi } from "../api/projectService";
+import type { Project } from "../types/api-project";
+import { useToast } from "../../../shared/hooks/useToast";
 
 export function useProjectData(projectId: string | undefined) {
   const { error: showError } = useToast();
@@ -54,3 +54,4 @@ export function useProjectData(projectId: string | undefined) {
     ],
   );
 }
+

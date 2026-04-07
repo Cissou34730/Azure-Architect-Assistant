@@ -1,5 +1,5 @@
 import { FileText } from "lucide-react";
-import type { ReferenceDocument } from "../../../../../types/api";
+import type { ReferenceDocument } from "../../../types/api-artifacts";
 
 interface InputDocumentViewProps {
   readonly document: ReferenceDocument;

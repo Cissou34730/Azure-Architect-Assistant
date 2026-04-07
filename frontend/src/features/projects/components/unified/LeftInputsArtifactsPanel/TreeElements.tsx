@@ -1,6 +1,6 @@
 import { createElement, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Badge } from "../../../../../components/common/Badge";
+import { Badge } from "../../../../../shared/ui/Badge";
 
 interface SectionHeaderProps {
   readonly title: string;
@@ -86,5 +86,6 @@ export function TreeRow({ icon, label, meta, onClick }: TreeRowProps) {
 export function EmptyRow({ text }: { readonly text: string }) {
   return <div className="text-xs text-dim px-2 py-1">{text}</div>;
 }
+
 
 

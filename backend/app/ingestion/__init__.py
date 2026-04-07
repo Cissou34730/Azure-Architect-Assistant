@@ -5,7 +5,6 @@ Provides the orchestrator-based ingestion pipeline. See docs/SYSTEM_ARCHITECTURE
 Legacy threaded pipeline components have been archived under archive/backend/ingestion_v1.
 """
 
-from app.core.app_settings import IngestionSettings, get_ingestion_settings
 from app.ingestion.application.job_lifecycle import JobLifecycleManager
 from app.ingestion.application.orchestrator import IngestionOrchestrator
 from app.ingestion.application.policies import RetryPolicy, WorkflowDefinition
@@ -19,6 +18,7 @@ from app.ingestion.models import (
 from app.ingestion.models import (
     JobStatus as DBJobStatus,
 )
+from app.shared.config.app_settings import IngestionSettings, get_ingestion_settings
 
 __all__ = [
     'DBJobStatus',

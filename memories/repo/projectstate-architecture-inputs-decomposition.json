@@ -1,0 +1,12 @@
+{
+  "subject": "ProjectState architecture-input persistence",
+  "fact": "Architecture input families (context, nfrs, applicationStructure, dataCompliance, technicalConstraints, openQuestions) now persist in the dedicated project_architecture_inputs table via ProjectArchitectureInputs. Canonical reads overlay that store on top of the legacy ProjectState blob in read_project_state, and new writes sync the table while stripping those keys from new blob writes. Historical rows can be backfilled with scripts/migrate_arch_inputs.py.",
+  "citations": [
+    "backend/app/models/project.py",
+    "backend/app/features/projects/infrastructure/architecture_inputs_repository.py",
+    "backend/app/agents_system/services/project_context.py",
+    "scripts/migrate_arch_inputs.py"
+  ],
+  "reason": "Future state-related changes need to know that architecture inputs are no longer blob-owned, otherwise follow-up work could accidentally reintroduce raw ProjectState writes or miss the dual-read overlay.",
+  "category": "architecture"
+}

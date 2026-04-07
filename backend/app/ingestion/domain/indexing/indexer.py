@@ -16,8 +16,8 @@ from llama_index.core import (
     load_index_from_storage,
 )
 
-from app.core.app_settings import get_kb_storage_root
 from app.ingestion.domain.embedding.embedder import EmbeddingResult
+from app.shared.config.app_settings import get_kb_storage_root
 
 logger = logging.getLogger(__name__)
 

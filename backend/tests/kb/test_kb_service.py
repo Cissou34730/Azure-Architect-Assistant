@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-_SVC_MODULE = "app.kb.service"
+_SVC_MODULE = "app.features.knowledge.infrastructure.service"
 
 
 def _make_kb_config(**overrides):
@@ -25,7 +25,7 @@ class TestKnowledgeBaseService:
     @patch(f"{_SVC_MODULE}.StorageContext")
     @patch("os.path.exists", return_value=True)
     def test_get_index_loads_and_caches(self, mock_exists, mock_sc, mock_load):
-        from app.kb.service import KnowledgeBaseService, _INDEX_CACHE
+        from app.features.knowledge.infrastructure.service import KnowledgeBaseService, _INDEX_CACHE
 
         mock_sc_instance = MagicMock()
         mock_sc.from_defaults.return_value = mock_sc_instance
@@ -43,7 +43,7 @@ class TestKnowledgeBaseService:
 
     @patch(f"{_SVC_MODULE}._INDEX_CACHE")
     def test_get_index_returns_cached(self, mock_cache):
-        from app.kb.service import KnowledgeBaseService
+        from app.features.knowledge.infrastructure.service import KnowledgeBaseService
 
         cached_index = MagicMock()
         mock_cache.__contains__ = Mock(return_value=True)
@@ -59,7 +59,7 @@ class TestKnowledgeBaseService:
     @patch(f"{_SVC_MODULE}._INDEX_CACHE", {})
     @patch("os.path.exists", return_value=False)
     def test_get_index_missing_dir_raises(self, mock_exists):
-        from app.kb.service import KnowledgeBaseService
+        from app.features.knowledge.infrastructure.service import KnowledgeBaseService
 
         cfg = _make_kb_config()
         svc = KnowledgeBaseService(cfg)
@@ -71,7 +71,7 @@ class TestKnowledgeBaseService:
 
 class TestIsIndexReady:
     def test_ready_when_docstore_exists(self, tmp_path):
-        from app.kb.service import KnowledgeBaseService
+        from app.features.knowledge.infrastructure.service import KnowledgeBaseService
 
         storage = tmp_path / "index"
         storage.mkdir()
@@ -82,14 +82,14 @@ class TestIsIndexReady:
         assert svc.is_index_ready() is True
 
     def test_not_ready_when_dir_missing(self, tmp_path):
-        from app.kb.service import KnowledgeBaseService
+        from app.features.knowledge.infrastructure.service import KnowledgeBaseService
 
         cfg = _make_kb_config(index_path=str(tmp_path / "nope"))
         svc = KnowledgeBaseService(cfg)
         assert svc.is_index_ready() is False
 
     def test_not_ready_when_no_docstore(self, tmp_path):
-        from app.kb.service import KnowledgeBaseService
+        from app.features.knowledge.infrastructure.service import KnowledgeBaseService
 
         storage = tmp_path / "index"
         storage.mkdir()
@@ -102,7 +102,7 @@ class TestIsIndexReady:
 class TestCacheHelpers:
     @patch(f"{_SVC_MODULE}._INDEX_CACHE", {"a": MagicMock(), "b": MagicMock()})
     def test_clear_specific(self):
-        from app.kb.service import _INDEX_CACHE, clear_index_cache
+        from app.features.knowledge.infrastructure.service import _INDEX_CACHE, clear_index_cache
 
         clear_index_cache(kb_id="kb-a", storage_dir="a")
         assert "a" not in _INDEX_CACHE
@@ -110,13 +110,13 @@ class TestCacheHelpers:
 
     @patch(f"{_SVC_MODULE}._INDEX_CACHE", {"a": MagicMock(), "b": MagicMock()})
     def test_clear_all(self):
-        from app.kb.service import _INDEX_CACHE, clear_index_cache
+        from app.features.knowledge.infrastructure.service import _INDEX_CACHE, clear_index_cache
 
         clear_index_cache()
         assert len(_INDEX_CACHE) == 0
 
     @patch(f"{_SVC_MODULE}._INDEX_CACHE", {"x": MagicMock()})
     def test_get_cached_count(self):
-        from app.kb.service import get_cached_index_count
+        from app.features.knowledge.infrastructure.service import get_cached_index_count
 
         assert get_cached_index_count() == 1

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
-import type { CostLineItem } from "../../../../../types/api";
+import type { CostLineItem } from "../../../types/api-artifacts";
 
 interface CostPieChartProps {
   readonly lineItems: readonly CostLineItem[];
@@ -83,7 +83,7 @@ export function CostPieChart({ lineItems }: CostPieChartProps) {
             ))}
           </Pie>
           <Tooltip
-            formatter={(value: number | string | undefined) =>
+            formatter={(value) =>
               formatCurrency(Number(value ?? 0))
             }
           />

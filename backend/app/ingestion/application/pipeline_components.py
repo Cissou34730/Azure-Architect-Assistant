@@ -8,7 +8,7 @@ from app.ingestion.domain.chunking.adapter import create_chunker_from_config
 from app.ingestion.domain.embedding import Embedder
 from app.ingestion.domain.indexing import Indexer
 from app.ingestion.domain.loading import fetch_batches
-from app.services.ai.config import AIConfig
+from app.shared.ai.config import AIConfig
 
 
 @dataclass

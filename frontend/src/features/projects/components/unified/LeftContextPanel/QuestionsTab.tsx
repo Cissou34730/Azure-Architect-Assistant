@@ -1,6 +1,6 @@
 import { HelpCircle } from "lucide-react";
 import { Virtuoso } from "react-virtuoso";
-import type { ClarificationQuestion as Question } from "../../../../../types/api";
+import type { ClarificationQuestion as Question } from "../../../types/api-project";
 
 interface QuestionsTabProps {
   readonly questions: readonly Question[];

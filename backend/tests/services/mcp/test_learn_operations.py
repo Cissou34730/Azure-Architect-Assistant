@@ -2,9 +2,9 @@
 
 import pytest
 
-from app.services.mcp import operations
-from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
-from app.services.mcp.operations.learn_operations import search_microsoft_docs
+from app.shared.mcp import operations
+from app.shared.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from app.shared.mcp.operations.learn_operations import search_microsoft_docs
 
 
 @pytest.fixture
@@ -149,4 +149,5 @@ class TestOperationsComparison:
         assert result["query"] == query
         assert isinstance(result["results"], list)
         assert len(result["results"]) <= 3
+
 

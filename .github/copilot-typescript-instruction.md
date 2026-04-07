@@ -8,7 +8,7 @@ applyTo: '**/*.ts, **/*.tsx'
 ## Scope
 
 - Applies only to `*.ts` and `*.tsx`.
-- Stack target: TypeScript 5+, React 19, Tailwind 4.1.
+- Stack target: TypeScript 6+, React 19, Tailwind 4.1.
 
 ## General Instructions
 
@@ -17,7 +17,7 @@ applyTo: '**/*.ts, **/*.tsx'
 
 ## Code Standards
 
-- `any` is forbidden (explicit and implicit).
+- `any` is forbidden (explicit and implicit). NEVER EVER USE ANY
 - Use ES modules only.
 - Prefer explicit domain types, unions, and type guards at boundaries.
 - Do not relax ESLint/TypeScript config to bypass type safety.
@@ -40,9 +40,6 @@ applyTo: '**/*.ts, **/*.tsx'
 - Use deterministic patterns and explicit error handling.
 - Add concise comments only for non-obvious intent.
 
-## TS/TSX Definition of Done
-
-1. Global TDD policy from `copilot-instructions.md` is followed.
-2. No `any` introduced.
-3. Types remain explicit at boundaries.
-4. Any test omission is explicitly justified in the task output.
+## Linter
+After each changes run "oxlint --config .oxlintrc.json --tsconfig frontend/tsconfig.json --type-aware --type-check" on the modified files
+Fix all errors and warning

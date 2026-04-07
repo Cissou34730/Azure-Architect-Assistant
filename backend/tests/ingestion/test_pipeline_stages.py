@@ -8,6 +8,7 @@ import pytest
 from app.ingestion.application.job_lifecycle import JobLifecycleManager
 from app.ingestion.application.pipeline_stage import PipelineContext
 from app.ingestion.application.policies import RetryPolicy
+from app.ingestion.application.stages.embedding_stage import EmbeddingProcessingDeps
 from app.ingestion.application.stages.chunking_stage import ChunkingStage
 from app.ingestion.application.stages.embedding_stage import EmbeddingIndexingStage
 from app.ingestion.application.stages.loading_stage import LoadingStage
@@ -207,11 +208,13 @@ async def test_embedding_stage_processes_and_counts(monkeypatch: pytest.MonkeyPa
     stage = EmbeddingIndexingStage(
         phase_repo=phase_repo,
         lifecycle=lifecycle,
-        retry_policy=RetryPolicy(max_attempts=1),
-        embedder=FakeEmbedder(),
-        indexer=indexer,
-        gate_check=gate_check,
-        is_shutdown_requested=is_shutdown_requested,
+        processing_deps=EmbeddingProcessingDeps(
+            retry_policy=RetryPolicy(max_attempts=1),
+            embedder=FakeEmbedder(),
+            indexer=indexer,
+            gate_check=gate_check,
+            is_shutdown_requested=is_shutdown_requested,
+        ),
     )
 
     context = PipelineContext(
@@ -246,11 +249,13 @@ async def test_embedding_stage_skips_existing_chunks() -> None:
     stage = EmbeddingIndexingStage(
         phase_repo=phase_repo,
         lifecycle=lifecycle,
-        retry_policy=RetryPolicy(max_attempts=1),
-        embedder=FakeEmbedder(),
-        indexer=indexer,
-        gate_check=gate_check,
-        is_shutdown_requested=lambda: False,
+        processing_deps=EmbeddingProcessingDeps(
+            retry_policy=RetryPolicy(max_attempts=1),
+            embedder=FakeEmbedder(),
+            indexer=indexer,
+            gate_check=gate_check,
+            is_shutdown_requested=lambda: False,
+        ),
     )
 
     context = PipelineContext(
@@ -279,11 +284,13 @@ async def test_embedding_stage_resumes_from_checkpointed_chunk() -> None:
     stage = EmbeddingIndexingStage(
         phase_repo=phase_repo,
         lifecycle=lifecycle,
-        retry_policy=RetryPolicy(max_attempts=1),
-        embedder=FakeEmbedder(),
-        indexer=indexer,
-        gate_check=lambda *_args: pytest.raises(AssertionError),
-        is_shutdown_requested=lambda: False,
+        processing_deps=EmbeddingProcessingDeps(
+            retry_policy=RetryPolicy(max_attempts=1),
+            embedder=FakeEmbedder(),
+            indexer=indexer,
+            gate_check=lambda *_args: pytest.raises(AssertionError),
+            is_shutdown_requested=lambda: False,
+        ),
     )
 
     async def always_open(_job_id: str, _kb_id: str, _indexer: FakeIndexer) -> bool:

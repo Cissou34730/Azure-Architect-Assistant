@@ -19,10 +19,29 @@ Frontend (React + Vite) -> FastAPI backend -> OpenAI / LlamaIndex / MCP
 
 ## Backend layering and boundaries
 
-- API layer: `backend/app/routers/` (request parsing, response shapes, routing).
-- Service layer: `backend/app/services/` plus feature services under router modules.
-- Domain and persistence: `backend/app/models/`, `backend/app/ingestion/`, `backend/app/kb/`.
-- Cross-cutting: `backend/app/core/config.py`, `backend/app/core/logging.py`, `backend/app/lifecycle.py`.
+- Canonical feature API surface lives under `backend/app/features/`.
+- Shared runtime infrastructure lives under `backend/app/shared/`.
+- `backend/app/agents_system/` remains the orchestration/platform layer and is allowed to depend on feature contracts.
+- `backend/app/routers/`, `backend/app/services/`, and `backend/app/core/` remain compatibility and not-yet-migrated areas for non-project capabilities.
+
+### Backend target ownership
+
+- `backend/app/features/projects/` owns project CRUD, workspace composition, project state compatibility reads, and the canonical `/api/projects/{project_id}/workspace` surface.
+- `backend/app/features/agent/`, `checklists/`, `knowledge/`, `ingestion/`, `diagrams/`, and `settings/` provide feature contracts and canonical API ownership where carve-out work has landed.
+- `backend/app/shared/{config,db,ai,mcp,logging}` owns cross-cutting runtime concerns.
+
+## Frontend layering and boundaries
+
+- `frontend/src/app/` owns shell layout, route wiring, and the static workspace registry.
+- `frontend/src/features/` owns feature-local pages, API clients, hooks, types, and workspace manifests.
+- `frontend/src/shared/` owns reusable UI, shared hooks, HTTP helpers, config, and utilities.
+- Root `frontend/src/{hooks,services,types}` compatibility shims have been removed.
+
+### Workspace composition
+
+- Workspaces are registered statically in `frontend/src/app/workspaceRegistry.ts`.
+- Each feature exposes a `workspace.manifest.ts` that describes route metadata and, where applicable, workspace shell/tab ownership.
+- The projects workspace uses a manifest-driven tab registry rather than hardcoded tab-switch logic.
 
 ## Startup and lifecycle
 
@@ -36,14 +55,24 @@ Frontend (React + Vite) -> FastAPI backend -> OpenAI / LlamaIndex / MCP
 
 1. Create a project and add requirements or documents.
 2. Analyze documents to produce structured project state.
-3. Chat updates state and stores conversation history.
-4. Proposal generation streams progress and returns a final proposal.
+3. Read the composed workspace view from `/api/projects/{project_id}/workspace`.
+4. Chat updates state and stores conversation history.
+5. Proposal generation streams progress and returns a final proposal.
 
 Primary code:
 
-- `backend/app/routers/project_management/`
-- `backend/app/routers/project_management/services/`
+- `backend/app/features/projects/api/`
+- `backend/app/features/projects/application/workspace_composer.py`
+- `backend/app/features/projects/infrastructure/`
 - `frontend/src/features/projects/`
+
+### Project state composition and persistence
+
+- `ProjectState.state` is no longer the canonical store for architecture inputs or the main AAA artifact families.
+- Architecture inputs now live in `project_architecture_inputs`.
+- Stable top-level artifact families now live in `project_state_components`.
+- Canonical reads merge decomposed storage back into a compatibility `projectState` payload for both `/workspace` and the deprecated `/state` route.
+- `/api/projects/{project_id}/state` is now a compatibility read sourced from the workspace composer and returned with `Deprecation`, `Sunset`, and `Link` headers.
 
 ### KB ingestion pipeline
 
@@ -58,7 +87,7 @@ Primary code:
 - `backend/app/ingestion/application/orchestrator.py`
 - `backend/app/routers/ingestion.py`
 - `backend/app/ingestion/domain/`
-- `frontend/src/components/ingestion/`
+- `frontend/src/features/ingestion/`
 
 ### KB query pipeline
 
@@ -70,7 +99,7 @@ Primary code:
 
 - `backend/app/services/kb/`
 - `backend/app/routers/kb_query/`
-- `frontend/src/components/kb/`
+- `frontend/src/features/knowledge/`
 
 ### Agent chat
 
@@ -84,7 +113,7 @@ Primary code:
 - `backend/app/agents_system/`
 - `backend/config/prompts/agent_prompts.yaml`
 - `backend/config/mcp/mcp_config.json`
-- `frontend/src/components/agent/`
+- `frontend/src/features/agent/`
 
 ### Diagram generation
 
@@ -98,7 +127,7 @@ Primary code:
 - `backend/app/services/diagram/`
 - `backend/app/routers/diagram_generation/`
 - `backend/app/models/diagram/`
-- `frontend/src/components/diagrams/`
+- `frontend/src/features/diagrams/`
 
 ## Storage
 
@@ -110,19 +139,19 @@ Primary code:
 ## Configuration
 
 - `.env` in repo root supplies ports, API keys, and storage paths.
-- `backend/app/core/config.py` defines AppSettings; add new env keys there.
+- `backend/app/shared/config/app_settings.py` is the canonical AppSettings entry point; add new env-backed settings via the `backend/app/core/settings/` mixins and consume them through `AppSettings`.
 - `backend/config/ingestion.config.json` and `backend/config/kb_defaults.json` tune ingestion defaults.
 - `backend/config/prompts/agent_prompts.yaml` controls agent behavior.
 
 ## Extension points
 
-- New API feature: add a router module, service logic, register it in `backend/app/main.py`, then expose it via `frontend/src/services/apiService.ts`.
+- New API feature: add the capability under `backend/app/features/<feature>/`, expose the HTTP surface from the feature API package, register it in `backend/app/main.py`, then add the corresponding frontend feature API client under `frontend/src/features/<feature>/api/`.
 - New KB source: add a handler in `backend/app/ingestion/domain/sources/` and register it in the source factory.
-- New agent tool: add tool logic in `backend/app/agents_system/tools/` and wire it in the runner.
+- New agent tool: keep registration/factory code in `backend/app/agents_system/tools/` and place feature-owned tool logic with the owning feature when practical.
 - New diagram type: update `backend/app/models/diagram/diagram.py` and the diagram generator and UI labels.
 
 ---
 
 **Status**: Active  
-**Last Updated**: 2026-02-15  
+**Last Updated**: 2026-04-02  
 **Owner**: Engineering

@@ -1,5 +1,5 @@
 import { Virtuoso } from "react-virtuoso";
-import type { FindingArtifact } from "../../../../../types/api";
+import type { FindingArtifact } from "../../../types/api-artifacts";
 import { Section } from "./Section";
 import { DeliverableCard } from "./DeliverableCard";
 

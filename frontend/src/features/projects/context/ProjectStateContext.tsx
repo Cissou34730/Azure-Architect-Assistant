@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { ProjectState } from "../../../types/api";
+import type { ProjectState } from "../types/api-project";
 
 interface ProjectStateContextType {
   readonly projectState: ProjectState | null;

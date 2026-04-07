@@ -44,18 +44,23 @@
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "baseline-browser-mapping": "^2.9.17",
-    "eslint": "^10.0.0",
+    "eslint": "^9.39.2",
     "eslint-plugin-check-file": "^3.3.1",
     "eslint-plugin-oxlint": "^1.48.0",
-    "eslint-plugin-react": "^7.22.0",
+    "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.26",
     "globals": "^17.0.0",
     "oxlint": "^1.48.0",
-    "oxlint-tsgolint": "^0.14.1",
-    "typescript-eslint": "^8.53.0"
+    "oxlint-tsgolint": "^0.15.0",
+    "typescript": "^6.0.0",
+    "typescript-eslint": "^8.57.0"
   },
   "volta": {
     "node": "25.4.0"
+  },
+  "overrides": {
+    "vite": "^8.0.0",
+    "typescript": "^6.0.0"
   }
 }

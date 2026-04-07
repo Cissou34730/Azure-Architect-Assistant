@@ -121,7 +121,7 @@ Execute this sequence strictly.
 
 ## Step 2: Diagnostic Scan (Source of Truth)
 
-Run and read output internally:
+Run and read output internally using 5 subagents:
 
 1. `uvx ruff check "<TARGET>"`
 2. `uvx mypy "<TARGET>"`

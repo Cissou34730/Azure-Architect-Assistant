@@ -1,9 +1,12 @@
-import { ProjectHeader } from "../components/ProjectHeader";
-import { LeftInputsArtifactsPanel } from "../components/unified/LeftInputsArtifactsPanel";
-import { RightChatPanel } from "../components/unified/RightChatPanel";
 import { ResizableSidePanel } from "../components/unified/ResizableSidePanel";
-import { CenterWorkspaceTabs } from "../components/unified/CenterWorkspaceTabs";
 import type { WorkspaceTab } from "../components/unified/workspace/types";
+import { renderProjectWorkspaceShellContent } from "../workspaceShellRegistry";
+import { getProjectWorkspaceShellSection } from "../workspace.manifest";
+
+const headerSection = getProjectWorkspaceShellSection("header");
+const leftSidebarSection = getProjectWorkspaceShellSection("left-sidebar");
+const centerSection = getProjectWorkspaceShellSection("center");
+const rightSidebarSection = getProjectWorkspaceShellSection("right-sidebar");
 
 interface UnifiedProjectWorkspaceProps {
   readonly leftPanelOpen: boolean;
@@ -46,56 +49,61 @@ export function UnifiedProjectWorkspace({
   onResizeLeft,
   onResizeRight,
 }: UnifiedProjectWorkspaceProps) {
+  const shellContext = {
+    onToggleLeft,
+    onToggleRight,
+    onUploadClick,
+    onAdrClick,
+    onExportClick,
+    tabs,
+    activeTabId,
+    onTabChange,
+    onCloseTab,
+    onOpenTab,
+    onTogglePin,
+    onReorderTab,
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-surface">
-      <ProjectHeader
-        onUploadClick={onUploadClick}
-        onAdrClick={onAdrClick}
-        onExportClick={onExportClick}
-      />
+      <div data-workspace-shell={headerSection.id}>
+        {renderProjectWorkspaceShellContent("header", shellContext)}
+      </div>
 
       <div className="flex-1 flex overflow-hidden">
         <ResizableSidePanel
           side="left"
           isOpen={leftPanelOpen}
           width={leftPanelWidth}
-          minWidth={260}
-          maxWidth={480}
+          minWidth={leftSidebarSection.minWidth ?? 260}
+          maxWidth={leftSidebarSection.maxWidth ?? 480}
           onResize={onResizeLeft}
           onToggle={onToggleLeft}
-          collapsedTitle="Show inputs & artifacts"
-          className="bg-muted"
+          collapsedTitle={leftSidebarSection.collapsedTitle ?? "Show inputs & artifacts"}
+          className={leftSidebarSection.className}
         >
-          <LeftInputsArtifactsPanel
-            onToggle={onToggleLeft}
-            onOpenTab={onOpenTab}
-          />
+          {renderProjectWorkspaceShellContent("left-sidebar", shellContext)}
         </ResizableSidePanel>
 
-        <div className="flex-1 overflow-hidden px-4 py-4 bg-card panel-scroll-scope">
-          <CenterWorkspaceTabs
-            tabs={tabs}
-            activeTabId={activeTabId}
-            onTabChange={onTabChange}
-            onCloseTab={onCloseTab}
-            onOpenTab={onOpenTab}
-            onTogglePin={onTogglePin}
-            onReorderTab={onReorderTab}
-          />
+        <div
+          className={centerSection.className ?? "flex-1 overflow-hidden px-4 py-4 bg-card panel-scroll-scope"}
+          data-workspace-shell={centerSection.id}
+        >
+          {renderProjectWorkspaceShellContent("center", shellContext)}
         </div>
 
         <ResizableSidePanel
           side="right"
           isOpen={rightPanelOpen}
           width={rightPanelWidth}
-          minWidth={280}
-          maxWidth={520}
+          minWidth={rightSidebarSection.minWidth ?? 280}
+          maxWidth={rightSidebarSection.maxWidth ?? 520}
           onResize={onResizeRight}
           onToggle={onToggleRight}
-          collapsedTitle="Show chat"
-          className="bg-muted"
+          collapsedTitle={rightSidebarSection.collapsedTitle ?? "Show chat"}
+          className={rightSidebarSection.className}
         >
-          <RightChatPanel onToggle={onToggleRight} />
+          {renderProjectWorkspaceShellContent("right-sidebar", shellContext)}
         </ResizableSidePanel>
       </div>
     </div>

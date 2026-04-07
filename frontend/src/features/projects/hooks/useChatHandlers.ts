@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
-import { useToast } from "../../../hooks/useToast";
-import { SendMessageResponse } from "../../../types/api";
+import { useToast } from "../../../shared/hooks/useToast";
+import type { SendMessageResponse } from "../../knowledge/types/api-kb";
 
 interface UseChatHandlersProps {
   readonly chatInput: string;
@@ -32,3 +32,4 @@ export function useChatHandlers({
 
   return useMemo(() => ({ handleSendChatMessage }), [handleSendChatMessage]);
 }
+

@@ -1,6 +1,6 @@
-import { Badge } from "../../../../../components/common";
+import { Badge } from "../../../../../shared/ui";
 import { X, ExternalLink } from "lucide-react";
-import type { AdrArtifact } from "../../../../../types/api";
+import type { AdrArtifact } from "../../../types/api-artifacts";
 
 interface AdrSectionProps {
   readonly title: string;
@@ -140,5 +140,6 @@ export function AdrReaderModal({ adr, onClose }: AdrReaderModalProps) {
     </div>
   );
 }
+
 
 

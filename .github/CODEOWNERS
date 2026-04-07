@@ -1,0 +1,34 @@
+# Default owner for the repository. Replace or expand with team aliases as the lane model evolves.
+* @Cissou34730
+
+# Projects workspace lane
+/backend/app/features/projects/ @Cissou34730
+/frontend/src/features/projects/ @Cissou34730
+
+# Agent workflow lane
+/backend/app/features/agent/ @Cissou34730
+/backend/app/agents_system/ @Cissou34730
+/frontend/src/features/agent/ @Cissou34730
+
+# Knowledge and ingestion lane
+/backend/app/features/knowledge/ @Cissou34730
+/backend/app/features/ingestion/ @Cissou34730
+/backend/app/ingestion/ @Cissou34730
+/frontend/src/features/knowledge/ @Cissou34730
+/frontend/src/features/ingestion/ @Cissou34730
+
+# Diagrams and checklists lane
+/backend/app/features/diagrams/ @Cissou34730
+/backend/app/features/checklists/ @Cissou34730
+/frontend/src/features/diagrams/ @Cissou34730
+
+# Platform and shared lane
+/backend/app/shared/ @Cissou34730
+/backend/app/main.py @Cissou34730
+/backend/app/lifecycle.py @Cissou34730
+/backend/app/service_registry.py @Cissou34730
+/frontend/src/app/ @Cissou34730
+/frontend/src/shared/ @Cissou34730
+
+# Architecture governance
+/docs/architecture/ @Cissou34730

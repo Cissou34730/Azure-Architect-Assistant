@@ -26,14 +26,22 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 - [`architecture/project-overview.md`](./architecture/project-overview.md)
 - [`architecture/system-architecture.md`](./architecture/system-architecture.md)
 - [`architecture/multi-agent-architecture.md`](./architecture/multi-agent-architecture.md)
+- [`architecture/ADR-parallel-work-architecture.md`](./architecture/ADR-parallel-work-architecture.md) — Accepted decision record for the parallel-work architecture foundation
+- [`architecture/LANE_OWNERSHIP.md`](./architecture/LANE_OWNERSHIP.md) — Logical lane ownership mapped to current backend and frontend folders
+- [`architecture/PROJECTSTATE_DECOMPOSITION_INVENTORY.md`](./architecture/PROJECTSTATE_DECOMPOSITION_INVENTORY.md) — Observed ProjectState blob key inventory from the local projects database
+- [`architecture/ARCHITECTURE_ENFORCEMENT_CI.md`](./architecture/ARCHITECTURE_ENFORCEMENT_CI.md) — Import-linter, freeze policy, and ESLint boundary checks
+- [`architecture/FEATURE_DEVELOPMENT_GUIDE.md`](./architecture/FEATURE_DEVELOPMENT_GUIDE.md) — How to add a feature, workspace tab, contract, or agent-tool registration under the new architecture
+- [`architecture/codebase-architecture.excalidraw`](./architecture/codebase-architecture.excalidraw)
 - [`architecture/arch_mindmap.json`](./architecture/arch_mindmap.json)
+- [`architecture/PARALLEL_WORK_ARCHITECTURE_IMPLEMENTATION.md`](./architecture/PARALLEL_WORK_ARCHITECTURE_IMPLEMENTATION.md) — Detailed implementation plan for monorepo parallel-work restructuring (5 phases), including the completed shared/feature migration, legacy backend root removal (`core`, `routers`, `services`), and blocking architecture CI gates
 
 ### Backend
 
 - [`backend/README.md`](./backend/README.md)
-- [`backend/BACKEND_REFERENCE.md`](./backend/BACKEND_REFERENCE.md)
+- [`backend/BACKEND_REFERENCE.md`](./backend/BACKEND_REFERENCE.md) — Backend entry points, API surface, and current ProjectState decomposition status
 - [`backend/AI_PROVIDER_ROUTING.md`](./backend/AI_PROVIDER_ROUTING.md)
 - [`backend/AZURE_OPENAI_SETUP.md`](./backend/AZURE_OPENAI_SETUP.md)
+- [`backend/COPILOT_SETUP.md`](./backend/COPILOT_SETUP.md)
 - [`backend/DATA_ROOT_STORAGE_POLICY.md`](./backend/DATA_ROOT_STORAGE_POLICY.md)
 - [`backend/TESTING_DEPENDENCY_INJECTION.md`](./backend/TESTING_DEPENDENCY_INJECTION.md)
 
@@ -55,6 +63,10 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 - [`operations/history/README.md`](./operations/history/README.md)
 - [`operations/DEVELOPMENT_GUIDE.md`](./operations/DEVELOPMENT_GUIDE.md)
 - [`waf_normalization_implementation/README.md`](./waf_normalization_implementation/README.md)
+
+### Agent Enhancement
+
+- [`Agent_Enhancement/PROJECT_MEMORY_CONTEXT_IMPLEMENTATION_BREAKDOWN.md`](./Agent_Enhancement/PROJECT_MEMORY_CONTEXT_IMPLEMENTATION_BREAKDOWN.md) — Memory & context engineering plan (4 phases, all complete)
 
 ## Agent Lane Index
 
@@ -103,5 +115,5 @@ Add new exceptions only when code-near maintainability clearly benefits.
 ---
 
 **Status**: Active  
-**Last Updated**: 2026-03-09  
+**Last Updated**: 2026-04-06
 **Owner**: Engineering

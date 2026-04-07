@@ -1,6 +1,6 @@
 import { LayoutGrid } from "lucide-react";
 import { Virtuoso } from "react-virtuoso";
-import type { DiagramData } from "../../../../../types/api";
+import type { DiagramData } from "../../../../diagrams/types/api-diagrams";
 import { Section } from "./Section";
 import { DiagramPreviewCard } from "./DiagramPreviewCard";
 import { EmptyState } from "./EmptyState";

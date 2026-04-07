@@ -3,11 +3,11 @@ import { useSearchParams } from "react-router-dom";
 import { usePanelWidth } from "../hooks/usePanelWidth";
 import { useWorkspaceTabs } from "../hooks/useWorkspaceTabs";
 import { useUnifiedProjectPage } from "../hooks/useUnifiedProjectPage";
-import { useRenderCount } from "../../../hooks/useRenderCount";
-import type { WorkspaceTab } from "../components/unified/workspace/types";
+import { useRenderCount } from "../../../shared/hooks/useRenderCount";
+import { projectWorkspaceDefaultTabs } from "../workspace.manifest";
 import { UnifiedProjectWorkspace } from "./UnifiedProjectWorkspace";
 import { useProjectInputContext } from "../context/useProjectInputContext";
-import { createInputOverviewTab, ProjectNotFound, ProjectLoading } from "./workspaceHelpers";
+import { ProjectNotFound, ProjectLoading } from "./workspaceHelpers";
 import { useInputDirtyIndicator, useWorkspaceQuickOpen, useRouteIntentHandlers } from "./workspaceHooks";
 
 export default function UnifiedProjectPage() {
@@ -42,7 +42,7 @@ export default function UnifiedProjectPage() {
     maxWidth: 520,
   });
 
-  const initialTabs = DEFAULT_TABS;
+  const initialTabs = projectWorkspaceDefaultTabs;
   const resetKey = selectedProjectMeta?.id ?? projectState?.projectId ?? "no-project";
 
   const {
@@ -106,7 +106,4 @@ export default function UnifiedProjectPage() {
   );
 }
 
-const DEFAULT_TABS: readonly WorkspaceTab[] = [
-  createInputOverviewTab(),
-];
 

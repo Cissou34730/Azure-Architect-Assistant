@@ -1,6 +1,6 @@
 import { TableVirtuoso } from "react-virtuoso";
-import { Badge } from "../../../../../components/common";
-import type { AdrArtifact } from "../../../../../types/api";
+import { Badge } from "../../../../../shared/ui";
+import type { AdrArtifact } from "../../../types/api-artifacts";
 import { getStatusVariant } from "./AdrUtils";
 
 const VIRTUALIZE_THRESHOLD = 20;
@@ -127,4 +127,5 @@ export function AdrTable({ adrs, onSelect }: AdrTableProps) {
     </div>
   );
 }
+
 

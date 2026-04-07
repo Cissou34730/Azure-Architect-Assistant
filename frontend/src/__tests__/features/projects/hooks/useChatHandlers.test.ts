@@ -1,13 +1,13 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { useChatHandlers } from "../../../../features/projects/hooks/useChatHandlers";
-import type { SendMessageResponse } from "../../../../types/api";
+import type { SendMessageResponse } from "../../../../features/knowledge/types/api-kb";
 
 type SendFn = (msg: string) => Promise<SendMessageResponse>;
 
 const mockShowError = vi.fn();
 
-vi.mock("../../../../hooks/useToast", () => ({
+vi.mock("../../../../shared/hooks/useToast", () => ({
   useToast: () => ({
     error: mockShowError,
     success: vi.fn(),
@@ -95,3 +95,4 @@ describe("useChatHandlers", () => {
     expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining("Chat failed"));
   });
 });
+

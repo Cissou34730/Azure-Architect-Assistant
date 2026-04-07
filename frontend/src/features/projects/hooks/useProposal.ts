@@ -3,8 +3,8 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { proposalApi } from "../../../services/proposalService";
-import { useToast } from "../../../hooks/useToast";
+import { proposalApi } from "../api/proposalService";
+import { useToast } from "../../../shared/hooks/useToast";
 
 function closeEventSource(ref: React.RefObject<EventSource | null>): void {
   if (ref.current !== null) {
@@ -71,3 +71,4 @@ export function useProposal() {
     generateProposal,
   };
 }
+

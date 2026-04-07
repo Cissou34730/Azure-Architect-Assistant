@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.services.mcp.operations.learn_operations import (
+from app.shared.mcp.operations.learn_operations import (
     fetch_documentation,
     get_azure_guidance,
     search_code_samples,
@@ -127,3 +127,4 @@ class TestGetAzureGuidance:
         result = await get_azure_guidance(mock_client, "Functions")
         assert len(result["documentation"]["results"]) == 1
         assert "error" in result["code_samples"]
+

@@ -9,14 +9,17 @@ from pathlib import Path
 
 from app.agents_system.runner import initialize_agent_runner, shutdown_agent_runner
 from app.agents_system.services.mindmap_loader import initialize_mindmap
-from app.core.app_logging import configure_logging
-from app.core.app_settings import get_app_settings
-from app.ingestion.ingestion_database import init_ingestion_database
-from app.projects_database import close_database, init_database
+from app.features.diagrams.application.database import (
+    close_diagram_database,
+    init_diagram_database,
+)
+from app.features.ingestion.infrastructure.ingestion_database import init_ingestion_database
 from app.service_registry import ServiceRegistry, get_kb_manager
-from app.services.diagram.database import close_diagram_database, init_diagram_database
-from app.services.mcp.exceptions import MCPError
-from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from app.shared.config.app_settings import get_app_settings
+from app.shared.db.projects_database import close_database, init_database
+from app.shared.logging.app_logging import configure_logging
+from app.shared.mcp.exceptions import MCPError
+from app.shared.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 
 logger = logging.getLogger(__name__)
 
@@ -143,4 +146,5 @@ async def shutdown():
     logger.info("=" * 60)
     logger.info("SHUTDOWN COMPLETE")
     logger.info("=" * 60)
+
 

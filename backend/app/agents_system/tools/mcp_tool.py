@@ -9,9 +9,9 @@ from typing import Any
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
 
-from ...services.mcp.exceptions import MCPError
-from ...services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
-from ...services.mcp.operations.learn_operations import (
+from app.shared.mcp.exceptions import MCPError
+from app.shared.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+from app.shared.mcp.operations.learn_operations import (
     fetch_documentation,
     search_code_samples,
     search_microsoft_docs,

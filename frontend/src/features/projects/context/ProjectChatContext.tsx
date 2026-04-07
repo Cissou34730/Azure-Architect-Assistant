@@ -1,5 +1,6 @@
 import { createContext } from "react";
-import type { Message, SendMessageResponse, ProjectState } from "../../../types/api";
+import type { Message, SendMessageResponse } from "../../knowledge/types/api-kb";
+import type { ProjectState } from "../types/api-project";
 import type { FailedMessage } from "../hooks/useChatMessaging";
 
 interface ProjectChatContextType {

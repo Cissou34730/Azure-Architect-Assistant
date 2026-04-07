@@ -6,11 +6,7 @@ with full scope, sources, and ambiguity flags.
 
 from __future__ import annotations
 
-from typing import Any
-
-import pytest
-
-from app.services.llm_service import LLMService
+from app.shared.ai.llm_service import LLMService
 
 
 class TestAnalysisPromptCompleteness:
@@ -51,3 +47,4 @@ class TestAnalysisPromptCompleteness:
     def test_prompt_requests_document_cross_reference(self) -> None:
         source = self._get_analysis_system_prompt()
         assert "cross-reference" in source.lower() or "cross reference" in source.lower() or "documentid" in source.lower()
+

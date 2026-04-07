@@ -3,9 +3,9 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { ProjectState } from "../../../types/api";
-import { stateApi } from "../../../services/stateService";
-import { projectApi } from "../../../services/projectService";
+import type { ProjectState } from "../types/api-project";
+import { stateApi } from "../api/stateService";
+import { projectApi } from "../api/projectService";
 
 export const useProjectState = (projectId: string | null) => {
   const [projectState, setProjectState] = useState<ProjectState | null>(null);

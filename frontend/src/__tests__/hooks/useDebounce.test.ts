@@ -1,6 +1,6 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { useDebounce } from "../../hooks/useDebounce";
+import { useDebounce } from "../../shared/hooks/useDebounce";
 
 describe("useDebounce", () => {
   beforeEach(() => {
@@ -64,3 +64,4 @@ describe("useDebounce", () => {
     expect(result.current).toBe("c");
   });
 });
+

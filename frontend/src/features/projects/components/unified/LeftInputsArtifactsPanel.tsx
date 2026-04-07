@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
-import { featureFlags } from "../../../../config/featureFlags";
-import { checklistApi } from "../../../../services/checklistService";
+import { featureFlags } from "../../../../shared/config/featureFlags";
+import { checklistApi } from "../../api/checklistService";
 import { useProjectInputContext } from "../../context/useProjectInputContext";
 import { useProjectStateContext } from "../../context/useProjectStateContext";
 import type { WorkspaceTab } from "./workspace/types";
@@ -155,4 +155,5 @@ function LeftInputsArtifactsPanelBase({
 
 const leftInputsArtifactsPanel = memo(LeftInputsArtifactsPanelBase);
 export { leftInputsArtifactsPanel as LeftInputsArtifactsPanel };
+
 

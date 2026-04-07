@@ -8,6 +8,9 @@ import checkFile from "eslint-plugin-check-file";
 import tseslint from "typescript-eslint";
 import react from "eslint-plugin-react";
 import oxlint from "eslint-plugin-oxlint";
+import { fileURLToPath } from "node:url";
+
+const oxlintConfigPath = fileURLToPath(new URL("./.oxlintrc.json", import.meta.url));
 
 const strictTsCoreRules = {
   // Disable core versions when TS versions are used
@@ -99,10 +102,22 @@ const strictTsCoreRules = {
       selector: "import",
       format: ["camelCase", "PascalCase"],
     },
+    // Allow any format for properties that require quotes (e.g. "Content-Type" HTTP headers)
+    {
+      selector: ["objectLiteralProperty", "typeProperty"],
+      modifiers: ["requiresQuotes"],
+      format: null,
+    },
+    // Allow snake_case for API-boundary properties & methods (wire format from Python/FastAPI backend)
+    {
+      selector: ["typeProperty", "objectLiteralProperty", "objectLiteralMethod"],
+      filter: { regex: "^[a-z][a-z0-9]*(_[a-z0-9]+)+$", match: true },
+      format: null,
+    },
   ],
 };
 
-  const reactRules = {
+const reactRules = {
   // React + React Hooks recommended rules
   ...reactHooks.configs.recommended.rules,
   ...react.configs.recommended.rules,
@@ -126,6 +141,40 @@ const strictTsCoreRules = {
     },
   ],
 };
+
+const frontendRootCompatibilityPatterns = [
+  "../../../services/*",
+  "../../../../services/*",
+  "../../../../../services/*",
+  "../../../hooks/*",
+  "../../../../hooks/*",
+  "../../../../../hooks/*",
+  "../../../config/*",
+  "../../../../config/*",
+  "../../../../../config/*",
+  "../../../utils/*",
+  "../../../../utils/*",
+  "../../../../../utils/*",
+];
+
+const frontendRootTypeShimPatterns = [
+  "../../types/api",
+  "../../../types/api",
+  "../../../../types/api",
+  "../../../../../types/api",
+  "../../../types/agent",
+  "../../../../types/agent",
+  "../../../../../types/agent",
+  "../../../types/ingestion",
+  "../../../../types/ingestion",
+  "../../../../../types/ingestion",
+  "../../../types/api-kb",
+  "../../../../types/api-kb",
+  "../../../../../types/api-kb",
+  "../../../types/api-diagrams",
+  "../../../../types/api-diagrams",
+  "../../../../../types/api-diagrams",
+];
 
 export default [
   // 1. Global ignores
@@ -271,6 +320,118 @@ export default [
     },
   },
 
-  // 5. Disable duplicate ESLint rules that are enforced by Oxlint.
-  ...oxlint.buildFromOxlintConfigFile("./.oxlintrc.json"),
+  // 5. Frontend architecture baseline – make dependency drift visible before Phase 2 moves.
+  {
+    files: ["frontend/src/features/**/*.ts", "frontend/src/features/**/*.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                ...frontendRootCompatibilityPatterns,
+                ...frontendRootTypeShimPatterns,
+              ],
+              message:
+                "Feature modules must not import root compatibility shims. Import from canonical feature or shared modules instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
+    files: [
+      "frontend/src/features/projects/**/*.ts",
+      "frontend/src/features/projects/**/*.tsx",
+      "frontend/src/features/knowledge/components/**/*.ts",
+      "frontend/src/features/knowledge/components/**/*.tsx",
+      "frontend/src/__tests__/features/projects/**/*.ts",
+      "frontend/src/__tests__/features/projects/**/*.tsx",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                ...frontendRootCompatibilityPatterns,
+                ...frontendRootTypeShimPatterns,
+              ],
+              message:
+                "Feature modules must not import root compatibility shims. Import from canonical feature or shared modules instead.",
+            },
+            {
+              group: frontendRootTypeShimPatterns,
+              message:
+                "Feature modules must not import the removed root api compatibility shim.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
+    files: [
+      "frontend/src/shared/**/*.ts",
+      "frontend/src/shared/**/*.tsx",
+      "frontend/src/services/**/*.ts",
+      "frontend/src/services/**/*.tsx",
+      "frontend/src/hooks/**/*.ts",
+      "frontend/src/hooks/**/*.tsx",
+      "frontend/src/types/**/*.ts",
+      "frontend/src/types/**/*.tsx",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "../features/*",
+                "../../features/*",
+                "../../../features/*",
+              ],
+              message:
+                "Top-level shared frontend modules must not import from features.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // 6. Test file overrides — relax rules that conflict with test patterns
+  {
+    files: [
+      "**/__tests__/**/*.ts",
+      "**/__tests__/**/*.tsx",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+    ],
+    rules: {
+      // Mock functions (vi.fn stubs, jest-style) are intentionally empty
+      "@typescript-eslint/no-empty-function": "off",
+      // Destructuring mocked methods from an object is idiomatic in tests
+      "@typescript-eslint/unbound-method": "off",
+      // describe() / it() callbacks are inherently long
+      "max-lines-per-function": "off",
+      "max-lines": "off",
+      // Type assertions are standard when constructing typed test fixtures
+      "no-restricted-syntax": "off",
+      "@typescript-eslint/no-unsafe-type-assertion": "off",
+      // unknown is acceptable for mock boundary values in tests
+      "@typescript-eslint/no-restricted-types": "off",
+      // Test helpers may be async without an explicit await (e.g. timers)
+      "@typescript-eslint/require-await": "off",
+    },
+  },
+
+  // 7. Disable duplicate ESLint rules that are enforced by Oxlint.
+  ...oxlint.buildFromOxlintConfigFile(oxlintConfigPath),
 ];

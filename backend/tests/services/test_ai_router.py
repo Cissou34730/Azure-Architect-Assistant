@@ -2,8 +2,8 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from app.services.ai.interfaces import EmbeddingProvider, LLMProvider, LLMResponse
-from app.services.ai.router import AIRouter
+from app.shared.ai.interfaces import EmbeddingProvider, LLMProvider, LLMResponse
+from app.shared.ai.router import AIRouter
 
 
 class _FakeLLMProvider(LLMProvider):
@@ -24,6 +24,9 @@ class _FakeLLMProvider(LLMProvider):
 
     def get_model_name(self) -> str:
         return "fake"
+
+    async def list_runtime_models(self) -> list[dict[str, str]]:
+        return [{"id": "fake", "model": "fake"}]
 
 
 class _FakeEmbeddingProvider(EmbeddingProvider):
@@ -106,3 +109,4 @@ async def test_router_fallback_failure_propagates() -> None:
 
     with pytest.raises(RuntimeError, match="fallback failed"):
         await router.chat(messages=[])
+

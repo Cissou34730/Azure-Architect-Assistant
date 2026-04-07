@@ -3,7 +3,7 @@ import {
   reconcileMessages,
   findLastNonOptimisticId,
 } from "../../../../features/projects/hooks/chat-messaging-utils";
-import type { Message } from "../../../../types/api";
+import type { Message } from "../../../../features/knowledge/types/api-kb";
 
 const msg = (
   id: string,

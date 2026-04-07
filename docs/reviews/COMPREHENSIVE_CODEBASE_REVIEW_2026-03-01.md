@@ -154,7 +154,7 @@ The codebase is at a **"works well for a single user / demo"** maturity level an
 
 ### 5.1 Strengths
 
-- **React 19 + TypeScript 5.9** — latest stack, strict mode enabled
+- **React 19 + TypeScript 6.0** — latest stack, strict mode enabled
 - **Tailwind v4.1** with `@theme` design tokens (OKLCH color space) — modern, accessible
 - **20+ custom hooks** — excellent logic extraction and separation of concerns
 - **Multi-context approach** in projects — `ProjectStateContext`, `ProjectChatContext`, `ProjectInputContext`, `ProjectMetaContext` minimize re-renders

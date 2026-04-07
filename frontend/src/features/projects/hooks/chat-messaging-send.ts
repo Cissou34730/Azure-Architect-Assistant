@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import type { ProjectState, SendMessageResponse } from "../../../types/api";
+import type { SendMessageResponse } from "../../knowledge/types/api-kb";
+import type { ProjectState } from "../types/api-project";
 import type { FailedMessage } from "./chat-messaging-types";
 import {
   handleSendMessage,

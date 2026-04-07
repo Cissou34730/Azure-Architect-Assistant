@@ -1,7 +1,7 @@
-import { Project, ProjectState } from "../../../types/api";
-import { projectApi } from "../../../services/projectService";
+import type { Project, ProjectState } from "../types/api-project";
+import { projectApi } from "../api/projectService";
 import { useRequirementHandlers } from "./useRequirementHandlers";
-import { useToast } from "../../../hooks/useToast";
+import { useToast } from "../../../shared/hooks/useToast";
 import { useInputAnalysisWorkflow } from "./useInputAnalysisWorkflow";
 
 function normalizeUploadSummary(summary: ProjectState["projectDocumentStats"]) {
@@ -107,25 +107,17 @@ export function useProjectOperations({
     }
   };
 
-  const { handleSaveTextRequirements, handleGenerateProposal } =
-    useRequirementHandlers({
-      selectedProject,
-      setSelectedProject,
-      textRequirements,
-      refreshState,
-      generateProposal,
-      success,
-      showError,
-    });
+  const { handleSaveTextRequirements, handleGenerateProposal } = useRequirementHandlers({
+    selectedProject, setSelectedProject, textRequirements, refreshState, generateProposal, success, showError,
+  });
 
   return {
-    handleUploadDocuments,
-    handleAnalyzeDocuments,
-    handleSaveTextRequirements,
-    handleGenerateProposal,
+    handleUploadDocuments, handleAnalyzeDocuments,
+    handleSaveTextRequirements, handleGenerateProposal,
     inputWorkflow: workflow.state,
     isUploadingDocuments: workflow.isUploading,
     isAnalyzingDocuments: workflow.isAnalyzing,
     clearInputWorkflowMessage: workflow.clearWorkflowMessage,
   };
 }
+

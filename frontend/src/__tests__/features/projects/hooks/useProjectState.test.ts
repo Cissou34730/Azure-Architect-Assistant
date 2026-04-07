@@ -1,18 +1,18 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useProjectState } from "../../../../features/projects/hooks/useProjectState";
-import type { ProjectState } from "../../../../types/api";
+import type { ProjectState } from "../../../../features/projects/types/api-project";
 
-vi.mock("../../../../services/stateService", () => ({
+vi.mock("../../../../features/projects/api/stateService", () => ({
   stateApi: { fetch: vi.fn() },
 }));
 
-vi.mock("../../../../services/projectService", () => ({
+vi.mock("../../../../features/projects/api/projectService", () => ({
   projectApi: { analyzeDocuments: vi.fn() },
 }));
 
-import { stateApi } from "../../../../services/stateService";
-import { projectApi } from "../../../../services/projectService";
+import { stateApi } from "../../../../features/projects/api/stateService";
+import { projectApi } from "../../../../features/projects/api/projectService";
 
 const mockStateApi = vi.mocked(stateApi);
 const mockProjectApi = vi.mocked(projectApi);

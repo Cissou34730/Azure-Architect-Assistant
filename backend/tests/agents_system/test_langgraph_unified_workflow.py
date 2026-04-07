@@ -13,8 +13,9 @@ async def test_execute_project_chat_uses_unified_advanced_graph(monkeypatch):
     captured: dict[str, object] = {}
 
     class DummyGraph:
-        async def ainvoke(self, initial_state):
+        async def ainvoke(self, initial_state, config=None):
             captured["initial_state"] = initial_state
+            captured["config"] = config
             return {
                 "final_answer": "ok",
                 "success": True,

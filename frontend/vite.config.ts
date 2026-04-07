@@ -39,12 +39,18 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       chunkSizeWarningLimit: 1000,
-      rollupOptions: {
+      rolldownOptions: {
         output: {
-          manualChunks: {
-            "react-vendor": ["react", "react-dom"],
-            "router-vendor": ["react-router-dom"],
-            "mermaid-vendor": ["mermaid"],
+          manualChunks(id: string) {
+            if (id.includes("node_modules/react-dom") || id.includes("node_modules/react/")) {
+              return "react-vendor";
+            }
+            if (id.includes("node_modules/react-router")) {
+              return "router-vendor";
+            }
+            if (id.includes("node_modules/mermaid")) {
+              return "mermaid-vendor";
+            }
           },
         },
       },

@@ -1,7 +1,7 @@
 import { useCallback, memo } from "react";
 import { ChatPanel } from "../workspace/ChatPanel";
 import { useProjectChatContext } from "../../context/useProjectChatContext";
-import { useRenderCount } from "../../../../hooks/useRenderCount";
+import { useRenderCount } from "../../../../shared/hooks/useRenderCount";
 
 function CenterChatArea() {
   useRenderCount("CenterChatArea");
@@ -37,4 +37,5 @@ function CenterChatArea() {
 
 const centerChatArea = memo(CenterChatArea);
 export { centerChatArea as CenterChatArea };
+
 

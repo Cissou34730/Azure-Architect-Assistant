@@ -1,0 +1,267 @@
+
+Running 25 tests using 6 workers
+
+  Γ£ô   1 [chromium] ΓÇ║ tests\copilot-model-selector.spec.ts:145:3 ΓÇ║ Copilot model selector ΓÇ║ displays all SDK models in the model dropdown (7.6s)
+  Γ£ô   2 [chromium] ΓÇ║ tests\azure-model-selector.spec.ts:132:3 ΓÇ║ Azure OpenAI model selector ΓÇ║ displays all Azure chat-capable models in the dropdown (8.6s)
+  Γ£ô   6 [chromium] ΓÇ║ tests\checklist-panel.spec.ts:136:3 ΓÇ║ Checklist Panel ΓÇ║ WAF checklist tab shows all items by pillar (15.0s)
+  Γ£ô   7 [chromium] ΓÇ║ tests\copilot-model-selector.spec.ts:177:3 ΓÇ║ Copilot model selector ΓÇ║ model dropdown reflects many subscription-scoped models for Copilot (17.9s)
+  Γ£ô   8 [chromium] ΓÇ║ tests\azure-model-selector.spec.ts:167:3 ΓÇ║ Azure OpenAI model selector ΓÇ║ displays comprehensive model list including GPT-5.3, GPT-5.4, and Codex models (17.8s)
+  Γ£ÿ   3 [chromium] ΓÇ║ tests\agent-chat.spec.ts:81:3 ΓÇ║ Agent Chat ΓÇ║ chat panel renders with empty conversation and send is disabled (13.0s)
+  Γ£ô  11 [chromium] ΓÇ║ tests\azure-model-selector.spec.ts:232:3 ΓÇ║ Azure OpenAI model selector ΓÇ║ shows more than one model when Azure has many deployable models (2.3s)
+  Γ£ÿ   9 [chromium] ΓÇ║ tests\checklist-panel.spec.ts:152:3 ΓÇ║ Checklist Panel ΓÇ║ checklist shows pillar labels (6.7s)
+  Γ£ÿ   5 [chromium] ΓÇ║ tests\diagram-viewing.spec.ts:97:3 ΓÇ║ Diagram Viewing ΓÇ║ diagrams tab shows diagram titles (19.2s)
+  Γ£ô  10 [chromium] ΓÇ║ tests\copilot-model-selector.spec.ts:216:3 ΓÇ║ Copilot model selector ΓÇ║ selecting a model triggers the set-selection API (5.7s)
+  Γ£ô  12 [chromium] ΓÇ║ tests\azure-model-selector.spec.ts:266:3 ΓÇ║ Azure OpenAI model selector ΓÇ║ active model is pre-selected in the dropdown (4.6s)
+  Γ£ô  13 [chromium] ΓÇ║ tests\copilot-model-selector.spec.ts:266:3 ΓÇ║ Copilot model selector ΓÇ║ refresh option triggers a refreshed model list (3.8s)
+  Γ£ô  14 [chromium] ΓÇ║ tests\document-upload.spec.ts:117:3 ΓÇ║ Document Upload ΓÇ║ input overview shows uploaded documents with parse status (7.0s)
+  Γ£ô  15 [chromium] ΓÇ║ tests\initialization-workflow.spec.ts:75:1 ΓÇ║ initialization setup is visible and upload action is single-source (11.3s)
+  Γ£ÿ  19 [chromium] ΓÇ║ tests\document-upload.spec.ts:126:3 ΓÇ║ Document Upload ΓÇ║ failed document is visible with error indication (8.2s)
+  Γ£ô  17 [chromium] ΓÇ║ tests\checklist-panel.spec.ts:167:3 ΓÇ║ Checklist Panel ΓÇ║ empty checklist shows placeholder (15.5s)
+  Γ£ô  20 [chromium] ΓÇ║ tests\projects-redirect.spec.ts:3:1 ΓÇ║ legacy /projects route redirects to the canonical project list (12.2s)
+  Γ£ô  21 [chromium] ΓÇ║ tests\projects.spec.ts:3:1 ΓÇ║ projects list renders from API data (2.9s)
+  Γ£ÿ  18 [chromium] ΓÇ║ tests\diagram-viewing.spec.ts:112:3 ΓÇ║ Diagram Viewing ΓÇ║ diagram renders mermaid content without error (18.7s)
+  Γ£ô  22 [chromium] ΓÇ║ tests\waf-normalized.spec.ts:38:1 ΓÇ║ waf tab renders normalized checklist data when legacy state is empty (7.2s)
+  Γ£ÿ  16 [chromium] ΓÇ║ tests\agent-chat.spec.ts:94:3 ΓÇ║ Agent Chat ΓÇ║ sending a message shows user bubble and assistant reply (30.2s)
+  Γ£ô  23 [chromium] ΓÇ║ tests\document-upload.spec.ts:136:3 ΓÇ║ Document Upload ΓÇ║ upload button is visible on input overview tab (13.2s)
+  Γ£ÿ  24 [chromium] ΓÇ║ tests\agent-chat.spec.ts:124:3 ΓÇ║ Agent Chat ΓÇ║ conversation history loads existing messages (22.6s)
+  Γ£ÿ   4 [chromium] ΓÇ║ tests\azure-e2e-chat.spec.ts:17:3 ΓÇ║ Azure OpenAI E2E ΓÇ║ model dropdown lists GPT-5.3, GPT-5.4, and Codex models from live backend (2.0m)
+  Γ£ÿ  25 [chromium] ΓÇ║ tests\azure-e2e-chat.spec.ts:77:3 ΓÇ║ Azure OpenAI E2E ΓÇ║ chat with Accor 3 project using Azure deployment (2.0m)
+
+
+  1) [chromium] ΓÇ║ tests\agent-chat.spec.ts:81:3 ΓÇ║ Agent Chat ΓÇ║ chat panel renders with empty conversation and send is disabled 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-testid=\'chat-panel\'], .agent-chat-panel').first().or(getByText('Start a conversation'))
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for locator('[data-testid=\'chat-panel\'], .agent-chat-panel').first().or(getByText('Start a conversation'))[22m
+
+
+      84 |
+      85 |     const chatPanel = page.locator("[data-testid='chat-panel'], .agent-chat-panel").first();
+    > 86 |     await expect(chatPanel.or(page.getByText("Start a conversation"))).toBeVisible();
+         |                                                                        ^
+      87 |
+      88 |     const sendButton = page.getByRole("button", { name: /send/i });
+      89 |     if (await sendButton.isVisible()) {
+        at C:\Users\cyril.beurier\code\Azure-Architect-Assistant\frontend\tests\agent-chat.spec.ts:86:72
+
+    Error Context: test-results\agent-chat-Agent-Chat-chat-b7bd3-sation-and-send-is-disabled-chromium\error-context.md
+
+  2) [chromium] ΓÇ║ tests\agent-chat.spec.ts:94:3 ΓÇ║ Agent Chat ΓÇ║ sending a message shows user bubble and assistant reply 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+    [2m  - waiting for getByRole('button', { name: /send/i })[22m
+    [2m    - locator resolved to <button disabled type="submit" class="px-6 py-3 bg-brand text-inverse rounded-lg hover:bg-brand-strong disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2">ΓÇª</button>[22m
+    [2m  - attempting click action[22m
+    [2m    2 ├ù waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 ├ù waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    35 ├ù waiting for element to be visible, enabled and stable[22m
+    [2m       - element is not enabled[22m
+    [2m     - retrying click action[22m
+    [2m       - waiting 500ms[22m
+
+
+      116 |
+      117 |     const sendButton = page.getByRole("button", { name: /send/i });
+    > 118 |     await sendButton.click();
+          |                      ^
+      119 |
+      120 |     await expect(page.getByText("What Azure service should we use?")).toBeVisible();
+      121 |     await expect(page.getByText("I recommend Azure App Service for the Contoso migration.")).toBeVisible({ timeout: 10_000 });
+        at C:\Users\cyril.beurier\code\Azure-Architect-Assistant\frontend\tests\agent-chat.spec.ts:118:22
+
+    Error Context: test-results\agent-chat-Agent-Chat-send-18c70--bubble-and-assistant-reply-chromium\error-context.md
+
+  3) [chromium] ΓÇ║ tests\agent-chat.spec.ts:124:3 ΓÇ║ Agent Chat ΓÇ║ conversation history loads existing messages 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('How do I migrate the database?')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for getByText('How do I migrate the database?')[22m
+
+
+      173 |     await page.goto(`/project/${PROJECT_ID}`);
+      174 |
+    > 175 |     await expect(page.getByText("How do I migrate the database?")).toBeVisible({ timeout: 10_000 });
+          |                                                                    ^
+      176 |     await expect(page.getByText("Use Azure Database Migration Service.")).toBeVisible();
+      177 |   });
+      178 | });
+        at C:\Users\cyril.beurier\code\Azure-Architect-Assistant\frontend\tests\agent-chat.spec.ts:175:68
+
+    Error Context: test-results\agent-chat-Agent-Chat-conv-5fdf4-ory-loads-existing-messages-chromium\error-context.md
+
+  4) [chromium] ΓÇ║ tests\azure-e2e-chat.spec.ts:17:3 ΓÇ║ Azure OpenAI E2E ΓÇ║ model dropdown lists GPT-5.3, GPT-5.4, and Codex models from live backend 
+
+    [31mTest timeout of 120000ms exceeded.[39m
+
+    Error: page.waitForLoadState: Test timeout of 120000ms exceeded.
+
+      20 |     // Navigate to app root and wait for it to load
+      21 |     await page.goto("/");
+    > 22 |     await page.waitForLoadState("networkidle");
+         |                ^
+      23 |
+      24 |     // Wait for the provider selector to be visible
+      25 |     const providerSelect = page.locator('select[aria-label="LLM Provider"]');
+        at C:\Users\cyril.beurier\code\Azure-Architect-Assistant\frontend\tests\azure-e2e-chat.spec.ts:22:16
+
+    Error Context: test-results\azure-e2e-chat-Azure-OpenA-388b6-ex-models-from-live-backend-chromium\error-context.md
+
+  5) [chromium] ΓÇ║ tests\azure-e2e-chat.spec.ts:77:3 ΓÇ║ Azure OpenAI E2E ΓÇ║ chat with Accor 3 project using Azure deployment 
+
+    [31mTest timeout of 120000ms exceeded.[39m
+
+    Error: apiRequestContext.put: Target page, context or browser has been closed
+    Call log:
+    [2m  - ΓåÆ PUT http://localhost:8000/api/settings/llm-selection[22m
+    [2m    - user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.7632.6 Safari/537.36[22m
+    [2m    - accept: */*[22m
+    [2m    - accept-encoding: gzip,deflate,br[22m
+    [2m    - content-type: application/json[22m
+    [2m    - content-length: 39[22m
+
+
+      81 |
+      82 |     // First, set Azure provider + aaadp model via API
+    > 83 |     await page.request.put("http://localhost:8000/api/settings/llm-selection", {
+         |                        ^
+      84 |       data: { provider: "azure", model_id: "aaadp" },
+      85 |     });
+      86 |
+        at C:\Users\cyril.beurier\code\Azure-Architect-Assistant\frontend\tests\azure-e2e-chat.spec.ts:83:24
+
+  6) [chromium] ΓÇ║ tests\checklist-panel.spec.ts:152:3 ΓÇ║ Checklist Panel ΓÇ║ checklist shows pillar labels 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('Security')
+    Expected: visible
+    Error: strict mode violation: getByText('Security') resolved to 2 elements:
+        1) <span>Security</span> aka getByText('Security', { exact: true })
+        2) <div class="text-xs text-secondary">Multi-factor authentication is a critical securitΓÇª</div> aka getByText('Multi-factor authentication')
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for getByText('Security')[22m
+
+
+      161 |     }
+      162 |
+    > 163 |     await expect(page.getByText("Security")).toBeVisible({ timeout: 10_000 });
+          |                                              ^
+      164 |     await expect(page.getByText("Reliability")).toBeVisible();
+      165 |   });
+      166 |
+        at C:\Users\cyril.beurier\code\Azure-Architect-Assistant\frontend\tests\checklist-panel.spec.ts:163:46
+
+    Error Context: test-results\checklist-panel-Checklist--46c64-ecklist-shows-pillar-labels-chromium\error-context.md
+
+  7) [chromium] ΓÇ║ tests\diagram-viewing.spec.ts:97:3 ΓÇ║ Diagram Viewing ΓÇ║ diagrams tab shows diagram titles 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('Network Topology')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for getByText('Network Topology')[22m
+
+
+      106 |     }
+      107 |
+    > 108 |     await expect(page.getByText("Network Topology")).toBeVisible({ timeout: 10_000 });
+          |                                                      ^
+      109 |     await expect(page.getByText("Data Flow Diagram")).toBeVisible();
+      110 |   });
+      111 |
+        at C:\Users\cyril.beurier\code\Azure-Architect-Assistant\frontend\tests\diagram-viewing.spec.ts:108:54
+
+    Error Context: test-results\diagram-viewing-Diagram-Vi-f0351-ms-tab-shows-diagram-titles-chromium\error-context.md
+
+  8) [chromium] ΓÇ║ tests\diagram-viewing.spec.ts:112:3 ΓÇ║ Diagram Viewing ΓÇ║ diagram renders mermaid content without error 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('Network Topology')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for getByText('Network Topology')[22m
+
+
+      114 |     await page.goto(`/project/${PROJECT_ID}?tab=diagrams`);
+      115 |
+    > 116 |     await expect(page.getByText("Network Topology")).toBeVisible({ timeout: 10_000 });
+          |                                                      ^
+      117 |
+      118 |     const errorBox = page.locator(".text-red-600, [role='alert']");
+      119 |     const errorCount = await errorBox.count();
+        at C:\Users\cyril.beurier\code\Azure-Architect-Assistant\frontend\tests\diagram-viewing.spec.ts:116:54
+
+    Error Context: test-results\diagram-viewing-Diagram-Vi-2b245-rmaid-content-without-error-chromium\error-context.md
+
+  9) [chromium] ΓÇ║ tests\document-upload.spec.ts:126:3 ΓÇ║ Document Upload ΓÇ║ failed document is visible with error indication 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('corrupted.bin')
+    Expected: visible
+    Error: strict mode violation: getByText('corrupted.bin') resolved to 2 elements:
+        1) <span class="truncate flex-1 text-left">corrupted.bin</span> aka getByRole('button', { name: 'corrupted.bin Issue' })
+        2) <span>corrupted.bin: Unsupported file format</span> aka getByText('corrupted.bin: Unsupported')
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for getByText('corrupted.bin')[22m
+
+
+      128 |     await page.goto(`/project/${PROJECT_ID}`);
+      129 |
+    > 130 |     await expect(page.getByText("corrupted.bin")).toBeVisible({ timeout: 10_000 });
+          |                                                   ^
+      131 |     // Either a "failed" badge, red styling, or the error reason should be visible
+      132 |     const failedIndicator = page.getByText(/failed|error|unsupported/i);
+      133 |     await expect(failedIndicator.first()).toBeVisible();
+        at C:\Users\cyril.beurier\code\Azure-Architect-Assistant\frontend\tests\document-upload.spec.ts:130:51
+
+    Error Context: test-results\document-upload-Document-U-04b3a-sible-with-error-indication-chromium\error-context.md
+
+  9 failed
+    [chromium] ΓÇ║ tests\agent-chat.spec.ts:81:3 ΓÇ║ Agent Chat ΓÇ║ chat panel renders with empty conversation and send is disabled 
+    [chromium] ΓÇ║ tests\agent-chat.spec.ts:94:3 ΓÇ║ Agent Chat ΓÇ║ sending a message shows user bubble and assistant reply 
+    [chromium] ΓÇ║ tests\agent-chat.spec.ts:124:3 ΓÇ║ Agent Chat ΓÇ║ conversation history loads existing messages 
+    [chromium] ΓÇ║ tests\azure-e2e-chat.spec.ts:17:3 ΓÇ║ Azure OpenAI E2E ΓÇ║ model dropdown lists GPT-5.3, GPT-5.4, and Codex models from live backend 
+    [chromium] ΓÇ║ tests\azure-e2e-chat.spec.ts:77:3 ΓÇ║ Azure OpenAI E2E ΓÇ║ chat with Accor 3 project using Azure deployment 
+    [chromium] ΓÇ║ tests\checklist-panel.spec.ts:152:3 ΓÇ║ Checklist Panel ΓÇ║ checklist shows pillar labels 
+    [chromium] ΓÇ║ tests\diagram-viewing.spec.ts:97:3 ΓÇ║ Diagram Viewing ΓÇ║ diagrams tab shows diagram titles 
+    [chromium] ΓÇ║ tests\diagram-viewing.spec.ts:112:3 ΓÇ║ Diagram Viewing ΓÇ║ diagram renders mermaid content without error 
+    [chromium] ΓÇ║ tests\document-upload.spec.ts:126:3 ΓÇ║ Document Upload ΓÇ║ failed document is visible with error indication 
+  16 passed (5.7m)

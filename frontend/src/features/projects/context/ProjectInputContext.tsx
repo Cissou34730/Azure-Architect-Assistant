@@ -1,4 +1,4 @@
-import { createContext } from "react";
+import { createContext, type SyntheticEvent } from "react";
 import type { InputAnalysisWorkflowState } from "../hooks/useInputAnalysisWorkflow";
 
 export interface ProjectInputContextType {
@@ -10,10 +10,10 @@ export interface ProjectInputContextType {
   readonly isUploadingDocuments: boolean;
   readonly isAnalyzingDocuments: boolean;
   readonly clearInputWorkflowMessage: () => void;
-  readonly handleUploadDocuments: () => Promise<void>;
+  readonly handleUploadDocuments: (event: SyntheticEvent) => Promise<void>;
   readonly handleAnalyzeDocuments: () => Promise<void>;
   readonly handleSaveTextRequirements: () => Promise<void>;
-  readonly handleGenerateProposal: () => Promise<void>;
+  readonly handleGenerateProposal: () => void;
 }
 
 export const projectInputContext =

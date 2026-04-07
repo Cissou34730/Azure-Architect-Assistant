@@ -5,7 +5,7 @@ import {
   Layers,
   Waypoints,
 } from "lucide-react";
-import type { ProjectState } from "../../../../../types/api";
+import type { ProjectState } from "../../../types/api-project";
 import { EmptyArtifactState } from "./EmptyArtifactState";
 
 function safeArray<T>(value: readonly T[] | undefined): readonly T[] {

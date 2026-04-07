@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.exc import OperationalError
 
-from app.ingestion import ingestion_schema
+from app.features.ingestion.infrastructure import ingestion_schema as feature_ingestion_schema
 from app.ingestion.ingestion_schema import run_migrations
+
+
+def test_feature_ingestion_schema_uses_backend_alembic_config() -> None:
+    expected_path = Path(__file__).resolve().parents[2] / 'alembic_ingestion.ini'
+
+    assert expected_path == feature_ingestion_schema._ALEMBIC_CFG_PATH
+    assert feature_ingestion_schema._ALEMBIC_CFG_PATH.exists()
 
 
 def test_run_migrations_creates_ingestion_tables(tmp_path) -> None:
@@ -52,7 +60,7 @@ def test_upgrade_retries_once_on_stale_temp_table_collision(
     engine = create_engine(f"sqlite:///{db_path}", future=True)
 
     calls = {'count': 0}
-    original_upgrade = ingestion_schema.command.upgrade
+    original_upgrade = feature_ingestion_schema.command.upgrade
 
     def flaky_upgrade(cfg, revision):
         calls['count'] += 1
@@ -64,7 +72,7 @@ def test_upgrade_retries_once_on_stale_temp_table_collision(
             )
         return original_upgrade(cfg, revision)
 
-    monkeypatch.setattr(ingestion_schema.command, 'upgrade', flaky_upgrade)
+    monkeypatch.setattr(feature_ingestion_schema.command, 'upgrade', flaky_upgrade)
 
     run_migrations(engine)
 

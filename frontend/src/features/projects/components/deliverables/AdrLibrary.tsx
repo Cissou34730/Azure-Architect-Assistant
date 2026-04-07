@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { FileText } from "lucide-react";
-import { useDebounce } from "../../../../hooks/useDebounce";
-import { EmptyState, LoadingSpinner } from "../../../../components/common";
-import type { AdrArtifact } from "../../../../types/api";
+import { useDebounce } from "../../../../shared/hooks/useDebounce";
+import { EmptyState, LoadingSpinner } from "../../../../shared/ui";
+import type { AdrArtifact } from "../../types/api-artifacts";
 import { AdrFilters, type ViewMode, type StatusFilter } from "./adrlib/AdrFilters";
 import { AdrGrid } from "./adrlib/AdrGrid";
 import { AdrTable } from "./adrlib/AdrTable";
@@ -100,6 +100,7 @@ export function AdrLibrary({ adrs }: AdrLibraryProps) {
     </div>
   );
 }
+
 
 
 

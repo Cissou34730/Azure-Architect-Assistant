@@ -1,13 +1,13 @@
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useProjectData } from "../../../../features/projects/hooks/useProjectData";
-import type { Project } from "../../../../types/api";
+import type { Project } from "../../../../features/projects/types/api-project";
 
-vi.mock("../../../../services/projectService", () => ({
+vi.mock("../../../../features/projects/api/projectService", () => ({
   projectApi: { get: vi.fn() },
 }));
 
-vi.mock("../../../../hooks/useToast", () => ({
+vi.mock("../../../../shared/hooks/useToast", () => ({
   useToast: () => ({
     error: mockShowError,
     success: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock("../../../../hooks/useToast", () => ({
 
 const mockShowError = vi.fn();
 
-import { projectApi } from "../../../../services/projectService";
+import { projectApi } from "../../../../features/projects/api/projectService";
 
 const mockProjectApi = vi.mocked(projectApi);
 
@@ -118,3 +118,4 @@ describe("useProjectData", () => {
     expect(result.current.selectedProject).toEqual(fakeProject);
   });
 });
+

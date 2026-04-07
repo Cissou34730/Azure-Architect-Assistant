@@ -7,12 +7,12 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_kb_manager
-from app.main import app
-from app.projects_database import get_db
-from app.routers.kb_query.query_router import (
+from app.features.knowledge.api.query_router import (
     get_multi_query_service_dep,
     get_query_service_dep,
 )
+from app.main import app
+from app.shared.db.projects_database import get_db
 
 
 @pytest.fixture

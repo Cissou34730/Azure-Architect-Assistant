@@ -1,0 +1,4 @@
+{
+  "llm_provider": "azure",
+  "model_id": "new-deployment"
+}

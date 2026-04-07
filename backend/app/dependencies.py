@@ -32,20 +32,20 @@ import logging
 
 from app.agents_system.config.prompt_loader import PromptLoader
 from app.agents_system.runner import AgentRunner
-from app.kb import KBManager
-from app.service_registry import ServiceRegistry
-from app.services.ai import AIService, get_ai_service
-from app.services.ingestion_runtime import IngestionRuntimeService
-from app.services.kb import MultiKBQueryService
-from app.services.kb.management_orchestration_service import (
+from app.features.ingestion.application.runtime import IngestionRuntimeService
+from app.features.knowledge.application.management_orchestration_service import (
     KBManagementService,
     get_management_service,
 )
-from app.services.kb.query_orchestration_service import (
+from app.features.knowledge.application.query_orchestration_service import (
     KBQueryService,
     get_query_service,
 )
-from app.services.llm_service import LLMService, get_llm_service
+from app.features.knowledge.application.query_service import MultiKBQueryService
+from app.features.knowledge.infrastructure import KBManager
+from app.service_registry import ServiceRegistry
+from app.shared.ai import AIService, get_ai_service
+from app.shared.ai.llm_service import LLMService, get_llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -173,3 +173,4 @@ def get_prompt_loader() -> PromptLoader:
         PromptLoader: The singleton prompt loader instance
     """
     return PromptLoader.get_instance()
+
