@@ -84,6 +84,19 @@ def test_classify_stage_pricing():
     assert result["next_stage"] == ProjectStage.PRICING.value
 
 
+def test_classify_stage_pricing_for_how_much_request():
+    """Test pricing classification for explicit spend questions without the word cost."""
+    state: GraphState = {
+        "user_message": "How much would this run per month in East US?",
+        "current_project_state": {},
+        "agent_output": "",
+    }
+
+    result = classify_next_stage(state)
+
+    assert result["next_stage"] == ProjectStage.PRICING.value
+
+
 def test_classify_stage_iac():
     """Test classification of IaC stage."""
     state: GraphState = {

@@ -75,7 +75,21 @@ def _detect_intent_from_keywords(user_message: str, agent_output: str) -> Projec
     mapping = [
         (["validate", "validation", "waf", "security", "compliance", "benchmark"], ProjectStage.VALIDATE),
         (["adr", "decision", "architecture decision"], ProjectStage.MANAGE_ADR),
-        (["cost", "price", "pricing", "budget", "estimate"], ProjectStage.PRICING),
+        (
+            [
+                "cost",
+                "price",
+                "pricing",
+                "budget",
+                "estimate",
+                "how much",
+                "tco",
+                "total cost of ownership",
+                "monthly total",
+                "annual total",
+            ],
+            ProjectStage.PRICING,
+        ),
         (["terraform", "bicep", "iac", "infrastructure", "code"], ProjectStage.IAC),
         (["export", "document", "report", "summary"], ProjectStage.EXPORT),
     ]

@@ -420,6 +420,138 @@ async def test_graph_routes_propose_candidate_through_research_worker_and_archit
 
 
 @pytest.mark.asyncio
+async def test_graph_routes_pricing_stage_through_dedicated_cost_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call_order: list[str] = []
+
+    async def fake_load_state(_state, _db):
+        call_order.append("load_state")
+        return {
+            "current_project_state": {
+                "candidateArchitectures": [
+                    {"id": "candidate-1", "summary": "SWA + Azure Functions + Table Storage"}
+                ]
+            }
+        }
+
+    def fake_classify_stage(_state):
+        call_order.append("classify_stage")
+        return {"next_stage": ProjectStage.PRICING.value}
+
+    async def fake_build_summary(state, _db):
+        call_order.append(f"build_summary:{state.get('next_stage')}")
+        return {"context_summary": "summary"}
+
+    async def fake_build_research(_state):
+        call_order.append("build_research")
+        return {
+            "research_plan": ["Azure Pricing meters for Static Web Apps and Functions"],
+            "stage_directives": "pricing stage",
+            "mindmap_guidance": None,
+        }
+
+    async def fake_research_worker(_state):
+        raise AssertionError("research worker should be skipped for pricing stage")
+
+    def fake_build_mindmap_guidance(_state):
+        call_order.append("build_mindmap_guidance")
+        return {"mindmap_guidance": None}
+
+    async def fake_cost_stage_worker(state):
+        call_order.append("cost_stage_worker")
+        assert state.get("next_stage") == ProjectStage.PRICING.value
+        return {
+            "agent_output": (
+                "Recorded cost estimate at 2026-04-08T12:00:00+00:00 (pricingLines=1).\n\n"
+                "AAA_STATE_UPDATE\n"
+                "```json\n"
+                '{\n  "costEstimates": [{"id": "cost-1", "totalMonthlyCost": 42.0}]}\n'
+                "```"
+            ),
+            "intermediate_steps": [],
+            "success": True,
+            "error": None,
+            "current_agent": "cost_estimator",
+        }
+
+    async def fake_run_agent(_state):
+        raise AssertionError("generic agent should be skipped for pricing stage")
+
+    async def fake_persist_messages(_state, _db):
+        call_order.append("persist_messages")
+        return {}
+
+    async def fake_postprocess(_state, _response_message_id):
+        call_order.append("postprocess")
+        return {
+            "combined_updates": {
+                "costEstimates": [{"id": "cost-1", "totalMonthlyCost": 42.0}],
+            },
+            "final_answer": "cost recorded",
+        }
+
+    async def fake_apply_updates(_state, _db):
+        call_order.append("apply_updates")
+        return {
+            "updated_project_state": {
+                "costEstimates": [{"id": "cost-1", "totalMonthlyCost": 42.0}],
+            },
+            "final_answer": "cost recorded",
+            "success": True,
+        }
+
+    monkeypatch.setattr(graph_factory_module, "load_project_state_node", fake_load_state)
+    monkeypatch.setattr(graph_factory_module, "classify_next_stage", fake_classify_stage)
+    monkeypatch.setattr(graph_factory_module, "build_context_summary_node", fake_build_summary)
+    monkeypatch.setattr(graph_factory_module, "build_research_plan_node", fake_build_research)
+    monkeypatch.setattr(graph_factory_module, "execute_research_worker_node", fake_research_worker)
+    monkeypatch.setattr(
+        graph_factory_module,
+        "_pass_through_mindmap_guidance",
+        fake_build_mindmap_guidance,
+    )
+    monkeypatch.setattr(
+        graph_factory_module,
+        "execute_cost_stage_worker_node",
+        fake_cost_stage_worker,
+    )
+    monkeypatch.setattr(graph_factory_module, "run_agent_node", fake_run_agent)
+    monkeypatch.setattr(graph_factory_module, "persist_messages_node", fake_persist_messages)
+    monkeypatch.setattr(graph_factory_module, "postprocess_node", fake_postprocess)
+    monkeypatch.setattr(graph_factory_module, "apply_state_updates_node", fake_apply_updates)
+    monkeypatch.setattr(graph_factory_module, "should_route_to_cost_estimator", lambda _state: True)
+    monkeypatch.setattr(
+        graph_factory_module,
+        "get_app_settings",
+        lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
+    )
+
+    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+
+    result = await graph.ainvoke(
+        {
+            "project_id": "proj-1",
+            "user_message": "How much would this run each month?",
+            "success": False,
+        }
+    )
+
+    assert result["final_answer"] == "cost recorded"
+    assert call_order == [
+        "load_state",
+        "classify_stage",
+        f"build_summary:{ProjectStage.PRICING.value}",
+        "build_research",
+        "build_mindmap_guidance",
+        "cost_stage_worker",
+        "persist_messages",
+        "postprocess",
+        "apply_updates",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_graph_routes_export_to_dedicated_stage_worker(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

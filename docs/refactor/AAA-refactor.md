@@ -726,6 +726,7 @@ Outputs:
 - Prompt: `cost_estimator_prompt.yaml` (**preserve as-is** — best prompt in the system, scored 9-10/10)
 - Tools: `mcp_*` (Azure Pricing API), `aaa_record_cost_estimate`
 - Output: cost breakdown by service, optimization opportunities, RI recommendations
+- Runtime note: explicit pricing phrases (including `how much` / `TCO`) should classify into the cost stage, and the LangGraph path should use the dedicated cost-stage worker/runtime seam that reuses the existing cost estimator node + `aaa_record_cost_estimate` flow instead of falling back to the generic agent path.
 
 ### 9.2 Bundle → PendingChangeSet
 

@@ -7,6 +7,7 @@ using the Azure Retail Prices API and providing optimization recommendations.
 
 import logging
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -14,6 +15,11 @@ from app.agents_system.services.state_update_parser import extract_state_updates
 from app.features.agent.infrastructure.tools.aaa_cost_tool import AAAGenerateCostTool
 
 from ..state import GraphState
+from .routing.cost_estimator import (
+    prepare_cost_estimator_handoff,
+    should_route_to_cost_estimator,
+)
+from .stage_routing import ProjectStage
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +29,35 @@ class _PricingUsageInputs:
     instance_count: int
     storage_gb: int
     monthly_exec: int
+
+
+async def execute_cost_stage_worker_node(
+    state: GraphState,
+    *,
+    handoff_builder: Callable[[GraphState], dict[str, Any]] | None = None,
+    estimator: Callable[[GraphState], Awaitable[dict[str, Any]]] | None = None,
+) -> dict[str, Any]:
+    """Run pricing turns through the dedicated cost estimator runtime path."""
+    if (
+        state.get("next_stage") != ProjectStage.PRICING.value
+        and not should_route_to_cost_estimator(state)
+    ):
+        return {}
+
+    build_handoff = handoff_builder or prepare_cost_estimator_handoff
+    estimator_node = estimator or cost_estimator_node
+    handoff_update = build_handoff(state)
+    merged_state: GraphState = dict(state)
+    merged_state.update(handoff_update)
+
+    result = await estimator_node(merged_state)
+    if not isinstance(result, dict):
+        return {}
+
+    return {
+        **handoff_update,
+        **result,
+    }
 
 
 async def cost_estimator_node(state: GraphState) -> dict[str, Any]:

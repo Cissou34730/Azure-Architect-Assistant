@@ -26,13 +26,14 @@ The backend agent runtime is LangGraph-only and provides:
 - `nodes/manage_adr.py` - Execute the dedicated manage-ADR pending-change worker
 - `nodes/research.py` - Build research plans and materialize Phase 6 research evidence packets
 - `nodes/validate.py` - Execute the dedicated validate-stage worker (deterministic WAF evaluation + findings payload synthesis)
+- `nodes/cost_estimator.py` - Execute the dedicated pricing-stage worker/runtime path and reuse the existing cost estimator + AAA cost tool flow
 - `nodes/export.py` - Execute the dedicated export-stage worker (deterministic AAA export payload generation)
 - `nodes/architecture_planner.py` - Execute the dedicated architecture synthesizer for `propose_candidate` and emit a reviewable synthesis-execution artifact alongside the pending-change/postprocess flow
 - `nodes/agent.py` - Execute stage-aware agent node
 - `nodes/postprocess.py` - Extract updates, derive MCP logs
 - `nodes/persist.py` - Save messages and apply state updates
 
-**Flow:** load_state → classify_stage → build_summary → [extract_requirements | clarify_stage_worker | export_stage_worker | build_research → (research_worker for `propose_candidate`) → build_mindmap_guidance → {prepare_architecture_handoff → architecture_planner | manage_adr_stage_worker | validate_stage_worker | run_agent | prepare_cost_handoff → cost_estimator}] → persist_messages → [end | postprocess → apply_updates]
+**Flow:** load_state → classify_stage → build_summary → [extract_requirements | clarify_stage_worker | export_stage_worker | build_research → (research_worker for `propose_candidate`) → build_mindmap_guidance → {prepare_architecture_handoff → architecture_planner | manage_adr_stage_worker | validate_stage_worker | cost_stage_worker | run_agent}] → persist_messages → [end | postprocess → apply_updates]
 
 - The architecture synthesizer reuses `nodes/architecture_planner.py` instead of introducing a second proposal path. It now records `architecture_synthesis_execution_artifact` metadata so tests and later evaluators can verify that evidence packets, WAF/mindmap deltas, and review-mode output sections were requested without bypassing the approval-first pending-change flow.
 
@@ -50,7 +51,7 @@ The backend agent runtime is LangGraph-only and provides:
 ### Stage Routing + Retry
 **Explicit stage transitions and error handling**
 
-- `nodes/stage_routing.py` - Stage classification and retry logic
+- `nodes/stage_routing.py` - Stage classification and retry logic (`how much`, `TCO`, and similar spend-first prompts now classify as `pricing`)
 - ProjectStage enum: extract_requirements, clarify, propose_candidate, manage_adr, validate, pricing, iac, export
 - Retry loop for ERROR: prefixed outputs
 - Always propose next steps if no artifacts persisted
@@ -124,7 +125,7 @@ AAA_ENABLE_MULTI_AGENT=true
 
 ### Standard Workflow
 ```
-Entry → Load State → Classify Stage → Build Summary → [Extract Requirements | Clarify Stage Worker | Export Stage Worker | Build Research → Research Worker (`propose_candidate`) → Build Mind Map Guidance → Architecture Planner / Validate Stage Worker / Run Agent] → Persist Messages → [End | Postprocess → Apply Updates] → End
+Entry → Load State → Classify Stage → Build Summary → [Extract Requirements | Clarify Stage Worker | Export Stage Worker | Build Research → Research Worker (`propose_candidate`) → Build Mind Map Guidance → Architecture Planner / Validate Stage Worker / Cost Stage Worker / Run Agent] → Persist Messages → [End | Postprocess → Apply Updates] → End
 ```
 
 ### Validate-Stage Worker
@@ -140,6 +141,18 @@ Entry → Load State → Classify Stage → Build Summary → [Extract Requireme
 - It returns either:
   - a validation-tool `AAA_STATE_UPDATE` payload for findings/checklist deltas, or
   - a deterministic no-op response when checklist/evidence input is insufficient or no actionable gaps remain.
+
+### Cost-Stage Worker
+```
+... → Build Research → Build Mind Map Guidance → Cost Stage Worker
+                                                     ├─ prepare_cost_estimator_handoff
+                                                     ├─ cost_estimator_node
+                                                     └─ aaa_record_cost_estimate / deterministic pricing path
+                                                         → Persist Messages → Postprocess → Apply Updates
+```
+
+- Pricing turns now bypass the generic agent path and always reuse the dedicated cost estimator runtime when the stage or routing heuristics indicate a cost request.
+- The worker preserves the existing `aaa_record_cost_estimate` update flow, so deterministic `costEstimates` still land through the standard postprocess/apply pipeline instead of duplicating persistence logic.
 
 ### Architecture Synthesizer
 ```

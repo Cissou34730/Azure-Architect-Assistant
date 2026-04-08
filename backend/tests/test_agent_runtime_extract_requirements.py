@@ -7,8 +7,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.agents_system.langgraph.nodes import cost_estimator as cost_estimator_module
 from app.agents_system.langgraph.nodes import extract_requirements as extract_requirements_module
 from app.agents_system.langgraph.nodes import manage_adr as manage_adr_module
+from app.agents_system.langgraph.nodes.cost_estimator import (
+    execute_cost_stage_worker_node,
+)
 from app.agents_system.langgraph.nodes.export import execute_export_stage_worker_node
 from app.agents_system.langgraph.nodes.extract_requirements import (
     execute_extract_requirements_node,
@@ -330,6 +334,90 @@ async def test_execute_export_stage_worker_node_surfaces_errors() -> None:
     assert result["success"] is False
     assert result["error"] == "Export failed"
     assert result["agent_output"] == "ERROR: Export failed"
+
+
+@pytest.mark.asyncio
+async def test_execute_cost_stage_worker_node_reuses_cost_handoff_and_estimator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_prepare_cost_handoff(state):
+        captured["handoff_state"] = state
+        return {
+            "agent_handoff_context": {
+                "project_context": "summary",
+                "architecture": {"id": "candidate-1"},
+                "resource_list": ["Static Web Apps"],
+                "region": "eastus",
+                "environment": "production",
+                "constraints": {},
+                "user_request": state.get("user_message", ""),
+            },
+            "current_agent": "cost_estimator",
+        }
+
+    async def fake_cost_estimator_node(state):
+        captured["estimator_state"] = state
+        return {
+            "agent_output": (
+                "Recorded cost estimate at 2026-04-08T12:00:00+00:00 (pricingLines=1).\n\n"
+                "AAA_STATE_UPDATE\n"
+                "```json\n"
+                '{\n  "costEstimates": [{"id": "cost-1", "totalMonthlyCost": 42.0}]}\n'
+                "```"
+            ),
+            "intermediate_steps": [],
+            "current_agent": "cost_estimator",
+            "success": True,
+            "error": None,
+            "cost_estimate": {"id": "cost-1", "totalMonthlyCost": 42.0},
+        }
+
+    monkeypatch.setattr(
+        cost_estimator_module,
+        "prepare_cost_estimator_handoff",
+        fake_prepare_cost_handoff,
+    )
+    monkeypatch.setattr(
+        cost_estimator_module,
+        "cost_estimator_node",
+        fake_cost_estimator_node,
+    )
+
+    result = await execute_cost_stage_worker_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Estimate the monthly spend",
+            "next_stage": "pricing",
+            "context_summary": "summary",
+            "current_project_state": {
+                "candidateArchitectures": [{"id": "candidate-1"}],
+            },
+        }
+    )
+
+    assert captured["handoff_state"] is not None
+    estimator_state = captured["estimator_state"]
+    assert isinstance(estimator_state, dict)
+    assert estimator_state["agent_handoff_context"]["resource_list"] == ["Static Web Apps"]
+    assert result["current_agent"] == "cost_estimator"
+    assert result["success"] is True
+    assert "costEstimates" in result["agent_output"]
+
+
+@pytest.mark.asyncio
+async def test_execute_cost_stage_worker_node_skips_other_stages() -> None:
+    result = await execute_cost_stage_worker_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Continue",
+            "next_stage": "clarify",
+            "current_project_state": {},
+        }
+    )
+
+    assert result == {}
 
 
 @pytest.mark.asyncio
