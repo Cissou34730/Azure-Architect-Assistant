@@ -4,6 +4,8 @@ from .project_summary import ProjectSummaryContract
 from .changes import (
     ArtifactDraftContract,
     ArtifactDraftType,
+    ChangeSetReviewRequest,
+    ChangeSetReviewResultContract,
     ChangeSetStatus,
     PendingChangeSetContract,
     PendingChangeSetSummaryContract,
@@ -27,6 +29,8 @@ __all__ = [
     "AgentWorkspaceSummary",
     "ArtifactDraftContract",
     "ArtifactDraftType",
+    "ChangeSetReviewRequest",
+    "ChangeSetReviewResultContract",
     "ChangeSetStatus",
     "PendingChangeSetContract",
     "PendingChangeSetSummaryContract",

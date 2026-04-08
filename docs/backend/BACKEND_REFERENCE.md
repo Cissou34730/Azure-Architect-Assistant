@@ -49,6 +49,9 @@
 - `GET /api/projects/{project_id}/messages`
 - `GET /api/projects/{project_id}/changes` - read-only pending change-set summaries projected from `projectState.pendingChangeSets`; supports an optional `status` filter.
 - `GET /api/projects/{project_id}/changes/{change_set_id}` - read-only pending change-set detail, including artifact drafts and proposed patch payload.
+- `POST /api/projects/{project_id}/changes/{change_set_id}/approve` - approves a pending change set, merges its `proposedPatch` into canonical project state, and returns the reviewed change set plus updated state.
+- `POST /api/projects/{project_id}/changes/{change_set_id}/reject` - marks a pending change set rejected without mutating canonical project state.
+- `POST /api/projects/{project_id}/changes/{change_set_id}/revise` - marks a pending change set superseded so a revised bundle can replace it later.
 - `GET /api/projects/{project_id}/architecture/proposal` (SSE)
 
 ### Knowledge base management
@@ -87,7 +90,7 @@
 ## Data models (high level)
 
 - Project: name, requirements, created/updated timestamps.
-- Project state: mixed compatibility blob + composed reads. Architecture inputs live in `project_architecture_inputs`, most remaining top-level artifact families live in `project_state_components`, normalized checklist rows are the preferred source for `wafChecklist`, and the initial Phase 3 approval scaffold reads `pendingChangeSets` from the recomposed compatibility payload without changing the current mutation path.
+- Project state: mixed compatibility blob + composed reads. Architecture inputs live in `project_architecture_inputs`, most remaining top-level artifact families live in `project_state_components`, normalized checklist rows are the preferred source for `wafChecklist`, and the initial Phase 3 approval scaffold reads/writes `pendingChangeSets` from the recomposed compatibility payload without changing the current agent mutation path yet.
 - Knowledge base: config in `data/knowledge_bases/config.json` with per-KB settings.
 - Diagram set: input description, diagrams, ambiguities, stored in `data/diagrams.db`.
 
@@ -218,7 +221,8 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `nodes/stage_routing.py` — Core stage enum, classification, retry logic.
 - `nodes/agent_native.py` — Native LangGraph orchestrator node; builds system directives from the composed stage-aware prompt surface.
 - `features/projects/application/pending_changes_service.py` — Read-side projection for `pendingChangeSets`, providing typed summaries/details without changing persistence semantics yet.
-- `features/projects/api/changes_router.py` — Project-scoped read-only pending change-set endpoints.
+- `features/projects/application/pending_changes_merge_service.py` — Deterministic approval merge helper built on the existing non-overwrite state merge behavior; conflicts surface as 409s instead of silently overwriting canonical state.
+- `features/projects/api/changes_router.py` — Project-scoped pending change-set read and review endpoints.
 - `nodes/routing/` — Per-agent routing subpackage (architecture_planner, iac_generator, saas_advisor, cost_estimator, `_helpers.py` for shared utils).
 - `nodes/agent.py` — Main agent node entry (`run_agent_node`).
 - `nodes/scope_guard.py` — Scope-detection patterns and guardrails.

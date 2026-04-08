@@ -4,10 +4,17 @@ from typing import Any
 
 import pytest
 
+from app.features.projects.application.pending_changes_merge_service import (
+    PendingChangeConflictError,
+)
 from app.features.projects.application.pending_changes_service import (
     ProjectPendingChangesService,
 )
-from app.features.projects.contracts import ChangeSetStatus, PendingChangeSetContract
+from app.features.projects.contracts import (
+    ChangeSetReviewResultContract,
+    ChangeSetStatus,
+    PendingChangeSetContract,
+)
 
 
 class _StateProviderStub:
@@ -18,6 +25,39 @@ class _StateProviderStub:
         if isinstance(self._state, Exception):
             raise self._state
         return self._state
+
+
+class _StateStoreStub:
+    def __init__(self) -> None:
+        self.persisted_state: dict[str, Any] | None = None
+        self.calls: list[dict[str, Any]] = []
+
+    async def persist_composed_state(
+        self,
+        *,
+        project_id: str,
+        state: dict[str, Any],
+        db: object,
+        replace_missing: bool,
+        updated_at: str | None = None,
+    ) -> dict[str, Any]:
+        self.persisted_state = state
+        self.calls.append(
+            {
+                "project_id": project_id,
+                "replace_missing": replace_missing,
+                "updated_at": updated_at,
+            }
+        )
+        return state
+
+
+class _DbStub:
+    def __init__(self) -> None:
+        self.commit_called = False
+
+    async def commit(self) -> None:
+        self.commit_called = True
 
 
 def _pending_changes_state() -> dict[str, Any]:
@@ -121,3 +161,102 @@ async def test_get_pending_change_raises_for_missing_change_set() -> None:
 
     with pytest.raises(ValueError, match="Change set not found"):
         await service.get_pending_change(project_id="proj-1", change_set_id="missing", db=object())
+
+
+@pytest.mark.asyncio
+async def test_approve_pending_change_merges_patch_and_marks_change_set_approved() -> None:
+    store = _StateStoreStub()
+    db = _DbStub()
+    service = ProjectPendingChangesService(
+        state_provider=_StateProviderStub(_pending_changes_state()),
+        state_store=store,
+    )
+
+    result = await service.approve_pending_change(
+        project_id="proj-1",
+        change_set_id="cs-1",
+        db=db,
+    )
+
+    assert isinstance(result, ChangeSetReviewResultContract)
+    assert result.change_set.status is ChangeSetStatus.APPROVED
+    assert result.project_state is not None
+    assert result.project_state["requirements"] == [
+        {"id": "req-1", "title": "Requirement 1"},
+        {"id": "req-2", "title": "Requirement 2"},
+    ]
+    assert result.project_state["pendingChangeSets"][0]["status"] == "approved"
+    assert store.persisted_state is not None
+    assert db.commit_called is True
+
+
+@pytest.mark.asyncio
+async def test_approve_pending_change_raises_conflict_without_persisting() -> None:
+    conflicting_state = _pending_changes_state()
+    conflicting_state["context"] = {"summary": "Existing summary"}
+    conflicting_state["pendingChangeSets"][0]["proposedPatch"] = {
+        "context": {"summary": "Replacement summary"}
+    }
+    store = _StateStoreStub()
+    db = _DbStub()
+    service = ProjectPendingChangesService(
+        state_provider=_StateProviderStub(conflicting_state),
+        state_store=store,
+    )
+
+    with pytest.raises(PendingChangeConflictError) as exc_info:
+        await service.approve_pending_change(
+            project_id="proj-1",
+            change_set_id="cs-1",
+            db=db,
+        )
+
+    assert exc_info.value.conflicts[0]["path"] == "context.summary"
+    assert store.persisted_state is None
+    assert db.commit_called is False
+
+
+@pytest.mark.asyncio
+async def test_reject_pending_change_marks_change_set_rejected_without_merging() -> None:
+    store = _StateStoreStub()
+    db = _DbStub()
+    service = ProjectPendingChangesService(
+        state_provider=_StateProviderStub(_pending_changes_state()),
+        state_store=store,
+    )
+
+    result = await service.reject_pending_change(
+        project_id="proj-1",
+        change_set_id="cs-1",
+        reason="Need manual cleanup",
+        db=db,
+    )
+
+    assert result.change_set.status is ChangeSetStatus.REJECTED
+    assert result.change_set.review_reason == "Need manual cleanup"
+    assert result.project_state is None
+    assert store.persisted_state is not None
+    assert store.persisted_state["pendingChangeSets"][0]["status"] == "rejected"
+    assert "requirements" not in store.persisted_state
+
+
+@pytest.mark.asyncio
+async def test_revise_pending_change_marks_change_set_superseded() -> None:
+    store = _StateStoreStub()
+    db = _DbStub()
+    service = ProjectPendingChangesService(
+        state_provider=_StateProviderStub(_pending_changes_state()),
+        state_store=store,
+    )
+
+    result = await service.revise_pending_change(
+        project_id="proj-1",
+        change_set_id="cs-1",
+        reason="Architect requested revision",
+        db=db,
+    )
+
+    assert result.change_set.status is ChangeSetStatus.SUPERSEDED
+    assert result.change_set.review_reason == "Architect requested revision"
+    assert store.persisted_state is not None
+    assert store.persisted_state["pendingChangeSets"][0]["status"] == "superseded"

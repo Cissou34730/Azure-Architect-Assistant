@@ -75,4 +75,16 @@ class PendingChangeSetContract(_ChangeSetModel):
         alias="artifactDrafts",
     )
     citations: list[dict[str, Any]] = Field(default_factory=list)
+    reviewed_at: str | None = Field(default=None, alias="reviewedAt")
+    review_reason: str | None = Field(default=None, alias="reviewReason")
+
+
+class ChangeSetReviewRequest(_ChangeSetModel):
+    reason: str | None = None
+
+
+class ChangeSetReviewResultContract(_ChangeSetModel):
+    change_set: PendingChangeSetContract = Field(alias="changeSet")
+    project_state: dict[str, Any] | None = Field(default=None, alias="projectState")
+    conflicts: list[dict[str, Any]] = Field(default_factory=list)
 
