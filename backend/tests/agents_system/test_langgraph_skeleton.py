@@ -5,6 +5,7 @@ Phase 1: Verify basic graph structure can be created and compiled.
 """
 
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,7 +13,9 @@ import pytest
 from app.agents_system.langgraph import graph_factory as graph_factory_module
 from app.agents_system.langgraph.graph_factory import build_project_chat_graph
 from app.agents_system.langgraph.nodes import context as context_node_module
+from app.agents_system.langgraph.nodes.validate import execute_validate_stage_worker_node
 from app.agents_system.langgraph.nodes.stage_routing import ProjectStage
+from app.agents_system.services.waf_findings_worker import WAFFindingsWorker
 from app.agents_system.langgraph.state import GraphState
 
 
@@ -378,4 +381,575 @@ async def test_graph_routes_propose_candidate_through_research_worker_and_archit
         "postprocess",
         "apply_updates",
     ]
+
+
+@pytest.mark.asyncio
+async def test_graph_routes_validate_stage_through_validate_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call_order: list[str] = []
+
+    async def fake_load_state(_state, _db):
+        call_order.append("load_state")
+        return {
+            "current_project_state": {
+                "candidateArchitectures": [
+                    {"id": "candidate-1", "notes": "Public ingress goes straight to App Service."}
+                ],
+                "referenceDocuments": [
+                    {
+                        "id": "doc-1",
+                        "title": "Azure WAF guidance",
+                        "url": "https://learn.microsoft.com/azure/well-architected/security/",
+                    }
+                ],
+                "wafChecklist": {
+                    "items": [
+                        {
+                            "id": "sec-waf-1",
+                            "pillar": "Security",
+                            "topic": "Protect public entry points with a web application firewall",
+                        }
+                    ]
+                },
+            }
+        }
+
+    def fake_classify_stage(_state):
+        call_order.append("classify_stage")
+        return {"next_stage": ProjectStage.VALIDATE.value}
+
+    async def fake_build_summary(state, _db):
+        call_order.append(f"build_summary:{state.get('next_stage')}")
+        return {"context_summary": "summary"}
+
+    async def fake_build_research(_state):
+        call_order.append("build_research")
+        return {
+            "research_plan": ["Azure WAF checklist for security controls"],
+            "stage_directives": "validation stage",
+            "mindmap_guidance": None,
+        }
+
+    async def fake_research_worker(_state):
+        raise AssertionError("research worker should be skipped for validate stage")
+
+    def fake_build_mindmap_guidance(_state):
+        call_order.append("build_mindmap_guidance")
+        return {"mindmap_guidance": None}
+
+    async def fake_validate_stage_worker(state):
+        call_order.append("validate_stage_worker")
+        assert state.get("next_stage") == ProjectStage.VALIDATE.value
+        return {
+            "agent_output": (
+                "Recorded validation results at 2026-04-08T12:00:00+00:00 (findings=1, wafEvaluations=1).\n\n"
+                "AAA_STATE_UPDATE\n"
+                "```json\n"
+                "{\n"
+                '  "findings": [{"id": "finding-sec-waf-1"}],\n'
+                '  "wafChecklist": {"items": [{"id": "sec-waf-1"}]}\n'
+                "}\n"
+                "```"
+            ),
+            "intermediate_steps": [],
+            "success": True,
+            "error": None,
+        }
+
+    async def fake_run_agent(_state):
+        raise AssertionError("generic agent should be skipped for validate stage")
+
+    async def fake_persist_messages(_state, _db):
+        call_order.append("persist_messages")
+        return {}
+
+    async def fake_postprocess(_state, _response_message_id):
+        call_order.append("postprocess")
+        return {
+            "combined_updates": {
+                "findings": [{"id": "finding-sec-waf-1"}],
+                "wafChecklist": {"items": [{"id": "sec-waf-1"}]},
+            },
+            "final_answer": "validation recorded",
+        }
+
+    async def fake_apply_updates(_state, _db):
+        call_order.append("apply_updates")
+        return {
+            "updated_project_state": {
+                "findings": [{"id": "finding-sec-waf-1"}],
+                "wafChecklist": {"items": [{"id": "sec-waf-1"}]},
+            },
+            "final_answer": "validation recorded",
+            "success": True,
+        }
+
+    monkeypatch.setattr(graph_factory_module, "load_project_state_node", fake_load_state)
+    monkeypatch.setattr(graph_factory_module, "classify_next_stage", fake_classify_stage)
+    monkeypatch.setattr(graph_factory_module, "build_context_summary_node", fake_build_summary)
+    monkeypatch.setattr(graph_factory_module, "build_research_plan_node", fake_build_research)
+    monkeypatch.setattr(graph_factory_module, "execute_research_worker_node", fake_research_worker)
+    monkeypatch.setattr(
+        graph_factory_module,
+        "_pass_through_mindmap_guidance",
+        fake_build_mindmap_guidance,
+    )
+    monkeypatch.setattr(
+        graph_factory_module,
+        "execute_validate_stage_worker_node",
+        fake_validate_stage_worker,
+    )
+    monkeypatch.setattr(graph_factory_module, "run_agent_node", fake_run_agent)
+    monkeypatch.setattr(graph_factory_module, "persist_messages_node", fake_persist_messages)
+    monkeypatch.setattr(graph_factory_module, "postprocess_node", fake_postprocess)
+    monkeypatch.setattr(graph_factory_module, "apply_state_updates_node", fake_apply_updates)
+    monkeypatch.setattr(graph_factory_module, "should_route_to_cost_estimator", lambda _state: False)
+    monkeypatch.setattr(
+        graph_factory_module,
+        "get_app_settings",
+        lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
+    )
+
+    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+
+    result = await graph.ainvoke(
+        {
+            "project_id": "proj-1",
+            "user_message": "validate this design against WAF",
+            "success": False,
+        }
+    )
+
+    assert result["final_answer"] == "validation recorded"
+    assert call_order == [
+        "load_state",
+        "classify_stage",
+        f"build_summary:{ProjectStage.VALIDATE.value}",
+        "build_research",
+        "build_mindmap_guidance",
+        "validate_stage_worker",
+        "persist_messages",
+        "postprocess",
+        "apply_updates",
+    ]
+
+
+class _EvaluatorStub:
+    def __init__(self, *, result: dict[str, object]) -> None:
+        self.result = result
+        self.calls: list[dict[str, object]] = []
+
+    def evaluate(self, state: dict[str, object]) -> dict[str, object]:
+        self.calls.append(state)
+        return self.result
+
+
+class _FindingsWorkerStub:
+    def __init__(self, *, result: dict[str, object]) -> None:
+        self.result = result
+        self.calls: list[dict[str, object]] = []
+
+    async def generate_findings(
+        self,
+        *,
+        evaluator_result: dict[str, object],
+        architecture_state: dict[str, object],
+    ) -> dict[str, object]:
+        self.calls.append(
+            {
+                "evaluator_result": evaluator_result,
+                "architecture_state": architecture_state,
+            }
+        )
+        return self.result
+
+
+class _ValidationToolStub:
+    def __init__(self, *, response: str) -> None:
+        self.response = response
+        self.calls: list[dict[str, object]] = []
+
+    def _run(self, payload: dict[str, object]) -> str:
+        self.calls.append(payload)
+        return self.response
+
+
+class _PromptLoaderStub:
+    def load_prompt(self, prompt_name: str, force_reload: bool = False) -> dict[str, str]:
+        assert prompt_name == "waf_validator.yaml"
+        return {"system_prompt": "Generate remediation-focused WAF findings as JSON."}
+
+
+@pytest.mark.asyncio
+async def test_validate_stage_worker_builds_validation_tool_payload() -> None:
+    project_state = {
+        "candidateArchitectures": [
+            {"id": "candidate-1", "notes": "The app exposes a public endpoint without a WAF."}
+        ],
+        "referenceDocuments": [
+            {
+                "id": "doc-1",
+                "title": "Azure WAF guidance",
+                "url": "https://learn.microsoft.com/azure/well-architected/security/",
+            }
+        ],
+        "wafChecklist": {
+            "items": [
+                {
+                    "id": "sec-waf-1",
+                    "pillar": "Security",
+                    "topic": "Protect public entry points with a web application firewall",
+                }
+            ]
+        },
+    }
+    evaluator = _EvaluatorStub(
+        result={
+            "items": [
+                {
+                    "itemId": "sec-waf-1",
+                    "pillar": "Security",
+                    "topic": "Protect public entry points with a web application firewall",
+                    "status": "open",
+                    "coverageScore": 0.0,
+                    "matchedSourcePaths": ["referenceDocuments[0].title"],
+                    "evidence": [],
+                }
+            ],
+            "summary": {"evaluatedItems": 1, "sourceCount": 2},
+        }
+    )
+    findings_worker = _FindingsWorkerStub(
+        result={
+            "findings": [
+                {
+                    "id": "finding-sec-waf-1",
+                    "title": "Public ingress is missing a web application firewall",
+                    "severity": "critical",
+                    "description": "Traffic reaches the workload without a WAF control.",
+                    "remediation": "Add Front Door WAF before production.",
+                    "impactedComponents": ["App Service"],
+                    "wafPillar": "Security",
+                    "wafTopic": "Protect public entry points with a web application firewall",
+                    "wafChecklistItemId": "sec-waf-1",
+                    "sourceCitations": [
+                        {
+                            "id": "cite-doc-1",
+                            "kind": "referenceDocument",
+                            "referenceDocumentId": "doc-1",
+                            "url": "https://learn.microsoft.com/azure/well-architected/security/",
+                        }
+                    ],
+                }
+            ],
+            "wafEvaluations": [
+                {
+                    "itemId": "sec-waf-1",
+                    "pillar": "Security",
+                    "topic": "Protect public entry points with a web application firewall",
+                    "status": "open",
+                    "evidence": "Deterministic WAF evaluator marked this checklist item as open (coverageScore=0.0).",
+                    "relatedFindingIds": ["finding-sec-waf-1"],
+                    "sourceCitations": [
+                        {
+                            "id": "cite-doc-1",
+                            "kind": "referenceDocument",
+                            "referenceDocumentId": "doc-1",
+                            "url": "https://learn.microsoft.com/azure/well-architected/security/",
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+    validation_tool = _ValidationToolStub(
+        response=(
+            "Recorded validation results at 2026-04-08T12:00:00+00:00 (findings=1, wafEvaluations=1).\n\n"
+            "AAA_STATE_UPDATE\n"
+            "```json\n"
+            "{\n"
+            '  "findings": [{"id": "finding-sec-waf-1"}],\n'
+            '  "wafChecklist": {"items": [{"id": "sec-waf-1"}]}\n'
+            "}\n"
+            "```"
+        )
+    )
+
+    result = await execute_validate_stage_worker_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Validate this architecture against WAF",
+            "next_stage": "validate",
+            "current_project_state": project_state,
+        },
+        evaluator=evaluator,
+        findings_worker=findings_worker,
+        validation_tool=validation_tool,
+    )
+
+    assert evaluator.calls == [{"current_project_state": project_state}]
+    assert findings_worker.calls == [
+        {
+            "evaluator_result": evaluator.result,
+            "architecture_state": project_state,
+        }
+    ]
+    assert validation_tool.calls == [findings_worker.result]
+    assert result["agent_output"] == validation_tool.response
+    assert result["success"] is True
+    assert result["validation_execution_artifact"] == {
+        "status": "completed",
+        "evaluated_items": 1,
+        "actionable_items": 1,
+        "findings_generated": 1,
+        "waf_evaluations_generated": 1,
+    }
+    assert result.get("handled_by_stage_worker") is not True
+
+
+@pytest.mark.asyncio
+async def test_validate_stage_worker_skips_when_validation_input_is_insufficient() -> None:
+    project_state = {
+        "wafChecklist": {
+            "items": [
+                {
+                    "id": "sec-waf-1",
+                    "pillar": "Security",
+                    "topic": "Protect public entry points with a web application firewall",
+                }
+            ]
+        }
+    }
+    evaluator = _EvaluatorStub(
+        result={
+            "items": [
+                {
+                    "itemId": "sec-waf-1",
+                    "pillar": "Security",
+                    "topic": "Protect public entry points with a web application firewall",
+                    "status": "open",
+                    "coverageScore": 0.0,
+                    "matchedSourcePaths": [],
+                    "evidence": [],
+                }
+            ],
+            "summary": {"evaluatedItems": 1, "sourceCount": 0},
+        }
+    )
+    findings_worker = _FindingsWorkerStub(result={"findings": [], "wafEvaluations": []})
+    validation_tool = _ValidationToolStub(response="should not be used")
+
+    result = await execute_validate_stage_worker_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Validate this architecture against WAF",
+            "next_stage": "validate",
+            "current_project_state": project_state,
+        },
+        evaluator=evaluator,
+        findings_worker=findings_worker,
+        validation_tool=validation_tool,
+    )
+
+    assert evaluator.calls == [{"current_project_state": project_state}]
+    assert findings_worker.calls == []
+    assert validation_tool.calls == []
+    assert result["success"] is True
+    assert "insufficient" in result["agent_output"].lower()
+    assert result["validation_execution_artifact"] == {
+        "status": "skipped",
+        "reason": "insufficient_input",
+        "evaluated_items": 1,
+        "source_count": 0,
+    }
+
+
+@pytest.mark.asyncio
+async def test_validate_stage_worker_skips_non_validate_turns() -> None:
+    result = await execute_validate_stage_worker_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Continue",
+            "next_stage": "clarify",
+            "current_project_state": {},
+        }
+    )
+
+    assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_validate_stage_worker_preserves_stable_finding_ids_across_repeated_runs() -> None:
+    project_state = {
+        "referenceDocuments": [
+            {
+                "id": "doc-dns",
+                "title": "Private endpoint DNS guidance",
+                "url": "https://learn.microsoft.com/azure/private-link/private-endpoint-dns",
+            }
+        ]
+    }
+    evaluator = _EvaluatorStub(
+        result={
+            "items": [
+                {
+                    "itemId": "rel-dns-1",
+                    "pillar": "Reliability",
+                    "topic": "Ensure private DNS resolution for private endpoints",
+                    "status": "in_progress",
+                    "coverageScore": 0.5,
+                    "matchedSourcePaths": ["referenceDocuments[0].title"],
+                    "evidence": [],
+                }
+            ],
+            "summary": {"evaluatedItems": 1, "sourceCount": 1},
+        }
+    )
+
+    async def _generator(system_prompt: str, user_prompt: str) -> dict[str, Any]:
+        return {
+            "findings": [
+                {
+                    "title": "Missing private DNS coverage",
+                    "severity": "medium",
+                    "description": "Private endpoints are present but DNS integration is undocumented.",
+                    "remediation": "Add private DNS zones and document ownership.",
+                    "impactedComponents": ["Private endpoint DNS"],
+                    "wafPillar": "Reliability",
+                    "wafTopic": "Ensure private DNS resolution for private endpoints",
+                    "wafChecklistItemId": "rel-dns-1",
+                    "sourceCitations": [
+                        {
+                            "id": "cite-doc-dns",
+                            "kind": "referenceDocument",
+                            "referenceDocumentId": "doc-dns",
+                            "url": "https://learn.microsoft.com/azure/private-link/private-endpoint-dns",
+                        }
+                    ],
+                }
+            ]
+        }
+
+    findings_worker = WAFFindingsWorker(
+        generator=_generator,
+        prompt_loader=_PromptLoaderStub(),
+    )
+    validation_tool = _ValidationToolStub(response="validation recorded")
+
+    first = await execute_validate_stage_worker_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Validate this architecture against WAF",
+            "next_stage": "validate",
+            "current_project_state": project_state,
+        },
+        evaluator=evaluator,
+        findings_worker=findings_worker,
+        validation_tool=validation_tool,
+    )
+    second = await execute_validate_stage_worker_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Validate this architecture against WAF",
+            "next_stage": "validate",
+            "current_project_state": project_state,
+        },
+        evaluator=evaluator,
+        findings_worker=findings_worker,
+        validation_tool=validation_tool,
+    )
+
+    assert first["success"] is True
+    assert second["success"] is True
+    assert validation_tool.calls[0]["findings"][0]["id"] == "finding-rel-dns-1"
+    assert validation_tool.calls[1]["findings"][0]["id"] == "finding-rel-dns-1"
+    assert validation_tool.calls[0]["wafEvaluations"][0]["relatedFindingIds"] == ["finding-rel-dns-1"]
+    assert validation_tool.calls[1]["wafEvaluations"][0]["relatedFindingIds"] == ["finding-rel-dns-1"]
+
+
+@pytest.mark.asyncio
+async def test_validate_stage_worker_surfaces_missing_actionable_findings_error() -> None:
+    evaluator = _EvaluatorStub(
+        result={
+            "items": [
+                {
+                    "itemId": "sec-waf-1",
+                    "pillar": "Security",
+                    "topic": "Protect public entry points with a web application firewall",
+                    "status": "open",
+                    "coverageScore": 0.0,
+                    "matchedSourcePaths": ["referenceDocuments[0].title"],
+                    "evidence": [],
+                },
+                {
+                    "itemId": "sec-net-2",
+                    "pillar": "Security",
+                    "topic": "Restrict lateral network movement",
+                    "status": "in_progress",
+                    "coverageScore": 0.3,
+                    "matchedSourcePaths": ["referenceDocuments[0].title"],
+                    "evidence": [],
+                },
+            ],
+            "summary": {"evaluatedItems": 2, "sourceCount": 1},
+        }
+    )
+
+    async def _generator(system_prompt: str, user_prompt: str) -> dict[str, Any]:
+        return {
+            "findings": [
+                {
+                    "title": "Only one gap returned",
+                    "severity": "high",
+                    "description": "The model forgot the second actionable item.",
+                    "remediation": "Return findings for every actionable item.",
+                    "impactedComponents": ["App Service"],
+                    "wafPillar": "Security",
+                    "wafTopic": "Protect public entry points with a web application firewall",
+                    "wafChecklistItemId": "sec-waf-1",
+                    "sourceCitations": [
+                        {
+                            "id": "cite-doc-1",
+                            "kind": "referenceDocument",
+                            "referenceDocumentId": "doc-1",
+                            "url": "https://learn.microsoft.com/azure/well-architected/security/",
+                        }
+                    ],
+                }
+            ]
+        }
+
+    findings_worker = WAFFindingsWorker(
+        generator=_generator,
+        prompt_loader=_PromptLoaderStub(),
+    )
+    validation_tool = _ValidationToolStub(response="should not be used")
+
+    result = await execute_validate_stage_worker_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Validate this architecture against WAF",
+            "next_stage": "validate",
+            "current_project_state": {
+                "referenceDocuments": [
+                    {
+                        "id": "doc-1",
+                        "title": "Security guidance",
+                        "url": "https://learn.microsoft.com/azure/well-architected/security/",
+                    }
+                ]
+            },
+        },
+        evaluator=evaluator,
+        findings_worker=findings_worker,
+        validation_tool=validation_tool,
+    )
+
+    assert result["success"] is False
+    assert result["error"] is not None
+    assert "missing findings for actionable checklist items: sec-net-2" in result["error"]
+    assert result["agent_output"] is not None
+    assert "missing findings for actionable checklist items: sec-net-2" in result["agent_output"]
+    assert validation_tool.calls == []
 

@@ -23,12 +23,13 @@ The backend agent runtime is LangGraph-only and provides:
 - `nodes/context.py` - Load project state and build context
 - `nodes/extract_requirements.py` - Execute the dedicated requirements-extraction stage worker
 - `nodes/research.py` - Build research plans and materialize Phase 6 research evidence packets
+- `nodes/validate.py` - Execute the dedicated validate-stage worker (deterministic WAF evaluation + findings payload synthesis)
 - `nodes/architecture_planner.py` - Execute the dedicated architecture synthesizer for `propose_candidate`
 - `nodes/agent.py` - Execute stage-aware agent node
 - `nodes/postprocess.py` - Extract updates, derive MCP logs
 - `nodes/persist.py` - Save messages and apply state updates
 
-**Flow:** load_state → classify_stage → build_summary → [extract_requirements | build_research → (research_worker for `propose_candidate`) → build_mindmap_guidance → {prepare_architecture_handoff → architecture_planner | run_agent | prepare_cost_handoff → cost_estimator}] → persist_messages → [end | postprocess → apply_updates]
+**Flow:** load_state → classify_stage → build_summary → [extract_requirements | build_research → (research_worker for `propose_candidate`) → build_mindmap_guidance → {prepare_architecture_handoff → architecture_planner | validate_stage_worker | run_agent | prepare_cost_handoff → cost_estimator}] → persist_messages → [end | postprocess → apply_updates]
 
 ### Graph-Native Tool Loop
 **ToolNode-based execution**
@@ -115,8 +116,22 @@ AAA_ENABLE_MULTI_AGENT=true
 
 ### Standard Workflow
 ```
-Entry → Load State → Classify Stage → Build Summary → [Extract Requirements | Build Research → Research Worker (`propose_candidate`) → Build Mind Map Guidance → Architecture Planner / Run Agent] → Persist Messages → [End | Postprocess → Apply Updates] → End
+Entry → Load State → Classify Stage → Build Summary → [Extract Requirements | Build Research → Research Worker (`propose_candidate`) → Build Mind Map Guidance → Architecture Planner / Validate Stage Worker / Run Agent] → Persist Messages → [End | Postprocess → Apply Updates] → End
 ```
+
+### Validate-Stage Worker
+```
+... → Build Research → Build Mind Map Guidance → Validate Stage Worker
+                                                     ├─ deterministic WAF evaluator
+                                                     ├─ WAF findings worker
+                                                     └─ aaa_record_validation_results payload
+                                                         → Persist Messages → Postprocess → Apply Updates
+```
+
+- The validate worker bypasses the generic stage-aware agent for `validate` turns.
+- It returns either:
+  - a validation-tool `AAA_STATE_UPDATE` payload for findings/checklist deltas, or
+  - a deterministic no-op response when checklist/evidence input is insufficient or no actionable gaps remain.
 
 ### With Stage Routing
 ```
@@ -147,6 +162,7 @@ backend/app/agents_system/langgraph/
 └── nodes/
     ├── context.py              # Load state, build summary
     ├── extract_requirements.py # Dedicated requirements extraction stage worker
+    ├── validate.py             # Dedicated validate-stage worker
     ├── agent.py                # Agent execution node
     ├── agent_native.py         # Graph-native agent loop
     ├── postprocess.py          # Extract updates, derive logs

@@ -29,6 +29,7 @@ from .nodes.multi_agent import (
 from .nodes.persist import apply_state_updates_node, persist_messages_node
 from .nodes.postprocess import postprocess_node
 from .nodes.research import build_research_plan_node, execute_research_worker_node
+from .nodes.validate import execute_validate_stage_worker_node
 from .nodes.routing import (
     prepare_architecture_planner_handoff,
     prepare_cost_estimator_handoff,
@@ -63,6 +64,7 @@ def build_project_chat_graph(
     workflow.add_node("build_research", build_research_plan_node)
     workflow.add_node("research_worker", execute_research_worker_node)
     workflow.add_node("build_mindmap_guidance", _pass_through_mindmap_guidance)
+    workflow.add_node("validate_stage_worker", execute_validate_stage_worker_node)
     workflow.add_node("prepare_architecture_handoff", prepare_architecture_planner_handoff)
     workflow.add_node("architecture_planner", architecture_planner_node)
     workflow.add_node("prepare_cost_handoff", prepare_cost_estimator_handoff)
@@ -167,11 +169,13 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
 
     def route_after_research(
         state: GraphState,
-    ) -> Literal["cost_estimator", "architecture_planner", "supervisor", "run_agent"]:
+    ) -> Literal["cost_estimator", "architecture_planner", "validate_stage_worker", "supervisor", "run_agent"]:
         if should_route_to_cost_estimator(state):
             return "cost_estimator"
         if state.get("next_stage") == ProjectStage.PROPOSE_CANDIDATE.value:
             return "architecture_planner"
+        if state.get("next_stage") == ProjectStage.VALIDATE.value:
+            return "validate_stage_worker"
         return "supervisor" if enable_multi_agent else "run_agent"
 
     def route_after_persist(state: GraphState) -> Literal["end", "postprocess"]:
@@ -202,6 +206,7 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
     research_routes = {
         "architecture_planner": "prepare_architecture_handoff",
         "cost_estimator": "prepare_cost_handoff",
+        "validate_stage_worker": "validate_stage_worker",
         "run_agent": "run_agent",
     }
     if enable_multi_agent:
@@ -213,6 +218,7 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
     workflow.add_edge("architecture_planner", "persist_messages")
     workflow.add_edge("prepare_cost_handoff", "cost_estimator")
     workflow.add_edge("cost_estimator", "persist_messages")
+    workflow.add_edge("validate_stage_worker", "persist_messages")
 
     if enable_multi_agent:
         workflow.add_conditional_edges(

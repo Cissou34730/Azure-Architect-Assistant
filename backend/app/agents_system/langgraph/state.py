@@ -39,6 +39,7 @@ class GraphState(TypedDict, total=False):
     research_plan: list[str]
     research_evidence_packets: list[dict[str, Any]]
     research_execution_artifact: dict[str, Any] | None
+    validation_execution_artifact: dict[str, Any] | None
     mindmap_guidance: dict[str, Any] | None
 
     # Post-processing
