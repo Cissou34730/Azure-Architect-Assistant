@@ -10,9 +10,17 @@ _EXPORT_MAP = {
     "ADRLifecycleError": ("adr_lifecycle_service", "ADRLifecycleError"),
     "ADRLifecycleService": ("adr_lifecycle_service", "ADRLifecycleService"),
     "AgentApiService": ("agent_api_service", "AgentApiService"),
+    "ClarificationResolutionWorker": (
+        "clarification_resolution_worker",
+        "ClarificationResolutionWorker",
+    ),
     "RequirementsExtractionService": ("requirements_extraction_service", "RequirementsExtractionService"),
     "RequirementsExtractionWorker": ("requirements_extraction_worker", "RequirementsExtractionWorker"),
     "create_adr_management_worker": ("adr_management_worker", "create_adr_management_worker"),
+    "create_clarification_resolution_worker": (
+        "clarification_resolution_worker",
+        "create_clarification_resolution_worker",
+    ),
     "get_agent_api_service": ("agent_api_service", "get_agent_api_service"),
 }
 

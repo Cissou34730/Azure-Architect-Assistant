@@ -64,7 +64,7 @@ def build_project_chat_graph(
     workflow.add_node("load_state", _wrap_load_state(db))
     workflow.add_node("build_summary", _wrap_build_summary(db))
     workflow.add_node("classify_stage", classify_next_stage)
-    workflow.add_node("clarify_stage_worker", execute_clarification_planner_node)
+    workflow.add_node("clarify_stage_worker", _wrap_clarify(db))
     workflow.add_node("export_stage_worker", execute_export_stage_worker_node)
     workflow.add_node("extract_requirements", _wrap_extract_requirements(db))
     workflow.add_node("iac_stage_worker", execute_iac_stage_worker_node)
@@ -116,6 +116,12 @@ def _wrap_extract_requirements(db: AsyncSession):
     async def extract_requirements(state: GraphState) -> dict:
         return await execute_extract_requirements_node(state, db)
     return extract_requirements
+
+
+def _wrap_clarify(db: AsyncSession):
+    async def clarify(state: GraphState) -> dict:
+        return await execute_clarification_planner_node(state, db)
+    return clarify
 
 
 def _wrap_persist_messages(db: AsyncSession):

@@ -44,6 +44,13 @@ class PendingChangesMergeService:
                 command=adr_lifecycle_command,
             )
 
+        clarification_resolution = proposed_patch.pop("_clarificationResolution", None)
+        if clarification_resolution is not None:
+            merged_state = self._apply_clarification_resolution(
+                current_state=merged_state,
+                command=clarification_resolution,
+            )
+
         if not proposed_patch:
             return merged_state
 
@@ -91,3 +98,104 @@ class PendingChangesMergeService:
             return superseded_state
 
         raise ValueError(f"Unsupported pending ADR lifecycle action '{action}'.")
+
+    def _apply_clarification_resolution(
+        self,
+        *,
+        current_state: dict[str, Any],
+        command: Any,
+    ) -> dict[str, Any]:
+        if not isinstance(command, dict):
+            raise ValueError("Pending clarification resolution payload must be an object.")
+
+        merged_state = deepcopy(current_state)
+        requirement_updates = self._as_dict_list(
+            command.get("requirements"),
+            field_name="requirements",
+        )
+        question_updates = self._as_dict_list(
+            command.get("clarificationQuestions"),
+            field_name="clarificationQuestions",
+        )
+        assumption_updates = self._as_dict_list(
+            command.get("assumptions"),
+            field_name="assumptions",
+        )
+
+        if requirement_updates:
+            merged_state["requirements"] = self._apply_list_updates(
+                existing_items=merged_state.get("requirements"),
+                updates=requirement_updates,
+                field_name="requirements",
+                require_existing=True,
+            )
+        if question_updates:
+            merged_state["clarificationQuestions"] = self._apply_list_updates(
+                existing_items=merged_state.get("clarificationQuestions"),
+                updates=question_updates,
+                field_name="clarificationQuestions",
+                require_existing=True,
+            )
+        if assumption_updates:
+            merged_state["assumptions"] = self._apply_list_updates(
+                existing_items=merged_state.get("assumptions"),
+                updates=assumption_updates,
+                field_name="assumptions",
+                require_existing=False,
+            )
+        return merged_state
+
+    def _apply_list_updates(
+        self,
+        *,
+        existing_items: Any,
+        updates: list[dict[str, Any]],
+        field_name: str,
+        require_existing: bool,
+    ) -> list[dict[str, Any]]:
+        if existing_items is None:
+            items: list[dict[str, Any]] = []
+        elif isinstance(existing_items, list):
+            items = [dict(item) for item in existing_items if isinstance(item, dict)]
+        else:
+            raise ValueError(f"Pending clarification resolution requires '{field_name}' to be a list.")
+
+        indexed_items = {
+            str(item.get("id")): item
+            for item in items
+            if str(item.get("id") or "").strip()
+        }
+        for update in updates:
+            item_id = str(update.get("id") or "").strip()
+            if not item_id:
+                raise ValueError(
+                    f"Pending clarification resolution '{field_name}' update must include an id."
+                )
+            existing_item = indexed_items.get(item_id)
+            if existing_item is None:
+                if require_existing:
+                    raise ValueError(
+                        f"Pending clarification resolution '{field_name}' update targets missing id '{item_id}'."
+                    )
+                new_item = dict(update)
+                items.append(new_item)
+                indexed_items[item_id] = new_item
+                continue
+            existing_item.update(update)
+        return items
+
+    def _as_dict_list(
+        self,
+        value: Any,
+        *,
+        field_name: str,
+    ) -> list[dict[str, Any]]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError(f"Pending clarification resolution '{field_name}' must be a list.")
+        if not all(isinstance(item, dict) for item in value):
+            raise ValueError(
+                f"Pending clarification resolution '{field_name}' entries must be objects."
+            )
+        return [dict(item) for item in value]

@@ -21,7 +21,7 @@ The backend agent runtime is LangGraph-only and provides:
 
 **Nodes:**
 - `nodes/context.py` - Load project state and build context
-- `nodes/clarify.py` - Execute the dedicated clarify-stage planning worker
+- `nodes/clarify.py` - Execute the dedicated clarify-stage planning/resolution workers
 - `nodes/extract_requirements.py` - Execute the dedicated requirements-extraction stage worker
 - `nodes/manage_adr.py` - Execute the dedicated manage-ADR pending-change worker
 - `nodes/research.py` - Build research plans and materialize Phase 6 research evidence packets
@@ -182,13 +182,18 @@ Entry → Load State → Classify Stage → Build Summary → [Extract Requireme
 ### Clarify-Stage Worker
 ```
 ... → Build Summary → Clarify Stage Worker
-                       ├─ canonical requirements / ambiguities
-                       ├─ WAF gaps + mindmap gaps
-                       └─ grouped clarification questions
-                           → Persist Messages → End
+                       ├─ open clarification questions present?
+                       │   ├─ yes → clarification resolution worker
+                       │   │          ├─ structured requirement/question/assumption updates
+                       │   │          └─ pending change set for approval
+                       │   └─ no  → clarification planner worker
+                       │              ├─ canonical requirements / ambiguities
+                       │              ├─ WAF gaps + mindmap gaps
+                       │              └─ grouped clarification questions
+                       └─ Persist Messages → End
 ```
 
-- The clarify worker is read-only: it surfaces high-impact questions without mutating canonical state or generating a pending change set.
+- Clarify turns stay approval-first: planning remains read-only, while answer-resolution turns now record a pending change set instead of mutating canonical state directly.
 
 ### Manage-ADR Worker
 ```

@@ -232,6 +232,172 @@ def test_empty_iac_payload_summary_marks_missing_iac_artifacts() -> None:
     }
 
 
+def test_clarify_payload_summary_tracks_grouped_questions_and_impact() -> None:
+    runner = _import_runner_module()
+
+    answer = (
+        "Clarification planning complete. I identified 3 high-impact question(s) grouped by theme.\n\n"
+        "**Security**\n"
+        "1. [high] Do you require private endpoints for all data plane traffic?\n"
+        "   Why it matters: This changes network topology and ingress controls.\n"
+        "2. [medium] Should operators authenticate with Microsoft Entra only?\n"
+        "   Why it matters: This affects identity integration and break-glass design.\n\n"
+        "**Operations**\n"
+        "1. [high] What recovery time objective do you need for regional failover?\n"
+        "   Why it matters: This drives redundancy, replication, and runbook scope.\n\n"
+        "Please answer the questions you can, and I will use them to refine the architecture."
+    )
+
+    summary = runner._summarize_clarify_payload(answer)
+
+    assert summary == {
+        "present": True,
+        "missingRequiredKeys": [],
+        "themeCount": 2,
+        "themes": ["Security", "Operations"],
+        "questionCount": 3,
+        "whyItMattersCount": 3,
+        "architecturalImpactCounts": {"high": 2, "medium": 1},
+        "ungroupedQuestionCount": 0,
+    }
+
+
+def test_empty_clarify_payload_summary_marks_missing_question_groups() -> None:
+    runner = _import_runner_module()
+
+    summary = runner._empty_clarify_payload_summary()
+
+    assert summary == {
+        "present": False,
+        "missingRequiredKeys": ["questionGroups"],
+        "themeCount": 0,
+        "themes": [],
+        "questionCount": 0,
+        "whyItMattersCount": 0,
+        "architecturalImpactCounts": {},
+        "ungroupedQuestionCount": 0,
+    }
+
+
+def test_candidate_payload_summary_tracks_persisted_candidate_and_required_sections() -> None:
+    runner = _import_runner_module()
+
+    state = {
+        "requirements": [{"id": "req-1"}],
+        "candidateArchitectures": [
+            {
+                "id": "cand-1",
+                "title": "Hub and spoke baseline",
+                "assumptionIds": ["assump-1"],
+                "diagramIds": ["diag-context", "diag-container"],
+                "sourceCitations": [{"id": "cite-1"}],
+            }
+        ],
+    }
+
+    summary = runner._summarize_candidate_payload(state)
+
+    assert summary == {
+        "present": True,
+        "missingRequiredKeys": [],
+        "stateSummary": {
+            "counts": {"candidateArchitectures": 1, "requirements": 1},
+            "keys": ["candidateArchitectures", "requirements"],
+        },
+        "latestCandidate": {
+            "assumptionIdCount": 1,
+            "citationCount": 1,
+            "diagramIdCount": 2,
+            "id": "cand-1",
+            "title": "Hub and spoke baseline",
+        },
+    }
+
+
+def test_empty_candidate_payload_summary_marks_missing_candidates() -> None:
+    runner = _import_runner_module()
+
+    summary = runner._empty_candidate_payload_summary()
+
+    assert summary == {
+        "present": False,
+        "missingRequiredKeys": ["candidateArchitectures"],
+        "stateSummary": {"keys": [], "counts": {}},
+        "latestCandidate": None,
+    }
+
+
+def test_adr_payload_summary_tracks_pending_change_set_and_traceability() -> None:
+    runner = _import_runner_module()
+
+    state = {
+        "pendingChangeSets": [
+            {
+                "id": "cs-1",
+                "stage": "manage_adr",
+                "status": "pending",
+                "proposedPatch": {
+                    "_adrLifecycle": {
+                        "action": "create",
+                        "adrPayload": {"title": "Use Service Bus"},
+                    }
+                },
+                "artifactDrafts": [
+                    {
+                        "artifactType": "adr",
+                        "content": {
+                            "title": "Use Service Bus",
+                            "context": "Need durable async messaging.",
+                            "decision": "Adopt Azure Service Bus queues.",
+                            "consequences": "Adds broker cost but decouples workloads.",
+                            "relatedRequirementIds": ["req-1"],
+                            "sourceCitations": [{"id": "cite-1"}],
+                        },
+                        "citations": [{"id": "cite-1"}],
+                    }
+                ],
+            }
+        ]
+    }
+
+    summary = runner._summarize_adr_payload(state)
+
+    assert summary == {
+        "present": True,
+        "missingRequiredKeys": [],
+        "pendingChangeSetCount": 1,
+        "stateSummary": {
+            "counts": {"pendingChangeSets": 1},
+            "keys": ["pendingChangeSets"],
+        },
+        "latestChangeSet": {
+            "adrDraftCount": 1,
+            "artifactDraftCount": 1,
+            "citationCount": 1,
+            "hasLifecycleCommand": True,
+            "id": "cs-1",
+            "lifecycleAction": "create",
+            "missingDraftFields": [],
+            "relatedRequirementIdCount": 1,
+            "status": "pending",
+        },
+    }
+
+
+def test_empty_adr_payload_summary_marks_missing_manage_adr_change_set() -> None:
+    runner = _import_runner_module()
+
+    summary = runner._empty_adr_payload_summary()
+
+    assert summary == {
+        "present": False,
+        "missingRequiredKeys": ["pendingChangeSets"],
+        "pendingChangeSetCount": 0,
+        "stateSummary": {"keys": [], "counts": {}},
+        "latestChangeSet": None,
+    }
+
+
 def _build_export_payload() -> dict[str, object]:
     topic_keys = _required_topic_keys()
     coverage_topics = {

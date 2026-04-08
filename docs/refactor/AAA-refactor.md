@@ -605,6 +605,7 @@ Outputs:
 - Implemented worker: `backend/app/features/agent/application/clarification_planner_worker.py`
 - Runtime seam: `backend/app/agents_system/langgraph/nodes/clarify.py` routed from `backend/app/agents_system/langgraph/graph_factory.py`
 - Current output contract: `questionGroups[]` with `theme`, `question`, `whyItMatters`, `architecturalImpact`, `priority`, and `relatedRequirementIds`, plus deterministic filtering against prior clarification history
+- Eval/reporting slice: `scripts/e2e/aaa_e2e_runner.py` and `backend/tests/eval/reporting.py` should emit a dedicated `clarifyPayload` summary sourced from the formatted clarification-plan response and flag missing grouped questions / missing “Why it matters” rationale / ungrouped questions as regressions.
 
 ### 5.2 Clarification resolution worker (LLM)
 - When user answers questions → extract structured updates
@@ -612,6 +613,9 @@ Outputs:
   - Updated requirements (filled gaps)
   - Resolved ambiguities (marked as answered)
   - New assumptions (from user answers)
+- Implemented worker: `backend/app/features/agent/application/clarification_resolution_worker.py`
+- Runtime seam: `backend/app/agents_system/langgraph/nodes/clarify.py` now decides between read-only planning and approval-first clarification resolution based on open clarification questions + the latest user reply.
+- Approval path: `backend/app/features/projects/application/pending_changes_merge_service.py` applies `_clarificationResolution` commands only during pending-change approval, so canonical `requirements`, `clarificationQuestions`, and `assumptions` remain unchanged until review.
 
 ---
 
@@ -645,6 +649,7 @@ Outputs:
   - Mindmap delta (which topics addressed)
 - Runtime seam: reuse `backend/app/agents_system/langgraph/nodes/architecture_planner.py` as the synthesizer worker after research rather than introducing a second planner path
 - Reviewability: emit an `architecture_synthesis_execution_artifact` summary (prompt used, research packets supplied, required-section coverage, pending-change review mode) without bypassing the existing postprocess / pending-change-set flow
+- Eval/reporting slice: `scripts/e2e/aaa_e2e_runner.py` and `backend/tests/eval/reporting.py` should emit a dedicated `candidatePayload` summary sourced from persisted `candidateArchitectures`, and flag missing citations / diagram links as regressions. Coverage for `architecture_synthesis_execution_artifact` still depends on surfacing that metadata through the project-chat response consumed by the E2E runner.
 
 ### 6.3 Bundle → PendingChangeSet
 - All candidate artifacts in one bundle
@@ -676,6 +681,7 @@ Outputs:
 
 ### 7.3 Bundle → PendingChangeSet
 - `backend/app/agents_system/langgraph/nodes/manage_adr.py` is now the dedicated `manage_adr` stage worker in LangGraph; it drafts ADR bundles, records pending change sets, refreshes project state, and skips the generic agent/postprocess mutation path for ADR turns.
+- Eval/reporting slice: `scripts/e2e/aaa_e2e_runner.py` and `backend/tests/eval/reporting.py` should emit a dedicated `adrPayload` summary sourced from persisted `pendingChangeSets[*]` entries for `manage_adr`, and flag missing lifecycle commands / missing ADR drafts / missing draft traceability fields as regressions.
 
 ---
 

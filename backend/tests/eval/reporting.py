@@ -211,7 +211,10 @@ def _collect_failures(
         failures.append(f"Missing required keys: {', '.join(missing_required_keys)}")
     if _db_status(report) != "PASS":
         failures.append("Database persistence assertions failed.")
+    failures.extend(_collect_clarify_payload_failures(report))
     failures.extend(_collect_export_payload_failures(report))
+    failures.extend(_collect_candidate_payload_failures(report))
+    failures.extend(_collect_adr_payload_failures(report))
     failures.extend(_collect_cost_payload_failures(report))
     failures.extend(_collect_iac_payload_failures(report))
 
@@ -220,6 +223,42 @@ def _collect_failures(
             failures.append(
                 f"Low {dimension.value.replace('_', ' ')} score ({average:.1f}/5)."
             )
+    return failures
+
+
+def _collect_clarify_payload_failures(report: dict[str, Any]) -> list[str]:
+    final = report.get("final") if isinstance(report.get("final"), dict) else {}
+    clarify_payload = (
+        final.get("clarifyPayload") if isinstance(final.get("clarifyPayload"), dict) else {}
+    )
+    if not clarify_payload:
+        return []
+
+    failures: list[str] = []
+    missing_keys = _coerce_string_list(clarify_payload.get("missingRequiredKeys"))
+    if missing_keys:
+        failures.append(f"Clarify payload missing required keys: {', '.join(missing_keys)}")
+
+    question_count = clarify_payload.get("questionCount")
+    if not isinstance(question_count, int) or question_count < 1:
+        failures.append("Clarify payload did not produce any questions.")
+
+    why_it_matters_count = clarify_payload.get("whyItMattersCount")
+    if (
+        isinstance(question_count, int)
+        and question_count > 0
+        and (not isinstance(why_it_matters_count, int) or why_it_matters_count < question_count)
+    ):
+        failures.append("Clarify payload missing rationale for one or more questions.")
+
+    theme_count = clarify_payload.get("themeCount")
+    if not isinstance(theme_count, int) or theme_count < 1:
+        failures.append("Clarify payload did not group questions under any theme.")
+
+    ungrouped_question_count = clarify_payload.get("ungroupedQuestionCount")
+    if isinstance(ungrouped_question_count, int) and ungrouped_question_count > 0:
+        failures.append("Clarify payload left one or more questions outside a named theme.")
+
     return failures
 
 
@@ -252,6 +291,72 @@ def _collect_export_payload_failures(report: dict[str, Any]) -> list[str]:
     topic_count = scorecard.get("topicCount")
     if missing_topics or (isinstance(topic_count, int) and topic_count < 13):
         failures.append("Export payload mind map scorecard does not cover all 13 topics.")
+
+    return failures
+
+
+def _collect_candidate_payload_failures(report: dict[str, Any]) -> list[str]:
+    final = report.get("final") if isinstance(report.get("final"), dict) else {}
+    candidate_payload = (
+        final.get("candidatePayload") if isinstance(final.get("candidatePayload"), dict) else {}
+    )
+    if not candidate_payload:
+        return []
+
+    failures: list[str] = []
+    missing_keys = _coerce_string_list(candidate_payload.get("missingRequiredKeys"))
+    if missing_keys:
+        failures.append(f"Candidate payload missing required keys: {', '.join(missing_keys)}")
+
+    latest_candidate = (
+        candidate_payload.get("latestCandidate")
+        if isinstance(candidate_payload.get("latestCandidate"), dict)
+        else {}
+    )
+    if candidate_payload.get("present"):
+        citation_count = latest_candidate.get("citationCount")
+        if not isinstance(citation_count, int) or citation_count < 1:
+            failures.append("Candidate payload latest candidate missing citations.")
+
+        diagram_id_count = latest_candidate.get("diagramIdCount")
+        if not isinstance(diagram_id_count, int) or diagram_id_count < 1:
+            failures.append("Candidate payload latest candidate missing diagram links.")
+
+    return failures
+
+
+def _collect_adr_payload_failures(report: dict[str, Any]) -> list[str]:
+    final = report.get("final") if isinstance(report.get("final"), dict) else {}
+    adr_payload = final.get("adrPayload") if isinstance(final.get("adrPayload"), dict) else {}
+    if not adr_payload:
+        return []
+
+    failures: list[str] = []
+    missing_keys = _coerce_string_list(adr_payload.get("missingRequiredKeys"))
+    if missing_keys:
+        failures.append(f"ADR payload missing required keys: {', '.join(missing_keys)}")
+
+    latest_change_set = (
+        adr_payload.get("latestChangeSet")
+        if isinstance(adr_payload.get("latestChangeSet"), dict)
+        else {}
+    )
+    if adr_payload.get("present"):
+        if str(latest_change_set.get("status") or "").lower() != "pending":
+            failures.append("ADR payload latest change set is not pending.")
+
+        if not bool(latest_change_set.get("hasLifecycleCommand")):
+            failures.append("ADR payload missing lifecycle command.")
+
+        adr_draft_count = latest_change_set.get("adrDraftCount")
+        if not isinstance(adr_draft_count, int) or adr_draft_count < 1:
+            failures.append("ADR payload missing ADR draft artifacts.")
+
+        missing_draft_fields = _coerce_string_list(latest_change_set.get("missingDraftFields"))
+        if missing_draft_fields:
+            failures.append(
+                "ADR payload latest draft missing fields: " + ", ".join(missing_draft_fields)
+            )
 
     return failures
 

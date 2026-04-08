@@ -199,21 +199,28 @@ def _summarize_state(state: dict[str, Any]) -> dict[str, Any]:
     }
 
     for key in [
+        "clarificationQuestions",
+        "candidateArchitectures",
         "requirements",
+        "assumptions",
         "ambiguities",
         "adrs",
         "diagrams",
         "findings",
         "iacArtifacts",
         "costEstimates",
+        "pendingChangeSets",
         "traceabilityLinks",
         "traceabilityIssues",
     ]:
         value = state.get(key)
         if value is None:
             snake = {
+                "clarificationQuestions": "clarification_questions",
+                "candidateArchitectures": "candidate_architectures",
                 "traceabilityLinks": "traceability_links",
                 "traceabilityIssues": "traceability_issues",
+                "pendingChangeSets": "pending_change_sets",
             }.get(key)
             if snake:
                 value = state.get(snake)
@@ -274,6 +281,95 @@ def _empty_iac_payload_summary() -> dict[str, Any]:
         "missingRequiredKeys": list(_REQUIRED_IAC_STATE_KEYS),
         "stateSummary": {"keys": [], "counts": {}},
         "latestArtifact": None,
+    }
+
+
+def _empty_clarify_payload_summary() -> dict[str, Any]:
+    return {
+        "present": False,
+        "missingRequiredKeys": ["questionGroups"],
+        "themeCount": 0,
+        "themes": [],
+        "questionCount": 0,
+        "whyItMattersCount": 0,
+        "architecturalImpactCounts": {},
+        "ungroupedQuestionCount": 0,
+    }
+
+
+def _empty_candidate_payload_summary() -> dict[str, Any]:
+    return {
+        "present": False,
+        "missingRequiredKeys": ["candidateArchitectures"],
+        "stateSummary": {"keys": [], "counts": {}},
+        "latestCandidate": None,
+    }
+
+
+def _empty_adr_payload_summary() -> dict[str, Any]:
+    return {
+        "present": False,
+        "missingRequiredKeys": ["pendingChangeSets"],
+        "pendingChangeSetCount": 0,
+        "stateSummary": {"keys": [], "counts": {}},
+        "latestChangeSet": None,
+    }
+
+
+def _summarize_clarify_payload(answer: str) -> dict[str, Any] | None:
+    theme_order: list[str] = []
+    impact_counts: dict[str, int] = {}
+    current_theme: str | None = None
+    question_count = 0
+    why_it_matters_count = 0
+    ungrouped_question_count = 0
+    parsed_anything = False
+
+    theme_pattern = re.compile(r"^\*\*(?P<theme>.+?)\*\*$")
+    question_pattern = re.compile(
+        r"^\d+\.\s+\[(?P<impact>high|medium|low)\]\s+(?P<question>.+)$",
+        re.IGNORECASE,
+    )
+
+    for raw_line in answer.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        theme_match = theme_pattern.match(line)
+        if theme_match is not None:
+            parsed_anything = True
+            current_theme = theme_match.group("theme").strip()
+            if current_theme and current_theme not in theme_order:
+                theme_order.append(current_theme)
+            continue
+
+        question_match = question_pattern.match(line)
+        if question_match is not None:
+            parsed_anything = True
+            question_count += 1
+            impact = question_match.group("impact").lower()
+            impact_counts[impact] = impact_counts.get(impact, 0) + 1
+            if current_theme is None:
+                ungrouped_question_count += 1
+            continue
+
+        if line.lower().startswith("why it matters:"):
+            parsed_anything = True
+            why_it_matters_count += 1
+
+    if not parsed_anything:
+        return None
+
+    return {
+        "present": True,
+        "missingRequiredKeys": [] if question_count else ["questionGroups"],
+        "themeCount": len(theme_order),
+        "themes": theme_order,
+        "questionCount": question_count,
+        "whyItMattersCount": why_it_matters_count,
+        "architecturalImpactCounts": impact_counts,
+        "ungroupedQuestionCount": ungrouped_question_count,
     }
 
 
@@ -404,8 +500,180 @@ def _summarize_iac_payload(state: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def _summarize_candidate_payload(state: dict[str, Any]) -> dict[str, Any] | None:
+    candidate_architectures = state.get("candidateArchitectures")
+    if candidate_architectures is None:
+        candidate_architectures = state.get("candidate_architectures")
+    if not isinstance(candidate_architectures, list) or not candidate_architectures:
+        return None
+
+    latest_candidate = (
+        candidate_architectures[-1] if isinstance(candidate_architectures[-1], dict) else {}
+    )
+    assumption_ids = (
+        latest_candidate.get("assumptionIds")
+        if isinstance(latest_candidate.get("assumptionIds"), list)
+        else []
+    )
+    diagram_ids = (
+        latest_candidate.get("diagramIds")
+        if isinstance(latest_candidate.get("diagramIds"), list)
+        else []
+    )
+    source_citations = (
+        latest_candidate.get("sourceCitations")
+        if isinstance(latest_candidate.get("sourceCitations"), list)
+        else []
+    )
+
+    return {
+        "present": True,
+        "missingRequiredKeys": _assert_required_state_keys(
+            state, ("candidateArchitectures",)
+        ),
+        "stateSummary": _summarize_state(state),
+        "latestCandidate": {
+            "id": latest_candidate.get("id"),
+            "title": latest_candidate.get("title"),
+            "assumptionIdCount": len(assumption_ids),
+            "diagramIdCount": len(diagram_ids),
+            "citationCount": len(source_citations),
+        },
+    }
+
+
+def _summarize_adr_payload(state: dict[str, Any]) -> dict[str, Any] | None:
+    pending_change_sets = state.get("pendingChangeSets")
+    if pending_change_sets is None:
+        pending_change_sets = state.get("pending_change_sets")
+    if not isinstance(pending_change_sets, list) or not pending_change_sets:
+        return None
+
+    manage_adr_change_sets = [
+        change_set
+        for change_set in pending_change_sets
+        if isinstance(change_set, dict)
+        and str(change_set.get("stage") or "").strip().lower() == "manage_adr"
+    ]
+    if not manage_adr_change_sets:
+        return None
+
+    latest_change_set = (
+        manage_adr_change_sets[-1]
+        if isinstance(manage_adr_change_sets[-1], dict)
+        else {}
+    )
+    proposed_patch = (
+        latest_change_set.get("proposedPatch")
+        if isinstance(latest_change_set.get("proposedPatch"), dict)
+        else {}
+    )
+    lifecycle_command = (
+        proposed_patch.get("_adrLifecycle")
+        if isinstance(proposed_patch.get("_adrLifecycle"), dict)
+        else {}
+    )
+    artifact_drafts = (
+        latest_change_set.get("artifactDrafts")
+        if isinstance(latest_change_set.get("artifactDrafts"), list)
+        else []
+    )
+    adr_drafts = [
+        artifact
+        for artifact in artifact_drafts
+        if isinstance(artifact, dict)
+        and str(artifact.get("artifactType") or "").strip().lower() == "adr"
+    ]
+    latest_adr_draft = adr_drafts[-1] if adr_drafts else {}
+    latest_adr_content = (
+        latest_adr_draft.get("content")
+        if isinstance(latest_adr_draft.get("content"), dict)
+        else {}
+    )
+    citations = (
+        latest_adr_draft.get("citations")
+        if isinstance(latest_adr_draft.get("citations"), list)
+        else latest_adr_content.get("sourceCitations")
+        if isinstance(latest_adr_content.get("sourceCitations"), list)
+        else []
+    )
+    related_requirement_ids = (
+        latest_adr_content.get("relatedRequirementIds")
+        if isinstance(latest_adr_content.get("relatedRequirementIds"), list)
+        else []
+    )
+
+    missing_draft_fields: list[str] = []
+    for field_name in ("title", "context", "decision", "consequences"):
+        if not str(latest_adr_content.get(field_name) or "").strip():
+            missing_draft_fields.append(field_name)
+    if not related_requirement_ids:
+        missing_draft_fields.append("relatedRequirementIds")
+    if not citations:
+        missing_draft_fields.append("sourceCitations")
+
+    return {
+        "present": True,
+        "missingRequiredKeys": [],
+        "pendingChangeSetCount": len(manage_adr_change_sets),
+        "stateSummary": _summarize_state(state),
+        "latestChangeSet": {
+            "id": latest_change_set.get("id"),
+            "status": latest_change_set.get("status"),
+            "hasLifecycleCommand": bool(lifecycle_command),
+            "lifecycleAction": lifecycle_command.get("action"),
+            "artifactDraftCount": len(artifact_drafts),
+            "adrDraftCount": len(adr_drafts),
+            "citationCount": len(citations),
+            "relatedRequirementIdCount": len(related_requirement_ids),
+            "missingDraftFields": missing_draft_fields,
+        },
+    }
+
+
 def _turn_requests_export_payload(message: str) -> bool:
     return "export" in message.lower()
+
+
+def _turn_requests_clarify_payload(message: str) -> bool:
+    lowered = message.lower()
+    return any(
+        keyword in lowered
+        for keyword in (
+            "clarify",
+            "clarification",
+            "question",
+            "questions",
+            "ambigu",
+            "missing information",
+        )
+    )
+
+
+def _turn_requests_candidate_payload(message: str) -> bool:
+    lowered = message.lower()
+    return any(
+        keyword in lowered
+        for keyword in (
+            "candidate",
+            "target architecture",
+            "architecture proposal",
+            "propose architecture",
+            "design architecture",
+        )
+    )
+
+
+def _turn_requests_adr_payload(message: str) -> bool:
+    lowered = message.lower()
+    return bool(re.search(r"\badr\b", lowered)) or any(
+        keyword in lowered
+        for keyword in (
+            "architecture decision",
+            "decision record",
+            "supersede",
+        )
+    )
 
 
 def _turn_requests_cost_payload(message: str) -> bool:
@@ -974,9 +1242,18 @@ async def _run_with_client(
         mcp_logs: list[dict[str, Any]] = []
         pricing_logs = _parse_aaa_log_blocks(answer, "AAA_PRICING_LOG")
         kb_call_count = 0
+        requests_clarify_payload = _turn_requests_clarify_payload(turn.message)
+        requests_export_payload = _turn_requests_export_payload(turn.message)
+        requests_candidate_payload = _turn_requests_candidate_payload(turn.message)
+        requests_adr_payload = _turn_requests_adr_payload(turn.message)
+        requests_cost_payload = _turn_requests_cost_payload(turn.message)
+        requests_iac_payload = _turn_requests_iac_payload(turn.message)
+        clarify_payload = _summarize_clarify_payload(answer)
         export_payload = _summarize_export_payload(answer)
-        if export_payload is None and _turn_requests_export_payload(turn.message):
+        if export_payload is None and requests_export_payload:
             export_payload = _empty_export_payload_summary()
+        if clarify_payload is None and requests_clarify_payload:
+            clarify_payload = _empty_clarify_payload_summary()
 
         if isinstance(reasoning_steps, list):
             for step in reasoning_steps:
@@ -1007,6 +1284,8 @@ async def _run_with_client(
             "mcpLogs": mcp_logs,
             "pricingLogs": pricing_logs,
         }
+        if clarify_payload is not None and requests_clarify_payload:
+            step_record["clarifyPayload"] = clarify_payload
         if export_payload is not None:
             step_record["exportPayload"] = export_payload
 
@@ -1018,16 +1297,28 @@ async def _run_with_client(
             state = next_state
             current_step_state = next_state
 
+        candidate_payload = _summarize_candidate_payload(current_step_state)
+        if candidate_payload is None and requests_candidate_payload:
+            candidate_payload = _empty_candidate_payload_summary()
+        if candidate_payload is not None and requests_candidate_payload:
+            step_record["candidatePayload"] = candidate_payload
+
+        adr_payload = _summarize_adr_payload(current_step_state)
+        if adr_payload is None and requests_adr_payload:
+            adr_payload = _empty_adr_payload_summary()
+        if adr_payload is not None and requests_adr_payload:
+            step_record["adrPayload"] = adr_payload
+
         cost_payload = _summarize_cost_payload(current_step_state, pricing_logs=pricing_logs)
-        if cost_payload is None and _turn_requests_cost_payload(turn.message):
+        if cost_payload is None and requests_cost_payload:
             cost_payload = _empty_cost_payload_summary(pricing_log_count=len(pricing_logs))
-        if cost_payload is not None and _turn_requests_cost_payload(turn.message):
+        if cost_payload is not None and requests_cost_payload:
             step_record["costPayload"] = cost_payload
 
         iac_payload = _summarize_iac_payload(current_step_state)
-        if iac_payload is None and _turn_requests_iac_payload(turn.message):
+        if iac_payload is None and requests_iac_payload:
             iac_payload = _empty_iac_payload_summary()
-        if iac_payload is not None and _turn_requests_iac_payload(turn.message):
+        if iac_payload is not None and requests_iac_payload:
             step_record["iacPayload"] = iac_payload
 
         steps.append(step_record)
@@ -1124,11 +1415,38 @@ async def _run_with_client(
             "missingRequiredKeys": final_missing_keys,
             "stateSummary": state_summary,
             **(
+                {"clarifyPayload": clarify_steps[-1]}
+                if (clarify_steps := [
+                    step["clarifyPayload"]
+                    for step in steps
+                    if isinstance(step.get("clarifyPayload"), dict)
+                ])
+                else {}
+            ),
+            **(
                 {"exportPayload": export_steps[-1]}
                 if (export_steps := [
                     step["exportPayload"]
                     for step in steps
                     if isinstance(step.get("exportPayload"), dict)
+                ])
+                else {}
+            ),
+            **(
+                {"candidatePayload": candidate_steps[-1]}
+                if (candidate_steps := [
+                    step["candidatePayload"]
+                    for step in steps
+                    if isinstance(step.get("candidatePayload"), dict)
+                ])
+                else {}
+            ),
+            **(
+                {"adrPayload": adr_steps[-1]}
+                if (adr_steps := [
+                    step["adrPayload"]
+                    for step in steps
+                    if isinstance(step.get("adrPayload"), dict)
                 ])
                 else {}
             ),

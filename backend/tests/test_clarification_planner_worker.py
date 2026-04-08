@@ -7,6 +7,7 @@ import pytest
 from app.features.agent.application.clarification_planner_worker import (
     ClarificationPlannerWorker,
 )
+from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
 
 
 @pytest.mark.asyncio
@@ -219,3 +220,23 @@ async def test_plan_questions_requires_actionable_output() -> None:
             current_state={},
             mindmap_coverage=None,
         )
+
+
+def test_classify_next_stage_prefers_clarify_when_open_questions_exist() -> None:
+    result = classify_next_stage(
+        {
+            "user_message": "Partners authenticate with their own Entra tenants.",
+            "current_project_state": {
+                "requirements": [{"id": "req-auth", "text": "Support partner sign-in"}],
+                "clarificationQuestions": [
+                    {
+                        "id": "q-auth",
+                        "question": "Do partners use their own tenant or a shared tenant?",
+                        "status": "open",
+                    }
+                ],
+            },
+        }
+    )
+
+    assert result["next_stage"] == "clarify"

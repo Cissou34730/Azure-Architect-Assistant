@@ -282,3 +282,162 @@ def test_build_phase0_eval_summary_flags_iac_payload_regressions() -> None:
 
     assert "IaC payload latest artifact missing files." in summary.baseline_failures
     assert "IaC payload missing validation evidence." in summary.baseline_failures
+
+
+def test_build_phase0_eval_summary_flags_clarify_payload_regressions() -> None:
+    report = {
+        "scenario": {"id": "scenario-clarify", "name": "Scenario Clarify"},
+        "final": {
+            "missingRequiredKeys": [],
+            "stateSummary": {"keys": ["requirements"], "counts": {"requirements": 1}},
+            "clarifyPayload": {
+                "present": False,
+                "missingRequiredKeys": ["questionGroups"],
+                "themeCount": 0,
+                "themes": [],
+                "questionCount": 0,
+                "whyItMattersCount": 0,
+                "architecturalImpactCounts": {},
+                "ungroupedQuestionCount": 1,
+            },
+        },
+        "dbPersistence": {"status": "PASS"},
+        "steps": [
+            {
+                "id": "us1-clarify",
+                "request": "Ask the key clarification questions before designing the architecture.",
+                "answer": "Need more information.",
+                "success": True,
+                "error": None,
+                "mcpCallCount": 0,
+                "pricingCallCount": 0,
+                "kbCallCount": 0,
+                "advisoryQuality": {
+                    "proactivity": 1,
+                    "correction": 0,
+                    "evidence": 0,
+                    "clarity": 0,
+                    "total": 1,
+                },
+            }
+        ],
+    }
+
+    summary = build_phase0_eval_summary(report)
+
+    assert "Clarify payload missing required keys: questionGroups" in summary.baseline_failures
+    assert "Clarify payload did not produce any questions." in summary.baseline_failures
+    assert "Clarify payload left one or more questions outside a named theme." in summary.baseline_failures
+
+
+def test_build_phase0_eval_summary_flags_candidate_payload_regressions() -> None:
+    report = {
+        "scenario": {"id": "scenario-candidate", "name": "Scenario Candidate"},
+        "final": {
+            "missingRequiredKeys": [],
+            "stateSummary": {
+                "keys": ["candidateArchitectures"],
+                "counts": {"candidateArchitectures": 1},
+            },
+            "candidatePayload": {
+                "present": True,
+                "missingRequiredKeys": [],
+                "stateSummary": {
+                    "keys": ["candidateArchitectures"],
+                    "counts": {"candidateArchitectures": 1},
+                },
+                "latestCandidate": {
+                    "id": "cand-1",
+                    "title": "Target architecture",
+                    "assumptionIdCount": 0,
+                    "citationCount": 0,
+                    "diagramIdCount": 0,
+                },
+            },
+        },
+        "dbPersistence": {"status": "PASS"},
+        "steps": [
+            {
+                "id": "us2-candidate",
+                "request": "Propose the target architecture candidate with diagrams and citations.",
+                "answer": "Candidate recorded without the required evidence sections.",
+                "success": True,
+                "error": None,
+                "mcpCallCount": 1,
+                "pricingCallCount": 0,
+                "kbCallCount": 0,
+                "advisoryQuality": {
+                    "proactivity": 1,
+                    "correction": 0,
+                    "evidence": 0,
+                    "clarity": 1,
+                    "total": 2,
+                },
+            }
+        ],
+    }
+
+    summary = build_phase0_eval_summary(report)
+
+    assert "Candidate payload latest candidate missing citations." in summary.baseline_failures
+    assert "Candidate payload latest candidate missing diagram links." in summary.baseline_failures
+
+
+def test_build_phase0_eval_summary_flags_adr_payload_regressions() -> None:
+    report = {
+        "scenario": {"id": "scenario-adr", "name": "Scenario ADR"},
+        "final": {
+            "missingRequiredKeys": [],
+            "stateSummary": {"keys": ["pendingChangeSets"], "counts": {"pendingChangeSets": 1}},
+            "adrPayload": {
+                "present": True,
+                "missingRequiredKeys": [],
+                "pendingChangeSetCount": 1,
+                "stateSummary": {
+                    "keys": ["pendingChangeSets"],
+                    "counts": {"pendingChangeSets": 1},
+                },
+                "latestChangeSet": {
+                    "id": "cs-1",
+                    "status": "applied",
+                    "hasLifecycleCommand": False,
+                    "lifecycleAction": None,
+                    "artifactDraftCount": 0,
+                    "adrDraftCount": 0,
+                    "citationCount": 0,
+                    "relatedRequirementIdCount": 0,
+                    "missingDraftFields": ["decision", "sourceCitations"],
+                },
+            },
+        },
+        "dbPersistence": {"status": "PASS"},
+        "steps": [
+            {
+                "id": "us3-adr",
+                "request": "Create an ADR draft for the messaging decision.",
+                "answer": "ADR draft recorded.",
+                "success": True,
+                "error": None,
+                "mcpCallCount": 0,
+                "pricingCallCount": 0,
+                "kbCallCount": 1,
+                "advisoryQuality": {
+                    "proactivity": 1,
+                    "correction": 0,
+                    "evidence": 1,
+                    "clarity": 1,
+                    "total": 3,
+                },
+            }
+        ],
+    }
+
+    summary = build_phase0_eval_summary(report)
+
+    assert "ADR payload latest change set is not pending." in summary.baseline_failures
+    assert "ADR payload missing lifecycle command." in summary.baseline_failures
+    assert "ADR payload missing ADR draft artifacts." in summary.baseline_failures
+    assert (
+        "ADR payload latest draft missing fields: decision, sourceCitations"
+        in summary.baseline_failures
+    )

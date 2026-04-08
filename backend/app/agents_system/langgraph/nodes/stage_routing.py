@@ -109,6 +109,8 @@ def _detect_intent_from_state(project_state: dict[str, Any]) -> ProjectStage:
     """Detect next stage based on gaps in current project state."""
     if _has_parsed_documents(project_state) and not project_state.get("requirements"):
         return ProjectStage.EXTRACT_REQUIREMENTS
+    if _has_open_clarification_questions(project_state):
+        return ProjectStage.CLARIFY
 
     # List of required fields and their corresponding stages
     requirements = [
@@ -154,6 +156,22 @@ def _has_parsed_documents(project_state: dict[str, Any]) -> bool:
         if isinstance(parsed_documents, int) and parsed_documents > 0:
             return True
 
+    return False
+
+
+def _has_open_clarification_questions(project_state: dict[str, Any]) -> bool:
+    clarification_questions = project_state.get("clarificationQuestions")
+    if not isinstance(clarification_questions, list):
+        return False
+
+    for question in clarification_questions:
+        if not isinstance(question, dict):
+            continue
+        if not str(question.get("question") or "").strip():
+            continue
+        status = str(question.get("status") or "open").strip().lower()
+        if status not in {"answered", "resolved", "closed"}:
+            return True
     return False
 
 
