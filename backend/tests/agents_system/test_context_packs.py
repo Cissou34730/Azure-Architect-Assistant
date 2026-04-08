@@ -95,10 +95,70 @@ class TestStagePacker:
         names = [s.name for s in sections]
         assert "decisions" in names
 
+    def test_manage_adr_sections_support_canonical_adrs(self) -> None:
+        sections = build_manage_adr_sections(
+            {
+                "context": {"summary": "ADR flow"},
+                "adrs": [
+                    {"title": "Use AKS over App Service", "status": "accepted"},
+                    {"title": "Split workloads by bounded context", "status": "proposed"},
+                ],
+            }
+        )
+
+        decisions = next(section for section in sections if section.name == "decisions")
+        assert "[accepted] Use AKS over App Service" in decisions.content
+        assert "[proposed] Split workloads by bounded context" in decisions.content
+
     def test_validate_sections_include_waf(self, rich_state: dict) -> None:
         sections = build_validate_sections(rich_state)
         names = [s.name for s in sections]
         assert "waf_checklist" in names
+
+    def test_validate_sections_support_canonical_waf_evaluations(self) -> None:
+        sections = build_validate_sections(
+            {
+                "context": {"summary": "Validation flow"},
+                "wafChecklist": {
+                    "items": [
+                        {
+                            "pillar": "Security",
+                            "topic": "Enable RBAC",
+                            "evaluations": [{"status": "fixed"}],
+                        },
+                        {
+                            "pillar": "Reliability",
+                            "topic": "Set up DR",
+                            "evaluations": [{"status": "open"}],
+                        },
+                    ]
+                },
+            }
+        )
+
+        waf = next(section for section in sections if section.name == "waf_checklist")
+        assert "WAF CHECKLIST: 1/2 items completed" in waf.content
+        assert "[ ] Set up DR (Reliability)" in waf.content
+
+    def test_validate_sections_support_waf_items_dict_shape(self) -> None:
+        sections = build_validate_sections(
+            {
+                "context": {"summary": "Validation flow"},
+                "wafChecklist": {
+                    "items": {
+                        "sec-01": {
+                            "pillar": "Security",
+                            "topic": "Managed identities",
+                            "evaluations": [{"status": "in_progress"}],
+                        }
+                    }
+                },
+            }
+        )
+
+        waf = next(section for section in sections if section.name == "waf_checklist")
+        assert "WAF CHECKLIST: 0/1 items completed" in waf.content
+        assert "[ ] Managed identities (Security)" in waf.content
 
     def test_pricing_sections_include_pricing(self, rich_state: dict) -> None:
         sections = build_pricing_sections(rich_state)

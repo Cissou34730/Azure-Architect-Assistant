@@ -141,7 +141,7 @@ def _build_constraints_section(state: dict[str, Any]) -> ContextSection:
 
 def _build_decisions_section(state: dict[str, Any]) -> ContextSection:
     """Extract architecture decisions / ADRs if present in state."""
-    decisions = state.get("architectureDecisions", [])
+    decisions = state.get("adrs") or state.get("architectureDecisions", [])
     if not decisions:
         return ContextSection(name="decisions", content="", priority=2)
     lines = ["ARCHITECTURE DECISIONS:"]
@@ -160,22 +160,54 @@ def _build_waf_checklist_section(state: dict[str, Any]) -> ContextSection:
     waf = state.get("wafChecklist")
     if not waf:
         return ContextSection(name="waf_checklist", content="", priority=1)
-    items = waf.get("items", [])
+    items_raw = waf.get("items", [])
+    if isinstance(items_raw, dict):
+        items = [item for item in items_raw.values() if isinstance(item, dict)]
+    elif isinstance(items_raw, list):
+        items = [item for item in items_raw if isinstance(item, dict)]
+    else:
+        items = []
     if not items:
         return ContextSection(name="waf_checklist", content="", priority=1)
     total = len(items)
-    done = sum(1 for i in items if isinstance(i, dict) and i.get("status") == "done")
+    done = sum(1 for item in items if _is_completed_waf_item(item))
     lines = [f"WAF CHECKLIST: {done}/{total} items completed"]
-    incomplete = [i for i in items if isinstance(i, dict) and i.get("status") != "done"]
+    incomplete = [item for item in items if not _is_completed_waf_item(item)]
     visible_incomplete_items = incomplete[:_MAX_INCOMPLETE_WAF_ITEMS]
     for item in visible_incomplete_items:
+        title = str(item.get("title") or item.get("topic") or "Unnamed")
+        pillar = str(item.get("pillar") or "unknown")
         lines.append(
-            f"  [ ] {item.get('title', 'Unnamed')} ({item.get('pillar', 'unknown')})"
+            f"  [ ] {title} ({pillar})"
         )
     remaining_count = len(incomplete) - len(visible_incomplete_items)
     if remaining_count > 0:
         lines.append(f"  ... and {remaining_count} more")
     return ContextSection(name="waf_checklist", content="\n".join(lines), priority=1)
+
+
+def _is_completed_waf_item(item: dict[str, Any]) -> bool:
+    status = str(item.get("status") or "").strip().lower()
+    if status == "done":
+        return True
+
+    evaluations = item.get("evaluations")
+    if not isinstance(evaluations, list) or not evaluations:
+        return False
+
+    latest = next(
+        (
+            evaluation
+            for evaluation in reversed(evaluations)
+            if isinstance(evaluation, dict)
+        ),
+        None,
+    )
+    if latest is None:
+        return False
+
+    latest_status = str(latest.get("status") or "").strip().lower()
+    return latest_status in {"fixed", "done", "false_positive"}
 
 
 def _build_pricing_assumptions_section(state: dict[str, Any]) -> ContextSection:

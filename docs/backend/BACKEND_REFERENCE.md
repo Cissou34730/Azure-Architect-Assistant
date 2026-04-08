@@ -211,6 +211,7 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 ## Agent system module layout
 
 - `langgraph/graph_factory.py` — Project chat graph assembly; stage routing now resolves before context summary/context-pack construction so stage-specific compaction sees the routed stage.
+- `memory/context_packs/stage_packers.py` — Stage-specific compaction builders; ADR packs read canonical `adrs`, and validation packs summarize `wafChecklist.items[*].evaluations[*].status` from the current checklist payload.
 - `nodes/stage_routing.py` — Core stage enum, classification, retry logic.
 - `nodes/routing/` — Per-agent routing subpackage (architecture_planner, iac_generator, saas_advisor, cost_estimator, `_helpers.py` for shared utils).
 - `nodes/agent.py` — Main agent node entry (`run_agent_node`).
