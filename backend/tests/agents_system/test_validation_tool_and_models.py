@@ -119,3 +119,59 @@ def test_finding_requires_citation() -> None:
     with pytest.raises(ValidationError):
         AAAProjectState.model_validate(payload)
 
+
+def test_validation_tool_preserves_worker_supplied_finding_shape_and_links() -> None:
+    tool = AAARunValidationTool()
+
+    response = tool._run(
+        findings=[
+            {
+                "id": "finding-sec-waf-1",
+                "title": "Missing WAF on public ingress",
+                "severity": "critical",
+                "description": "The public endpoint is exposed without an upstream WAF control.",
+                "remediation": "Add Front Door WAF or Application Gateway WAF.",
+                "impactedComponents": ["App Service", "Public endpoint"],
+                "wafPillar": "Security",
+                "wafTopic": "Protect public entry points with a web application firewall",
+                "wafChecklistItemId": "sec-waf-1",
+                "sourceCitations": [
+                    {
+                        "id": "c1",
+                        "kind": "referenceDocument",
+                        "referenceDocumentId": "doc-1",
+                        "url": "https://learn.microsoft.com/azure/well-architected/security/",
+                    }
+                ],
+            }
+        ],
+        wafEvaluations=[
+            {
+                "itemId": "sec-waf-1",
+                "pillar": "Security",
+                "topic": "Protect public entry points with a web application firewall",
+                "status": "open",
+                "evidence": "Deterministic WAF evaluator marked this checklist item as open.",
+                "relatedFindingIds": ["finding-sec-waf-1"],
+                "sourceCitations": [
+                    {
+                        "id": "c1",
+                        "kind": "referenceDocument",
+                        "referenceDocumentId": "doc-1",
+                        "url": "https://learn.microsoft.com/azure/well-architected/security/",
+                    }
+                ],
+            }
+        ],
+    )
+
+    updates = extract_state_updates(response, user_message="", current_state={})
+
+    assert updates is not None
+    assert updates["findings"][0]["id"] == "finding-sec-waf-1"
+    assert updates["findings"][0]["impactedComponents"] == ["App Service", "Public endpoint"]
+    assert updates["findings"][0]["wafChecklistItemId"] == "sec-waf-1"
+    assert updates["wafChecklist"]["items"][0]["evaluations"][0]["relatedFindingIds"] == [
+        "finding-sec-waf-1"
+    ]
+

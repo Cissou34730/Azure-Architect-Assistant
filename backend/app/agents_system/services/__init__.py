@@ -12,6 +12,7 @@ from .mindmap_loader import (
 from .project_context import read_project_state, update_project_state
 from .state_update_parser import extract_state_updates, merge_state_updates_no_overwrite
 from .waf_evaluator import WAFEvaluatorService
+from .waf_findings_worker import WAFFindingsWorker
 
 __all__ = [
     "extract_state_updates",
@@ -23,5 +24,6 @@ __all__ = [
     "read_project_state",
     "update_project_state",
     "WAFEvaluatorService",
+    "WAFFindingsWorker",
 ]
 

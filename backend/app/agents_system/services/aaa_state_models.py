@@ -218,9 +218,11 @@ class FindingArtifact(BaseModel):
     severity: FindingSeverity
     description: str
     remediation: str
+    impacted_components: list[str] = Field(default_factory=list)
 
     waf_pillar: str | None = None
     waf_topic: str | None = None
+    waf_checklist_item_id: str | None = None
 
     related_requirement_ids: list[str] = Field(default_factory=list)
     related_diagram_ids: list[str] = Field(default_factory=list)

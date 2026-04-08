@@ -21,6 +21,7 @@ Concise architecture reference for agents performing coding and documentation ta
 - Project state reads are composed: architecture inputs live in `project_architecture_inputs`, stable artifact families live in `project_state_components`, and `/api/projects/{project_id}/workspace` is the canonical read surface.
 - Approval-first runtime behavior is active for requirements extraction: when project chat routes to `extract_requirements`, the LangGraph workflow short-circuits into a dedicated stage worker, records a pending requirements bundle, and skips the generic LLM/postprocess path before any canonical `requirements` mutation.
 - ADR lifecycle mutations now have a deterministic backend service in `backend/app/features/agent/application/adr_lifecycle_service.py`; later stage workers can call it to normalize ADR payloads and preserve traceability during draft/accepted/rejected/superseded transitions.
+- Validate-stage groundwork now includes `backend/app/agents_system/services/waf_findings_worker.py`, an LLM-backed service helper that converts deterministic WAF evaluator gaps into remediation findings and linked checklist deltas; it is intentionally service-scoped for now because the dedicated validate graph worker has not been introduced yet.
 
 ## Do / Don't
 

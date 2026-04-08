@@ -694,6 +694,8 @@ Outputs:
 - Input: WAF evaluator results + architecture state
 - Output: findings with severity (critical/high/medium/low), impacted components, remediation suggestions
 - Each finding cites WAF pillar/checklist item + source URL
+- Implemented service: `backend/app/agents_system/services/waf_findings_worker.py`
+- Current output shape is validation-tool ready: `findings[]` + `wafEvaluations[]`, with stable finding ids, impacted components, checklist-item links, and source citation propagation/backfill from recorded project sources when the generator omits them
 
 ### 8.3 Bundle → PendingChangeSet
 - Findings + WAF checklist updates bundled
