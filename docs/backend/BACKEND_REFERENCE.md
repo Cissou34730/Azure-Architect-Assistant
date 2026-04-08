@@ -223,6 +223,8 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `features/projects/application/pending_changes_service.py` — Read-side projection for `pendingChangeSets`, providing typed summaries/details without changing persistence semantics yet.
 - `features/projects/application/pending_changes_merge_service.py` — Deterministic approval merge helper built on the existing non-overwrite state merge behavior; conflicts surface as 409s instead of silently overwriting canonical state.
 - `features/projects/api/changes_router.py` — Project-scoped pending change-set read and review endpoints.
+- `features/agent/contracts/extract_requirements.py` — Strict contracts for source-grounded extracted requirements, ambiguity markers, and bundle summaries.
+- `features/agent/application/requirements_extraction_service.py` — Exact-match requirement dedupe/bundling helper that preserves all document sources and rolls ambiguity notes forward.
 - `nodes/routing/` — Per-agent routing subpackage (architecture_planner, iac_generator, saas_advisor, cost_estimator, `_helpers.py` for shared utils).
 - `nodes/agent.py` — Main agent node entry (`run_agent_node`).
 - `nodes/scope_guard.py` — Scope-detection patterns and guardrails.

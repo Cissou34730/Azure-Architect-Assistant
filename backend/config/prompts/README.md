@@ -17,6 +17,7 @@ This directory contains agent prompts in YAML format for easy editing without co
 - **clarification_planner.yaml** - Clarification-stage instructions
 - **adr_writer.yaml** - ADR-stage instructions
 - **waf_validator.yaml** - Validation-stage instructions
+- **requirements_extraction.yaml** - Source-grounded requirements extraction instructions for Phase 4
 
 ## Modular composition
 
@@ -31,6 +32,8 @@ This directory contains agent prompts in YAML format for easy editing without co
 Each module can interpolate `${agent_type}`, `${stage}`, and `${context_budget}`.
 
 If none of the modular files are present, the loader falls back to `agent_prompts.yaml` so existing behavior remains intact.
+
+For the upcoming `extract_requirements` stage, `requirements_extraction.yaml` is also addressable directly through `PromptLoader.load_prompt(...)` and through `compose_prompt(...)` when the stage is `extract_requirements`.
 
 ## Structure
 

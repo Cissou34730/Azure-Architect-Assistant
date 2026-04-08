@@ -74,6 +74,17 @@ def test_cost_estimator_prompt_contains_required_fields():
     assert isinstance(prompt_cfg.get("version"), str)
 
 
+def test_requirements_extraction_prompt_contains_required_fields():
+    loader = PromptLoader()
+    prompt_cfg = loader.load_prompt("requirements_extraction.yaml")
+
+    system_prompt = prompt_cfg.get("system_prompt")
+    assert isinstance(system_prompt, str)
+    assert system_prompt.strip()
+    assert "project_document_search" in system_prompt
+    assert "aaa_manage_artifacts" in system_prompt
+
+
 def test_load_prompts_returns_defensive_copy(tmp_path):
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()
