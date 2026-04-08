@@ -47,6 +47,8 @@
 - `GET /api/projects/{project_id}/state` - legacy compatibility read, now returned with deprecation headers and a successor link to the workspace view
 - `GET /api/projects/{project_id}/workspace` - canonical composed workspace read spanning project, state summary, full composed `projectState`, agent, checklist, KB, diagram, and runtime sections
 - `GET /api/projects/{project_id}/messages`
+- `GET /api/projects/{project_id}/changes` - read-only pending change-set summaries projected from `projectState.pendingChangeSets`; supports an optional `status` filter.
+- `GET /api/projects/{project_id}/changes/{change_set_id}` - read-only pending change-set detail, including artifact drafts and proposed patch payload.
 - `GET /api/projects/{project_id}/architecture/proposal` (SSE)
 
 ### Knowledge base management
@@ -85,7 +87,7 @@
 ## Data models (high level)
 
 - Project: name, requirements, created/updated timestamps.
-- Project state: mixed compatibility blob + composed reads. Architecture inputs live in `project_architecture_inputs`, most remaining top-level artifact families live in `project_state_components`, and normalized checklist rows are the preferred source for `wafChecklist`.
+- Project state: mixed compatibility blob + composed reads. Architecture inputs live in `project_architecture_inputs`, most remaining top-level artifact families live in `project_state_components`, normalized checklist rows are the preferred source for `wafChecklist`, and the initial Phase 3 approval scaffold reads `pendingChangeSets` from the recomposed compatibility payload without changing the current mutation path.
 - Knowledge base: config in `data/knowledge_bases/config.json` with per-KB settings.
 - Diagram set: input description, diagrams, ambiguities, stored in `data/diagrams.db`.
 
@@ -215,6 +217,8 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `memory/context_packs/stage_packers.py` — Stage-specific compaction builders; ADR packs read canonical `adrs`, and validation packs summarize `wafChecklist.items[*].evaluations[*].status` from the current checklist payload.
 - `nodes/stage_routing.py` — Core stage enum, classification, retry logic.
 - `nodes/agent_native.py` — Native LangGraph orchestrator node; builds system directives from the composed stage-aware prompt surface.
+- `features/projects/application/pending_changes_service.py` — Read-side projection for `pendingChangeSets`, providing typed summaries/details without changing persistence semantics yet.
+- `features/projects/api/changes_router.py` — Project-scoped read-only pending change-set endpoints.
 - `nodes/routing/` — Per-agent routing subpackage (architecture_planner, iac_generator, saas_advisor, cost_estimator, `_helpers.py` for shared utils).
 - `nodes/agent.py` — Main agent node entry (`run_agent_node`).
 - `nodes/scope_guard.py` — Scope-detection patterns and guardrails.

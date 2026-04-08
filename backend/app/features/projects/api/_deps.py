@@ -35,6 +35,9 @@ from app.features.projects.api.workspace_dependencies import create_workspace_co
 from app.features.projects.application.chat_service import ChatService
 from app.features.projects.application.document_content_service import DocumentContentService
 from app.features.projects.application.document_service import DocumentService
+from app.features.projects.application.pending_changes_service import (
+    ProjectPendingChangesService,
+)
 from app.features.projects.application.project_analysis_service import ProjectAnalysisService
 from app.features.projects.application.project_service import ProjectService
 from app.features.projects.application.state_edit_service import ProjectStateEditService
@@ -158,6 +161,7 @@ _chat_service = ChatService(
     project_service=_project_service,
     knowledge_query_gateway=_KnowledgeChatQueryAdapter(get_multi_query_service_dependency()),
 )
+_pending_changes_service = ProjectPendingChangesService(state_provider=_chat_service)
 _project_state_edit_service = ProjectStateEditService()
 _checklists_api_service = ChecklistsApiService()
 _settings_models_service = SettingsModelsService()
@@ -187,6 +191,10 @@ def get_chat_service_dep() -> ChatService:
 
 def get_state_edit_service_dep() -> ProjectStateEditService:
     return _project_state_edit_service
+
+
+def get_pending_changes_service_dep() -> ProjectPendingChangesService:
+    return _pending_changes_service
 
 
 async def get_workspace_composer_dep(

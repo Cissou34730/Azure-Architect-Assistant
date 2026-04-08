@@ -1,6 +1,13 @@
 """Projects feature contracts."""
 
 from .project_summary import ProjectSummaryContract
+from .changes import (
+    ArtifactDraftContract,
+    ArtifactDraftType,
+    ChangeSetStatus,
+    PendingChangeSetContract,
+    PendingChangeSetSummaryContract,
+)
 from .workspace import (
     AgentWorkspaceSummary,
     ProjectWorkspaceArtifacts,
@@ -18,6 +25,11 @@ from .workspace import (
 
 __all__ = [
     "AgentWorkspaceSummary",
+    "ArtifactDraftContract",
+    "ArtifactDraftType",
+    "ChangeSetStatus",
+    "PendingChangeSetContract",
+    "PendingChangeSetSummaryContract",
     "ProjectSummaryContract",
     "ProjectWorkspaceArtifacts",
     "ProjectWorkspaceChecklistSummary",
