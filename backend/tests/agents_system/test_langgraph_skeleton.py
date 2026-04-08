@@ -13,10 +13,10 @@ import pytest
 from app.agents_system.langgraph import graph_factory as graph_factory_module
 from app.agents_system.langgraph.graph_factory import build_project_chat_graph
 from app.agents_system.langgraph.nodes import context as context_node_module
-from app.agents_system.langgraph.nodes.validate import execute_validate_stage_worker_node
 from app.agents_system.langgraph.nodes.stage_routing import ProjectStage
-from app.agents_system.services.waf_findings_worker import WAFFindingsWorker
+from app.agents_system.langgraph.nodes.validate import execute_validate_stage_worker_node
 from app.agents_system.langgraph.state import GraphState
+from app.agents_system.services.waf_findings_worker import WAFFindingsWorker
 from app.shared.config.settings.agents import AgentsSettingsMixin
 
 
@@ -416,6 +416,91 @@ async def test_graph_routes_propose_candidate_through_research_worker_and_archit
         "persist_messages",
         "postprocess",
         "apply_updates",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_graph_routes_export_to_dedicated_stage_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call_order: list[str] = []
+
+    async def fake_load_state(_state, _db):
+        call_order.append("load_state")
+        return {
+            "current_project_state": {
+                "requirements": [{"id": "req-1"}],
+                "traceabilityLinks": [{"id": "link-1"}],
+            }
+        }
+
+    def fake_classify_stage(_state):
+        call_order.append("classify_stage")
+        return {"next_stage": ProjectStage.EXPORT.value}
+
+    async def fake_build_summary(state, _db):
+        call_order.append(f"build_summary:{state.get('next_stage')}")
+        return {"context_summary": "summary"}
+
+    async def fake_export_stage_worker(state):
+        call_order.append("export_stage_worker")
+        assert state.get("current_project_state", {}).get("requirements") == [{"id": "req-1"}]
+        return {
+            "agent_output": "AAA_EXPORT\n```json\n{\"ok\":true}\n```",
+            "final_answer": "AAA_EXPORT\n```json\n{\"ok\":true}\n```",
+            "intermediate_steps": [],
+            "handled_by_stage_worker": True,
+            "success": True,
+        }
+
+    async def fake_build_research(_state):
+        raise AssertionError("research path should be skipped for export")
+
+    async def fake_run_agent(_state):
+        raise AssertionError("generic agent should be skipped for export")
+
+    async def fake_persist_messages(_state, _db):
+        call_order.append("persist_messages")
+        return {}
+
+    async def fake_postprocess(_state, _response_message_id):
+        raise AssertionError("postprocess should be skipped for handled stage workers")
+
+    async def fake_apply_updates(_state, _db):
+        raise AssertionError("apply_updates should be skipped for handled stage workers")
+
+    monkeypatch.setattr(graph_factory_module, "load_project_state_node", fake_load_state)
+    monkeypatch.setattr(graph_factory_module, "classify_next_stage", fake_classify_stage)
+    monkeypatch.setattr(graph_factory_module, "build_context_summary_node", fake_build_summary)
+    monkeypatch.setattr(graph_factory_module, "execute_export_stage_worker_node", fake_export_stage_worker)
+    monkeypatch.setattr(graph_factory_module, "build_research_plan_node", fake_build_research)
+    monkeypatch.setattr(graph_factory_module, "run_agent_node", fake_run_agent)
+    monkeypatch.setattr(graph_factory_module, "persist_messages_node", fake_persist_messages)
+    monkeypatch.setattr(graph_factory_module, "postprocess_node", fake_postprocess)
+    monkeypatch.setattr(graph_factory_module, "apply_state_updates_node", fake_apply_updates)
+    monkeypatch.setattr(
+        graph_factory_module,
+        "get_app_settings",
+        lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
+    )
+
+    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+
+    result = await graph.ainvoke(
+        {
+            "project_id": "proj-1",
+            "user_message": "export the deliverable package",
+            "success": False,
+        }
+    )
+
+    assert result["final_answer"] == "AAA_EXPORT\n```json\n{\"ok\":true}\n```"
+    assert call_order == [
+        "load_state",
+        "classify_stage",
+        f"build_summary:{ProjectStage.EXPORT.value}",
+        "export_stage_worker",
+        "persist_messages",
     ]
 
 

@@ -131,3 +131,43 @@ def test_export_tool_returns_aaa_export_json_payload() -> None:
     payload = _extract_json_block(output)
     assert payload["state"]["traceabilityLinks"][0]["id"] == "l1"
 
+
+def test_export_tool_includes_mindmap_coverage_scorecard_with_evidence() -> None:
+    tool = AAAExportTool()
+    output = tool._run(
+        exportFormat="json",
+        state={
+            "requirements": [{"id": "req-1", "title": "Support 99.9% availability"}],
+            "candidateArchitectures": [{"id": "cand-1", "name": "Primary candidate"}],
+            "diagrams": [{"id": "diag-1", "title": "C4 Context"}],
+            "adrs": [{"id": "adr-1", "title": "Use Azure SQL"}],
+            "iacArtifacts": [{"id": "iac-1"}],
+            "findings": [{"id": "finding-1", "sourceCitations": [{"id": "src-1"}]}],
+            "wafChecklist": {
+                "items": [
+                    {"id": "waf-1", "evaluations": [{"status": "fixed"}]},
+                    {"id": "waf-2", "evaluations": [{"status": "in_progress"}]},
+                ]
+            },
+            "traceabilityLinks": [
+                {"id": "link-1", "fromType": "adr", "fromId": "adr-1", "toType": "requirement", "toId": "req-1"}
+            ],
+        },
+        pretty=False,
+    )
+
+    payload = _extract_json_block(output)
+    scorecard = payload["mindmapCoverageScorecard"]
+
+    assert len(scorecard["topics"]) == len(REQUIRED_TOP_LEVEL_TOPIC_KEYS)
+    requirements_topic = scorecard["topics"]["2_requirements_and_quality_attributes"]
+    assert requirements_topic["status"] == "addressed"
+    assert any(
+        evidence["artifactType"] == "requirements"
+        for evidence in requirements_topic["evidence"]
+    )
+    assert any(
+        evidence["artifactType"] == "wafChecklist"
+        for evidence in requirements_topic["evidence"]
+    )
+

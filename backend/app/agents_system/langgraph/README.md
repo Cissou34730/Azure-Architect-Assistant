@@ -26,12 +26,13 @@ The backend agent runtime is LangGraph-only and provides:
 - `nodes/manage_adr.py` - Execute the dedicated manage-ADR pending-change worker
 - `nodes/research.py` - Build research plans and materialize Phase 6 research evidence packets
 - `nodes/validate.py` - Execute the dedicated validate-stage worker (deterministic WAF evaluation + findings payload synthesis)
+- `nodes/export.py` - Execute the dedicated export-stage worker (deterministic AAA export payload generation)
 - `nodes/architecture_planner.py` - Execute the dedicated architecture synthesizer for `propose_candidate` and emit a reviewable synthesis-execution artifact alongside the pending-change/postprocess flow
 - `nodes/agent.py` - Execute stage-aware agent node
 - `nodes/postprocess.py` - Extract updates, derive MCP logs
 - `nodes/persist.py` - Save messages and apply state updates
 
-**Flow:** load_state → classify_stage → build_summary → [extract_requirements | clarify_stage_worker | build_research → (research_worker for `propose_candidate`) → build_mindmap_guidance → {prepare_architecture_handoff → architecture_planner | manage_adr_stage_worker | validate_stage_worker | run_agent | prepare_cost_handoff → cost_estimator}] → persist_messages → [end | postprocess → apply_updates]
+**Flow:** load_state → classify_stage → build_summary → [extract_requirements | clarify_stage_worker | export_stage_worker | build_research → (research_worker for `propose_candidate`) → build_mindmap_guidance → {prepare_architecture_handoff → architecture_planner | manage_adr_stage_worker | validate_stage_worker | run_agent | prepare_cost_handoff → cost_estimator}] → persist_messages → [end | postprocess → apply_updates]
 
 - The architecture synthesizer reuses `nodes/architecture_planner.py` instead of introducing a second proposal path. It now records `architecture_synthesis_execution_artifact` metadata so tests and later evaluators can verify that evidence packets, WAF/mindmap deltas, and review-mode output sections were requested without bypassing the approval-first pending-change flow.
 
@@ -123,7 +124,7 @@ AAA_ENABLE_MULTI_AGENT=true
 
 ### Standard Workflow
 ```
-Entry → Load State → Classify Stage → Build Summary → [Extract Requirements | Build Research → Research Worker (`propose_candidate`) → Build Mind Map Guidance → Architecture Planner / Validate Stage Worker / Run Agent] → Persist Messages → [End | Postprocess → Apply Updates] → End
+Entry → Load State → Classify Stage → Build Summary → [Extract Requirements | Clarify Stage Worker | Export Stage Worker | Build Research → Research Worker (`propose_candidate`) → Build Mind Map Guidance → Architecture Planner / Validate Stage Worker / Run Agent] → Persist Messages → [End | Postprocess → Apply Updates] → End
 ```
 
 ### Validate-Stage Worker
@@ -166,13 +167,24 @@ Entry → Load State → Classify Stage → Build Summary → [Extract Requireme
 ### Manage-ADR Worker
 ```
 ... → Build Research → Build Mind Map Guidance → Manage ADR Stage Worker
-                                                    ├─ ADR drafter worker (structured JSON contract)
-                                                    ├─ ADR management worker
-                                                    └─ pending change set with _adrLifecycle command
-                                                        → Persist Messages → End
+                                                     ├─ ADR drafter worker (structured JSON contract)
+                                                     ├─ ADR management worker
+                                                     └─ pending change set with _adrLifecycle command
+                                                         → Persist Messages → End
 ```
 
 - ADR turns remain approval-first: the stage worker records a reviewable change set, and approval-time merge logic applies create/supersede lifecycle commands through the deterministic ADR lifecycle service.
+
+### Export-Stage Worker
+```
+... → Build Summary → Export Stage Worker
+                       ├─ aaa_export_state tool
+                       └─ packaged AAA_EXPORT payload with traceability + mindmap coverage scorecard evidence
+                           → Persist Messages → End
+```
+
+- Export turns now bypass the generic agent path and use the existing AAA export tool directly.
+- The export payload now includes a `mindmapCoverageScorecard` with all 13 top-level topics plus packaged artifact evidence.
 
 ### With Stage Routing
 ```
@@ -200,11 +212,12 @@ backend/app/agents_system/langgraph/
 ├── state.py                    # GraphState TypedDict
 ├── adapter.py                  # execute_project_chat() interface
 ├── graph_factory.py            # Project chat graph
-└── nodes/
-    ├── context.py              # Load state, build summary
-    ├── extract_requirements.py # Dedicated requirements extraction stage worker
-    ├── validate.py             # Dedicated validate-stage worker
-    ├── agent.py                # Agent execution node
+    └── nodes/
+        ├── context.py              # Load state, build summary
+        ├── extract_requirements.py # Dedicated requirements extraction stage worker
+        ├── export.py               # Dedicated export stage worker
+        ├── validate.py             # Dedicated validate-stage worker
+        ├── agent.py                # Agent execution node
     ├── agent_native.py         # Graph-native agent loop
     ├── postprocess.py          # Extract updates, derive logs
     ├── persist.py              # Save messages, apply updates

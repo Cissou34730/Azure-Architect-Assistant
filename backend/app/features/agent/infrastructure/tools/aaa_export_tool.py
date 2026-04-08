@@ -19,6 +19,8 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from pydantic.alias_generators import to_camel
 
+from app.agents_system.services.mindmap_loader import build_top_level_coverage_scorecard
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -61,11 +63,27 @@ class AAAExportTool(BaseTool):
         try:
             raw_data = self._parse_payload(payload, **kwargs)
             args = self._validate_args(raw_data)
+            export_state = dict(args.state or {})
+            mindmap_coverage = export_state.get("mindMapCoverage")
+            scorecard = build_top_level_coverage_scorecard(export_state, mindmap_coverage)
+            if not isinstance(mindmap_coverage, dict) or not mindmap_coverage:
+                export_state["mindMapCoverage"] = {
+                    "version": scorecard["version"],
+                    "computedAt": scorecard["generatedAt"],
+                    "topics": {
+                        key: {
+                            "status": topic["status"],
+                            "confidence": topic["confidence"],
+                        }
+                        for key, topic in scorecard["topics"].items()
+                    },
+                }
 
             payload_json = json.dumps(
                 {
                     "exportedAt": _now_iso(),
-                    "state": args.state or {},
+                    "state": export_state,
+                    "mindmapCoverageScorecard": scorecard,
                 },
                 ensure_ascii=False,
                 indent=2 if args.pretty else None,

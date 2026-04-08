@@ -97,6 +97,19 @@ def test_classify_stage_iac():
     assert result["next_stage"] == ProjectStage.IAC.value
 
 
+def test_classify_stage_export():
+    """Test classification of export stage."""
+    state: GraphState = {
+        "user_message": "Export the architecture package with the final report",
+        "current_project_state": {},
+        "agent_output": "",
+    }
+
+    result = classify_next_stage(state)
+
+    assert result["next_stage"] == ProjectStage.EXPORT.value
+
+
 def test_check_for_retry_no_error():
     """Test retry check when no error present."""
     state: GraphState = {

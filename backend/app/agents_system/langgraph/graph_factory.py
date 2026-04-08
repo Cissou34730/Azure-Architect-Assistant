@@ -14,12 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.shared.config.app_settings import get_app_settings
 
 from .nodes.agent import run_agent_node
+from .nodes.architecture_planner import architecture_planner_node
 from .nodes.clarify import execute_clarification_planner_node
 from .nodes.context import build_context_summary_node, load_project_state_node
 from .nodes.cost_estimator import cost_estimator_node
+from .nodes.export import execute_export_stage_worker_node
 from .nodes.extract_requirements import execute_extract_requirements_node
 from .nodes.manage_adr import execute_manage_adr_stage_worker_node
-from .nodes.architecture_planner import architecture_planner_node
 from .nodes.multi_agent import (
     adr_specialist_node,
     iac_specialist_node,
@@ -31,7 +32,6 @@ from .nodes.multi_agent import (
 from .nodes.persist import apply_state_updates_node, persist_messages_node
 from .nodes.postprocess import postprocess_node
 from .nodes.research import build_research_plan_node, execute_research_worker_node
-from .nodes.validate import execute_validate_stage_worker_node
 from .nodes.routing import (
     prepare_architecture_planner_handoff,
     prepare_cost_estimator_handoff,
@@ -44,6 +44,7 @@ from .nodes.stage_routing import (
     classify_next_stage,
     propose_next_step,
 )
+from .nodes.validate import execute_validate_stage_worker_node
 from .state import GraphState
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,7 @@ def build_project_chat_graph(
     workflow.add_node("build_summary", _wrap_build_summary(db))
     workflow.add_node("classify_stage", classify_next_stage)
     workflow.add_node("clarify_stage_worker", execute_clarification_planner_node)
+    workflow.add_node("export_stage_worker", execute_export_stage_worker_node)
     workflow.add_node("extract_requirements", _wrap_extract_requirements(db))
     workflow.add_node("build_research", build_research_plan_node)
     workflow.add_node("research_worker", execute_research_worker_node)
@@ -162,11 +164,15 @@ def _add_optional_nodes(workflow: StateGraph, enable_stage_routing: bool, enable
 
 def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enable_multi_agent: bool):
     """Define edges and conditional paths for the graph."""
-    def route_after_summary(state: GraphState) -> Literal["extract_requirements", "clarify_stage_worker", "build_research"]:
+    def route_after_summary(
+        state: GraphState,
+    ) -> Literal["extract_requirements", "clarify_stage_worker", "export_stage_worker", "build_research"]:
         if state.get("next_stage") == ProjectStage.EXTRACT_REQUIREMENTS.value:
             return "extract_requirements"
         if state.get("next_stage") == ProjectStage.CLARIFY.value:
             return "clarify_stage_worker"
+        if state.get("next_stage") == ProjectStage.EXPORT.value:
+            return "export_stage_worker"
         return "build_research"
 
     def route_after_research_plan(
@@ -213,11 +219,13 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
         {
             "extract_requirements": "extract_requirements",
             "clarify_stage_worker": "clarify_stage_worker",
+            "export_stage_worker": "export_stage_worker",
             "build_research": "build_research",
         },
     )
     workflow.add_edge("extract_requirements", "persist_messages")
     workflow.add_edge("clarify_stage_worker", "persist_messages")
+    workflow.add_edge("export_stage_worker", "persist_messages")
     workflow.add_conditional_edges(
         "build_research",
         route_after_research_plan,
