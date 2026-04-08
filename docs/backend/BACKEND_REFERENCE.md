@@ -218,6 +218,12 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `services/diagram/project_diagram_helpers.py` — Diagram business logic extracted from project_router.
 - `services/project/document_normalization.py` — Requirements/questions normalization helpers.
 
+## Evaluation and E2E harness
+
+- `scripts/e2e/aaa_e2e_runner.py` — Canonical end-to-end AAA scenario runner; replays scenario chat turns against the agent API, records advisory/tool usage signals, and manages normalized goldens under `scripts/e2e/goldens/`.
+- `scripts/e2e/scenarios/` — Golden scenario inputs used to baseline AAA behavior across requirements, architecture, ADR, validation, IaC, cost, and traceability flows.
+- `backend/tests/eval/reporting.py` — Typed Phase 0 evaluation summary layer that converts the existing E2E runner report shape into rubric-friendly scenario/turn summaries for regression tracking.
+
 ## AAA ProjectState tools
 
 All AAA tools live in `backend/app/agents_system/tools/` and are registered by `create_aaa_tools()` in `aaa_candidate_tool.py`.  Each tool emits `AAA_STATE_UPDATE` (or `AAA_EXPORT`) JSON blocks that the state-update parser (`state_update_parser.py`) picks up during the postprocess node.

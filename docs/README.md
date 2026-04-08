@@ -38,12 +38,16 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 ### Backend
 
 - [`backend/README.md`](./backend/README.md)
-- [`backend/BACKEND_REFERENCE.md`](./backend/BACKEND_REFERENCE.md) — Backend entry points, API surface, and current ProjectState decomposition status
+- [`backend/BACKEND_REFERENCE.md`](./backend/BACKEND_REFERENCE.md) — Backend entry points, API surface, current ProjectState decomposition status, and eval/E2E harness locations
 - [`backend/AI_PROVIDER_ROUTING.md`](./backend/AI_PROVIDER_ROUTING.md)
 - [`backend/AZURE_OPENAI_SETUP.md`](./backend/AZURE_OPENAI_SETUP.md)
 - [`backend/COPILOT_SETUP.md`](./backend/COPILOT_SETUP.md)
 - [`backend/DATA_ROOT_STORAGE_POLICY.md`](./backend/DATA_ROOT_STORAGE_POLICY.md)
 - [`backend/TESTING_DEPENDENCY_INJECTION.md`](./backend/TESTING_DEPENDENCY_INJECTION.md)
+
+### Refactor
+
+- [`refactor/AAA-refactor.md`](./refactor/AAA-refactor.md) — Approved 13-phase AAA runtime rebuild plan; implementation starts with the Phase 0 eval scaffold and Phase 1 runtime stabilization
 
 ### Ingestion
 

@@ -233,3 +233,7 @@ tests/
 __tests__/
 !frontend/tests/
 !frontend/tests/**
+!backend/tests/
+backend/tests/*
+!backend/tests/eval/
+!backend/tests/eval/**
