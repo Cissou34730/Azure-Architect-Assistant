@@ -100,6 +100,7 @@
 - Dedicated architecture-input persistence now lives in `backend/app/models/project.py` as `ProjectArchitectureInputs` (`project_architecture_inputs` table).
 - Dedicated generic artifact persistence now lives in `backend/app/models/project.py` as `ProjectStateComponent` (`project_state_components` table), keyed by `project_id + component_key`.
 - Canonical read path: `app.agents_system.services.project_context.read_project_state(...)` composes the compatibility blob with `project_architecture_inputs`, `project_state_components`, and normalized checklist rows, then applies AAA normalization and document-derived metadata.
+- Deterministic Phase 8 checklist evaluation now lives in `app.agents_system.services.waf_evaluator.WAFEvaluatorService`, which inspects recomposed project state and emits structured WAF coverage summaries for later validate-stage workers.
 - Canonical workspace read path: `app.features.projects.application.workspace_composer.ProjectWorkspaceComposer` now receives recomposed state from the canonical state provider; the remaining direct architecture-input repository call is compatibility-only and does not own the rest of state composition.
 - `/api/projects/{project_id}/workspace` now returns the full recomposed `projectState` payload alongside the workspace summary sections, and the deprecated `/api/projects/{project_id}/state` route now sources that payload from the same composer for compatibility.
 - Canonical write paths for the owned decomposed families now sync the dedicated stores and strip those keys from new blob writes in:
@@ -233,6 +234,7 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `nodes/agent.py` — Main agent node entry (`run_agent_node`) for non-`extract_requirements` stage execution and guardrail shortcuts.
 - `nodes/scope_guard.py` — Scope-detection patterns and guardrails.
 - `nodes/waf_shortcuts.py` — Deterministic WAF-checklist shortcut handlers.
+- `services/waf_evaluator.py` — Deterministic Phase 8 evaluator; scans recomposed architecture evidence (including ADRs and reference documents) and returns worker-friendly per-item WAF coverage with summary counts.
 - `services/diagram/project_diagram_helpers.py` — Diagram business logic extracted from project_router.
 - `services/project/document_normalization.py` — Requirements/questions normalization helpers.
 

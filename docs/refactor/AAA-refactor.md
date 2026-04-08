@@ -684,8 +684,10 @@ Outputs:
 
 ### 8.1 WAF evaluator (deterministic)
 - Match architecture components against WAF checklist rules
-- Update checklist items: covered / partial / not-covered
+- Update checklist items deterministically using worker-facing coverage states (`fixed` / `in_progress` / `open`), which map to covered / partial / not-covered semantics for later validation stages
 - No LLM needed for status computation
+- Implemented service: `backend/app/agents_system/services/waf_evaluator.py`
+- Current output shape is deterministic and worker-friendly: per-item `status` (`fixed` / `in_progress` / `open`), `coverageScore`, matched terms, matched source paths, and per-pillar summary counts
 
 ### 8.2 Findings generator worker (LLM)
 - Prompt: `waf_validator.yaml` (new)
