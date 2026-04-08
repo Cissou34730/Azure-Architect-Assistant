@@ -6,12 +6,39 @@ Loads prompts from YAML files for easy editing without code changes.
 import logging
 from copy import deepcopy
 from pathlib import Path
+from string import Template
 from threading import Lock
 from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
+
+_SHARED_PROMPT_FILES: tuple[str, ...] = (
+    "base_persona.yaml",
+    "tool_strategy.yaml",
+    "guardrails.yaml",
+)
+
+_AGENT_PROMPT_FILE_MAP: dict[str, str] = {
+    "orchestrator": "orchestrator_routing.yaml",
+    "architecture_planner": "architecture_planner_prompt.yaml",
+    "iac_generator": "iac_generator_prompt.yaml",
+    "cost_estimator": "cost_estimator_prompt.yaml",
+    "saas_advisor": "saas_advisor_prompt.yaml",
+    "requirements_extractor": "requirements_extraction.yaml",
+    "clarification_planner": "clarification_planner.yaml",
+    "adr_writer": "adr_writer.yaml",
+    "waf_validator": "waf_validator.yaml",
+    "researcher": "research.yaml",
+}
+
+_STAGE_PROMPT_FILE_MAP: dict[str, str] = {
+    "extract_requirements": "requirements_extraction.yaml",
+    "clarify": "clarification_planner.yaml",
+    "manage_adr": "adr_writer.yaml",
+    "validate": "waf_validator.yaml",
+}
 
 
 class PromptLoader:
@@ -208,6 +235,57 @@ class PromptLoader:
         prompts = self.load_prompts()
         return prompts.get("system_prompt", "")
 
+    def compose_prompt(
+        self,
+        agent_type: str,
+        stage: str,
+        context_budget: int,
+        *,
+        force_reload: bool = False,
+    ) -> str:
+        """Compose a modular system prompt with legacy fallback.
+
+        Shared prompt modules are assembled in a fixed order:
+        base_persona -> agent-specific routing/persona -> stage-specific prompt ->
+        tool_strategy -> guardrails.
+
+        If none of the modular files are present, the legacy monolithic
+        `agent_prompts.yaml` system_prompt is returned unchanged.
+        """
+        sections: list[str] = []
+        seen_files: set[str] = set()
+        substitutions = {
+            "agent_type": agent_type,
+            "stage": stage,
+            "context_budget": str(context_budget),
+        }
+
+        prompt_files = [
+            _SHARED_PROMPT_FILES[0],
+            _AGENT_PROMPT_FILE_MAP.get(agent_type, ""),
+            _STAGE_PROMPT_FILE_MAP.get(stage, ""),
+            *_SHARED_PROMPT_FILES[1:],
+        ]
+
+        for prompt_file in prompt_files:
+            if not prompt_file or prompt_file in seen_files:
+                continue
+            seen_files.add(prompt_file)
+
+            prompt_text = self._load_optional_system_prompt(
+                prompt_file,
+                force_reload=force_reload,
+            )
+            if not prompt_text:
+                continue
+            rendered = Template(prompt_text).safe_substitute(substitutions).strip()
+            if rendered:
+                sections.append(rendered)
+
+        if sections:
+            return "\n\n".join(sections)
+        return self.get_system_prompt()
+
     def get_react_template(self) -> str:
         """Get the ReAct template."""
         prompts = self.load_prompts()
@@ -227,6 +305,22 @@ class PromptLoader:
         """Get few-shot examples."""
         prompts = self.load_prompts()
         return prompts.get("few_shot_examples", [])
+
+    def _load_optional_system_prompt(
+        self,
+        prompt_name: str,
+        *,
+        force_reload: bool = False,
+    ) -> str | None:
+        try:
+            prompt = self.load_prompt(prompt_name, force_reload=force_reload)
+        except FileNotFoundError:
+            return None
+
+        system_prompt = prompt.get("system_prompt")
+        if isinstance(system_prompt, str):
+            return system_prompt
+        return None
 
     def reload(self) -> None:
         """Force reload prompts from file."""

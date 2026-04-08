@@ -118,7 +118,7 @@
 - `backend/config/mcp/mcp_config.json` is loaded through `AppSettings.get_mcp_server_config(...)`.
 - Storage paths come through `AppSettings`; relative values from process env or `.env` resolve against `backend/`. The fallback data root is `backend/data`, which covers `projects.db`, `ingestion.db`, and the `knowledge_bases/` directory.
 - `SettingsModelsService` validates `PUT /api/settings/llm-selection` against provider model listings and persists the selection to `runtime_ai_selection.json`; it does not require a live chat completion probe to accept a listed model.
-- `backend/config/prompts/*.yaml` and `backend/config/checklists/*.json` are content/resource files (not env settings) loaded by dedicated services.
+- `backend/config/prompts/*.yaml` and `backend/config/checklists/*.json` are content/resource files (not env settings) loaded by dedicated services. `PromptLoader.compose_prompt(agent_type, stage, context_budget)` now assembles modular prompt fragments (`base_persona`, agent-specific routing, stage-specific instructions, tool strategy, guardrails) and falls back to `agent_prompts.yaml` when modular files are absent.
 - Agent runtime is LangGraph-only (legacy LangChain ReAct backend paths were removed).
 - AI provider routing and fallback behavior is documented in `docs/backend/AI_PROVIDER_ROUTING.md`.
 
@@ -211,8 +211,10 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 ## Agent system module layout
 
 - `langgraph/graph_factory.py` — Project chat graph assembly; stage routing now resolves before context summary/context-pack construction so stage-specific compaction sees the routed stage.
+- `config/prompt_loader.py` — YAML prompt loader; supports both the legacy `agent_prompts.yaml` surface and modular prompt composition for stage-aware orchestrator prompts.
 - `memory/context_packs/stage_packers.py` — Stage-specific compaction builders; ADR packs read canonical `adrs`, and validation packs summarize `wafChecklist.items[*].evaluations[*].status` from the current checklist payload.
 - `nodes/stage_routing.py` — Core stage enum, classification, retry logic.
+- `nodes/agent_native.py` — Native LangGraph orchestrator node; builds system directives from the composed stage-aware prompt surface.
 - `nodes/routing/` — Per-agent routing subpackage (architecture_planner, iac_generator, saas_advisor, cost_estimator, `_helpers.py` for shared utils).
 - `nodes/agent.py` — Main agent node entry (`run_agent_node`).
 - `nodes/scope_guard.py` — Scope-detection patterns and guardrails.

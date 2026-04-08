@@ -98,8 +98,23 @@ def _stage_policy_notes(stage_value: str) -> str:
 
 
 def _build_system_directives(state: GraphState) -> str:
-    directives = [get_prompt_loader().get_system_prompt()]
     stage_value = str(state.get("next_stage") or "clarify")
+    context_budget_meta = state.get("context_budget_meta")
+    context_budget = 0
+    if isinstance(context_budget_meta, dict):
+        raw_budget = context_budget_meta.get("max_prompt_tokens")
+        if raw_budget is None:
+            raw_budget = context_budget_meta.get("budget_tokens")
+        if isinstance(raw_budget, int):
+            context_budget = raw_budget
+
+    directives = [
+        get_prompt_loader().compose_prompt(
+            agent_type="orchestrator",
+            stage=stage_value,
+            context_budget=context_budget,
+        )
+    ]
 
     specialist = state.get("selected_specialist") or state.get("specialist_used")
     if specialist:

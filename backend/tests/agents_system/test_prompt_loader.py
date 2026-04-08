@@ -90,12 +90,94 @@ def test_load_prompts_returns_defensive_copy(tmp_path):
     assert prompts_b["system_prompt"] == "base"
 
 
+def test_compose_prompt_combines_shared_and_stage_files(tmp_path):
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    (prompts_dir / "agent_prompts.yaml").write_text(
+        "system_prompt: legacy base\nreact_template: base_template\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "base_persona.yaml").write_text(
+        "system_prompt: |\n  Base persona for ${agent_type}\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "orchestrator_routing.yaml").write_text(
+        "system_prompt: |\n  Routing for ${stage}\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "tool_strategy.yaml").write_text(
+        "system_prompt: |\n  Tool strategy\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "guardrails.yaml").write_text(
+        "system_prompt: |\n  Guardrails with ${context_budget} token budget\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "clarification_planner.yaml").write_text(
+        "system_prompt: |\n  Clarify stage prompt\n",
+        encoding="utf-8",
+    )
+
+    loader = PromptLoader(prompts_dir=prompts_dir)
+
+    prompt = loader.compose_prompt(
+        agent_type="orchestrator",
+        stage="clarify",
+        context_budget=512,
+    )
+
+    assert "Base persona for orchestrator" in prompt
+    assert "Routing for clarify" in prompt
+    assert "Tool strategy" in prompt
+    assert "Guardrails with 512 token budget" in prompt
+    assert "Clarify stage prompt" in prompt
+
+
+def test_compose_prompt_falls_back_to_legacy_system_prompt(tmp_path):
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    (prompts_dir / "agent_prompts.yaml").write_text(
+        "system_prompt: legacy base prompt\nreact_template: base_template\n",
+        encoding="utf-8",
+    )
+
+    loader = PromptLoader(prompts_dir=prompts_dir)
+
+    prompt = loader.compose_prompt(
+        agent_type="orchestrator",
+        stage="clarify",
+        context_budget=256,
+    )
+
+    assert prompt == "legacy base prompt"
+
+
 def test_build_system_directives_uses_reloaded_prompt(tmp_path):
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()
-    prompts_file = prompts_dir / "agent_prompts.yaml"
-    prompts_file.write_text(
-        "system_prompt: first prompt\nreact_template: base_template\n",
+    (prompts_dir / "agent_prompts.yaml").write_text(
+        "system_prompt: legacy base\nreact_template: base_template\n",
+        encoding="utf-8",
+    )
+    base_persona = prompts_dir / "base_persona.yaml"
+    base_persona.write_text(
+        "system_prompt: first prompt\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "orchestrator_routing.yaml").write_text(
+        "system_prompt: routing prompt\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "tool_strategy.yaml").write_text(
+        "system_prompt: tool prompt\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "guardrails.yaml").write_text(
+        "system_prompt: guardrail prompt\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "clarification_planner.yaml").write_text(
+        "system_prompt: clarify prompt\n",
         encoding="utf-8",
     )
 
@@ -106,8 +188,8 @@ def test_build_system_directives_uses_reloaded_prompt(tmp_path):
         first = _build_system_directives({})
         assert "first prompt" in first
 
-        prompts_file.write_text(
-            "system_prompt: second prompt\nreact_template: base_template\n",
+        base_persona.write_text(
+            "system_prompt: second prompt\n",
             encoding="utf-8",
         )
         loader.reload()

@@ -4,12 +4,33 @@ This directory contains agent prompts in YAML format for easy editing without co
 
 ## Quick Start
 
-**Edit prompts:** Modify `agent_prompts.yaml`  
+**Edit prompts:** Modify `agent_prompts.yaml` or the modular prompt fragments under this directory  
 **Apply changes:** Restart the backend or call the reload API endpoint
 
 ## Files
 
-- **agent_prompts.yaml** - Main prompts configuration file
+- **agent_prompts.yaml** - Legacy monolithic prompt configuration and fallback source
+- **base_persona.yaml** - Shared AAA persona and methodology
+- **orchestrator_routing.yaml** - Orchestrator-specific stage routing instructions
+- **tool_strategy.yaml** - Shared tool selection rules
+- **guardrails.yaml** - Shared hallucination/reviewability guardrails
+- **clarification_planner.yaml** - Clarification-stage instructions
+- **adr_writer.yaml** - ADR-stage instructions
+- **waf_validator.yaml** - Validation-stage instructions
+
+## Modular composition
+
+`PromptLoader.compose_prompt(agent_type, stage, context_budget)` assembles a system prompt in this order:
+
+1. `base_persona.yaml`
+2. agent-specific prompt (for example `orchestrator_routing.yaml`)
+3. stage-specific prompt (for example `clarification_planner.yaml`)
+4. `tool_strategy.yaml`
+5. `guardrails.yaml`
+
+Each module can interpolate `${agent_type}`, `${stage}`, and `${context_budget}`.
+
+If none of the modular files are present, the loader falls back to `agent_prompts.yaml` so existing behavior remains intact.
 
 ## Structure
 
@@ -73,6 +94,13 @@ react_prompts.reload_prompts()
 # Get loader for advanced usage
 loader = react_prompts.get_prompt_loader()
 loader.reload()
+
+# Compose a stage-aware prompt
+system_prompt = loader.compose_prompt(
+    agent_type="orchestrator",
+    stage="clarify",
+    context_budget=2000,
+)
 ```
 
 ### API Endpoint (TODO)
@@ -172,6 +200,7 @@ async def watch_prompts():
 - Check that `agent_prompts.yaml` exists
 - Verify path in `prompt_loader.py`
 - Ensure working directory is correct
+- Missing modular files are allowed; the loader skips them and can fall back to `agent_prompts.yaml`
 
 ### YAMLError
 - Validate YAML syntax (use online validator)
