@@ -23,6 +23,22 @@ logger = logging.getLogger(__name__)
 _SCENARIOS_ROOT = Path(__file__).resolve().parent / "scenarios"
 _GOLDENS_ROOT = Path(__file__).resolve().parent / "goldens"
 _RUNS_ROOT = Path(__file__).resolve().parent / "runs"
+_REQUIRED_EXPORT_STATE_KEYS: tuple[str, ...] = ("traceabilityLinks", "mindMapCoverage")
+_REQUIRED_EXPORT_TOPIC_KEYS: tuple[str, ...] = (
+    "1_foundations",
+    "2_requirements_and_quality_attributes",
+    "3_domain_and_design",
+    "4_architecture_styles",
+    "5_data_and_storage",
+    "6_integration_and_distributed_systems",
+    "7_cloud_and_infrastructure",
+    "8_security_and_compliance",
+    "9_delivery_and_lifecycle",
+    "10_observability_and_reliability",
+    "11_organization_and_process",
+    "12_practice_ideas",
+    "13_learning_and_practice",
+)
 
 
 @dataclass(frozen=True)
@@ -155,6 +171,25 @@ def _parse_aaa_log_blocks(text: str, marker: str) -> list[dict[str, Any]]:
     return blocks
 
 
+def _extract_aaa_json_block(text: str, marker: str) -> dict[str, Any] | None:
+    if not text:
+        return None
+
+    pattern = re.compile(
+        rf"{re.escape(marker)}\s*\n```json\n(?P<payload>\{{.*?\}})\n```",
+        re.DOTALL,
+    )
+    match = pattern.search(text)
+    if match is None:
+        return None
+
+    try:
+        payload = json.loads(match.group("payload"))
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def _summarize_state(state: dict[str, Any]) -> dict[str, Any]:
     summary: dict[str, Any] = {
         "keys": sorted(state),
@@ -202,6 +237,73 @@ def _summarize_state(state: dict[str, Any]) -> dict[str, Any]:
         summary["counts"]["conflicts"] = len(conflicts)
 
     return summary
+
+
+def _empty_export_payload_summary() -> dict[str, Any]:
+    return {
+        "present": False,
+        "topLevelKeys": [],
+        "missingRequiredKeys": ["AAA_EXPORT"],
+        "stateMissingRequiredKeys": list(_REQUIRED_EXPORT_STATE_KEYS),
+        "stateSummary": {"keys": [], "counts": {}},
+        "mindmapCoverageScorecard": {
+            "topicCount": 0,
+            "missingTopicKeys": list(_REQUIRED_EXPORT_TOPIC_KEYS),
+            "summary": {},
+        },
+    }
+
+
+def _summarize_export_payload(answer: str) -> dict[str, Any] | None:
+    payload = _extract_aaa_json_block(answer, "AAA_EXPORT")
+    if payload is None:
+        return None
+
+    summary = {
+        "present": True,
+        "topLevelKeys": sorted(payload.keys()),
+        "missingRequiredKeys": [],
+        "stateMissingRequiredKeys": [],
+        "stateSummary": {"keys": [], "counts": {}},
+        "mindmapCoverageScorecard": {
+            "topicCount": 0,
+            "missingTopicKeys": list(_REQUIRED_EXPORT_TOPIC_KEYS),
+            "summary": {},
+        },
+    }
+
+    for required_key in ("exportedAt", "state", "mindmapCoverageScorecard"):
+        if required_key not in payload:
+            summary["missingRequiredKeys"].append(required_key)
+
+    state = payload.get("state")
+    if isinstance(state, dict):
+        summary["stateSummary"] = _summarize_state(state)
+        summary["stateMissingRequiredKeys"] = _assert_required_state_keys(
+            state, _REQUIRED_EXPORT_STATE_KEYS
+        )
+    elif "state" not in summary["missingRequiredKeys"]:
+        summary["missingRequiredKeys"].append("state")
+
+    scorecard = payload.get("mindmapCoverageScorecard")
+    if isinstance(scorecard, dict):
+        topics = scorecard.get("topics")
+        if isinstance(topics, dict):
+            summary["mindmapCoverageScorecard"]["topicCount"] = len(topics)
+            summary["mindmapCoverageScorecard"]["missingTopicKeys"] = [
+                key for key in _REQUIRED_EXPORT_TOPIC_KEYS if key not in topics
+            ]
+        summary_value = scorecard.get("summary")
+        if isinstance(summary_value, dict):
+            summary["mindmapCoverageScorecard"]["summary"] = summary_value
+    elif "mindmapCoverageScorecard" not in summary["missingRequiredKeys"]:
+        summary["missingRequiredKeys"].append("mindmapCoverageScorecard")
+
+    return summary
+
+
+def _turn_requests_export_payload(message: str) -> bool:
+    return "export" in message.lower()
 
 
 def normalize_report_for_golden(report: dict[str, Any]) -> dict[str, Any]:
@@ -757,6 +859,9 @@ async def _run_with_client(
         mcp_logs: list[dict[str, Any]] = []
         pricing_logs: list[dict[str, Any]] = []
         kb_call_count = 0
+        export_payload = _summarize_export_payload(answer)
+        if export_payload is None and _turn_requests_export_payload(turn.message):
+            export_payload = _empty_export_payload_summary()
 
         if isinstance(reasoning_steps, list):
             for step in reasoning_steps:
@@ -786,6 +891,8 @@ async def _run_with_client(
             "mcpLogs": mcp_logs,
             "pricingLogs": pricing_logs,
         }
+        if export_payload is not None:
+            step_record["exportPayload"] = export_payload
         steps.append(step_record)
 
         with transcript_path.open("a", encoding="utf-8") as handle:
@@ -885,6 +992,15 @@ async def _run_with_client(
         "final": {
             "missingRequiredKeys": final_missing_keys,
             "stateSummary": state_summary,
+            **(
+                {"exportPayload": export_steps[-1]}
+                if (export_steps := [
+                    step["exportPayload"]
+                    for step in steps
+                    if isinstance(step.get("exportPayload"), dict)
+                ])
+                else {}
+            ),
         },
         "advisoryQuality": advisory_summary,
         "steps": steps,

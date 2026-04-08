@@ -211,12 +211,46 @@ def _collect_failures(
         failures.append(f"Missing required keys: {', '.join(missing_required_keys)}")
     if _db_status(report) != "PASS":
         failures.append("Database persistence assertions failed.")
+    failures.extend(_collect_export_payload_failures(report))
 
     for dimension, average in dimension_averages.items():
         if average <= 2.0:
             failures.append(
                 f"Low {dimension.value.replace('_', ' ')} score ({average:.1f}/5)."
             )
+    return failures
+
+
+def _collect_export_payload_failures(report: dict[str, Any]) -> list[str]:
+    final = report.get("final") if isinstance(report.get("final"), dict) else {}
+    export_payload = (
+        final.get("exportPayload") if isinstance(final.get("exportPayload"), dict) else {}
+    )
+    if not export_payload:
+        return []
+
+    failures: list[str] = []
+    missing_keys = _coerce_string_list(export_payload.get("missingRequiredKeys"))
+    if missing_keys:
+        failures.append(f"Export payload missing required keys: {', '.join(missing_keys)}")
+
+    state_missing_keys = _coerce_string_list(export_payload.get("stateMissingRequiredKeys"))
+    if state_missing_keys:
+        failures.append(
+            "Export payload state missing required keys: "
+            + ", ".join(state_missing_keys)
+        )
+
+    scorecard = (
+        export_payload.get("mindmapCoverageScorecard")
+        if isinstance(export_payload.get("mindmapCoverageScorecard"), dict)
+        else {}
+    )
+    missing_topics = _coerce_string_list(scorecard.get("missingTopicKeys"))
+    topic_count = scorecard.get("topicCount")
+    if missing_topics or (isinstance(topic_count, int) and topic_count < 13):
+        failures.append("Export payload mind map scorecard does not cover all 13 topics.")
+
     return failures
 
 

@@ -129,3 +129,61 @@ def test_build_phase0_eval_summary_uses_request_overlap_for_specificity() -> Non
     summary = build_phase0_eval_summary(report)
 
     assert summary.turns[0].score_for(EvalDimension.SPECIFICITY) >= 4
+
+
+def test_build_phase0_eval_summary_flags_export_payload_regressions() -> None:
+    report = {
+        "scenario": {"id": "scenario-export", "name": "Scenario Export"},
+        "final": {
+            "missingRequiredKeys": [],
+            "stateSummary": {
+                "keys": ["requirements", "traceabilityLinks"],
+                "counts": {"requirements": 2, "traceabilityLinks": 1},
+            },
+            "exportPayload": {
+                "present": True,
+                "missingRequiredKeys": ["mindmapCoverageScorecard"],
+                "stateMissingRequiredKeys": ["mindMapCoverage"],
+                "mindmapCoverageScorecard": {
+                    "topicCount": 12,
+                    "missingTopicKeys": ["13_learning_and_practice"],
+                    "summary": {"addressed": 12, "partial": 0, "notAddressed": 1},
+                },
+            },
+        },
+        "dbPersistence": {"status": "PASS"},
+        "steps": [
+            {
+                "id": "us6-export",
+                "request": "Export traceability and mind map coverage.",
+                "answer": "AAA_EXPORT payload emitted.",
+                "success": True,
+                "error": None,
+                "mcpCallCount": 0,
+                "pricingCallCount": 0,
+                "kbCallCount": 0,
+                "advisoryQuality": {
+                    "proactivity": 1,
+                    "correction": 0,
+                    "evidence": 1,
+                    "clarity": 1,
+                    "total": 3,
+                },
+            }
+        ],
+    }
+
+    summary = build_phase0_eval_summary(report)
+
+    assert (
+        "Export payload missing required keys: mindmapCoverageScorecard"
+        in summary.baseline_failures
+    )
+    assert (
+        "Export payload state missing required keys: mindMapCoverage"
+        in summary.baseline_failures
+    )
+    assert (
+        "Export payload mind map scorecard does not cover all 13 topics."
+        in summary.baseline_failures
+    )
