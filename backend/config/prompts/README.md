@@ -15,6 +15,7 @@ This directory contains agent prompts in YAML format for easy editing without co
 - **tool_strategy.yaml** - Shared tool selection rules
 - **guardrails.yaml** - Shared hallucination/reviewability guardrails
 - **clarification_planner.yaml** - Clarification-stage instructions
+- **architecture_planner_prompt.yaml** - Architecture proposal prompt with C4/NFR guidance and Mermaid examples
 - **adr_writer.yaml** - ADR-stage instructions
 - **waf_validator.yaml** - Validation-stage instructions
 - **requirements_extraction.yaml** - Source-grounded requirements extraction instructions for Phase 4
@@ -34,6 +35,8 @@ Each module can interpolate `${agent_type}`, `${stage}`, and `${context_budget}`
 If none of the modular files are present, the loader falls back to `agent_prompts.yaml` so existing behavior remains intact.
 
 For the upcoming `extract_requirements` stage, `requirements_extraction.yaml` is also addressable directly through `PromptLoader.load_prompt(...)` and through `compose_prompt(...)` when the stage is `extract_requirements`.
+
+The stage-specific prompt files are expected to hold more than one-line reminders: `clarification_planner.yaml`, `adr_writer.yaml`, and `waf_validator.yaml` now carry stage methodology, lifecycle/severity rules, and worked examples so worker implementations can stay thin and deterministic.
 
 ## Structure
 

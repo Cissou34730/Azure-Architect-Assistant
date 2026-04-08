@@ -85,6 +85,52 @@ def test_requirements_extraction_prompt_contains_required_fields():
     assert "aaa_manage_artifacts" in system_prompt
 
 
+def test_clarification_planner_prompt_covers_ambiguities_and_history():
+    loader = PromptLoader()
+    prompt_cfg = loader.load_prompt("clarification_planner.yaml")
+
+    system_prompt = str(prompt_cfg.get("system_prompt", "")).lower()
+    assert "ambigu" in system_prompt
+    assert "3-5" in system_prompt
+    assert "prior clarification" in system_prompt or "don't re-ask" in system_prompt
+
+
+def test_architecture_planner_prompt_requires_evidence_mapping_and_deltas():
+    loader = PromptLoader()
+    prompt_cfg = loader.load_prompt("architecture_planner_prompt.yaml")
+
+    system_prompt = str(prompt_cfg.get("system_prompt", "")).lower()
+    assert "evidence" in system_prompt
+    assert "requirement" in system_prompt
+    assert "waf delta" in system_prompt or "mindmap delta" in system_prompt
+    assert "```mermaid" in system_prompt
+
+
+def test_adr_writer_prompt_mentions_lifecycle_and_traceability():
+    loader = PromptLoader()
+    prompt_cfg = loader.load_prompt("adr_writer.yaml")
+
+    system_prompt = str(prompt_cfg.get("system_prompt", "")).lower()
+    assert "traceability" in system_prompt or "traceable" in system_prompt
+    assert "alternatives" in system_prompt
+    assert "supersed" in system_prompt
+    assert "example adr" in system_prompt or "example:" in system_prompt
+
+
+def test_waf_validator_prompt_mentions_severity_and_source_urls():
+    loader = PromptLoader()
+    prompt_cfg = loader.load_prompt("waf_validator.yaml")
+
+    system_prompt = str(prompt_cfg.get("system_prompt", "")).lower()
+    assert "critical" in system_prompt
+    assert "high" in system_prompt
+    assert "medium" in system_prompt
+    assert "low" in system_prompt
+    assert "url" in system_prompt
+    assert "finding id" in system_prompt
+    assert "remediation" in system_prompt
+
+
 def test_load_prompts_returns_defensive_copy(tmp_path):
     prompts_dir = tmp_path / "prompts"
     prompts_dir.mkdir()
