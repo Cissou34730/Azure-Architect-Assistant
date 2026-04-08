@@ -44,6 +44,7 @@ def __getattr__(name: str) -> Any:
         "get_pending_changes_service_dep",
         "get_project_analysis_service_dep",
         "get_project_service_dep",
+        "get_requirements_extraction_entry_service_dep",
         "get_state_edit_service_dep",
         "get_workspace_composer_dep",
     }:

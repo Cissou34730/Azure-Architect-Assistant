@@ -9,6 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.features.projects.application.document_content_service import DocumentContentService
 from app.features.projects.application.document_service import DocumentService
 from app.features.projects.application.project_analysis_service import ProjectAnalysisService
+from app.features.projects.application.requirements_extraction_entry_service import (
+    ProjectRequirementsExtractionEntryService,
+)
+from app.features.projects.contracts import PendingChangeSetContract
 from app.shared.db.projects_database import get_db
 from app.shared.http.error_utils import map_value_error
 
@@ -16,6 +20,7 @@ from ._deps import (
     get_document_content_service_dep,
     get_document_service_dep,
     get_project_analysis_service_dep,
+    get_requirements_extraction_entry_service_dep,
 )
 from .project_models import DocumentsResponse, StateResponse
 
@@ -92,3 +97,24 @@ async def analyze_documents(
     except ValueError as exc:
         raise map_value_error(exc, default_status=400) from exc
     return {"projectState": state}
+
+
+@router.post(
+    "/projects/{project_id}/extract-requirements",
+    response_model=PendingChangeSetContract,
+)
+async def extract_requirements(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    requirements_extraction_entry_service: ProjectRequirementsExtractionEntryService = Depends(
+        get_requirements_extraction_entry_service_dep
+    ),
+) -> PendingChangeSetContract:
+    """Extract requirements into a pending change set from parsed project documents."""
+    try:
+        return await requirements_extraction_entry_service.extract_pending_requirements(
+            project_id=project_id,
+            db=db,
+        )
+    except ValueError as exc:
+        raise map_value_error(exc, default_status=400) from exc

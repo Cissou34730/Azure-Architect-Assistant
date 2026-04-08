@@ -52,6 +52,7 @@
 - `POST /api/projects/{project_id}/changes/{change_set_id}/approve` - approves a pending change set, merges its `proposedPatch` into canonical project state, and returns the reviewed change set plus updated state.
 - `POST /api/projects/{project_id}/changes/{change_set_id}/reject` - marks a pending change set rejected without mutating canonical project state.
 - `POST /api/projects/{project_id}/changes/{change_set_id}/revise` - marks a pending change set superseded so a revised bundle can replace it later.
+- `POST /api/projects/{project_id}/extract-requirements` - loads parsed project documents, runs the Phase 4 extraction worker, and records a pending requirements change set for review.
 - `GET /api/projects/{project_id}/architecture/proposal` (SSE)
 
 ### Knowledge base management
@@ -226,6 +227,7 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `features/agent/contracts/extract_requirements.py` — Strict contracts for source-grounded extracted requirements, ambiguity markers, and bundle summaries.
 - `features/agent/application/requirements_extraction_service.py` — Exact-match requirement dedupe/bundling helper that preserves all document sources and rolls ambiguity notes forward.
 - `features/agent/application/requirements_extraction_worker.py` — First Phase 4 worker path; formats parsed project documents for analysis, normalizes extracted requirements, builds a pending change set, and records it through the pending-change service.
+- `features/projects/application/requirements_extraction_entry_service.py` — Project-scoped DB/document-loading entry point for requirements extraction; feeds parsed documents to the worker and returns the recorded pending change set.
 - `nodes/routing/` — Per-agent routing subpackage (architecture_planner, iac_generator, saas_advisor, cost_estimator, `_helpers.py` for shared utils).
 - `nodes/agent.py` — Main agent node entry (`run_agent_node`).
 - `nodes/scope_guard.py` — Scope-detection patterns and guardrails.
