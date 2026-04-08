@@ -225,6 +225,7 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `features/projects/api/changes_router.py` — Project-scoped pending change-set read and review endpoints.
 - `features/agent/contracts/extract_requirements.py` — Strict contracts for source-grounded extracted requirements, ambiguity markers, and bundle summaries.
 - `features/agent/application/requirements_extraction_service.py` — Exact-match requirement dedupe/bundling helper that preserves all document sources and rolls ambiguity notes forward.
+- `features/agent/application/requirements_extraction_worker.py` — First Phase 4 worker path; formats parsed project documents for analysis, normalizes extracted requirements, builds a pending change set, and records it through the pending-change service.
 - `nodes/routing/` — Per-agent routing subpackage (architecture_planner, iac_generator, saas_advisor, cost_estimator, `_helpers.py` for shared utils).
 - `nodes/agent.py` — Main agent node entry (`run_agent_node`).
 - `nodes/scope_guard.py` — Scope-detection patterns and guardrails.

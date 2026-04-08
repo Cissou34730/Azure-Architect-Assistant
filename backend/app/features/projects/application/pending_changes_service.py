@@ -154,6 +154,26 @@ class ProjectPendingChangesService:
             db=db,
         )
 
+    async def record_pending_change(
+        self,
+        *,
+        project_id: str,
+        change_set: PendingChangeSetContract,
+        db: Any,
+    ) -> PendingChangeSetContract:
+        state, raw_change_sets = await self._load_state_with_raw_change_sets(project_id=project_id, db=db)
+        payload = change_set.model_dump(mode="json", by_alias=True, exclude_none=True)
+        raw_change_sets.append(payload)
+        state["pendingChangeSets"] = raw_change_sets
+        timestamp = datetime.now(timezone.utc).isoformat()
+        await self._persist_state(
+            project_id=project_id,
+            db=db,
+            state=state,
+            updated_at=timestamp,
+        )
+        return PendingChangeSetContract.model_validate(payload)
+
     async def _load_change_sets(
         self,
         *,

@@ -11,6 +11,7 @@ from app.features.projects.application.pending_changes_service import (
     ProjectPendingChangesService,
 )
 from app.features.projects.contracts import (
+    ArtifactDraftType,
     ChangeSetReviewResultContract,
     ChangeSetStatus,
     PendingChangeSetContract,
@@ -260,3 +261,40 @@ async def test_revise_pending_change_marks_change_set_superseded() -> None:
     assert result.change_set.review_reason == "Architect requested revision"
     assert store.persisted_state is not None
     assert store.persisted_state["pendingChangeSets"][0]["status"] == "superseded"
+
+
+@pytest.mark.asyncio
+async def test_record_pending_change_appends_new_bundle() -> None:
+    store = _StateStoreStub()
+    db = _DbStub()
+    service = ProjectPendingChangesService(
+        state_provider=_StateProviderStub(_pending_changes_state()),
+        state_store=store,
+    )
+    change_set = PendingChangeSetContract(
+        id="cs-new",
+        project_id="proj-1",
+        stage="extract_requirements",
+        status=ChangeSetStatus.PENDING,
+        created_at="2026-04-10T12:00:00Z",
+        source_message_id="msg-3",
+        bundle_summary="Extracted one additional requirement",
+        artifact_drafts=[
+            {
+                "id": "draft-new",
+                "artifactType": ArtifactDraftType.REQUIREMENT,
+                "content": {"text": "Support audit exports"},
+            }
+        ],
+        proposed_patch={"requirements": [{"id": "req-3", "title": "Requirement 3"}]},
+    )
+
+    recorded = await service.record_pending_change(
+        project_id="proj-1",
+        change_set=change_set,
+        db=db,
+    )
+
+    assert recorded.id == "cs-new"
+    assert store.persisted_state is not None
+    assert store.persisted_state["pendingChangeSets"][-1]["id"] == "cs-new"
