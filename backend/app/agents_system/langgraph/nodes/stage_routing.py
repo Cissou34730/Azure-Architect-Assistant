@@ -37,6 +37,7 @@ _NON_ARCH_INTENT_KEYWORDS = [
 
 class ProjectStage(str, Enum):
     """Project workflow stages."""
+    EXTRACT_REQUIREMENTS = "extract_requirements"
     CLARIFY = "clarify"
     PROPOSE_CANDIDATE = "propose_candidate"
     MANAGE_ADR = "manage_adr"
@@ -92,6 +93,9 @@ def _detect_intent_from_keywords(user_message: str, agent_output: str) -> Projec
 
 def _detect_intent_from_state(project_state: dict[str, Any]) -> ProjectStage:
     """Detect next stage based on gaps in current project state."""
+    if _has_parsed_documents(project_state) and not project_state.get("requirements"):
+        return ProjectStage.EXTRACT_REQUIREMENTS
+
     # List of required fields and their corresponding stages
     requirements = [
         ("requirements", ProjectStage.CLARIFY),
@@ -118,6 +122,25 @@ def _detect_intent_from_state(project_state: dict[str, Any]) -> ProjectStage:
             return stage
 
     return ProjectStage.CLARIFY
+
+
+def _has_parsed_documents(project_state: dict[str, Any]) -> bool:
+    reference_documents = project_state.get("referenceDocuments")
+    if isinstance(reference_documents, list):
+        for document in reference_documents:
+            if not isinstance(document, dict):
+                continue
+            parse_status = str(document.get("parseStatus") or document.get("parse_status") or "").lower()
+            if parse_status == "parsed":
+                return True
+
+    project_document_stats = project_state.get("projectDocumentStats") or project_state.get("ingestionStats")
+    if isinstance(project_document_stats, dict):
+        parsed_documents = project_document_stats.get("parsedDocuments")
+        if isinstance(parsed_documents, int) and parsed_documents > 0:
+            return True
+
+    return False
 
 
 def check_for_retry(state: GraphState) -> Literal["retry", "continue"]:

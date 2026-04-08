@@ -29,6 +29,22 @@ def test_classify_stage_clarify():
     assert result["next_stage"] == ProjectStage.CLARIFY.value
 
 
+def test_classify_stage_extract_requirements_when_documents_exist_but_requirements_missing():
+    state: GraphState = {
+        "user_message": "let us continue",
+        "current_project_state": {
+            "referenceDocuments": [
+                {"id": "doc-1", "parseStatus": "parsed"},
+            ],
+        },
+        "agent_output": "",
+    }
+
+    result = classify_next_stage(state)
+
+    assert result["next_stage"] == "extract_requirements"
+
+
 def test_classify_stage_adr():
     """Test classification of ADR stage."""
     state: GraphState = {

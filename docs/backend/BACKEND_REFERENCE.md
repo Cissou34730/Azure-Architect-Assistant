@@ -219,7 +219,7 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `langgraph/graph_factory.py` — Project chat graph assembly; stage routing now resolves before context summary/context-pack construction so stage-specific compaction sees the routed stage.
 - `config/prompt_loader.py` — YAML prompt loader; supports both the legacy `agent_prompts.yaml` surface and modular prompt composition for stage-aware orchestrator prompts.
 - `memory/context_packs/stage_packers.py` — Stage-specific compaction builders; ADR packs read canonical `adrs`, and validation packs summarize `wafChecklist.items[*].evaluations[*].status` from the current checklist payload.
-- `nodes/stage_routing.py` — Core stage enum, classification, retry logic.
+- `nodes/stage_routing.py` — Core stage enum, classification, retry logic. When parsed project documents exist but approved requirements are still missing, the state-aware default now routes to `extract_requirements` before falling back to clarification.
 - `nodes/agent_native.py` — Native LangGraph orchestrator node; builds system directives from the composed stage-aware prompt surface.
 - `features/projects/application/pending_changes_service.py` — Read-side projection for `pendingChangeSets`, providing typed summaries/details without changing persistence semantics yet.
 - `features/projects/application/pending_changes_merge_service.py` — Deterministic approval merge helper built on the existing non-overwrite state merge behavior; conflicts surface as 409s instead of silently overwriting canonical state.
