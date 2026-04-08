@@ -101,6 +101,7 @@ def test_architecture_planner_prompt_requires_evidence_mapping_and_deltas():
 
     system_prompt = str(prompt_cfg.get("system_prompt", "")).lower()
     assert "evidence" in system_prompt
+    assert "packet" in system_prompt
     assert "requirement" in system_prompt
     assert "waf delta" in system_prompt or "mindmap delta" in system_prompt
     assert "```mermaid" in system_prompt

@@ -193,3 +193,135 @@ async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
         "mindmap_guidance": mindmap_guidance,
     }
 
+
+def _format_requirement_targets(requirements: Any) -> list[str]:
+    if isinstance(requirements, list):
+        targets = []
+        for requirement in requirements:
+            if isinstance(requirement, dict):
+                title = requirement.get("title") or requirement.get("text") or requirement.get("id")
+                if title:
+                    targets.append(str(title))
+            elif requirement:
+                targets.append(str(requirement))
+        return targets[:5]
+
+    if isinstance(requirements, dict):
+        targets = []
+        for key in ("workloadType", "sla", "rto", "rpo", "dataVolume", "expectedUsers"):
+            value = requirements.get(key)
+            if value:
+                targets.append(f"{key}: {value}")
+        return targets[:5]
+
+    return []
+
+
+def _preferred_sources_for_stage(stage_value: str) -> list[str]:
+    if stage_value == ProjectStage.PROPOSE_CANDIDATE.value:
+        return [
+            "Azure Architecture Center",
+            "Azure Well-Architected Framework",
+            "Service-specific Microsoft Learn guidance",
+        ]
+    return [
+        "Azure Well-Architected Framework",
+        "Microsoft Learn",
+    ]
+
+
+def _build_evidence_packet(
+    *,
+    index: int,
+    plan_item: str,
+    stage_value: str,
+    state: GraphState,
+) -> dict[str, Any]:
+    project_state = state.get("current_project_state") or {}
+    requirements = project_state.get("requirements") or []
+    mindmap_topics = _mindmap_gaps(state.get("mindmap_coverage") or {})
+    context_summary = str(state.get("context_summary") or "")
+
+    packet_id = f"research-packet-{index}"
+    query = f"{stage_value.replace('_', ' ')}: {plan_item}"
+    if context_summary:
+        query = f"{query} | context: {context_summary[:160]}"
+
+    expected_evidence = [
+        "Document the Azure service or pattern decision this packet should justify.",
+        "Capture at least one authoritative Microsoft or WAF source for the packet topic.",
+        "Record trade-offs or constraints the architecture synthesizer must preserve.",
+    ]
+    if mindmap_topics:
+        expected_evidence.append(
+            f"Address these uncovered mind map topics when relevant: {', '.join(mindmap_topics[:3])}."
+        )
+
+    return {
+        "packet_id": packet_id,
+        "focus": plan_item,
+        "query": query,
+        "stage": stage_value,
+        "requirement_targets": _format_requirement_targets(requirements),
+        "mindmap_topics": mindmap_topics,
+        "recommended_sources": _preferred_sources_for_stage(stage_value),
+        "expected_evidence": expected_evidence,
+        "consumer_guidance": (
+            "Use this packet to ground architecture choices in explicit evidence, "
+            "not generic Azure defaults."
+        ),
+    }
+
+
+async def execute_research_worker_node(state: GraphState) -> dict[str, Any]:
+    """Materialize research plan items into concrete evidence packets for synthesis."""
+    stage_value = state.get("next_stage") or ProjectStage.CLARIFY.value
+    plan = state.get("research_plan") or []
+
+    if stage_value != ProjectStage.PROPOSE_CANDIDATE.value:
+        return {
+            "research_evidence_packets": [],
+            "research_execution_artifact": {
+                "status": "skipped",
+                "reason": "unsupported_stage",
+                "stage": stage_value,
+                "packets_created": 0,
+            },
+        }
+
+    if not plan:
+        return {
+            "research_evidence_packets": [],
+            "research_execution_artifact": {
+                "status": "skipped",
+                "reason": "no_research_plan",
+                "stage": stage_value,
+                "packets_created": 0,
+            },
+        }
+
+    packets = [
+        _build_evidence_packet(
+            index=index,
+            plan_item=plan_item,
+            stage_value=stage_value,
+            state=state,
+        )
+        for index, plan_item in enumerate(plan, start=1)
+    ]
+
+    logger.info(
+        "Built research worker evidence packets (stage=%s, packets=%d)",
+        stage_value,
+        len(packets),
+    )
+    return {
+        "research_evidence_packets": packets,
+        "research_execution_artifact": {
+            "status": "completed",
+            "stage": stage_value,
+            "packets_created": len(packets),
+            "plan_items": len(plan),
+        },
+    }
+

@@ -17,6 +17,7 @@ from .nodes.agent import run_agent_node
 from .nodes.context import build_context_summary_node, load_project_state_node
 from .nodes.cost_estimator import cost_estimator_node
 from .nodes.extract_requirements import execute_extract_requirements_node
+from .nodes.architecture_planner import architecture_planner_node
 from .nodes.multi_agent import (
     adr_specialist_node,
     iac_specialist_node,
@@ -27,8 +28,9 @@ from .nodes.multi_agent import (
 )
 from .nodes.persist import apply_state_updates_node, persist_messages_node
 from .nodes.postprocess import postprocess_node
-from .nodes.research import build_research_plan_node
+from .nodes.research import build_research_plan_node, execute_research_worker_node
 from .nodes.routing import (
+    prepare_architecture_planner_handoff,
     prepare_cost_estimator_handoff,
     should_route_to_cost_estimator,
 )
@@ -59,7 +61,10 @@ def build_project_chat_graph(
     workflow.add_node("classify_stage", classify_next_stage)
     workflow.add_node("extract_requirements", _wrap_extract_requirements(db))
     workflow.add_node("build_research", build_research_plan_node)
+    workflow.add_node("research_worker", execute_research_worker_node)
     workflow.add_node("build_mindmap_guidance", _pass_through_mindmap_guidance)
+    workflow.add_node("prepare_architecture_handoff", prepare_architecture_planner_handoff)
+    workflow.add_node("architecture_planner", architecture_planner_node)
     workflow.add_node("prepare_cost_handoff", prepare_cost_estimator_handoff)
     workflow.add_node("cost_estimator", cost_estimator_node)
     workflow.add_node("run_agent", _wrap_run_agent(db))
@@ -150,11 +155,23 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
             return "extract_requirements"
         return "build_research"
 
+    def route_after_research_plan(
+        state: GraphState,
+    ) -> Literal["research_worker", "build_mindmap_guidance"]:
+        if (
+            state.get("next_stage") == ProjectStage.PROPOSE_CANDIDATE.value
+            and state.get("research_plan")
+        ):
+            return "research_worker"
+        return "build_mindmap_guidance"
+
     def route_after_research(
         state: GraphState,
-    ) -> Literal["cost_estimator", "supervisor", "run_agent"]:
+    ) -> Literal["cost_estimator", "architecture_planner", "supervisor", "run_agent"]:
         if should_route_to_cost_estimator(state):
             return "cost_estimator"
+        if state.get("next_stage") == ProjectStage.PROPOSE_CANDIDATE.value:
+            return "architecture_planner"
         return "supervisor" if enable_multi_agent else "run_agent"
 
     def route_after_persist(state: GraphState) -> Literal["end", "postprocess"]:
@@ -174,15 +191,26 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
         },
     )
     workflow.add_edge("extract_requirements", "persist_messages")
+    workflow.add_conditional_edges(
+        "build_research",
+        route_after_research_plan,
+        {
+            "research_worker": "research_worker",
+            "build_mindmap_guidance": "build_mindmap_guidance",
+        },
+    )
     research_routes = {
+        "architecture_planner": "prepare_architecture_handoff",
         "cost_estimator": "prepare_cost_handoff",
         "run_agent": "run_agent",
     }
     if enable_multi_agent:
         research_routes["supervisor"] = "supervisor"
 
-    workflow.add_edge("build_research", "build_mindmap_guidance")
+    workflow.add_edge("research_worker", "build_mindmap_guidance")
     workflow.add_conditional_edges("build_mindmap_guidance", route_after_research, research_routes)
+    workflow.add_edge("prepare_architecture_handoff", "architecture_planner")
+    workflow.add_edge("architecture_planner", "persist_messages")
     workflow.add_edge("prepare_cost_handoff", "cost_estimator")
     workflow.add_edge("cost_estimator", "persist_messages")
 

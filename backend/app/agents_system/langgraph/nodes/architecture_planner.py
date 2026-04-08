@@ -17,6 +17,35 @@ from .agent_native import run_stage_aware_agent
 logger = logging.getLogger(__name__)
 
 
+def _format_research_evidence_packets(packets: list[dict[str, Any]]) -> str:
+    if not packets:
+        return "No research evidence packets were prepared."
+
+    lines: list[str] = []
+    for packet in packets[:5]:
+        packet_id = packet.get("packet_id", "research-packet")
+        focus = packet.get("focus", "Research focus")
+        query = packet.get("query", "")
+        requirement_targets = packet.get("requirement_targets") or []
+        recommended_sources = packet.get("recommended_sources") or []
+
+        lines.append(f"- {packet_id}: {focus}")
+        if query:
+            lines.append(f"  Query: {query}")
+        if requirement_targets:
+            lines.append(
+                "  Requirement targets: "
+                + ", ".join(str(target) for target in requirement_targets[:3])
+            )
+        if recommended_sources:
+            lines.append(
+                "  Preferred sources: "
+                + ", ".join(str(source) for source in recommended_sources[:3])
+            )
+
+    return "\n".join(lines)
+
+
 async def architecture_planner_node(state: GraphState) -> dict[str, Any]:
     """
     Specialized node for architecture planning and diagram generation.
@@ -53,6 +82,7 @@ async def architecture_planner_node(state: GraphState) -> dict[str, Any]:
         nfr_summary = handoff_context.get("nfr_summary", "")
         constraints = handoff_context.get("constraints", {})
         previous_decisions = handoff_context.get("previous_decisions", [])
+        research_evidence_packets = handoff_context.get("research_evidence_packets", [])
 
         # Get user's original request
         user_message = state.get("user_message", "")
@@ -77,6 +107,9 @@ async def architecture_planner_node(state: GraphState) -> dict[str, Any]:
 
 **Previous Architectural Decisions (ADRs):**
 {_format_previous_decisions(previous_decisions)}
+
+**Research Evidence Packets:**
+{_format_research_evidence_packets(research_evidence_packets)}
 
 ---
 
@@ -168,4 +201,5 @@ def _format_previous_decisions(decisions: list[dict[str, Any]]) -> str:
         title = decision.get("title", "Untitled Decision")
         rationale = decision.get("rationale", "No rationale provided")
         formatted.append(f"{idx}. **{title}**\n   Rationale: {rationale}")
+    return "\n".join(formatted)
 

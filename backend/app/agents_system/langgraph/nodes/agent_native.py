@@ -82,6 +82,35 @@ def _mindmap_guidance_section(mindmap_guidance: Any) -> str:
     return "### Mind map advisory guidance\n" + "\n".join(lines)
 
 
+def _research_evidence_packets_section(research_packets: Any) -> str:
+    if not isinstance(research_packets, list) or not research_packets:
+        return ""
+
+    lines: list[str] = []
+    for packet in research_packets[:5]:
+        if not isinstance(packet, dict):
+            continue
+        packet_id = packet.get("packet_id", "research-packet")
+        focus = packet.get("focus", "Research focus")
+        lines.append(f"- {packet_id}: {focus}")
+
+        query = packet.get("query")
+        if query:
+            lines.append(f"  Query: {query}")
+
+        recommended_sources = packet.get("recommended_sources")
+        if isinstance(recommended_sources, list) and recommended_sources:
+            lines.append(
+                "  Preferred sources: "
+                + ", ".join(str(source) for source in recommended_sources[:3])
+            )
+
+    if not lines:
+        return ""
+
+    return "### Research evidence packets\n" + "\n".join(lines)
+
+
 def _stage_policy_notes(stage_value: str) -> str:
     if stage_value in VALIDATION_STAGES:
         return (
@@ -122,6 +151,9 @@ def _build_system_directives(state: GraphState) -> str:
 
     stage_text = state.get("stage_directives")
     research_plan = state.get("research_plan") or []
+    research_packets_text = _research_evidence_packets_section(
+        state.get("research_evidence_packets")
+    )
     mindmap_guidance_text = _mindmap_guidance_section(state.get("mindmap_guidance"))
 
     if stage_value in DISCOVERY_STAGES:
@@ -135,7 +167,9 @@ def _build_system_directives(state: GraphState) -> str:
         if mindmap_guidance_text:
             directives.append(mindmap_guidance_text)
 
-    if research_plan:
+    if research_packets_text:
+        directives.append(research_packets_text)
+    elif research_plan:
         directives.append(
             "### Research plan (run MCP searches/fetches for these)\n"
             + "\n".join([f"- {item}" for item in research_plan])

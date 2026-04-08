@@ -154,6 +154,8 @@ def prepare_architecture_planner_handoff(state: GraphState) -> dict[str, Any]:
         "nfr_summary": nfr_summary,
         "constraints": constraints,
         "previous_decisions": previous_decisions,
+        "research_evidence_packets": state.get("research_evidence_packets") or [],
+        "research_execution_artifact": state.get("research_execution_artifact"),
         "user_request": state.get("user_message", ""),
         "routing_reason": "Complex architecture design required with NFR analysis",
     }

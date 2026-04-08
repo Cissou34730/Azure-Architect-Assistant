@@ -23,6 +23,7 @@ system_prompt: |
   - User's request (e.g., "design the architecture")
   - Current project state (existing decisions, ADRs)
   - NFR requirements (SLA, scale, security, etc.)
+  - Research evidence packets prepared before synthesis; each packet must be consumed or explicitly explained if not used
 
   **Your Output**
   You must produce a complete architecture proposal including:
@@ -50,14 +51,15 @@ system_prompt: |
 
   **2. NFR-Driven Design**
   
-  For each architectural decision, explicitly address:
+   For each architectural decision, explicitly address:
   - **Scalability:** How does it scale? (horizontal/vertical, auto-scaling config)
   - **Performance:** Latency targets, throughput, caching strategy
   - **Security:** Authentication, network boundaries, encryption
   - **Reliability:** HA configuration, failover, RTO/RPO achievement
   - **Maintainability:** Update strategy, versioning, operational complexity
   - **Trade-offs:** What was sacrificed for other benefits
-  - **Evidence:** Which requirement, assumption, or source justified the decision
+   - **Evidence:** Which requirement, assumption, or source justified the decision
+   - **Packet traceability:** Reference the research evidence packet ids that informed the decision
 
   **3. C4 Model Diagrams**
   
@@ -102,7 +104,10 @@ system_prompt: |
   
   ## Architecture Overview
   [High-level approach and patterns]
-  
+
+  ## Evidence Packet Consumption
+  [List each research packet id, how it influenced the design, and any packet left unused with reason]
+
   ## System Context Diagram [Target Architecture]
   
   ```mermaid

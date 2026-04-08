@@ -22,11 +22,13 @@ The backend agent runtime is LangGraph-only and provides:
 **Nodes:**
 - `nodes/context.py` - Load project state and build context
 - `nodes/extract_requirements.py` - Execute the dedicated requirements-extraction stage worker
+- `nodes/research.py` - Build research plans and materialize Phase 6 research evidence packets
+- `nodes/architecture_planner.py` - Execute the dedicated architecture synthesizer for `propose_candidate`
 - `nodes/agent.py` - Execute stage-aware agent node
 - `nodes/postprocess.py` - Extract updates, derive MCP logs
 - `nodes/persist.py` - Save messages and apply state updates
 
-**Flow:** load_state → classify_stage → build_summary → [extract_requirements | build_research → build_mindmap_guidance → run_agent] → persist_messages → [end | postprocess → apply_updates]
+**Flow:** load_state → classify_stage → build_summary → [extract_requirements | build_research → (research_worker for `propose_candidate`) → build_mindmap_guidance → {prepare_architecture_handoff → architecture_planner | run_agent | prepare_cost_handoff → cost_estimator}] → persist_messages → [end | postprocess → apply_updates]
 
 ### Graph-Native Tool Loop
 **ToolNode-based execution**
@@ -113,7 +115,7 @@ AAA_ENABLE_MULTI_AGENT=true
 
 ### Standard Workflow
 ```
-Entry → Load State → Classify Stage → Build Summary → [Extract Requirements | Build Research → Build Mind Map Guidance → Run Agent] → Persist Messages → [End | Postprocess → Apply Updates] → End
+Entry → Load State → Classify Stage → Build Summary → [Extract Requirements | Build Research → Research Worker (`propose_candidate`) → Build Mind Map Guidance → Architecture Planner / Run Agent] → Persist Messages → [End | Postprocess → Apply Updates] → End
 ```
 
 ### With Stage Routing
@@ -158,13 +160,13 @@ backend/app/agents_system/langgraph/
 ### Unit Tests
 ```bash
 # Test graph compilation
-pytest backend/tests/agents_system/test_langgraph_skeleton.py
+uv run python -m pytest backend/tests/agents_system/test_langgraph_skeleton.py
 
 # Test stage routing
-pytest backend/tests/agents_system/test_stage_routing.py
+uv run python -m pytest backend/tests/agents_system/test_stage_routing.py
 
 # Test specialist routing
-pytest backend/tests/agents_system/test_multi_agent.py
+uv run python -m pytest backend/tests/agents_system/test_multi_agent.py
 ```
 
 ### Integration Tests

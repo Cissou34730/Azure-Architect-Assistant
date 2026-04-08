@@ -1,7 +1,10 @@
 import pytest
 
 from app.agents_system.langgraph.nodes.agent_native import _build_system_directives
-from app.agents_system.langgraph.nodes.research import build_research_plan_node
+from app.agents_system.langgraph.nodes.research import (
+    build_research_plan_node,
+    execute_research_worker_node,
+)
 
 
 @pytest.mark.asyncio
@@ -69,3 +72,48 @@ def test_system_directives_prioritize_stage_in_validation() -> None:
     assert mindmap_index != -1
     assert stage_index < mindmap_index
     assert "checklist status updates and persistence rules take priority" in directives
+
+
+@pytest.mark.asyncio
+async def test_execute_research_worker_skips_when_plan_is_missing() -> None:
+    result = await execute_research_worker_node(
+        {
+            "next_stage": "propose_candidate",
+            "research_plan": [],
+            "current_project_state": {},
+        }
+    )
+
+    artifact = result.get("research_execution_artifact")
+    assert artifact == {
+        "status": "skipped",
+        "reason": "no_research_plan",
+        "stage": "propose_candidate",
+        "packets_created": 0,
+    }
+    assert result.get("research_evidence_packets") == []
+
+
+def test_system_directives_prefer_research_packets_over_raw_plan() -> None:
+    state = {
+        "next_stage": "propose_candidate",
+        "stage_directives": "Architecture directives",
+        "research_plan": ["raw plan that should not be rendered"],
+        "research_evidence_packets": [
+            {
+                "packet_id": "packet-1",
+                "focus": "Front Door reliability guidance",
+                "query": "Azure Front Door reliability zone redundancy",
+                "recommended_sources": ["Azure Architecture Center"],
+            }
+        ],
+        "mindmap_guidance": None,
+        "mindmap_coverage": {"topics": {}},
+    }
+
+    directives = _build_system_directives(state)
+
+    assert "### Research evidence packets" in directives
+    assert "packet-1" in directives
+    assert "Azure Front Door reliability zone redundancy" in directives
+    assert "### Research plan (run MCP searches/fetches for these)" not in directives
