@@ -5,6 +5,7 @@ This module provides a specialized sub-agent for generating production-ready
 Bicep and Terraform code with schema validation.
 """
 
+from collections.abc import Awaitable, Callable
 import logging
 from typing import Any
 
@@ -13,8 +14,42 @@ from app.agents_system.runner import get_agent_runner
 
 from ..state import GraphState
 from .agent_native import run_stage_aware_agent
+from .routing.iac_generator import (
+    prepare_iac_generator_handoff,
+    should_route_to_iac_generator,
+)
+from .stage_routing import ProjectStage
 
 logger = logging.getLogger(__name__)
+
+
+async def execute_iac_stage_worker_node(
+    state: GraphState,
+    *,
+    handoff_builder: Callable[[GraphState], dict[str, Any]] | None = None,
+    generator: Callable[[GraphState], Awaitable[dict[str, Any]]] | None = None,
+) -> dict[str, Any]:
+    """Run IaC turns through the dedicated IaC generator runtime path."""
+    if (
+        state.get("next_stage") != ProjectStage.IAC.value
+        and not should_route_to_iac_generator(state)
+    ):
+        return {}
+
+    build_handoff = handoff_builder or prepare_iac_generator_handoff
+    generator_node = generator or iac_generator_node
+    handoff_update = build_handoff(state)
+    merged_state: GraphState = dict(state)
+    merged_state.update(handoff_update)
+
+    result = await generator_node(merged_state)
+    if not isinstance(result, dict):
+        return {}
+
+    return {
+        **handoff_update,
+        **result,
+    }
 
 
 async def iac_generator_node(state: GraphState) -> dict[str, Any]:
@@ -124,17 +159,11 @@ Ensure all code is production-ready and validated.
 
     except Exception as exc:
         logger.error(f"❌ IaC Generator failed: {exc}", exc_info=True)
-
-        # Graceful fallback: Return error but don't break the workflow
-        error_msg = (
-            f"IaC Generator encountered an error: {exc!s}\n\n"
-            "Falling back to main agent for IaC generation. "
-            "The main agent will provide a best-effort IaC code."
-        )
+        error_msg = f"ERROR: IaC generation failed: {exc!s}"
 
         return {
             "agent_output": error_msg,
-            "current_agent": "main",  # Fallback to main agent
+            "current_agent": "iac_generator",
             "sub_agent_output": None,
             "success": False,
             "error": str(exc),

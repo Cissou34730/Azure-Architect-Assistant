@@ -746,8 +746,10 @@ Outputs:
 - Prompt: `iac_generator_prompt.yaml` (**updated with Bicep/Terraform code examples**)
 - Tools: `mcp_*`, `aaa_record_iac_artifacts`
 - Output: validated IaC files with parameterization, deployment instructions
+- Runtime note: explicit Terraform/Bicep/IaC turns now route through a dedicated IaC-stage worker/runtime seam that reuses `prepare_iac_generator_handoff` + `iac_generator_node`, keeps persistence on the existing `aaa_record_iac_artifacts` path, and no longer claims a fallback to the generic graph agent loop on errors.
 
 ### 10.2 Bundle → PendingChangeSet
+- Eval/reporting slice: `scripts/e2e/aaa_e2e_runner.py` and `backend/tests/eval/reporting.py` should emit a dedicated `iacPayload` summary sourced from persisted `iacArtifacts`, separate from pricing/cost checks, and flag missing IaC files or validation evidence as regressions.
 
 ---
 

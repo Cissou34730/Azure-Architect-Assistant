@@ -213,6 +213,7 @@ def _collect_failures(
         failures.append("Database persistence assertions failed.")
     failures.extend(_collect_export_payload_failures(report))
     failures.extend(_collect_cost_payload_failures(report))
+    failures.extend(_collect_iac_payload_failures(report))
 
     for dimension, average in dimension_averages.items():
         if average <= 2.0:
@@ -279,6 +280,35 @@ def _collect_cost_payload_failures(report: dict[str, Any]) -> list[str]:
     )
     if cost_payload.get("present") and latest_estimate.get("totalMonthlyCost") is None:
         failures.append("Cost payload latest estimate missing totalMonthlyCost.")
+
+    return failures
+
+
+def _collect_iac_payload_failures(report: dict[str, Any]) -> list[str]:
+    final = report.get("final") if isinstance(report.get("final"), dict) else {}
+    iac_payload = final.get("iacPayload") if isinstance(final.get("iacPayload"), dict) else {}
+    if not iac_payload:
+        return []
+
+    failures: list[str] = []
+    missing_keys = _coerce_string_list(iac_payload.get("missingRequiredKeys"))
+    if missing_keys:
+        failures.append(f"IaC payload missing required keys: {', '.join(missing_keys)}")
+
+    latest_artifact = (
+        iac_payload.get("latestArtifact")
+        if isinstance(iac_payload.get("latestArtifact"), dict)
+        else {}
+    )
+    file_count = latest_artifact.get("fileCount")
+    if iac_payload.get("present") and (not isinstance(file_count, int) or file_count < 1):
+        failures.append("IaC payload latest artifact missing files.")
+
+    validation_result_count = latest_artifact.get("validationResultCount")
+    if iac_payload.get("present") and (
+        not isinstance(validation_result_count, int) or validation_result_count < 1
+    ):
+        failures.append("IaC payload missing validation evidence.")
 
     return failures
 

@@ -3,12 +3,14 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
 from app.agents_system.langgraph.nodes import cost_estimator as cost_estimator_module
 from app.agents_system.langgraph.nodes import extract_requirements as extract_requirements_module
+from app.agents_system.langgraph.nodes import iac_generator as iac_generator_module
 from app.agents_system.langgraph.nodes import manage_adr as manage_adr_module
 from app.agents_system.langgraph.nodes.cost_estimator import (
     execute_cost_stage_worker_node,
@@ -16,6 +18,10 @@ from app.agents_system.langgraph.nodes.cost_estimator import (
 from app.agents_system.langgraph.nodes.export import execute_export_stage_worker_node
 from app.agents_system.langgraph.nodes.extract_requirements import (
     execute_extract_requirements_node,
+)
+from app.agents_system.langgraph.nodes.iac_generator import (
+    execute_iac_stage_worker_node,
+    iac_generator_node,
 )
 from app.agents_system.langgraph.nodes.manage_adr import (
     execute_manage_adr_stage_worker_node,
@@ -485,6 +491,119 @@ async def test_execute_cost_stage_worker_node_runs_real_cost_runtime(
     }
     assert "AAA_STATE_UPDATE" in result["agent_output"]
     assert "AAA_PRICING_LOG" in result["agent_output"]
+
+
+@pytest.mark.asyncio
+async def test_execute_iac_stage_worker_node_routes_explicit_iac_requests_through_dedicated_runtime() -> None:
+    captured: dict[str, object] = {}
+
+    def fake_prepare_iac_handoff(state):
+        captured["handoff_state"] = state
+        return {
+            "agent_handoff_context": {
+                "project_context": "summary",
+                "architecture": {"id": "candidate-1"},
+                "resource_list": ["Storage Account"],
+                "constraints": {"regions": ["eastus"]},
+                "iac_format": "terraform",
+                "user_request": state.get("user_message", ""),
+            },
+            "current_agent": "iac_generator",
+        }
+
+    async def fake_iac_generator(state):
+        captured["generator_state"] = state
+        return {
+            "agent_output": (
+                "Recorded IaC artifacts at 2026-04-08T12:00:00+00:00 (iacFiles=1).\n\n"
+                "AAA_STATE_UPDATE\n"
+                "```json\n"
+                '{\n  "iacArtifacts": [{"id": "iac-1"}]}\n'
+                "```"
+            ),
+            "intermediate_steps": [],
+            "current_agent": "iac_generator",
+            "success": True,
+            "error": None,
+        }
+
+    result = await execute_iac_stage_worker_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Generate Terraform code for this architecture",
+            "next_stage": "clarify",
+            "context_summary": "summary",
+            "current_project_state": {
+                "candidateArchitectures": [{"id": "candidate-1"}],
+            },
+        },
+        handoff_builder=fake_prepare_iac_handoff,
+        generator=fake_iac_generator,
+    )
+
+    assert captured["handoff_state"] is not None
+    generator_state = captured["generator_state"]
+    assert isinstance(generator_state, dict)
+    assert generator_state["agent_handoff_context"]["iac_format"] == "terraform"
+    assert result["current_agent"] == "iac_generator"
+    assert result["success"] is True
+    assert "iacArtifacts" in result["agent_output"]
+
+
+@pytest.mark.asyncio
+async def test_execute_iac_stage_worker_node_skips_other_stages() -> None:
+    result = await execute_iac_stage_worker_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Continue",
+            "next_stage": "clarify",
+            "current_project_state": {},
+        }
+    )
+
+    assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_iac_generator_node_surfaces_errors_without_main_agent_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        iac_generator_module,
+        "PromptLoader",
+        lambda: SimpleNamespace(load_prompt=lambda _name: {"system_prompt": "iac prompt"}),
+    )
+    monkeypatch.setattr(
+        iac_generator_module,
+        "get_agent_runner",
+        AsyncMock(return_value=SimpleNamespace(mcp_client=None, openai_settings=None)),
+    )
+
+    async def fake_run_stage_aware_agent(*args, **kwargs):  # noqa: ANN002, ANN003, ARG001
+        raise RuntimeError("LLM unavailable")
+
+    monkeypatch.setattr(
+        iac_generator_module,
+        "run_stage_aware_agent",
+        fake_run_stage_aware_agent,
+    )
+
+    result = await iac_generator_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Generate Bicep for this architecture",
+            "agent_handoff_context": {
+                "architecture": {"id": "candidate-1"},
+                "resource_list": ["Storage Account"],
+                "iac_format": "bicep",
+            },
+        }
+    )
+
+    assert result["success"] is False
+    assert result["current_agent"] == "iac_generator"
+    assert result["error"] == "LLM unavailable"
+    assert result["agent_output"] == "ERROR: IaC generation failed: LLM unavailable"
 
 
 @pytest.mark.asyncio

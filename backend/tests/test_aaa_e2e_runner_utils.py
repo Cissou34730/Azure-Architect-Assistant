@@ -172,6 +172,66 @@ def test_empty_cost_payload_summary_marks_missing_cost_estimates() -> None:
     }
 
 
+def test_iac_payload_summary_tracks_persisted_artifacts_and_validation_results() -> None:
+    runner = _import_runner_module()
+
+    summary = runner._summarize_iac_payload(
+        {
+            "requirements": [{"id": "req-1"}],
+            "iacArtifacts": [
+                {
+                    "id": "iac-1",
+                    "files": [
+                        {
+                            "path": "infra/main.bicep",
+                            "format": "bicep",
+                            "content": "resource app 'Microsoft.Web/sites@2023-12-01' = {}",
+                        },
+                        {
+                            "path": "infra/main.parameters.json",
+                            "format": "json",
+                            "content": '{"location":{"value":"westeurope"}}',
+                        },
+                    ],
+                    "validationResults": [
+                        {"tool": "bicep build", "status": "pass", "output": "OK"},
+                        {"tool": "arm-ttk", "status": "skipped", "output": "N/A"},
+                    ],
+                }
+            ],
+        }
+    )
+
+    assert summary == {
+        "present": True,
+        "missingRequiredKeys": [],
+        "stateSummary": {
+            "counts": {"iacArtifacts": 1, "requirements": 1},
+            "keys": ["iacArtifacts", "requirements"],
+        },
+        "latestArtifact": {
+            "fileCount": 2,
+            "formats": ["bicep", "json"],
+            "id": "iac-1",
+            "validationResultCount": 2,
+            "validationStatusCounts": {"pass": 1, "skipped": 1},
+        },
+    }
+
+
+def test_empty_iac_payload_summary_marks_missing_iac_artifacts() -> None:
+    runner = _import_runner_module()
+
+    summary = runner._empty_iac_payload_summary()
+
+    assert summary == {
+        "present": False,
+        "missingRequiredKeys": ["iacArtifacts"],
+        "stateSummary": {"keys": [], "counts": {}},
+        "latestArtifact": None,
+    }
+
+
 def _build_export_payload() -> dict[str, object]:
     topic_keys = _required_topic_keys()
     coverage_topics = {

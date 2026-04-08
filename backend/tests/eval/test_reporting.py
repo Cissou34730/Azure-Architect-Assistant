@@ -232,3 +232,53 @@ def test_build_phase0_eval_summary_flags_cost_payload_regressions() -> None:
 
     assert "Cost payload missing required keys: costEstimates" in summary.baseline_failures
     assert "Cost payload missing pricing log evidence." in summary.baseline_failures
+
+
+def test_build_phase0_eval_summary_flags_iac_payload_regressions() -> None:
+    report = {
+        "scenario": {"id": "scenario-iac", "name": "Scenario IaC"},
+        "final": {
+            "missingRequiredKeys": [],
+            "stateSummary": {
+                "keys": ["requirements"],
+                "counts": {"requirements": 1},
+            },
+            "iacPayload": {
+                "present": True,
+                "missingRequiredKeys": [],
+                "stateSummary": {"keys": ["iacArtifacts"], "counts": {"iacArtifacts": 1}},
+                "latestArtifact": {
+                    "id": "iac-1",
+                    "fileCount": 0,
+                    "formats": [],
+                    "validationResultCount": 0,
+                    "validationStatusCounts": {},
+                },
+            },
+        },
+        "dbPersistence": {"status": "PASS"},
+        "steps": [
+            {
+                "id": "us5-iac",
+                "request": "Generate Bicep IaC with validation results for the approved design.",
+                "answer": "IaC artifact recorded without validation evidence.",
+                "success": True,
+                "error": None,
+                "mcpCallCount": 0,
+                "pricingCallCount": 0,
+                "kbCallCount": 0,
+                "advisoryQuality": {
+                    "proactivity": 1,
+                    "correction": 0,
+                    "evidence": 1,
+                    "clarity": 1,
+                    "total": 3,
+                },
+            }
+        ],
+    }
+
+    summary = build_phase0_eval_summary(report)
+
+    assert "IaC payload latest artifact missing files." in summary.baseline_failures
+    assert "IaC payload missing validation evidence." in summary.baseline_failures

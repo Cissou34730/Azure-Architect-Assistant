@@ -20,6 +20,7 @@ from .nodes.context import build_context_summary_node, load_project_state_node
 from .nodes.cost_estimator import execute_cost_stage_worker_node
 from .nodes.export import execute_export_stage_worker_node
 from .nodes.extract_requirements import execute_extract_requirements_node
+from .nodes.iac_generator import execute_iac_stage_worker_node
 from .nodes.manage_adr import execute_manage_adr_stage_worker_node
 from .nodes.multi_agent import (
     adr_specialist_node,
@@ -35,6 +36,7 @@ from .nodes.research import build_research_plan_node, execute_research_worker_no
 from .nodes.routing import (
     prepare_architecture_planner_handoff,
     should_route_to_cost_estimator,
+    should_route_to_iac_generator,
 )
 from .nodes.stage_routing import (
     ProjectStage,
@@ -65,6 +67,7 @@ def build_project_chat_graph(
     workflow.add_node("clarify_stage_worker", execute_clarification_planner_node)
     workflow.add_node("export_stage_worker", execute_export_stage_worker_node)
     workflow.add_node("extract_requirements", _wrap_extract_requirements(db))
+    workflow.add_node("iac_stage_worker", execute_iac_stage_worker_node)
     workflow.add_node("build_research", build_research_plan_node)
     workflow.add_node("research_worker", execute_research_worker_node)
     workflow.add_node("build_mindmap_guidance", _pass_through_mindmap_guidance)
@@ -187,6 +190,7 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
         state: GraphState,
     ) -> Literal[
         "cost_stage_worker",
+        "iac_stage_worker",
         "architecture_planner",
         "manage_adr_stage_worker",
         "validate_stage_worker",
@@ -197,6 +201,10 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
             return "cost_stage_worker"
         if should_route_to_cost_estimator(state):
             return "cost_stage_worker"
+        if state.get("next_stage") == ProjectStage.IAC.value:
+            return "iac_stage_worker"
+        if should_route_to_iac_generator(state):
+            return "iac_stage_worker"
         if state.get("next_stage") == ProjectStage.PROPOSE_CANDIDATE.value:
             return "architecture_planner"
         if state.get("next_stage") == ProjectStage.MANAGE_ADR.value:
@@ -237,6 +245,7 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
     research_routes = {
         "architecture_planner": "prepare_architecture_handoff",
         "cost_stage_worker": "cost_stage_worker",
+        "iac_stage_worker": "iac_stage_worker",
         "manage_adr_stage_worker": "manage_adr_stage_worker",
         "validate_stage_worker": "validate_stage_worker",
         "run_agent": "run_agent",
@@ -249,6 +258,7 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
     workflow.add_edge("prepare_architecture_handoff", "architecture_planner")
     workflow.add_edge("architecture_planner", "persist_messages")
     workflow.add_edge("cost_stage_worker", "persist_messages")
+    workflow.add_edge("iac_stage_worker", "persist_messages")
     workflow.add_edge("manage_adr_stage_worker", "persist_messages")
     workflow.add_edge("validate_stage_worker", "persist_messages")
 

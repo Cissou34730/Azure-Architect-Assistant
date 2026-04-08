@@ -156,6 +156,125 @@ system_prompt: |
   4. Verify resources in Azure Portal
   ```
 
+   **7. Code Pattern Examples**
+
+   Use patterns like these when generating the final IaC payload.
+
+   **Bicep example — parameterized storage account**
+
+   ```bicep
+   @description('Deployment location')
+   param location string = resourceGroup().location
+
+   @description('Resource name prefix')
+   @minLength(3)
+   param namePrefix string
+
+   @description('Common tags applied to all resources')
+   param tags object = {
+     environment: 'prod'
+     workload: 'azure-architect-assistant'
+   }
+
+   resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+     name: '${namePrefix}stg'
+     location: location
+     sku: {
+       name: 'Standard_LRS'
+     }
+     kind: 'StorageV2'
+     tags: tags
+     properties: {
+       accessTier: 'Hot'
+       allowBlobPublicAccess: false
+       minimumTlsVersion: 'TLS1_2'
+       supportsHttpsTrafficOnly: true
+     }
+   }
+
+   output storageAccountName string = storage.name
+   ```
+
+   **Bicep example — module composition**
+
+   ```bicep
+   module monitoring './modules/monitoring.bicep' = {
+     name: 'monitoring'
+     params: {
+       location: location
+       namePrefix: namePrefix
+       tags: tags
+     }
+   }
+   ```
+
+   **Terraform example — parameterized resource group + storage account**
+
+   ```hcl
+   terraform {
+     required_version = ">= 1.6.0"
+
+     required_providers {
+       azurerm = {
+         source  = "hashicorp/azurerm"
+         version = "~> 4.0"
+       }
+     }
+   }
+
+   provider "azurerm" {
+     features {}
+   }
+
+   variable "location" {
+     type        = string
+     description = "Azure region for all resources"
+     default     = "eastus"
+   }
+
+   variable "name_prefix" {
+     type        = string
+     description = "Resource name prefix"
+   }
+
+   variable "tags" {
+     type        = map(string)
+     description = "Common resource tags"
+     default = {
+       environment = "prod"
+       workload    = "azure-architect-assistant"
+     }
+   }
+
+   resource "azurerm_resource_group" "main" {
+     name     = "${var.name_prefix}-rg"
+     location = var.location
+     tags     = var.tags
+   }
+
+   resource "azurerm_storage_account" "main" {
+     name                     = "${var.name_prefix}stg"
+     resource_group_name      = azurerm_resource_group.main.name
+     location                 = azurerm_resource_group.main.location
+     account_tier             = "Standard"
+     account_replication_type = "LRS"
+     min_tls_version          = "TLS1_2"
+     https_traffic_only_enabled = true
+     tags                     = var.tags
+   }
+   ```
+
+   **Terraform example — module invocation**
+
+   ```hcl
+   module "monitoring" {
+     source      = "./modules/monitoring"
+     location    = var.location
+     name_prefix = var.name_prefix
+     tags        = var.tags
+   }
+   ```
+
   **Available Tools**
   You have access to these specialized IaC tools:
   - mcp_bicep_experim_get_az_resource_type_schema: Get schema for specific Azure resource type and API version
