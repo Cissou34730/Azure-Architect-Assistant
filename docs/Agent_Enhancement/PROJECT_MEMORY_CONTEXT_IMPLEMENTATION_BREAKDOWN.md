@@ -145,6 +145,8 @@ All added to `backend/app/core/settings/agents.py` via `AppSettings`:
 | `AAA_CONTEXT_MAX_BUDGET_TOKENS` | `12000` | Total token budget for context pack |
 ---
 
+`AAA_CONTEXT_COMPACT_THRESHOLD_TOKENS` remains the history-pressure trigger for compaction. Stage-specific context packs and composed system directives should instead use `AAA_CONTEXT_MAX_BUDGET_TOKENS` as the active assembly budget.
+
 ## 6. Implementation Phases
 
 ### Phase 1: Foundation — Feature Flags, Token Counter, Thread Schema, LangGraph Checkpointer
@@ -187,6 +189,7 @@ All added to `backend/app/core/settings/agents.py` via `AppSettings`:
 - [x] Add `compaction_service.py` — conversation summarization using LLM call.
 - [x] Add `context_budget.py` — token budget allocation per context section.
 - [x] Add `memory_compaction_prompt.yaml` — prompt template for summarization.
+- [x] Load compaction system/user templates through `PromptLoader` so compaction prompts stay YAML-driven and hot-reloadable.
 - [x] Integrate compaction check in graph: if history tokens > threshold, summarize older turns.
 - [x] Store compaction summaries in graph state (`thread_summary` field).
 - [x] Add tool-result clearing: old raw tool outputs not replayed into future turns.
@@ -198,6 +201,7 @@ All added to `backend/app/core/settings/agents.py` via `AppSettings`:
 - [x] Compaction triggers only when token threshold exceeded.
 - [x] Old tool outputs are cleared after compaction.
 - [x] Compaction flag can be disabled without breaking chat.
+- [x] Compaction prompt content is sourced from YAML, not duplicated inline strings.
 
 ---
 

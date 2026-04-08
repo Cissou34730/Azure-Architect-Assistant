@@ -42,6 +42,9 @@ The backend agent runtime is LangGraph-only and provides:
 - Uses `AIService.create_chat_llm().bind_tools()` + `ToolNode` for provider-selected tool execution
 - Message-based trace (AIMessage, ToolMessage)
 - Respects iteration limits and timeouts
+- `config/prompt_loader.py` keeps orchestrator directives YAML-driven and enforces the supplied prompt budget before the final system prompt is injected.
+- `nodes/context.py` builds stage-specific context packs with `AAA_CONTEXT_MAX_BUDGET_TOKENS`, while `graph_factory.py` adds a `MemorySaver` checkpointer with `AAA_THREAD_MEMORY_ENABLED` now defaulting on for thread-scoped LangGraph memory.
+- `memory/compaction_service.py` reads `memory_compaction_prompt.yaml` through `PromptLoader`, so compaction prompt edits hot-reload with the rest of the prompt surface.
 
 ### Stage Routing + Retry
 **Explicit stage transitions and error handling**

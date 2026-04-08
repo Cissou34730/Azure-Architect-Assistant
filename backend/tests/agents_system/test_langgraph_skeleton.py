@@ -17,6 +17,7 @@ from app.agents_system.langgraph.nodes.validate import execute_validate_stage_wo
 from app.agents_system.langgraph.nodes.stage_routing import ProjectStage
 from app.agents_system.services.waf_findings_worker import WAFFindingsWorker
 from app.agents_system.langgraph.state import GraphState
+from app.shared.config.settings.agents import AgentsSettingsMixin
 
 
 def test_graph_can_be_compiled():
@@ -24,6 +25,16 @@ def test_graph_can_be_compiled():
     mock_db = MagicMock()
     graph = build_project_chat_graph(db=mock_db)
     assert graph is not None
+
+
+def test_phase11_runtime_flags_default_to_enabled() -> None:
+    class _Settings(AgentsSettingsMixin):
+        pass
+
+    settings = _Settings()
+
+    assert settings.aaa_context_compaction_enabled is True
+    assert settings.aaa_thread_memory_enabled is True
 
 
 def test_graph_state_model():
@@ -65,6 +76,7 @@ async def test_build_context_summary_uses_routed_stage_for_context_pack(
         lambda: SimpleNamespace(
             aaa_context_compaction_enabled=True,
             aaa_context_compact_threshold_tokens=256,
+            aaa_context_max_budget_tokens=1024,
         ),
     )
     monkeypatch.setattr(context_node_module, "build_context_pack", fake_build_context_pack)
@@ -80,7 +92,31 @@ async def test_build_context_summary_uses_routed_stage_for_context_pack(
     )
 
     assert captured["stage"] == ProjectStage.VALIDATE.value
+    assert captured["budget_tokens"] == 1024
     assert result["context_summary"] == "packed summary"
+
+
+def test_graph_uses_checkpointer_when_thread_memory_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_compile(self, *, checkpointer=None):  # type: ignore[no-untyped-def]
+        captured["checkpointer"] = checkpointer
+        return "compiled-graph"
+
+    monkeypatch.setattr(
+        graph_factory_module,
+        "get_app_settings",
+        lambda: SimpleNamespace(aaa_thread_memory_enabled=True),
+    )
+    monkeypatch.setattr(graph_factory_module, "MemorySaver", lambda: "memory-saver")
+    monkeypatch.setattr(graph_factory_module.StateGraph, "compile", fake_compile)
+
+    graph = build_project_chat_graph(db=MagicMock())
+
+    assert graph == "compiled-graph"
+    assert captured["checkpointer"] == "memory-saver"
 
 
 @pytest.mark.asyncio

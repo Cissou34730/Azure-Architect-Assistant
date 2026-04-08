@@ -25,11 +25,11 @@ class AgentsSettingsMixin(BaseModel):
 
     # Memory & context engineering flags
     aaa_thread_memory_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Enable LangGraph checkpointer for thread-scoped conversation memory",
     )
     aaa_context_compaction_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Enable conversation summarization / compaction",
     )
     aaa_context_packs_enabled: bool = Field(

@@ -11,25 +11,13 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.agents_system.config.prompt_loader import PromptLoader
+
 from .token_counter import TokenCounter
 
 logger = logging.getLogger(__name__)
 
-_COMPACTION_SYSTEM_PROMPT = """\
-You are a conversation summarizer for an Azure architecture assistant.
-Summarize the conversation below into a concise summary that preserves:
-- All architectural decisions made (accepted and rejected options)
-- Requirements and constraints discovered
-- Key technical recommendations
-- Open questions and unresolved items
-- Any specific Azure services discussed
-
-Do NOT include:
-- Greetings or small talk
-- Redundant explanations
-- Raw tool output details (just the conclusions)
-
-Keep the summary factual, structured, and under 500 words."""
+_COMPACTION_PROMPT_FILE = "memory_compaction_prompt.yaml"
 
 
 class CompactionService:
@@ -40,10 +28,12 @@ class CompactionService:
         compact_threshold_tokens: int = 4000,
         max_recent_turns: int = 10,
         model_name: str = "gpt-4o",
+        prompt_loader: PromptLoader | None = None,
     ) -> None:
         self._threshold = compact_threshold_tokens
         self._max_recent_turns = max_recent_turns
         self._counter = TokenCounter(model_name=model_name)
+        self._prompt_loader = prompt_loader or PromptLoader.get_instance()
 
     def needs_compaction(self, messages: list[dict[str, str]]) -> bool:
         """Check if message history exceeds the compaction threshold."""
@@ -71,16 +61,16 @@ class CompactionService:
         existing_summary: str | None = None,
     ) -> str:
         """Build the prompt for the compaction LLM call."""
-        parts: list[str] = []
+        compaction_prompt = self._load_compaction_prompt()
+        rendered_turns = self._render_messages(messages)
         if existing_summary:
-            parts.append(f"Previous conversation summary:\n{existing_summary}\n")
-        parts.append("New conversation turns to incorporate:\n")
-        for msg in messages:
-            role = msg.get("role", "unknown")
-            content = msg.get("content", "")
-            parts.append(f"[{role}]: {content}\n")
-        parts.append("\nProvide an updated, comprehensive summary.")
-        return "\n".join(parts)
+            template = str(compaction_prompt["with_existing_summary"])
+            return template.format(
+                existing_summary=existing_summary,
+                new_turns=rendered_turns,
+            )
+        template = str(compaction_prompt["without_existing_summary"])
+        return template.format(turns=rendered_turns)
 
     async def compact(
         self,
@@ -110,7 +100,7 @@ class CompactionService:
         try:
             result = await llm.ainvoke(
                 [
-                    SystemMessage(content=_COMPACTION_SYSTEM_PROMPT),
+                    SystemMessage(content=self._load_system_prompt()),
                     HumanMessage(content=prompt),
                 ]
             )
@@ -144,3 +134,31 @@ class CompactionService:
                 continue
             result.append(message)
         return result
+
+    def _load_compaction_prompt(self) -> dict[str, str]:
+        prompt = self._prompt_loader.load_prompt(_COMPACTION_PROMPT_FILE)
+        compaction_prompt = prompt.get("compaction")
+        if not isinstance(compaction_prompt, dict):
+            raise ValueError("memory_compaction_prompt.yaml must define a 'compaction' mapping.")
+        required_fields = ("system", "with_existing_summary", "without_existing_summary")
+        missing = [field for field in required_fields if not isinstance(compaction_prompt.get(field), str)]
+        if missing:
+            missing_fields = ", ".join(missing)
+            raise ValueError(
+                "memory_compaction_prompt.yaml is missing required compaction fields: "
+                f"{missing_fields}"
+            )
+        return {
+            "system": str(compaction_prompt["system"]),
+            "with_existing_summary": str(compaction_prompt["with_existing_summary"]),
+            "without_existing_summary": str(compaction_prompt["without_existing_summary"]),
+        }
+
+    def _load_system_prompt(self) -> str:
+        return self._load_compaction_prompt()["system"]
+
+    def _render_messages(self, messages: list[dict[str, str]]) -> str:
+        return "\n".join(
+            f"[{message.get('role', 'unknown')}]: {message.get('content', '')}"
+            for message in messages
+        )

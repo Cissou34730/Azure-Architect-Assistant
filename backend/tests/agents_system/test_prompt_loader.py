@@ -3,6 +3,7 @@ import pytest
 from app.agents_system.config.prompt_loader import PromptLoader
 from app.agents_system.config.react_prompts import _format_few_shot_examples
 from app.agents_system.langgraph.nodes.agent_native import _build_system_directives
+from app.agents_system.memory.token_counter import TokenCounter
 from app.agents_system.services.adr_drafter_worker import ADRDrafterWorker
 
 
@@ -209,6 +210,77 @@ def test_compose_prompt_falls_back_to_legacy_system_prompt(tmp_path):
     )
 
     assert prompt == "legacy base prompt"
+
+
+def test_compose_prompt_truncates_to_context_budget(tmp_path):
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    large_prompt = " ".join(["architecture"] * 64)
+    (prompts_dir / "agent_prompts.yaml").write_text(
+        "system_prompt: legacy base prompt\nreact_template: base_template\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "base_persona.yaml").write_text(
+        f"system_prompt: |\n  {large_prompt}\n",
+        encoding="utf-8",
+    )
+
+    loader = PromptLoader(prompts_dir=prompts_dir)
+
+    prompt = loader.compose_prompt(
+        agent_type="orchestrator",
+        stage="clarify",
+        context_budget=16,
+    )
+
+    assert TokenCounter().count_tokens(prompt) <= 16
+    assert prompt != large_prompt
+
+
+def test_compose_prompt_truncates_legacy_prompt_when_modular_files_are_missing(tmp_path):
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    large_prompt = " ".join(["legacy"] * 64)
+    (prompts_dir / "agent_prompts.yaml").write_text(
+        f"system_prompt: |\n  {large_prompt}\nreact_template: base_template\n",
+        encoding="utf-8",
+    )
+
+    loader = PromptLoader(prompts_dir=prompts_dir)
+
+    prompt = loader.compose_prompt(
+        agent_type="orchestrator",
+        stage="clarify",
+        context_budget=12,
+    )
+
+    assert TokenCounter().count_tokens(prompt) <= 12
+    assert prompt != large_prompt
+
+
+def test_compose_prompt_does_not_truncate_when_budget_is_not_positive(tmp_path):
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    large_prompt = " ".join(["architecture"] * 64)
+    (prompts_dir / "agent_prompts.yaml").write_text(
+        "system_prompt: legacy base prompt\nreact_template: base_template\n",
+        encoding="utf-8",
+    )
+    (prompts_dir / "base_persona.yaml").write_text(
+        f"system_prompt: |\n  {large_prompt}\n",
+        encoding="utf-8",
+    )
+
+    loader = PromptLoader(prompts_dir=prompts_dir)
+
+    prompt = loader.compose_prompt(
+        agent_type="orchestrator",
+        stage="clarify",
+        context_budget=0,
+    )
+
+    assert prompt == large_prompt
+    assert TokenCounter().count_tokens(prompt) > 12
 
 
 def test_build_system_directives_uses_reloaded_prompt(tmp_path):

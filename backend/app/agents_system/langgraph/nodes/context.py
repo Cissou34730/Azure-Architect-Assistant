@@ -110,7 +110,7 @@ async def build_context_summary_node(
             pack = build_context_pack(
                 stage,
                 project_state,
-                budget_tokens=settings.aaa_context_compact_threshold_tokens,
+                budget_tokens=settings.aaa_context_max_budget_tokens,
                 thread_summary=thread_summary,
             )
 

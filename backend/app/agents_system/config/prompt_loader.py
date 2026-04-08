@@ -12,6 +12,8 @@ from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
+from app.agents_system.memory.token_counter import TokenCounter
+
 logger = logging.getLogger(__name__)
 
 _SHARED_PROMPT_FILES: tuple[str, ...] = (
@@ -94,6 +96,7 @@ class PromptLoader:
         self._cache: dict[str, Any] = {}
         self._file_cache: dict[str, dict[str, Any]] = {}
         self._file_path = self.prompts_dir / "agent_prompts.yaml"
+        self._token_counter = TokenCounter()
 
         logger.info(f"PromptLoader initialized with directory: {self.prompts_dir}")
 
@@ -282,9 +285,17 @@ class PromptLoader:
             if rendered:
                 sections.append(rendered)
 
-        if sections:
-            return "\n\n".join(sections)
-        return self.get_system_prompt()
+        composed_prompt = "\n\n".join(sections) if sections else self.get_system_prompt()
+        if context_budget <= 0:
+            return composed_prompt
+        if self._token_counter.fits_within_budget(composed_prompt, context_budget):
+            return composed_prompt
+        logger.warning(
+            "Composed prompt exceeded budget (%d tokens > %d); truncating",
+            self._token_counter.count_tokens(composed_prompt),
+            context_budget,
+        )
+        return self._token_counter.truncate_to_budget(composed_prompt, context_budget)
 
     def get_react_template(self) -> str:
         """Get the ReAct template."""
