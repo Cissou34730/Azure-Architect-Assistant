@@ -226,6 +226,7 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `features/projects/application/pending_changes_merge_service.py` — Deterministic approval merge helper built on the existing non-overwrite state merge behavior; conflicts surface as 409s instead of silently overwriting canonical state.
 - `features/projects/api/changes_router.py` — Project-scoped pending change-set read and review endpoints.
 - `features/agent/contracts/extract_requirements.py` — Strict contracts for source-grounded extracted requirements, ambiguity markers, and bundle summaries.
+- `features/agent/application/adr_lifecycle_service.py` — Deterministic ADR lifecycle helper for draft/create, reject, accept, and supersede transitions; normalizes ADR payloads and refreshes traceability links so later stage workers can mutate `projectState.adrs` without router-specific logic.
 - `features/agent/application/requirements_extraction_service.py` — Exact-match requirement dedupe/bundling helper that preserves all document sources and rolls ambiguity notes forward.
 - `features/agent/application/requirements_extraction_worker.py` — First Phase 4 worker path; formats parsed project documents for analysis, normalizes extracted requirements, builds a pending change set, and records it through the pending-change service.
 - `features/projects/application/requirements_extraction_entry_service.py` — Project-scoped DB/document-loading entry point for requirements extraction; feeds parsed documents to the worker and returns the recorded pending change set.
