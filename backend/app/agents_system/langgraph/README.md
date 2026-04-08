@@ -24,12 +24,14 @@ The backend agent runtime is LangGraph-only and provides:
 - `nodes/extract_requirements.py` - Execute the dedicated requirements-extraction stage worker
 - `nodes/research.py` - Build research plans and materialize Phase 6 research evidence packets
 - `nodes/validate.py` - Execute the dedicated validate-stage worker (deterministic WAF evaluation + findings payload synthesis)
-- `nodes/architecture_planner.py` - Execute the dedicated architecture synthesizer for `propose_candidate`
+- `nodes/architecture_planner.py` - Execute the dedicated architecture synthesizer for `propose_candidate` and emit a reviewable synthesis-execution artifact alongside the pending-change/postprocess flow
 - `nodes/agent.py` - Execute stage-aware agent node
 - `nodes/postprocess.py` - Extract updates, derive MCP logs
 - `nodes/persist.py` - Save messages and apply state updates
 
 **Flow:** load_state → classify_stage → build_summary → [extract_requirements | build_research → (research_worker for `propose_candidate`) → build_mindmap_guidance → {prepare_architecture_handoff → architecture_planner | validate_stage_worker | run_agent | prepare_cost_handoff → cost_estimator}] → persist_messages → [end | postprocess → apply_updates]
+
+- The architecture synthesizer reuses `nodes/architecture_planner.py` instead of introducing a second proposal path. It now records `architecture_synthesis_execution_artifact` metadata so tests and later evaluators can verify that evidence packets, WAF/mindmap deltas, and review-mode output sections were requested without bypassing the approval-first pending-change flow.
 
 ### Graph-Native Tool Loop
 **ToolNode-based execution**
@@ -132,6 +134,18 @@ Entry → Load State → Classify Stage → Build Summary → [Extract Requireme
 - It returns either:
   - a validation-tool `AAA_STATE_UPDATE` payload for findings/checklist deltas, or
   - a deterministic no-op response when checklist/evidence input is insufficient or no actionable gaps remain.
+
+### Architecture Synthesizer
+```
+... → Build Research → Research Worker → Build Mind Map Guidance → Prepare Architecture Handoff
+                                                             → Architecture Planner
+                                                                 ├─ synthesizer output contract (1 candidate by default)
+                                                                 ├─ evidence packet / WAF / mindmap delta prompts
+                                                                 └─ architecture_synthesis_execution_artifact
+                                                                     → Persist Messages → Postprocess → Apply Updates
+```
+
+- The synthesizer seam remains review-first: it still relies on the existing postprocess + pending-change-set path to persist candidate architectures and diagrams.
 
 ### With Stage Routing
 ```

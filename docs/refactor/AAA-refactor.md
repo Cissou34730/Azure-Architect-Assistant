@@ -602,6 +602,9 @@ Outputs:
 - Prioritized by impact on architecture decisions
 - Max 3-5 questions per response
 - Each question explains **why** it matters for architecture
+- Implemented worker: `backend/app/features/agent/application/clarification_planner_worker.py`
+- Runtime seam: `backend/app/agents_system/langgraph/nodes/clarify.py` routed from `backend/app/agents_system/langgraph/graph_factory.py`
+- Current output contract: `questionGroups[]` with `theme`, `question`, `whyItMatters`, `architecturalImpact`, `priority`, and `relatedRequirementIds`, plus deterministic filtering against prior clarification history
 
 ### 5.2 Clarification resolution worker (LLM)
 - When user answers questions → extract structured updates
@@ -640,6 +643,8 @@ Outputs:
   - Citations (MCP results, WAF references)
   - WAF delta (which checklist items affected)
   - Mindmap delta (which topics addressed)
+- Runtime seam: reuse `backend/app/agents_system/langgraph/nodes/architecture_planner.py` as the synthesizer worker after research rather than introducing a second planner path
+- Reviewability: emit an `architecture_synthesis_execution_artifact` summary (prompt used, research packets supplied, required-section coverage, pending-change review mode) without bypassing the existing postprocess / pending-change-set flow
 
 ### 6.3 Bundle → PendingChangeSet
 - All candidate artifacts in one bundle
@@ -661,13 +666,16 @@ Outputs:
 - Prompt: `adr_writer.yaml` (new, with example)
 - Generates: context, decision, consequences, alternatives considered
 - Links to originating requirements + mindmap topics
+- Runtime seam: `backend/app/agents_system/services/adr_drafter_worker.py` now loads `adr_writer.yaml`, enforces a structured JSON response contract, and hands validated drafts to the explicit ADR stage worker instead of relying on generic stage directives alone.
 
 ### 7.2 ADR lifecycle
 - Create: draft status
 - Accept: approved via PendingChangeSet approval
 - Supersede: creates new ADR, links to superseded one
+- Runtime seam: `backend/app/features/agent/application/adr_management_worker.py` now records `_adrLifecycle` commands in `pendingChangeSets`, and `backend/app/features/projects/application/pending_changes_merge_service.py` executes those commands through `ADRLifecycleService` only during approval.
 
 ### 7.3 Bundle → PendingChangeSet
+- `backend/app/agents_system/langgraph/nodes/manage_adr.py` is now the dedicated `manage_adr` stage worker in LangGraph; it drafts ADR bundles, records pending change sets, refreshes project state, and skips the generic agent/postprocess mutation path for ADR turns.
 
 ---
 

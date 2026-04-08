@@ -15,6 +15,7 @@ from ..state import GraphState
 from .agent_native import run_stage_aware_agent
 
 logger = logging.getLogger(__name__)
+_ARCHITECTURE_PLANNER_PROMPT = "architecture_planner_prompt.yaml"
 
 
 def _format_research_evidence_packets(packets: list[dict[str, Any]]) -> str:
@@ -46,6 +47,152 @@ def _format_research_evidence_packets(packets: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def _format_mindmap_delta_targets(mindmap_guidance: dict[str, Any] | None) -> str:
+    if not isinstance(mindmap_guidance, dict):
+        return "No explicit mind map gaps were provided."
+
+    lines: list[str] = []
+    focus_topics = mindmap_guidance.get("focus_topics")
+    if isinstance(focus_topics, list) and focus_topics:
+        lines.append("Focus topics: " + ", ".join(str(topic) for topic in focus_topics[:5]))
+
+    suggested_prompts = mindmap_guidance.get("suggested_prompts")
+    if isinstance(suggested_prompts, list) and suggested_prompts:
+        lines.append("Suggested prompts:")
+        lines.extend(f"- {prompt}" for prompt in suggested_prompts[:2])
+
+    return "\n".join(lines) if lines else "No explicit mind map gaps were provided."
+
+
+def _format_waf_snapshot(project_state: dict[str, Any]) -> str:
+    waf = project_state.get("wafChecklist")
+    if not isinstance(waf, dict):
+        return "WAF checklist unavailable."
+
+    raw_items = waf.get("items")
+    items = raw_items.values() if isinstance(raw_items, dict) else raw_items
+    if not isinstance(items, list):
+        return "WAF checklist unavailable."
+
+    total = len(items)
+    fixed = 0
+    in_progress = 0
+    open_items = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        evaluations = item.get("evaluations")
+        latest = evaluations[-1] if isinstance(evaluations, list) and evaluations else None
+        status = str((latest or {}).get("status") or "open").strip().lower()
+        if status in {"fixed", "false_positive"}:
+            fixed += 1
+        elif status == "in_progress":
+            in_progress += 1
+        else:
+            open_items += 1
+
+    return (
+        f"WAF status snapshot: total={total}, fixed={fixed}, "
+        f"in_progress={in_progress}, open={open_items}."
+    )
+
+
+def _format_research_execution_artifact(artifact: dict[str, Any] | None) -> str:
+    if not isinstance(artifact, dict) or not artifact:
+        return "No research execution artifact recorded."
+
+    lines: list[str] = []
+    for key in ("status", "stage", "packets_created", "reason"):
+        value = artifact.get(key)
+        if value is not None:
+            lines.append(f"- {key}: {value}")
+
+    return "\n".join(lines) if lines else "No research execution artifact recorded."
+
+
+def _build_synthesizer_contract(state: GraphState, handoff_context: dict[str, Any]) -> str:
+    return (
+        "**Required Output Contract:**\n"
+        "- Default to exactly 1 candidate unless the user explicitly asks for more.\n"
+        "- Use explicit section headings: Evidence Packet Consumption, Assumptions linked to requirements, "
+        "Trade-offs, System Context Diagram [Target Architecture], Container Diagram [Target Architecture], "
+        "WAF Delta, Mindmap Delta, Citations.\n"
+        "- For C4 artifacts, produce Mermaid System Context and Container diagrams whenever the workload boundary is known; "
+        "if a diagram is not applicable, say why.\n"
+        "- Make assumptions traceable to requirements or evidence packets.\n"
+        "- Make trade-offs specific to Azure service choices, not generic pros/cons.\n"
+        "- Keep WAF delta specific: name the affected pillar/checklist themes and what changed.\n"
+        "- Keep mindmap delta specific: name the uncovered topics addressed now vs. left open.\n"
+        "- Persist reviewable artifacts through aaa_create_diagram_set and aaa_generate_candidate_architecture so the existing "
+        "pending-change review flow captures an AAA_STATE_UPDATE block.\n"
+        "\n"
+        "**WAF Snapshot:**\n"
+        f"{_format_waf_snapshot(state.get('current_project_state') or {})}\n\n"
+        "**Mind Map Delta Targets:**\n"
+        f"{_format_mindmap_delta_targets(state.get('mindmap_guidance'))}\n\n"
+        "**Research Execution Artifact:**\n"
+        f"{_format_research_execution_artifact(handoff_context.get('research_execution_artifact'))}"
+    )
+
+
+def _contains_any(text: str, markers: tuple[str, ...]) -> bool:
+    lowered = text.lower()
+    return any(marker in lowered for marker in markers)
+
+
+def _build_synthesis_execution_artifact(
+    *,
+    state: GraphState,
+    agent_output: str,
+    success: bool,
+    error: str | None,
+    research_packets_supplied: int,
+) -> dict[str, Any]:
+    required_sections = {
+        "assumptions": _contains_any(
+            agent_output,
+            ("## assumptions linked to requirements", "## assumptions"),
+        ),
+        "trade_offs": _contains_any(
+            agent_output,
+            ("## trade-offs", "## tradeoffs"),
+        ),
+        "citations": _contains_any(
+            agent_output,
+            ("## citations", "source citations"),
+        ),
+        "waf_delta": _contains_any(
+            agent_output,
+            ("## waf delta", "waf delta"),
+        ),
+        "mindmap_delta": _contains_any(
+            agent_output,
+            ("## mindmap delta", "mind map delta"),
+        ),
+        "c4_system_context": _contains_any(
+            agent_output,
+            ("## system context diagram [target architecture]", "## system context diagram", "c4 system context"),
+        ),
+        "c4_container": _contains_any(
+            agent_output,
+            ("## container diagram [target architecture]", "## container diagram", "c4 container"),
+        ),
+        "state_update": "aaa_state_update" in agent_output.lower(),
+    }
+    artifact = {
+        "status": "completed" if success else "failed",
+        "stage": state.get("next_stage") or "propose_candidate",
+        "prompt": _ARCHITECTURE_PLANNER_PROMPT,
+        "review_mode": "postprocess_pending_changes",
+        "research_packets_supplied": research_packets_supplied,
+        "mindmap_guidance_supplied": bool(state.get("mindmap_guidance")),
+        "required_sections": required_sections,
+    }
+    if error:
+        artifact["error"] = error
+    return artifact
+
+
 async def architecture_planner_node(state: GraphState) -> dict[str, Any]:
     """
     Specialized node for architecture planning and diagram generation.
@@ -73,7 +220,7 @@ async def architecture_planner_node(state: GraphState) -> dict[str, Any]:
     try:
         # Load architecture planner prompt
         prompt_loader = PromptLoader()
-        arch_planner_prompt = prompt_loader.load_prompt("architecture_planner_prompt.yaml")
+        arch_planner_prompt = prompt_loader.load_prompt(_ARCHITECTURE_PLANNER_PROMPT)
 
         # Prepare handoff context for architecture planner
         handoff_context = state.get("agent_handoff_context", {})
@@ -83,6 +230,7 @@ async def architecture_planner_node(state: GraphState) -> dict[str, Any]:
         constraints = handoff_context.get("constraints", {})
         previous_decisions = handoff_context.get("previous_decisions", [])
         research_evidence_packets = handoff_context.get("research_evidence_packets", [])
+        synthesizer_contract = _build_synthesizer_contract(state, handoff_context)
 
         # Get user's original request
         user_message = state.get("user_message", "")
@@ -111,16 +259,24 @@ async def architecture_planner_node(state: GraphState) -> dict[str, Any]:
 **Research Evidence Packets:**
 {_format_research_evidence_packets(research_evidence_packets)}
 
+{synthesizer_contract}
+
 ---
 
 **Task:** Design the complete target architecture for this project. Include:
 
-1. **Target Architecture Design** (complete, production-ready)
-2. **System Context Diagram** [Target Architecture]
-3. **Container Diagram** [Target Architecture]
-4. **User Journey Flow** (if user-facing system)
-5. **NFR Analysis** for each diagram (Scalability, Performance, Security, Reliability, Maintainability, Trade-offs)
-6. After presenting target, ask if user wants MVP path
+1. **Exactly 1 evidence-backed candidate by default** (produce more only when the user explicitly requests alternatives)
+2. **Target Architecture Design** with Azure services + rationale
+3. **Evidence Packet Consumption** section mapping packet ids to architecture decisions
+4. **Assumptions linked to requirements**
+5. **Trade-offs** explicitly stated
+6. **System Context Diagram** [Target Architecture]
+7. **Container Diagram** [Target Architecture]
+8. **WAF Delta** + **Mindmap Delta**
+9. **User Journey Flow** (if user-facing system)
+10. **NFR Analysis** for each diagram (Scalability, Performance, Security, Reliability, Maintainability, Trade-offs)
+11. Persist reviewable artifacts with aaa_create_diagram_set and aaa_generate_candidate_architecture once the proposal is ready
+12. After presenting target, ask if user wants MVP path
 
 Ensure all diagrams use valid Mermaid syntax and include comprehensive NFR analysis.
 """
@@ -140,6 +296,15 @@ Ensure all diagrams use valid Mermaid syntax and include comprehensive NFR analy
 
         arch_proposal = str(result.get("agent_output", ""))
         intermediate_steps = result.get("intermediate_steps", [])
+        success = bool(result.get("success", True))
+        error = result.get("error")
+        execution_artifact = _build_synthesis_execution_artifact(
+            state=state,
+            agent_output=arch_proposal,
+            success=success,
+            error=error if isinstance(error, str) else None,
+            research_packets_supplied=len(research_evidence_packets),
+        )
 
         logger.info(f"✅ Architecture Planner completed with {len(intermediate_steps)} tool calls")
 
@@ -148,8 +313,9 @@ Ensure all diagrams use valid Mermaid syntax and include comprehensive NFR analy
             "intermediate_steps": state.get("intermediate_steps", []) + intermediate_steps,
             "current_agent": "architecture_planner",
             "sub_agent_output": arch_proposal,
-            "success": bool(result.get("success", True)),
-            "error": result.get("error"),
+            "success": success,
+            "error": error,
+            "architecture_synthesis_execution_artifact": execution_artifact,
         }
 
     except Exception as exc:
@@ -168,6 +334,13 @@ Ensure all diagrams use valid Mermaid syntax and include comprehensive NFR analy
             "sub_agent_output": None,
             "success": False,
             "error": str(exc),
+            "architecture_synthesis_execution_artifact": {
+                "status": "failed",
+                "stage": state.get("next_stage") or "propose_candidate",
+                "prompt": _ARCHITECTURE_PLANNER_PROMPT,
+                "reason": "runtime_error",
+                "review_mode": "postprocess_pending_changes",
+            },
         }
 
 
