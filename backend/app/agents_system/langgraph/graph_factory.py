@@ -138,9 +138,9 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
         return "supervisor" if enable_multi_agent else "run_agent"
 
     workflow.set_entry_point("load_state")
-    workflow.add_edge("load_state", "build_summary")
-    workflow.add_edge("build_summary", "classify_stage")
-    workflow.add_edge("classify_stage", "build_research")
+    workflow.add_edge("load_state", "classify_stage")
+    workflow.add_edge("classify_stage", "build_summary")
+    workflow.add_edge("build_summary", "build_research")
     research_routes = {
         "cost_estimator": "prepare_cost_handoff",
         "run_agent": "run_agent",

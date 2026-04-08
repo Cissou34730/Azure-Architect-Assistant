@@ -103,7 +103,7 @@ async def build_context_summary_node(
 
     try:
         if settings.aaa_context_compaction_enabled:
-            stage = state.get("current_stage", "clarify")
+            stage = state.get("next_stage") or state.get("current_stage") or "clarify"
             project_state = state.get("current_project_state", {})
             thread_summary = state.get("thread_summary")
 
