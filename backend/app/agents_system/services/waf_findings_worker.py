@@ -9,7 +9,6 @@ from collections import defaultdict
 from collections.abc import Awaitable, Callable, Mapping
 from copy import deepcopy
 from typing import Any, Protocol
-from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from pydantic.alias_generators import to_camel
@@ -61,7 +60,7 @@ class WAFFindingsWorker:
     ) -> None:
         self._generator = generator or self._default_generator
         self._prompt_loader = prompt_loader or PromptLoader.get_instance()
-        self._id_factory = id_factory or (lambda item_id: f"finding-{item_id}-{uuid4()}")
+        self._id_factory = id_factory or (lambda item_id: f"finding-{item_id}")
 
     async def generate_findings(
         self,
@@ -95,6 +94,10 @@ class WAFFindingsWorker:
             item = items_by_id.get(item_id)
             if item is None:
                 raise ValueError(f"Generated finding references unknown checklist item '{item_id}'.")
+            if finding_ids_by_item[item_id]:
+                raise ValueError(
+                    f"Generated multiple findings for actionable checklist item '{item_id}'."
+                )
 
             finding_id = self._id_factory(item_id)
             citations = self._normalize_citations(
@@ -126,6 +129,15 @@ class WAFFindingsWorker:
                 if citation_id and citation_id not in citations_seen_by_item[item_id]:
                     citations_by_item[item_id].append(citation)
                     citations_seen_by_item[item_id].add(citation_id)
+
+        missing_item_ids = sorted(
+            item_id for item_id in items_by_id if not finding_ids_by_item[item_id]
+        )
+        if missing_item_ids:
+            raise ValueError(
+                "Generated missing findings for actionable checklist items: "
+                + ", ".join(missing_item_ids)
+            )
 
         waf_evaluations = [
             {

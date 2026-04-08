@@ -240,3 +240,144 @@ async def test_waf_findings_worker_backfills_reference_citations_when_generator_
         }
     ]
     assert result["wafEvaluations"][0]["sourceCitations"] == finding["sourceCitations"]
+
+
+@pytest.mark.asyncio
+async def test_waf_findings_worker_uses_stable_default_ids_for_repeated_runs() -> None:
+    async def _generator(system_prompt: str, user_prompt: str) -> dict[str, Any]:
+        return {
+            "findings": [
+                {
+                    "title": "Missing private DNS coverage",
+                    "severity": "medium",
+                    "description": "Private endpoints are present but DNS integration is undocumented.",
+                    "remediation": "Add private DNS zones and document ownership.",
+                    "impactedComponents": ["Private endpoint DNS"],
+                    "wafPillar": "Reliability",
+                    "wafTopic": "Ensure private DNS resolution for private endpoints",
+                    "wafChecklistItemId": "rel-dns-1",
+                    "sourceCitations": [
+                        {
+                            "id": "cite-doc-dns",
+                            "kind": "referenceDocument",
+                            "referenceDocumentId": "doc-dns",
+                            "url": "https://learn.microsoft.com/azure/private-link/private-endpoint-dns",
+                        }
+                    ],
+                }
+            ]
+        }
+
+    worker = WAFFindingsWorker(
+        generator=_generator,
+        prompt_loader=_PromptLoaderStub(),
+    )
+
+    evaluator_result = {
+        "items": [
+            {
+                "itemId": "rel-dns-1",
+                "pillar": "Reliability",
+                "topic": "Ensure private DNS resolution for private endpoints",
+                "status": "in_progress",
+                "coverageScore": 0.5,
+                "matchedSourcePaths": ["referenceDocuments[0].title"],
+                "evidence": [],
+            }
+        ],
+        "summary": {"evaluatedItems": 1},
+    }
+    architecture_state = {
+        "referenceDocuments": [
+            {
+                "id": "doc-dns",
+                "title": "Private endpoint DNS guidance",
+                "url": "https://learn.microsoft.com/azure/private-link/private-endpoint-dns",
+            }
+        ]
+    }
+
+    first = await worker.generate_findings(
+        evaluator_result=evaluator_result,
+        architecture_state=architecture_state,
+    )
+    second = await worker.generate_findings(
+        evaluator_result=evaluator_result,
+        architecture_state=architecture_state,
+    )
+
+    assert first["findings"][0]["id"] == "finding-rel-dns-1"
+    assert second["findings"][0]["id"] == "finding-rel-dns-1"
+    assert first["wafEvaluations"][0]["relatedFindingIds"] == ["finding-rel-dns-1"]
+    assert second["wafEvaluations"][0]["relatedFindingIds"] == ["finding-rel-dns-1"]
+
+
+@pytest.mark.asyncio
+async def test_waf_findings_worker_requires_findings_for_every_actionable_item() -> None:
+    async def _generator(system_prompt: str, user_prompt: str) -> dict[str, Any]:
+        return {
+            "findings": [
+                {
+                    "title": "Only one gap returned",
+                    "severity": "high",
+                    "description": "The model forgot the second actionable item.",
+                    "remediation": "Return findings for every actionable item.",
+                    "impactedComponents": ["App Service"],
+                    "wafPillar": "Security",
+                    "wafTopic": "Protect public entry points with a web application firewall",
+                    "wafChecklistItemId": "sec-waf-1",
+                    "sourceCitations": [
+                        {
+                            "id": "cite-doc-1",
+                            "kind": "referenceDocument",
+                            "referenceDocumentId": "doc-1",
+                            "url": "https://learn.microsoft.com/azure/well-architected/security/",
+                        }
+                    ],
+                }
+            ]
+        }
+
+    worker = WAFFindingsWorker(
+        generator=_generator,
+        prompt_loader=_PromptLoaderStub(),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="missing findings for actionable checklist items: sec-net-2",
+    ):
+        await worker.generate_findings(
+            evaluator_result={
+                "items": [
+                    {
+                        "itemId": "sec-waf-1",
+                        "pillar": "Security",
+                        "topic": "Protect public entry points with a web application firewall",
+                        "status": "open",
+                        "coverageScore": 0.0,
+                        "matchedSourcePaths": ["referenceDocuments[0].title"],
+                        "evidence": [],
+                    },
+                    {
+                        "itemId": "sec-net-2",
+                        "pillar": "Security",
+                        "topic": "Restrict lateral network movement",
+                        "status": "in_progress",
+                        "coverageScore": 0.3,
+                        "matchedSourcePaths": ["referenceDocuments[0].title"],
+                        "evidence": [],
+                    },
+                ],
+                "summary": {"evaluatedItems": 2},
+            },
+            architecture_state={
+                "referenceDocuments": [
+                    {
+                        "id": "doc-1",
+                        "title": "Security guidance",
+                        "url": "https://learn.microsoft.com/azure/well-architected/security/",
+                    }
+                ]
+            },
+        )
