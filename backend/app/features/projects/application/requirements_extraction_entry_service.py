@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.features.agent.application import RequirementsExtractionWorker
 from app.features.projects.contracts import PendingChangeSetContract
 from app.models.project import Project, ProjectDocument
+
+if TYPE_CHECKING:
+    from app.features.agent.application.requirements_extraction_worker import (
+        RequirementsExtractionWorker,
+    )
 
 
 class ProjectRequirementsExtractionEntryService:
@@ -52,3 +58,18 @@ class ProjectRequirementsExtractionEntryService:
             source_message_id=source_message_id,
             db=db,
         )
+
+
+def create_requirements_extraction_entry_service() -> ProjectRequirementsExtractionEntryService:
+    """Build the shared requirements extraction entry service."""
+    from app.features.agent.application import RequirementsExtractionWorker
+    from app.features.projects.application.chat_service import ChatService
+    from app.features.projects.application.pending_changes_service import (
+        ProjectPendingChangesService,
+    )
+
+    pending_changes_service = ProjectPendingChangesService(state_provider=ChatService())
+    worker = RequirementsExtractionWorker(
+        pending_change_recorder=pending_changes_service,
+    )
+    return ProjectRequirementsExtractionEntryService(worker=worker)

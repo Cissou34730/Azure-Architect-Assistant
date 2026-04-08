@@ -150,3 +150,89 @@ async def test_graph_classifies_stage_before_building_summary(
         f"build_summary:{ProjectStage.VALIDATE.value}",
     ]
 
+
+@pytest.mark.asyncio
+async def test_graph_routes_extract_requirements_to_stage_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call_order: list[str] = []
+
+    async def fake_load_state(_state, _db):
+        call_order.append("load_state")
+        return {
+            "current_project_state": {
+                "referenceDocuments": [{"id": "doc-1", "parseStatus": "parsed"}],
+            }
+        }
+
+    def fake_classify_stage(_state):
+        call_order.append("classify_stage")
+        return {"next_stage": ProjectStage.EXTRACT_REQUIREMENTS.value}
+
+    async def fake_build_summary(state, _db):
+        call_order.append(f"build_summary:{state.get('next_stage')}")
+        return {"context_summary": "summary"}
+
+    async def fake_extract_requirements(_state, _db):
+        call_order.append("extract_requirements")
+        return {
+            "agent_output": "requirements extracted",
+            "final_answer": "requirements extracted",
+            "handled_by_stage_worker": True,
+            "success": True,
+        }
+
+    def fake_build_research(_state):
+        raise AssertionError("research path should be skipped for extract_requirements")
+
+    async def fake_run_agent(_state):
+        raise AssertionError("generic agent should be skipped for extract_requirements")
+
+    async def fake_persist_messages(_state, _db):
+        call_order.append("persist_messages")
+        return {}
+
+    async def fake_postprocess(_state, _response_message_id):
+        raise AssertionError("postprocess should be skipped for handled stage workers")
+
+    async def fake_apply_updates(_state, _db):
+        raise AssertionError("apply_updates should be skipped for handled stage workers")
+
+    monkeypatch.setattr(graph_factory_module, "load_project_state_node", fake_load_state)
+    monkeypatch.setattr(graph_factory_module, "classify_next_stage", fake_classify_stage)
+    monkeypatch.setattr(graph_factory_module, "build_context_summary_node", fake_build_summary)
+    monkeypatch.setattr(
+        graph_factory_module,
+        "execute_extract_requirements_node",
+        fake_extract_requirements,
+    )
+    monkeypatch.setattr(graph_factory_module, "build_research_plan_node", fake_build_research)
+    monkeypatch.setattr(graph_factory_module, "run_agent_node", fake_run_agent)
+    monkeypatch.setattr(graph_factory_module, "persist_messages_node", fake_persist_messages)
+    monkeypatch.setattr(graph_factory_module, "postprocess_node", fake_postprocess)
+    monkeypatch.setattr(graph_factory_module, "apply_state_updates_node", fake_apply_updates)
+    monkeypatch.setattr(
+        graph_factory_module,
+        "get_app_settings",
+        lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
+    )
+
+    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+
+    result = await graph.ainvoke(
+        {
+            "project_id": "proj-1",
+            "user_message": "continue",
+            "success": False,
+        }
+    )
+
+    assert result["final_answer"] == "requirements extracted"
+    assert call_order == [
+        "load_state",
+        "classify_stage",
+        f"build_summary:{ProjectStage.EXTRACT_REQUIREMENTS.value}",
+        "extract_requirements",
+        "persist_messages",
+    ]
+

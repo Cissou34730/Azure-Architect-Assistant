@@ -216,7 +216,7 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 
 ## Agent system module layout
 
-- `langgraph/graph_factory.py` — Project chat graph assembly; stage routing now resolves before context summary/context-pack construction so stage-specific compaction sees the routed stage.
+- `langgraph/graph_factory.py` — Project chat graph assembly; stage routing resolves before context summary/context-pack construction so stage-specific compaction sees the routed stage, and the `extract_requirements` stage now has a dedicated runtime node in the workflow.
 - `config/prompt_loader.py` — YAML prompt loader; supports both the legacy `agent_prompts.yaml` surface and modular prompt composition for stage-aware orchestrator prompts.
 - `memory/context_packs/stage_packers.py` — Stage-specific compaction builders; ADR packs read canonical `adrs`, and validation packs summarize `wafChecklist.items[*].evaluations[*].status` from the current checklist payload.
 - `nodes/stage_routing.py` — Core stage enum, classification, retry logic. When parsed project documents exist but approved requirements are still missing, the state-aware default now routes to `extract_requirements` before falling back to clarification.
@@ -229,7 +229,8 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `features/agent/application/requirements_extraction_worker.py` — First Phase 4 worker path; formats parsed project documents for analysis, normalizes extracted requirements, builds a pending change set, and records it through the pending-change service.
 - `features/projects/application/requirements_extraction_entry_service.py` — Project-scoped DB/document-loading entry point for requirements extraction; feeds parsed documents to the worker and returns the recorded pending change set.
 - `nodes/routing/` — Per-agent routing subpackage (architecture_planner, iac_generator, saas_advisor, cost_estimator, `_helpers.py` for shared utils).
-- `nodes/agent.py` — Main agent node entry (`run_agent_node`).
+- `nodes/extract_requirements.py` — Dedicated Phase 4 stage worker; executes the requirements extraction entry service inside the graph, records a pending requirements bundle, refreshes project state, and emits a review-focused response without invoking the general LLM path.
+- `nodes/agent.py` — Main agent node entry (`run_agent_node`) for non-`extract_requirements` stage execution and guardrail shortcuts.
 - `nodes/scope_guard.py` — Scope-detection patterns and guardrails.
 - `nodes/waf_shortcuts.py` — Deterministic WAF-checklist shortcut handlers.
 - `services/diagram/project_diagram_helpers.py` — Diagram business logic extracted from project_router.

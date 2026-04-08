@@ -16,6 +16,7 @@ from app.shared.config.app_settings import get_app_settings
 from .nodes.agent import run_agent_node
 from .nodes.context import build_context_summary_node, load_project_state_node
 from .nodes.cost_estimator import cost_estimator_node
+from .nodes.extract_requirements import execute_extract_requirements_node
 from .nodes.multi_agent import (
     adr_specialist_node,
     iac_specialist_node,
@@ -32,6 +33,7 @@ from .nodes.routing import (
     should_route_to_cost_estimator,
 )
 from .nodes.stage_routing import (
+    ProjectStage,
     build_retry_prompt,
     check_for_retry,
     classify_next_stage,
@@ -55,11 +57,12 @@ def build_project_chat_graph(
     workflow.add_node("load_state", _wrap_load_state(db))
     workflow.add_node("build_summary", _wrap_build_summary(db))
     workflow.add_node("classify_stage", classify_next_stage)
+    workflow.add_node("extract_requirements", _wrap_extract_requirements(db))
     workflow.add_node("build_research", build_research_plan_node)
     workflow.add_node("build_mindmap_guidance", _pass_through_mindmap_guidance)
     workflow.add_node("prepare_cost_handoff", prepare_cost_estimator_handoff)
     workflow.add_node("cost_estimator", cost_estimator_node)
-    workflow.add_node("run_agent", run_agent_node)
+    workflow.add_node("run_agent", _wrap_run_agent(db))
     workflow.add_node("persist_messages", _wrap_persist_messages(db))
     workflow.add_node("postprocess", _wrap_postprocess(response_message_id))
     workflow.add_node("apply_updates", _wrap_apply_updates(db))
@@ -95,6 +98,12 @@ def _wrap_postprocess(response_message_id: str):
     return postprocess
 
 
+def _wrap_extract_requirements(db: AsyncSession):
+    async def extract_requirements(state: GraphState) -> dict:
+        return await execute_extract_requirements_node(state, db)
+    return extract_requirements
+
+
 def _wrap_persist_messages(db: AsyncSession):
     async def persist_messages(state: GraphState) -> dict:
         return await persist_messages_node(state, db)
@@ -105,6 +114,12 @@ def _wrap_apply_updates(db: AsyncSession):
     async def apply_updates(state: GraphState) -> dict:
         return await apply_state_updates_node(state, db)
     return apply_updates
+
+
+def _wrap_run_agent(db: AsyncSession):
+    async def run_agent(state: GraphState) -> dict:
+        return await run_agent_node(state)
+    return run_agent
 
 
 def _pass_through_mindmap_guidance(state: GraphState) -> dict:
@@ -130,6 +145,11 @@ def _add_optional_nodes(workflow: StateGraph, enable_stage_routing: bool, enable
 
 def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enable_multi_agent: bool):
     """Define edges and conditional paths for the graph."""
+    def route_after_summary(state: GraphState) -> Literal["extract_requirements", "build_research"]:
+        if state.get("next_stage") == ProjectStage.EXTRACT_REQUIREMENTS.value:
+            return "extract_requirements"
+        return "build_research"
+
     def route_after_research(
         state: GraphState,
     ) -> Literal["cost_estimator", "supervisor", "run_agent"]:
@@ -137,10 +157,23 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
             return "cost_estimator"
         return "supervisor" if enable_multi_agent else "run_agent"
 
+    def route_after_persist(state: GraphState) -> Literal["end", "postprocess"]:
+        if state.get("handled_by_stage_worker"):
+            return "end"
+        return "postprocess"
+
     workflow.set_entry_point("load_state")
     workflow.add_edge("load_state", "classify_stage")
     workflow.add_edge("classify_stage", "build_summary")
-    workflow.add_edge("build_summary", "build_research")
+    workflow.add_conditional_edges(
+        "build_summary",
+        route_after_summary,
+        {
+            "extract_requirements": "extract_requirements",
+            "build_research": "build_research",
+        },
+    )
+    workflow.add_edge("extract_requirements", "persist_messages")
     research_routes = {
         "cost_estimator": "prepare_cost_handoff",
         "run_agent": "run_agent",
@@ -169,7 +202,11 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
             workflow.add_edge(node, "run_agent")
 
     workflow.add_edge("run_agent", "persist_messages")
-    workflow.add_edge("persist_messages", "postprocess")
+    workflow.add_conditional_edges(
+        "persist_messages",
+        route_after_persist,
+        {"end": END, "postprocess": "postprocess"},
+    )
 
     if enable_stage_routing:
         workflow.add_conditional_edges(

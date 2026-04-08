@@ -50,6 +50,7 @@ class GraphState(TypedDict, total=False):
     final_answer: str
     success: bool
     error: str | None
+    handled_by_stage_worker: bool
 
     # Phase 4+ fields
     user_message_id: str | None

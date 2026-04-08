@@ -19,6 +19,7 @@ Concise architecture reference for agents performing coding and documentation ta
 - Startup lifecycle initializes DBs and key services; KB index loading is lazy.
 - Persistent storage includes project, ingestion, and diagram SQLite databases plus file-based KB indices.
 - Project state reads are composed: architecture inputs live in `project_architecture_inputs`, stable artifact families live in `project_state_components`, and `/api/projects/{project_id}/workspace` is the canonical read surface.
+- Approval-first runtime behavior is active for requirements extraction: when project chat routes to `extract_requirements`, the LangGraph workflow short-circuits into a dedicated stage worker, records a pending requirements bundle, and skips the generic LLM/postprocess path before any canonical `requirements` mutation.
 
 ## Do / Don't
 
@@ -52,5 +53,5 @@ Update this file when:
 ## Metadata
 
 - Status: Active
-- Last Updated: 2026-04-02
+- Last Updated: 2026-04-08
 - Owner: Engineering

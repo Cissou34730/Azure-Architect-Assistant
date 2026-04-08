@@ -41,15 +41,20 @@ class AgentApiService:
     ) -> dict[str, Any]:
         """Execute project-aware chat via LangGraph."""
         result = await execute_project_chat(project_id, message, db, thread_id=thread_id)
+        reasoning_steps = result.get("reasoning_steps")
+        if isinstance(reasoning_steps, list) and reasoning_steps:
+            normalized_reasoning_steps = self._reasoning_steps_from_dicts(reasoning_steps)
+        else:
+            normalized_reasoning_steps = self._reasoning_steps_from_intermediate(
+                result.get("intermediate_steps", [])
+            )
         return {
-            "answer": result.get("answer", ""),
+            "answer": result.get("answer", result.get("output", "")),
             "success": bool(result.get("success", False)),
-            "project_state": result.get("project_state"),
-            "reasoning_steps": self._reasoning_steps_from_dicts(
-                result.get("reasoning_steps", [])
-            ),
+            "project_state": result.get("project_state", result.get("updated_project_state")),
+            "reasoning_steps": normalized_reasoning_steps,
             "error": result.get("error"),
-            "thread_id": result.get("thread_id"),
+            "thread_id": result.get("thread_id", thread_id),
         }
 
     async def project_chat_stream(

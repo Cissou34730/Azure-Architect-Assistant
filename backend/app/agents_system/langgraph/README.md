@@ -21,11 +21,12 @@ The backend agent runtime is LangGraph-only and provides:
 
 **Nodes:**
 - `nodes/context.py` - Load project state and build context
+- `nodes/extract_requirements.py` - Execute the dedicated requirements-extraction stage worker
 - `nodes/agent.py` - Execute stage-aware agent node
 - `nodes/postprocess.py` - Extract updates, derive MCP logs
 - `nodes/persist.py` - Save messages and apply state updates
 
-**Flow:** load_state → build_summary → run_agent → persist_messages → postprocess → apply_updates
+**Flow:** load_state → classify_stage → build_summary → [extract_requirements | build_research → build_mindmap_guidance → run_agent] → persist_messages → [end | postprocess → apply_updates]
 
 ### Graph-Native Tool Loop
 **ToolNode-based execution**
@@ -39,7 +40,7 @@ The backend agent runtime is LangGraph-only and provides:
 **Explicit stage transitions and error handling**
 
 - `nodes/stage_routing.py` - Stage classification and retry logic
-- ProjectStage enum: clarify, propose_candidate, manage_adr, validate, pricing, iac, export
+- ProjectStage enum: extract_requirements, clarify, propose_candidate, manage_adr, validate, pricing, iac, export
 - Retry loop for ERROR: prefixed outputs
 - Always propose next steps if no artifacts persisted
 - Feature flag: `AAA_ENABLE_STAGE_ROUTING`
@@ -112,7 +113,7 @@ AAA_ENABLE_MULTI_AGENT=true
 
 ### Standard Workflow
 ```
-Entry → Load State → Build Summary → Run Agent → Persist Messages → Postprocess → Apply Updates → End
+Entry → Load State → Classify Stage → Build Summary → [Extract Requirements | Build Research → Build Mind Map Guidance → Run Agent] → Persist Messages → [End | Postprocess → Apply Updates] → End
 ```
 
 ### With Stage Routing
@@ -140,16 +141,16 @@ backend/app/agents_system/langgraph/
 ├── __init__.py
 ├── state.py                    # GraphState TypedDict
 ├── adapter.py                  # execute_project_chat() interface
-├── graph_factory.py            # Basic graph
-├── graph_factory_advanced.py   # Advanced graph
+├── graph_factory.py            # Project chat graph
 └── nodes/
     ├── context.py              # Load state, build summary
-  ├── agent.py                # Agent execution node
-  ├── agent_native.py         # Graph-native agent loop
+    ├── extract_requirements.py # Dedicated requirements extraction stage worker
+    ├── agent.py                # Agent execution node
+    ├── agent_native.py         # Graph-native agent loop
     ├── postprocess.py          # Extract updates, derive logs
     ├── persist.py              # Save messages, apply updates
-  ├── stage_routing.py        # Stage classification, retry
-  └── multi_agent.py          # Supervisor, specialists
+    ├── stage_routing.py        # Stage classification, retry
+    └── multi_agent.py          # Supervisor, specialists
 ```
 
 ## Testing

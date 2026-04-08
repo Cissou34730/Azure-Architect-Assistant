@@ -126,21 +126,28 @@ async def execute_project_chat(
         output = str(result.get("final_answer", ""))
         if not output:
             output = sanitize_agent_output(str(result.get("agent_output", "")))
+        project_state = result.get("updated_project_state")
         return {
+            "answer": output,
             "output": output,
             "success": bool(result.get("success", False)),
-            "updated_project_state": result.get("updated_project_state"),
+            "project_state": project_state,
+            "updated_project_state": project_state,
             "intermediate_steps": result.get("intermediate_steps", []),
             "error": result.get("error"),
+            "thread_id": thread_id,
         }
     except Exception as e:
         logger.error("LangGraph project chat execution failed: %s", e, exc_info=True)
         return {
+            "answer": "",
             "output": "",
             "success": False,
+            "project_state": None,
             "updated_project_state": None,
             "intermediate_steps": [],
             "error": f"LangGraph project chat execution failed: {e!s}",
+            "thread_id": thread_id,
         }
 
 

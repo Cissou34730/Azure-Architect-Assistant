@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def _agent_error_result(message: str) -> dict[str, Any]:
     return {
-        "agent_output": "",
+        "agent_output": message,
         "intermediate_steps": [],
         "success": False,
         "error": message,

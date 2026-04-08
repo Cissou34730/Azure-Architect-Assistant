@@ -572,7 +572,7 @@ GET  /api/projects/{project_id}/changes/{id}           → view bundle details
 - Bundle includes: requirements, assumptions, ambiguities, initial diagram, WAF baseline
 
 ### 4.6 First interaction flow
-- **When project has uploaded documents**: router → `extract_requirements` stage → present findings + ask 3-5 targeted gap questions
+- **When project has uploaded documents**: router → `extract_requirements` stage → execute the deterministic extraction worker in-chat, persist a pending requirements bundle, then present review guidance plus targeted follow-up prompts as needed
 - **When no documents**: router → `clarify` stage → structured onboarding questions (workload type, scale, compliance, budget)
 
 ---
