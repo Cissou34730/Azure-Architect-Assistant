@@ -1,5 +1,10 @@
 """Agent feature contracts."""
 
+from .clarification_planner import (
+    ClarificationPlanningResultContract,
+    ClarificationQuestionContract,
+    ClarificationQuestionGroupContract,
+)
 from .conversation_summary import ConversationSummaryContract
 from .extract_requirements import (
     ExtractedRequirementContract,
@@ -9,6 +14,9 @@ from .extract_requirements import (
 )
 
 __all__ = [
+    "ClarificationPlanningResultContract",
+    "ClarificationQuestionContract",
+    "ClarificationQuestionGroupContract",
     "ConversationSummaryContract",
     "ExtractedRequirementContract",
     "RequirementAmbiguityContract",

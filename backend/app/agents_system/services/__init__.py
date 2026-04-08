@@ -9,12 +9,14 @@ from .mindmap_loader import (
     initialize_mindmap,
     is_mindmap_initialized,
 )
+from .adr_drafter_worker import ADRDrafterWorker
 from .project_context import read_project_state, update_project_state
 from .state_update_parser import extract_state_updates, merge_state_updates_no_overwrite
 from .waf_evaluator import WAFEvaluatorService
 from .waf_findings_worker import WAFFindingsWorker
 
 __all__ = [
+    "ADRDrafterWorker",
     "extract_state_updates",
     "get_mindmap",
     "get_top_level_topics",

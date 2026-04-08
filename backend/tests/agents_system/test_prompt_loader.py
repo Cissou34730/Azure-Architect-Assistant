@@ -3,6 +3,7 @@ import pytest
 from app.agents_system.config.prompt_loader import PromptLoader
 from app.agents_system.config.react_prompts import _format_few_shot_examples
 from app.agents_system.langgraph.nodes.agent_native import _build_system_directives
+from app.agents_system.services.adr_drafter_worker import ADRDrafterWorker
 
 
 def test_load_prompt_from_specialized_file(tmp_path):
@@ -268,3 +269,98 @@ def test_format_few_shot_examples_skips_non_mappings():
     formatted = _format_few_shot_examples([{"name": "valid", "question": "q", "reasoning": "r"}, "bad"])
     assert "Example 1: valid" in formatted
     assert "Example 2:" not in formatted
+
+
+def _citation(citation_id: str) -> dict[str, str]:
+    return {
+        "id": citation_id,
+        "kind": "referenceDocument",
+        "referenceDocumentId": f"ref-{citation_id}",
+    }
+
+
+class _ADRPromptLoaderStub:
+    def __init__(self, system_prompt: str) -> None:
+        self.system_prompt = system_prompt
+        self.loaded: list[str] = []
+
+    def load_prompt(self, prompt_name: str) -> dict[str, str]:
+        self.loaded.append(prompt_name)
+        return {"system_prompt": self.system_prompt}
+
+
+@pytest.mark.asyncio
+async def test_adr_drafter_worker_uses_existing_prompt_and_validates_structured_output() -> None:
+    prompt_loader = _ADRPromptLoaderStub("Write structured ADRs only.")
+    captured: dict[str, str] = {}
+
+    async def _generator(system_prompt: str, user_prompt: str) -> dict[str, object]:
+        captured["system_prompt"] = system_prompt
+        captured["user_prompt"] = user_prompt
+        return {
+            "action": "create",
+            "adr": {
+                "title": "Use Azure SQL Database",
+                "context": "The workload needs relational consistency.",
+                "decision": "Adopt Azure SQL Database for the transactional store.",
+                "consequences": "Improves operability but reduces schema flexibility.",
+                "alternativesConsidered": [
+                    "Azure Cosmos DB",
+                    "Azure Database for PostgreSQL",
+                ],
+                "relatedRequirementIds": ["req-1"],
+                "relatedDiagramIds": ["diag-1"],
+                "sourceCitations": [_citation("cite-1")],
+            },
+        }
+
+    worker = ADRDrafterWorker(generator=_generator, prompt_loader=prompt_loader)
+
+    result = await worker.draft_adr(
+        user_message="Create an ADR for the primary data store.",
+        project_state={
+            "requirements": [{"id": "req-1", "text": "Relational consistency"}],
+            "candidateArchitectures": [{"id": "arch-1", "title": "App + SQL"}],
+        },
+        requested_action="create",
+    )
+
+    assert prompt_loader.loaded == ["adr_writer.yaml"]
+    assert captured["system_prompt"] == "Write structured ADRs only."
+    assert "responseContract" in captured["user_prompt"]
+    assert "Create an ADR for the primary data store." in captured["user_prompt"]
+    assert result.action == "create"
+    assert result.adr.title == "Use Azure SQL Database"
+    assert result.adr.alternatives_considered == [
+        "Azure Cosmos DB",
+        "Azure Database for PostgreSQL",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_adr_drafter_worker_rejects_missing_alternatives_considered() -> None:
+    async def _generator(system_prompt: str, user_prompt: str) -> dict[str, object]:
+        return {
+            "action": "create",
+            "adr": {
+                "title": "Use Azure SQL Database",
+                "context": "ctx",
+                "decision": "decision",
+                "consequences": "cons",
+                "relatedRequirementIds": ["req-1"],
+                "sourceCitations": [_citation("cite-1")],
+                "missingEvidenceReason": "No diagrams exist yet.",
+            },
+        }
+
+    worker = ADRDrafterWorker(
+        generator=_generator,
+        prompt_loader=_ADRPromptLoaderStub("Write structured ADRs only."),
+    )
+
+    with pytest.raises(ValueError, match="alternativesConsidered"):
+        await worker.draft_adr(
+            user_message="Create an ADR for the primary data store.",
+            project_state={},
+            requested_action="create",
+        )

@@ -535,6 +535,108 @@ async def test_graph_routes_validate_stage_through_validate_worker(
     ]
 
 
+@pytest.mark.asyncio
+async def test_graph_routes_manage_adr_stage_through_dedicated_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call_order: list[str] = []
+
+    async def fake_load_state(_state, _db):
+        call_order.append("load_state")
+        return {
+            "current_project_state": {
+                "requirements": [{"id": "req-1", "text": "Capture architectural decisions"}],
+                "adrs": [],
+            }
+        }
+
+    def fake_classify_stage(_state):
+        call_order.append("classify_stage")
+        return {"next_stage": ProjectStage.MANAGE_ADR.value}
+
+    async def fake_build_summary(state, _db):
+        call_order.append(f"build_summary:{state.get('next_stage')}")
+        return {"context_summary": "summary"}
+
+    async def fake_build_research(_state):
+        call_order.append("build_research")
+        return {
+            "research_plan": ["Azure data store trade-offs"],
+            "stage_directives": "adr stage",
+            "mindmap_guidance": None,
+        }
+
+    async def fake_research_worker(_state):
+        raise AssertionError("research worker should be skipped for manage_adr stage")
+
+    def fake_build_mindmap_guidance(_state):
+        call_order.append("build_mindmap_guidance")
+        return {"mindmap_guidance": None}
+
+    async def fake_manage_adr_stage_worker(state, _db):
+        call_order.append("manage_adr_stage_worker")
+        assert state.get("next_stage") == ProjectStage.MANAGE_ADR.value
+        return {
+            "agent_output": "ADR drafting complete. I created pending change set `cs-adr-1` with 1 ADR draft(s).",
+            "intermediate_steps": [],
+            "success": True,
+            "error": None,
+            "handled_by_stage_worker": True,
+        }
+
+    async def fake_run_agent(_state):
+        raise AssertionError("generic agent should be skipped for manage_adr stage")
+
+    async def fake_persist_messages(_state, _db):
+        call_order.append("persist_messages")
+        return {}
+
+    monkeypatch.setattr(graph_factory_module, "load_project_state_node", fake_load_state)
+    monkeypatch.setattr(graph_factory_module, "classify_next_stage", fake_classify_stage)
+    monkeypatch.setattr(graph_factory_module, "build_context_summary_node", fake_build_summary)
+    monkeypatch.setattr(graph_factory_module, "build_research_plan_node", fake_build_research)
+    monkeypatch.setattr(graph_factory_module, "execute_research_worker_node", fake_research_worker)
+    monkeypatch.setattr(
+        graph_factory_module,
+        "_pass_through_mindmap_guidance",
+        fake_build_mindmap_guidance,
+    )
+    monkeypatch.setattr(
+        graph_factory_module,
+        "execute_manage_adr_stage_worker_node",
+        fake_manage_adr_stage_worker,
+    )
+    monkeypatch.setattr(graph_factory_module, "run_agent_node", fake_run_agent)
+    monkeypatch.setattr(graph_factory_module, "persist_messages_node", fake_persist_messages)
+    monkeypatch.setattr(graph_factory_module, "should_route_to_cost_estimator", lambda _state: False)
+    monkeypatch.setattr(
+        graph_factory_module,
+        "get_app_settings",
+        lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
+    )
+
+    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+
+    result = await graph.ainvoke(
+        {
+            "project_id": "proj-1",
+            "user_message": "Create an ADR for the database decision",
+            "success": False,
+        }
+    )
+
+    assert "cs-adr-1" in result["agent_output"]
+    assert call_order == [
+        "load_state",
+        "classify_stage",
+        f"build_summary:{ProjectStage.MANAGE_ADR.value}",
+        "build_research",
+        "build_mindmap_guidance",
+        "manage_adr_stage_worker",
+        "persist_messages",
+    ]
+
+
 class _EvaluatorStub:
     def __init__(self, *, result: dict[str, object]) -> None:
         self.result = result
