@@ -212,6 +212,7 @@ def _collect_failures(
     if _db_status(report) != "PASS":
         failures.append("Database persistence assertions failed.")
     failures.extend(_collect_export_payload_failures(report))
+    failures.extend(_collect_cost_payload_failures(report))
 
     for dimension, average in dimension_averages.items():
         if average <= 2.0:
@@ -250,6 +251,34 @@ def _collect_export_payload_failures(report: dict[str, Any]) -> list[str]:
     topic_count = scorecard.get("topicCount")
     if missing_topics or (isinstance(topic_count, int) and topic_count < 13):
         failures.append("Export payload mind map scorecard does not cover all 13 topics.")
+
+    return failures
+
+
+def _collect_cost_payload_failures(report: dict[str, Any]) -> list[str]:
+    final = report.get("final") if isinstance(report.get("final"), dict) else {}
+    cost_payload = (
+        final.get("costPayload") if isinstance(final.get("costPayload"), dict) else {}
+    )
+    if not cost_payload:
+        return []
+
+    failures: list[str] = []
+    missing_keys = _coerce_string_list(cost_payload.get("missingRequiredKeys"))
+    if missing_keys:
+        failures.append(f"Cost payload missing required keys: {', '.join(missing_keys)}")
+
+    pricing_log_count = cost_payload.get("pricingLogCount")
+    if not isinstance(pricing_log_count, int) or pricing_log_count < 1:
+        failures.append("Cost payload missing pricing log evidence.")
+
+    latest_estimate = (
+        cost_payload.get("latestEstimate")
+        if isinstance(cost_payload.get("latestEstimate"), dict)
+        else {}
+    )
+    if cost_payload.get("present") and latest_estimate.get("totalMonthlyCost") is None:
+        failures.append("Cost payload latest estimate missing totalMonthlyCost.")
 
     return failures
 

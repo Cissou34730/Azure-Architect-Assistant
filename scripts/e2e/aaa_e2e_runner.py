@@ -24,6 +24,7 @@ _SCENARIOS_ROOT = Path(__file__).resolve().parent / "scenarios"
 _GOLDENS_ROOT = Path(__file__).resolve().parent / "goldens"
 _RUNS_ROOT = Path(__file__).resolve().parent / "runs"
 _REQUIRED_EXPORT_STATE_KEYS: tuple[str, ...] = ("traceabilityLinks", "mindMapCoverage")
+_REQUIRED_COST_STATE_KEYS: tuple[str, ...] = ("costEstimates",)
 _REQUIRED_EXPORT_TOPIC_KEYS: tuple[str, ...] = (
     "1_foundations",
     "2_requirements_and_quality_attributes",
@@ -202,6 +203,7 @@ def _summarize_state(state: dict[str, Any]) -> dict[str, Any]:
         "adrs",
         "diagrams",
         "findings",
+        "costEstimates",
         "traceabilityLinks",
         "traceabilityIssues",
     ]:
@@ -254,6 +256,16 @@ def _empty_export_payload_summary() -> dict[str, Any]:
     }
 
 
+def _empty_cost_payload_summary(*, pricing_log_count: int) -> dict[str, Any]:
+    return {
+        "present": False,
+        "missingRequiredKeys": list(_REQUIRED_COST_STATE_KEYS),
+        "stateSummary": {"keys": [], "counts": {}},
+        "pricingLogCount": pricing_log_count,
+        "latestEstimate": None,
+    }
+
+
 def _summarize_export_payload(answer: str) -> dict[str, Any] | None:
     payload = _extract_aaa_json_block(answer, "AAA_EXPORT")
     if payload is None:
@@ -302,8 +314,49 @@ def _summarize_export_payload(answer: str) -> dict[str, Any] | None:
     return summary
 
 
+def _summarize_cost_payload(
+    state: dict[str, Any],
+    *,
+    pricing_logs: list[dict[str, Any]] | None = None,
+) -> dict[str, Any] | None:
+    cost_estimates = state.get("costEstimates")
+    if cost_estimates is None:
+        cost_estimates = state.get("cost_estimates")
+    if not isinstance(cost_estimates, list) or not cost_estimates:
+        return None
+
+    latest_estimate = cost_estimates[-1] if isinstance(cost_estimates[-1], dict) else {}
+    line_items = (
+        latest_estimate.get("lineItems") if isinstance(latest_estimate.get("lineItems"), list) else []
+    )
+    pricing_gaps = (
+        latest_estimate.get("pricingGaps")
+        if isinstance(latest_estimate.get("pricingGaps"), list)
+        else []
+    )
+
+    return {
+        "present": True,
+        "missingRequiredKeys": _assert_required_state_keys(state, _REQUIRED_COST_STATE_KEYS),
+        "stateSummary": _summarize_state(state),
+        "pricingLogCount": len(pricing_logs or []),
+        "latestEstimate": {
+            "id": latest_estimate.get("id"),
+            "currencyCode": latest_estimate.get("currencyCode"),
+            "totalMonthlyCost": latest_estimate.get("totalMonthlyCost"),
+            "lineItemCount": len(line_items),
+            "pricingGapCount": len(pricing_gaps),
+        },
+    }
+
+
 def _turn_requests_export_payload(message: str) -> bool:
     return "export" in message.lower()
+
+
+def _turn_requests_cost_payload(message: str) -> bool:
+    lowered = message.lower()
+    return any(keyword in lowered for keyword in ("cost", "price", "pricing", "tco", "budget"))
 
 
 def normalize_report_for_golden(report: dict[str, Any]) -> dict[str, Any]:
@@ -857,7 +910,7 @@ async def _run_with_client(
         answer = str(response.get("answer") or "")
         reasoning_steps = response.get("reasoning_steps") or response.get("reasoningSteps")
         mcp_logs: list[dict[str, Any]] = []
-        pricing_logs: list[dict[str, Any]] = []
+        pricing_logs = _parse_aaa_log_blocks(answer, "AAA_PRICING_LOG")
         kb_call_count = 0
         export_payload = _summarize_export_payload(answer)
         if export_payload is None and _turn_requests_export_payload(turn.message):
@@ -869,7 +922,8 @@ async def _run_with_client(
                     continue
                 obs = str(step.get("observation") or "")
                 mcp_logs.extend(_parse_aaa_log_blocks(obs, "AAA_MCP_LOG"))
-                pricing_logs.extend(_parse_aaa_log_blocks(obs, "AAA_PRICING_LOG"))
+                if not pricing_logs:
+                    pricing_logs.extend(_parse_aaa_log_blocks(obs, "AAA_PRICING_LOG"))
 
             kb_call_count = _count_kb_tool_calls(reasoning_steps)
 
@@ -893,6 +947,21 @@ async def _run_with_client(
         }
         if export_payload is not None:
             step_record["exportPayload"] = export_payload
+
+        # Refresh state snapshot after each turn.
+        state_resp = await _http_json(client, "GET", f"/api/projects/{project_id}/state")
+        next_state = state_resp.get("projectState")
+        current_step_state = state
+        if isinstance(next_state, dict):
+            state = next_state
+            current_step_state = next_state
+
+        cost_payload = _summarize_cost_payload(current_step_state, pricing_logs=pricing_logs)
+        if cost_payload is None and _turn_requests_cost_payload(turn.message):
+            cost_payload = _empty_cost_payload_summary(pricing_log_count=len(pricing_logs))
+        if cost_payload is not None and _turn_requests_cost_payload(turn.message):
+            step_record["costPayload"] = cost_payload
+
         steps.append(step_record)
 
         with transcript_path.open("a", encoding="utf-8") as handle:
@@ -916,12 +985,6 @@ async def _run_with_client(
                 )
                 + "\n"
             )
-
-        # Refresh state snapshot after each turn.
-        state_resp = await _http_json(client, "GET", f"/api/projects/{project_id}/state")
-        next_state = state_resp.get("projectState")
-        if isinstance(next_state, dict):
-            state = next_state
 
     # Final state summary
     final_missing_keys = _assert_required_state_keys(
@@ -998,6 +1061,15 @@ async def _run_with_client(
                     step["exportPayload"]
                     for step in steps
                     if isinstance(step.get("exportPayload"), dict)
+                ])
+                else {}
+            ),
+            **(
+                {"costPayload": cost_steps[-1]}
+                if (cost_steps := [
+                    step["costPayload"]
+                    for step in steps
+                    if isinstance(step.get("costPayload"), dict)
                 ])
                 else {}
             ),

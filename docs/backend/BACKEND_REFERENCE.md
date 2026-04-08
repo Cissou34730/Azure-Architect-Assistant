@@ -254,9 +254,9 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 
 ## Evaluation and E2E harness
 
-- `scripts/e2e/aaa_e2e_runner.py` — Canonical end-to-end AAA scenario runner; replays scenario chat turns against the agent API, records advisory/tool usage signals, and manages normalized goldens under `scripts/e2e/goldens/`.
+- `scripts/e2e/aaa_e2e_runner.py` — Canonical end-to-end AAA scenario runner; replays scenario chat turns against the agent API, records advisory/tool usage signals, captures dedicated cost-stage pricing logs plus persisted `costEstimates` summaries, and manages normalized goldens under `scripts/e2e/goldens/`.
 - `scripts/e2e/scenarios/` — Golden scenario inputs used to baseline AAA behavior across requirements, architecture, ADR, validation, IaC, cost, and traceability flows.
-- `backend/tests/eval/reporting.py` — Typed Phase 0 evaluation summary layer that converts the existing E2E runner report shape into rubric-friendly scenario/turn summaries for regression tracking.
+- `backend/tests/eval/reporting.py` — Typed Phase 0 evaluation summary layer that converts the existing E2E runner report shape into rubric-friendly scenario/turn summaries for regression tracking, including export-payload and cost-payload regression checks.
 
 ## AAA ProjectState tools
 

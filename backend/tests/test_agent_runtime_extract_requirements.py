@@ -421,6 +421,73 @@ async def test_execute_cost_stage_worker_node_skips_other_stages() -> None:
 
 
 @pytest.mark.asyncio
+async def test_execute_cost_stage_worker_node_runs_real_cost_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fake_cost_tool_arun(self, payload=None, **kwargs):  # noqa: ANN001, ARG001
+        return (
+            "Recorded cost estimate at 2026-04-08T12:00:00+00:00 (pricingLines=1).\n\n"
+            "AAA_STATE_UPDATE\n"
+            "```json\n"
+            "{\n"
+            '  "costEstimates": [\n'
+            "    {\n"
+            '      "id": "cost-1",\n'
+            '      "currencyCode": "USD",\n'
+            '      "totalMonthlyCost": 42.0,\n'
+            '      "lineItems": [{"name": "Azure Functions executions baseline"}],\n'
+            '      "pricingGaps": []\n'
+            "    }\n"
+            "  ]\n"
+            "}\n"
+            "```\n"
+            "AAA_PRICING_LOG\n"
+            "```json\n"
+            '{"tool":"azure_retail_prices","entries":[{"name":"Azure Functions executions baseline"}]}\n'
+            "```"
+        )
+
+    monkeypatch.setattr(
+        cost_estimator_module.AAAGenerateCostTool,
+        "_arun",
+        fake_cost_tool_arun,
+    )
+
+    result = await execute_cost_stage_worker_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Estimate the monthly cost for Azure Functions with baseline assumptions.",
+            "next_stage": "pricing",
+            "current_project_state": {},
+        },
+        handoff_builder=lambda state: {
+            "agent_handoff_context": {
+                "project_context": "Functions-based API",
+                "architecture": {"description": "Azure Functions backend"},
+                "resource_list": ["Azure Functions"],
+                "region": "eastus",
+                "environment": "production",
+                "constraints": {},
+                "user_request": state.get("user_message", ""),
+            },
+            "current_agent": "cost_estimator",
+        },
+    )
+
+    assert result["current_agent"] == "cost_estimator"
+    assert result["success"] is True
+    assert result["cost_estimate"] == {
+        "id": "cost-1",
+        "currencyCode": "USD",
+        "totalMonthlyCost": 42.0,
+        "lineItems": [{"name": "Azure Functions executions baseline"}],
+        "pricingGaps": [],
+    }
+    assert "AAA_STATE_UPDATE" in result["agent_output"]
+    assert "AAA_PRICING_LOG" in result["agent_output"]
+
+
+@pytest.mark.asyncio
 async def test_execute_export_stage_worker_node_emits_real_export_payload() -> None:
     result = await execute_export_stage_worker_node(
         {

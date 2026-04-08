@@ -116,6 +116,62 @@ def test_export_payload_summary_flags_missing_required_export_sections() -> None
     assert len(summary["mindmapCoverageScorecard"]["missingTopicKeys"]) == 13
 
 
+def test_cost_payload_summary_tracks_persisted_estimates_and_pricing_logs() -> None:
+    runner = _import_runner_module()
+
+    summary = runner._summarize_cost_payload(
+        {
+            "requirements": [{"id": "req-1"}],
+            "costEstimates": [
+                {
+                    "id": "cost-1",
+                    "currencyCode": "USD",
+                    "totalMonthlyCost": 42.0,
+                    "lineItems": [{"name": "Azure Functions executions baseline"}],
+                    "pricingGaps": [],
+                }
+            ],
+        },
+        pricing_logs=[
+            {
+                "tool": "azure_retail_prices",
+                "entries": [{"name": "Azure Functions executions baseline"}],
+            }
+        ],
+    )
+
+    assert summary == {
+        "present": True,
+        "missingRequiredKeys": [],
+        "stateSummary": {
+            "counts": {"costEstimates": 1, "requirements": 1},
+            "keys": ["costEstimates", "requirements"],
+        },
+        "pricingLogCount": 1,
+        "latestEstimate": {
+            "currencyCode": "USD",
+            "id": "cost-1",
+            "lineItemCount": 1,
+            "pricingGapCount": 0,
+            "totalMonthlyCost": 42.0,
+        },
+    }
+
+
+def test_empty_cost_payload_summary_marks_missing_cost_estimates() -> None:
+    runner = _import_runner_module()
+
+    summary = runner._empty_cost_payload_summary(pricing_log_count=0)
+
+    assert summary == {
+        "present": False,
+        "missingRequiredKeys": ["costEstimates"],
+        "stateSummary": {"keys": [], "counts": {}},
+        "pricingLogCount": 0,
+        "latestEstimate": None,
+    }
+
+
 def _build_export_payload() -> dict[str, object]:
     topic_keys = _required_topic_keys()
     coverage_topics = {

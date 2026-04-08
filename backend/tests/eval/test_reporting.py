@@ -187,3 +187,48 @@ def test_build_phase0_eval_summary_flags_export_payload_regressions() -> None:
         "Export payload mind map scorecard does not cover all 13 topics."
         in summary.baseline_failures
     )
+
+
+def test_build_phase0_eval_summary_flags_cost_payload_regressions() -> None:
+    report = {
+        "scenario": {"id": "scenario-cost", "name": "Scenario Cost"},
+        "final": {
+            "missingRequiredKeys": [],
+            "stateSummary": {
+                "keys": ["requirements"],
+                "counts": {"requirements": 1},
+            },
+            "costPayload": {
+                "present": False,
+                "missingRequiredKeys": ["costEstimates"],
+                "stateSummary": {"keys": [], "counts": {}},
+                "pricingLogCount": 0,
+                "latestEstimate": None,
+            },
+        },
+        "dbPersistence": {"status": "PASS"},
+        "steps": [
+            {
+                "id": "us5-iac-cost",
+                "request": "Generate IaC and provide a cost estimate with explicit assumptions.",
+                "answer": "Baseline estimate unavailable.",
+                "success": True,
+                "error": None,
+                "mcpCallCount": 0,
+                "pricingCallCount": 0,
+                "kbCallCount": 0,
+                "advisoryQuality": {
+                    "proactivity": 1,
+                    "correction": 0,
+                    "evidence": 1,
+                    "clarity": 1,
+                    "total": 3,
+                },
+            }
+        ],
+    }
+
+    summary = build_phase0_eval_summary(report)
+
+    assert "Cost payload missing required keys: costEstimates" in summary.baseline_failures
+    assert "Cost payload missing pricing log evidence." in summary.baseline_failures
