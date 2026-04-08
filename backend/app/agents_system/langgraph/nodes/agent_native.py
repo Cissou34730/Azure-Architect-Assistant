@@ -145,10 +145,6 @@ def _build_system_directives(state: GraphState) -> str:
         )
     ]
 
-    specialist = state.get("selected_specialist") or state.get("specialist_used")
-    if specialist:
-        directives.append(f"### Specialist focus\nOperate as {specialist.replace('_', ' ')} and keep the scope tight.")
-
     stage_text = state.get("stage_directives")
     research_plan = state.get("research_plan") or []
     research_packets_text = _research_evidence_packets_section(

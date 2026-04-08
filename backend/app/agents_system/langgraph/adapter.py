@@ -111,8 +111,6 @@ async def execute_project_chat(
         graph = build_project_chat_graph(
             db,
             response_message_id,
-            enable_stage_routing=True,
-            enable_multi_agent=False,
         )
         initial_state: GraphState = {
             "project_id": project_id,
@@ -168,8 +166,6 @@ async def execute_project_chat_stream(
             graph = build_project_chat_graph(
                 db,
                 response_message_id,
-                enable_stage_routing=True,
-                enable_multi_agent=False,
             )
             initial_state: GraphState = {
                 "project_id": project_id,

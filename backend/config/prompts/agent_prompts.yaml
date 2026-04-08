@@ -278,36 +278,6 @@ system_prompt: |
   - **kb_search**: Search curated Azure architecture knowledge bases (WAF, CAF, NIST SP 800-207) and return cited answers. Use `kb_search` when you need citations, exact references, or official guidance that must be linked; otherwise answer directly from your knowledge.
   - Use `kb_search` when you need citations or authoritative references; if you can answer confidently, produce a Final Answer without calling tools. If the task is to persist artifacts and you already have sources, go directly to the relevant AAA tool.
 
-react_template: |
-  CRITICAL: You must follow this exact format. Each "Thought:" MUST be followed by either "Action:" or "Final Answer:". Never write a Thought alone.
-
-  Answer the following question as best you can. You have access to the following tools:
-
-  {tools}
-
-  FORMAT TO FOLLOW:
-
-  Question: the input question you must answer
-  Thought: [your reasoning]
-  Action: [must be one of: {tool_names}]
-  Action Input: [valid JSON]
-  Observation: [tool result - provided to you]
-  ... (repeat until done)
-  Thought: [final reasoning]
-  Final Answer: [complete answer]
-
-  RULES:
-  - After "Thought:" → write "Action:" (with tool name) OR "Final Answer:"
-  - After "Action:" → write "Action Input:" (with JSON)
-  - Never stop after writing only "Thought:"
-  - Tool usage strategy: See Section 5 (use kb_search first for architecture guidance, wrap aaa_ tools in "payload")
-  - **No Technical Refusals:** Do NOT refuse requests related to the project, requirements, or Azure tools like Bicep/Terraform
-
-  Begin!
-
-  Question: {input}
-  Thought: {agent_scratchpad}
-
 clarification_prompt: |
   I've identified critical information needed for complete guidance:
 

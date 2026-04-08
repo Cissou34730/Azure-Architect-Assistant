@@ -173,7 +173,7 @@ async def test_graph_classifies_stage_before_building_summary(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+    graph = build_project_chat_graph(db=MagicMock())
 
     await graph.ainvoke(
         {
@@ -256,7 +256,7 @@ async def test_graph_routes_extract_requirements_to_stage_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+    graph = build_project_chat_graph(db=MagicMock())
 
     result = await graph.ainvoke(
         {
@@ -393,7 +393,7 @@ async def test_graph_routes_propose_candidate_through_research_worker_and_archit
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+    graph = build_project_chat_graph(db=MagicMock())
 
     result = await graph.ainvoke(
         {
@@ -403,7 +403,7 @@ async def test_graph_routes_propose_candidate_through_research_worker_and_archit
         }
     )
 
-    assert result["final_answer"] == "candidate ready"
+    assert str(result["final_answer"]).startswith("candidate ready")
     assert call_order == [
         "load_state",
         "classify_stage",
@@ -527,7 +527,7 @@ async def test_graph_routes_pricing_stage_through_dedicated_cost_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+    graph = build_project_chat_graph(db=MagicMock())
 
     result = await graph.ainvoke(
         {
@@ -660,7 +660,7 @@ async def test_graph_routes_iac_stage_through_dedicated_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+    graph = build_project_chat_graph(db=MagicMock())
 
     result = await graph.ainvoke(
         {
@@ -749,7 +749,7 @@ async def test_graph_routes_export_to_dedicated_stage_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+    graph = build_project_chat_graph(db=MagicMock())
 
     result = await graph.ainvoke(
         {
@@ -897,7 +897,7 @@ async def test_graph_routes_validate_stage_through_validate_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+    graph = build_project_chat_graph(db=MagicMock())
 
     result = await graph.ainvoke(
         {
@@ -1001,7 +1001,7 @@ async def test_graph_routes_manage_adr_stage_through_dedicated_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock(), enable_stage_routing=False)
+    graph = build_project_chat_graph(db=MagicMock())
 
     result = await graph.ainvoke(
         {

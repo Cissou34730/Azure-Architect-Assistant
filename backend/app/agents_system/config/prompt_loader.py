@@ -138,7 +138,7 @@ class PromptLoader:
             force_reload: If True, bypass cache and reload from disk
 
         Returns:
-            Prompt dictionary (typically containing system_prompt and react_template)
+            Prompt dictionary (typically containing system_prompt)
         """
         if not prompt_name:
             raise ValueError("prompt_name must be a non-empty string")
@@ -297,11 +297,6 @@ class PromptLoader:
         )
         return self._token_counter.truncate_to_budget(composed_prompt, context_budget)
 
-    def get_react_template(self) -> str:
-        """Get the ReAct template."""
-        prompts = self.load_prompts()
-        return prompts.get("react_template", "")
-
     def get_clarification_prompt(self) -> str:
         """Get the clarification prompt template."""
         prompts = self.load_prompts()
@@ -351,11 +346,6 @@ def get_prompt_loader() -> PromptLoader:
 def get_system_prompt() -> str:
     """Get system prompt from YAML file."""
     return get_prompt_loader().get_system_prompt()
-
-
-def get_react_template() -> str:
-    """Get ReAct template from YAML file."""
-    return get_prompt_loader().get_react_template()
 
 
 def get_clarification_prompt() -> str:

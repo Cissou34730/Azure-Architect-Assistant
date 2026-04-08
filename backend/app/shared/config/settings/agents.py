@@ -18,10 +18,8 @@ class AgentsSettingsMixin(BaseModel):
     mcp_default_timeout: int = Field(30)
     mcp_max_retries: int = Field(3)
 
-    # LangGraph runtime flags
+    # LangGraph runtime
     aaa_use_langgraph: bool = Field(default=True)
-    aaa_enable_stage_routing: bool = Field(default=False)
-    aaa_enable_multi_agent: bool = Field(default=False)
 
     # Memory & context engineering flags
     aaa_thread_memory_enabled: bool = Field(

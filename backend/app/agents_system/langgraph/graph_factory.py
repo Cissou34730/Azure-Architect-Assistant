@@ -1,8 +1,4 @@
-"""
-Graph factory with Phase 4-6 features.
-
-Builds graphs with stage routing, retry logic, and multi-agent support.
-"""
+"""Graph factory for the single-path LangGraph project chat runtime."""
 
 import logging
 from typing import Literal
@@ -22,14 +18,6 @@ from .nodes.export import execute_export_stage_worker_node
 from .nodes.extract_requirements import execute_extract_requirements_node
 from .nodes.iac_generator import execute_iac_stage_worker_node
 from .nodes.manage_adr import execute_manage_adr_stage_worker_node
-from .nodes.multi_agent import (
-    adr_specialist_node,
-    iac_specialist_node,
-    pricing_specialist_node,
-    route_to_specialist,
-    supervisor_node,
-    validation_specialist_node,
-)
 from .nodes.persist import apply_state_updates_node, persist_messages_node
 from .nodes.postprocess import postprocess_node
 from .nodes.research import build_research_plan_node, execute_research_worker_node
@@ -54,10 +42,8 @@ logger = logging.getLogger(__name__)
 def build_project_chat_graph(
     db: AsyncSession,
     response_message_id: str = "",
-    enable_stage_routing: bool = False,
-    enable_multi_agent: bool = False,
 ) -> StateGraph:
-    """Build project chat graph with Phase 4-6 features."""
+    """Build the project chat graph."""
     workflow = StateGraph(GraphState)
 
     # Core nodes (all phases)
@@ -80,12 +66,11 @@ def build_project_chat_graph(
     workflow.add_node("persist_messages", _wrap_persist_messages(db))
     workflow.add_node("postprocess", _wrap_postprocess(response_message_id))
     workflow.add_node("apply_updates", _wrap_apply_updates(db))
-
-    # Optional Feature Nodes
-    _add_optional_nodes(workflow, enable_stage_routing, enable_multi_agent)
+    workflow.add_node("retry_prompt", build_retry_prompt)
+    workflow.add_node("propose_next_step", propose_next_step)
 
     # Build workflow
-    _build_workflow_edges(workflow, enable_stage_routing, enable_multi_agent)
+    _build_workflow_edges(workflow)
 
     # Add checkpointer for thread-scoped memory when enabled
     settings = get_app_settings()
@@ -155,21 +140,7 @@ def _pass_through_mindmap_guidance(state: GraphState) -> dict:
     }
 
 
-def _add_optional_nodes(workflow: StateGraph, enable_stage_routing: bool, enable_multi_agent: bool):
-    """Add Phase 5/6 nodes to the graph if enabled."""
-    if enable_stage_routing:
-        workflow.add_node("retry_prompt", build_retry_prompt)
-        workflow.add_node("propose_next_step", propose_next_step)
-
-    if enable_multi_agent:
-        workflow.add_node("supervisor", supervisor_node)
-        workflow.add_node("adr_specialist", adr_specialist_node)
-        workflow.add_node("validation_specialist", validation_specialist_node)
-        workflow.add_node("pricing_specialist", pricing_specialist_node)
-        workflow.add_node("iac_specialist", iac_specialist_node)
-
-
-def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enable_multi_agent: bool):
+def _build_workflow_edges(workflow: StateGraph):
     """Define edges and conditional paths for the graph."""
     def route_after_summary(
         state: GraphState,
@@ -200,7 +171,6 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
         "architecture_planner",
         "manage_adr_stage_worker",
         "validate_stage_worker",
-        "supervisor",
         "run_agent",
     ]:
         if state.get("next_stage") == ProjectStage.PRICING.value:
@@ -217,7 +187,7 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
             return "manage_adr_stage_worker"
         if state.get("next_stage") == ProjectStage.VALIDATE.value:
             return "validate_stage_worker"
-        return "supervisor" if enable_multi_agent else "run_agent"
+        return "run_agent"
 
     def route_after_persist(state: GraphState) -> Literal["end", "postprocess"]:
         if state.get("handled_by_stage_worker"):
@@ -256,8 +226,6 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
         "validate_stage_worker": "validate_stage_worker",
         "run_agent": "run_agent",
     }
-    if enable_multi_agent:
-        research_routes["supervisor"] = "supervisor"
 
     workflow.add_edge("research_worker", "build_mindmap_guidance")
     workflow.add_conditional_edges("build_mindmap_guidance", route_after_research, research_routes)
@@ -267,39 +235,18 @@ def _build_workflow_edges(workflow: StateGraph, enable_stage_routing: bool, enab
     workflow.add_edge("iac_stage_worker", "persist_messages")
     workflow.add_edge("manage_adr_stage_worker", "persist_messages")
     workflow.add_edge("validate_stage_worker", "persist_messages")
-
-    if enable_multi_agent:
-        workflow.add_conditional_edges(
-            "supervisor",
-            route_to_specialist,
-            {
-                "adr": "adr_specialist",
-                "validation": "validation_specialist",
-                "pricing": "pricing_specialist",
-                "iac": "iac_specialist",
-                "general": "run_agent",
-            },
-        )
-        for node in ["adr_specialist", "validation_specialist", "pricing_specialist", "iac_specialist"]:
-            workflow.add_edge(node, "run_agent")
-
     workflow.add_edge("run_agent", "persist_messages")
     workflow.add_conditional_edges(
         "persist_messages",
         route_after_persist,
         {"end": END, "postprocess": "postprocess"},
     )
-
-    if enable_stage_routing:
-        workflow.add_conditional_edges(
-            "postprocess",
-            check_for_retry,
-            {"retry": "retry_prompt", "continue": "apply_updates"},
-        )
-        workflow.add_edge("retry_prompt", END)
-        workflow.add_edge("apply_updates", "propose_next_step")
-        workflow.add_edge("propose_next_step", END)
-    else:
-        workflow.add_edge("postprocess", "apply_updates")
-        workflow.add_edge("apply_updates", END)
+    workflow.add_conditional_edges(
+        "postprocess",
+        check_for_retry,
+        {"retry": "retry_prompt", "continue": "apply_updates"},
+    )
+    workflow.add_edge("retry_prompt", END)
+    workflow.add_edge("apply_updates", "propose_next_step")
+    workflow.add_edge("propose_next_step", END)
 

@@ -7,7 +7,7 @@ This document describes the current LangGraph state-based orchestration runtime 
 The backend agent runtime is LangGraph-only and provides:
 - Explicit, testable workflow control
 - Clear branching rules for architect choices and retries
-- Foundation for multi-agent orchestration
+- A single stage-worker/runtime path for project chat
 - Better stage transition handling
 
 ## Architecture
@@ -56,43 +56,11 @@ The backend agent runtime is LangGraph-only and provides:
 - ProjectStage enum: extract_requirements, clarify, propose_candidate, manage_adr, validate, pricing, iac, export
 - Retry loop for ERROR: prefixed outputs
 - Always propose next steps if no artifacts persisted
-- Feature flag: `AAA_ENABLE_STAGE_ROUTING`
-
-### Multi-Agent Specialists
-**Supervisor routes to specialized agents**
-
-- `nodes/multi_agent.py` - Supervisor and specialist nodes
-- SpecialistType enum: adr, validation, pricing, iac, general
-- Each specialist has narrowed toolset and focused prompts
-- Supervisor routes based on task classification
-- Feature flag: `AAA_ENABLE_MULTI_AGENT`
-
-**Specialists:**
-- **ADR Specialist** - Architecture decision records (aaa_manage_adr + research)
-- **Validation Specialist** - WAF and security validation (aaa_record_validation_results)
-- **Pricing Specialist** - Cost estimation (pricing tools only)
-- **IaC Specialist** - Infrastructure as Code generation (IaC tools only)
+- This path is always active for project chat; the old multi-agent specialist branch was removed in Phase 12 cleanup.
 
 ## Configuration
 
-### Environment Variables
-
-```bash
-# Enable Stage Routing
-AAA_ENABLE_STAGE_ROUTING=false  # Set to true for explicit stage transitions
-
-# Enable Multi-Agent
-AAA_ENABLE_MULTI_AGENT=false  # Set to true for specialist routing
-```
-
-### Feature Flag Combinations
-
-| AAA_ENABLE_STAGE_ROUTING | AAA_ENABLE_MULTI_AGENT | Behavior |
-|--------------------------|------------------------|----------|
-| false | false | Core LangGraph workflow |
-| true | false | LangGraph with stage routing |
-| false | true | LangGraph with specialists |
-| true | true | LangGraph with stage routing + specialists |
+Project chat always uses the single LangGraph runtime path with stage classification, retry handling, and next-step proposals enabled.
 
 ## Usage
 
@@ -100,26 +68,6 @@ AAA_ENABLE_MULTI_AGENT=false  # Set to true for specialist routing
 ```python
 # Make API request to /api/agent/projects/{project_id}/chat
 # Router uses LangGraph adapter by default
-```
-
-### With Stage Routing
-```python
-AAA_ENABLE_STAGE_ROUTING=true
-
-# System will:
-# - Classify stage (clarify, propose, adr, validate, pricing, iac, export)
-# - Retry on ERROR: outputs
-# - Propose next steps if no artifacts persisted
-```
-
-### With Multi-Agent
-```python
-AAA_ENABLE_MULTI_AGENT=true
-
-# System will:
-# - Route through supervisor
-# - Select appropriate specialist (ADR, Validation, Pricing, IaC)
-# - Use narrowed toolset for focused tasks
 ```
 
 ## Graph Workflows
@@ -217,22 +165,11 @@ Entry → Load State → Classify Stage → Build Summary → [Extract Requireme
 - Export turns now bypass the generic agent path and use the existing AAA export tool directly.
 - The export payload now includes a `mindmapCoverageScorecard` with all 13 top-level topics plus packaged artifact evidence.
 
-### With Stage Routing
+### Postprocess + Retry
 ```
-... → Postprocess → Classify Stage → [Check Retry]
-                                     ├─ retry → Retry Prompt → End (user clarifies)
-                                     └─ continue → Apply Updates → Propose Next Step → End
-```
-
-### With Multi-Agent
-```
-... → Build Summary → Supervisor → [Route to Specialist]
-                                  ├─ ADR → ADR Specialist ─┐
-                                  ├─ Validation → Validation Specialist ─┤
-                                  ├─ Pricing → Pricing Specialist ─┤
-                                  ├─ IaC → IaC Specialist ─┤
-                                  └─ General → Run Agent ─┘
-                                                            └─ Persist Messages → ...
+... → Postprocess → [Check Retry]
+                     ├─ retry → Retry Prompt → End (user clarifies)
+                     └─ continue → Apply Updates → Propose Next Step → End
 ```
 
 ## Code Structure
@@ -253,8 +190,7 @@ backend/app/agents_system/langgraph/
     ├── agent_native.py         # Graph-native agent loop
     ├── postprocess.py          # Extract updates, derive logs
     ├── persist.py              # Save messages, apply updates
-    ├── stage_routing.py        # Stage classification, retry
-    └── multi_agent.py          # Supervisor, specialists
+    └── stage_routing.py        # Stage classification, retry
 ```
 
 ## Testing
@@ -267,8 +203,6 @@ uv run python -m pytest backend/tests/agents_system/test_langgraph_skeleton.py
 # Test stage routing
 uv run python -m pytest backend/tests/agents_system/test_stage_routing.py
 
-# Test specialist routing
-uv run python -m pytest backend/tests/agents_system/test_multi_agent.py
 ```
 
 ### Integration Tests
@@ -278,13 +212,6 @@ curl -X POST http://localhost:8000/api/agent/projects/{project_id}/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "We need 99.9% availability"}'
 ```
-
-## Rollout
-
-Recommended enablement order:
-1. Start with core LangGraph workflow (both flags `false`)
-2. Enable `AAA_ENABLE_STAGE_ROUTING=true` when stage transitions need stricter control
-3. Enable `AAA_ENABLE_MULTI_AGENT=true` when specialist routing is required
 
 ## Performance Considerations
 
@@ -301,21 +228,13 @@ Recommended enablement order:
 - Ensure OpenAI API key configured
 
 ### Stage routing not working
-- Verify `AAA_ENABLE_STAGE_ROUTING=true`
 - Check keyword classification in logs
 - Review stage classification logic
-
-### Specialists not routing correctly
-- Verify `AAA_ENABLE_MULTI_AGENT=true`
-- Check supervisor routing logic in logs
-- Ensure specialist tools available
 
 ## Future Enhancements
 
 - [ ] Checkpointing for conversation persistence
-- [ ] Parallel specialist execution
 - [ ] Custom stage routing rules
-- [ ] Specialist prompt customization
 - [ ] Performance monitoring and metrics
 - [ ] A/B testing framework
 

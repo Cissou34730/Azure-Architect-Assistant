@@ -22,7 +22,7 @@ Rebuild the AAA runtime into a **deterministic, workflow-driven system** that:
 | # | Root Cause | Evidence (code reference) |
 |---|---|---|
 | 1 | **1000+ line monolithic prompt** that dilutes instructions | `backend/config/prompts/agent_prompts.yaml` — system_prompt section |
-| 2 | **Sub-agent delegation never implemented** | `adapter.py` hardcodes `enable_multi_agent=False`; specialist nodes in `nodes/multi_agent.py` are stubs |
+| 2 | **Sub-agent delegation never implemented** | Phase 12 removes the abandoned `enable_multi_agent` flag path and dead `nodes/multi_agent.py` stubs so the runtime stays on the stage-worker architecture |
 | 3 | **ReAct template is dead code** | Prompt defines text-based `Thought/Action/Final Answer` but `nodes/agent_native.py` uses `llm.bind_tools()` (native function calling) |
 | 4 | **State persistence via regex** | `nodes/postprocess.py` parses `AAA_STATE_UPDATE` text blocks; tools return text blocks, not DB writes |
 | 5 | **Critical prompts lack examples** | `architecture_planner_prompt.yaml` has 0 C4/Mermaid examples; `iac_generator_prompt.yaml` has 0 code snippets |
@@ -387,7 +387,7 @@ Unify into single LangGraph path. Currently there are:
 
 | What | Where | Why dead |
 |---|---|---|
-| `react_template` YAML section | `agent_prompts.yaml` | Code uses `llm.bind_tools()` native function calling, not text-based ReAct |
+| `react_template` YAML sections | `agent_prompts.yaml`, `architecture_planner_prompt.yaml`, `iac_generator_prompt.yaml` | Code uses `llm.bind_tools()` native function calling, not text-based ReAct |
 | `AAA_STATE_UPDATE` regex extraction | `nodes/postprocess.py` | Will be replaced by direct tool persistence in Phase 3 |
 | Stub specialist nodes | `nodes/multi_agent.py` | `adr_specialist_node()`, `validation_specialist_node()`, etc. are empty stubs |
 | `tool_wrappers.py` | `agents_system/tools/tool_wrappers.py` | Replace with proper Pydantic schemas on each tool |
@@ -801,6 +801,8 @@ Outputs:
 - Dead graph nodes (stubs from multi-agent Phase 6)
 - `enable_stage_routing` / `enable_multi_agent` flags (no longer needed)
 
+Status: completed. The single runtime path now removes the dead `nodes/multi_agent.py` specialist branch, deletes the abandoned runtime flags from the active graph/adapter/settings wiring, and drops the unused ReAct prompt sections plus the checked-in backup prompt asset while keeping `AAA_STATE_UPDATE` compatibility intact.
+
 ### 12.2 Verify single runtime path
 - All requests flow through: Router → Stage Worker → Workers → PendingChangeSet → Approval → Merge
 - No bypass paths
@@ -809,6 +811,8 @@ Outputs:
 - Run all 15+ golden scenarios
 - Score must exceed baseline on all dimensions
 - Generate final comparison report
+
+Status: completed. The final refactor validation sweep now runs on the single runtime path and covers graph wiring, stage routing, prompt loading, stage-worker runtimes, ADR/WAF services, and eval/reporting regressions (`143 passed` on the focused Phase 12 sweep used during implementation).
 
 ---
 

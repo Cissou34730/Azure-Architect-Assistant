@@ -44,10 +44,7 @@ The stage-specific prompt files are expected to hold more than one-line reminder
 version: "1.0"
 system_prompt: |
   # Main system instructions for the agent
-  
-react_template: |
-  # ReAct reasoning template with format rules
-  
+
 clarification_prompt: |
   # Template for asking clarification questions
   
@@ -88,18 +85,14 @@ few_shot_examples:
 ### Python Code
 
 ```python
-from app.agents_system.config import react_prompts
+from app.agents_system.config.prompt_loader import get_prompt_loader, reload_prompts
 
 # Access prompts (loaded from YAML)
-system_prompt = react_prompts.SYSTEM_PROMPT
-react_template = react_prompts.REACT_TEMPLATE
+loader = get_prompt_loader()
+system_prompt = loader.get_system_prompt()
 
 # Force reload prompts (for hot-reload)
-react_prompts.reload_prompts()
-
-# Get loader for advanced usage
-loader = react_prompts.get_prompt_loader()
-loader.reload()
+reload_prompts()
 
 # Compose a stage-aware prompt
 system_prompt = loader.compose_prompt(

@@ -65,11 +65,6 @@ class GraphState(TypedDict, total=False):
     next_stage: str | None
     retry_count: int
 
-    # Phase 6 fields (multi-agent)
-    selected_specialist: str | None
-    specialist_used: str | None
-    specialist_notes: str | None
-
     # Phase 2 fields (multi-agent handoff)
     current_agent: str | None  # "main", "architecture_planner", "iac_generator"
     agent_handoff_context: dict[str, Any] | None  # Context passed between agents
