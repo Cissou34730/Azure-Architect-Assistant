@@ -26,7 +26,7 @@ describe("chatApi.sendMessage", () => {
             'event: token\ndata: {"text":"Hello"}\n\n',
             'event: tool_start\ndata: {"tool":"kb_lookup","tool_input":{"query":"x"}}\n\n',
             'event: tool_result\ndata: {"tool":"kb_lookup","content":"done","status":"success"}\n\n',
-            'event: final\ndata: {"answer":"Hello","success":true,"project_state":{"projectId":"p1"},"reasoning_steps":[],"error":null}\n\n',
+            'event: final\ndata: {"answer":"Hello","success":true,"project_state":{"projectId":"p1"},"reasoning_steps":[],"error":null,"thread_id":"thread-1"}\n\n',
           ]),
           {
             status: 200,
@@ -57,5 +57,26 @@ describe("chatApi.sendMessage", () => {
       "tool_result:kb_lookup",
       "final:Hello",
     ]);
+  });
+
+  it("surfaces SSE error events when the stream ends without a final payload", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          createStream([
+            'event: error\ndata: {"error":"Graph execution failed: boom"}\n\n',
+          ]),
+          {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          },
+        ),
+      ),
+    );
+
+    await expect(chatApi.sendMessage("p1", "hello")).rejects.toThrow(
+      "Graph execution failed: boom",
+    );
   });
 });

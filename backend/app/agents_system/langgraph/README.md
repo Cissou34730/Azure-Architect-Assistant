@@ -47,6 +47,7 @@ The backend agent runtime is LangGraph-only and provides:
 - Respects iteration limits and timeouts
 - `config/prompt_loader.py` keeps orchestrator directives YAML-driven and enforces the supplied prompt budget before the final system prompt is injected.
 - `nodes/context.py` builds stage-specific context packs with `AAA_CONTEXT_MAX_BUDGET_TOKENS`, while `graph_factory.py` adds a `MemorySaver` checkpointer with `AAA_THREAD_MEMORY_ENABLED` now defaulting on for thread-scoped LangGraph memory.
+- `adapter.py` now guarantees a non-empty `thread_id` for project-chat runs even when the caller omits one, so checkpointer-backed sync and streaming turns always invoke LangGraph with a valid configurable thread key. The SSE `final` event includes that effective `thread_id`.
 - `memory/compaction_service.py` reads `memory_compaction_prompt.yaml` through `PromptLoader`, so compaction prompt edits hot-reload with the rest of the prompt surface.
 
 ### Stage Routing + Retry

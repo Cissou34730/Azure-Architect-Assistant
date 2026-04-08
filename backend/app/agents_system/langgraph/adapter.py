@@ -35,6 +35,13 @@ def _build_thread_config(thread_id: str | None) -> dict[str, Any] | None:
     return None
 
 
+def _resolve_thread_id(thread_id: str | None) -> str:
+    """Return the provided thread ID or mint one for checkpointer-backed runs."""
+    if thread_id:
+        return thread_id
+    return str(uuid.uuid4())
+
+
 def _build_reasoning_step(step: object) -> dict[str, str] | None:
     """Normalize an intermediate agent step for SSE consumers."""
     if not isinstance(step, tuple) or len(step) != _INTERMEDIATE_STEP_PARTS:
@@ -106,6 +113,7 @@ async def execute_project_chat(
     - intermediate_steps: list
     - error: optional
     """
+    effective_thread_id = _resolve_thread_id(thread_id)
     try:
         response_message_id = str(uuid.uuid4())
         graph = build_project_chat_graph(
@@ -115,11 +123,11 @@ async def execute_project_chat(
         initial_state: GraphState = {
             "project_id": project_id,
             "user_message": user_message,
-            "thread_id": thread_id,
+            "thread_id": effective_thread_id,
             "success": False,
             "retry_count": 0,
         }
-        config = _build_thread_config(thread_id)
+        config = _build_thread_config(effective_thread_id)
         result = await graph.ainvoke(initial_state, config=config)
         output = str(result.get("final_answer", ""))
         if not output:
@@ -133,7 +141,7 @@ async def execute_project_chat(
             "updated_project_state": project_state,
             "intermediate_steps": result.get("intermediate_steps", []),
             "error": result.get("error"),
-            "thread_id": thread_id,
+            "thread_id": effective_thread_id,
         }
     except Exception as e:
         logger.error("LangGraph project chat execution failed: %s", e, exc_info=True)
@@ -145,7 +153,7 @@ async def execute_project_chat(
             "updated_project_state": None,
             "intermediate_steps": [],
             "error": f"LangGraph project chat execution failed: {e!s}",
-            "thread_id": thread_id,
+            "thread_id": effective_thread_id,
         }
 
 
@@ -156,6 +164,7 @@ async def execute_project_chat_stream(
     thread_id: str | None = None,
 ) -> AsyncIterator[str]:
     queue: asyncio.Queue[str | None] = asyncio.Queue()
+    effective_thread_id = _resolve_thread_id(thread_id)
 
     async def _emit(event_type: str, payload: dict[str, Any]) -> None:
         await queue.put(_sse_event(event_type, payload))
@@ -170,12 +179,12 @@ async def execute_project_chat_stream(
             initial_state: GraphState = {
                 "project_id": project_id,
                 "user_message": user_message,
-                "thread_id": thread_id,
+                "thread_id": effective_thread_id,
                 "success": False,
                 "retry_count": 0,
                 "event_callback": _emit,
             }
-            config = _build_thread_config(thread_id)
+            config = _build_thread_config(effective_thread_id)
             result_state = await graph.ainvoke(initial_state, config=config)
             final_answer = str(result_state.get("final_answer", ""))
             success = bool(result_state.get("success", False))
@@ -195,6 +204,7 @@ async def execute_project_chat_stream(
                     "project_state": updated_state,
                     "reasoning_steps": reasoning_steps,
                     "error": result_state.get("error"),
+                    "thread_id": effective_thread_id,
                 },
             )
         except Exception as exc:

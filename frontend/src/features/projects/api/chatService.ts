@@ -29,6 +29,7 @@ interface StreamEventMap {
     readonly project_state?: SendMessageResponse["projectState"];
     readonly reasoning_steps: readonly ReasoningStep[];
     readonly error?: string;
+    readonly thread_id?: string;
   };
   readonly error: { readonly error: string };
 }
@@ -124,14 +125,19 @@ function dispatchStreamEvent(
 function consumeSseBuffer(
   buffer: string,
   callbacks?: StreamCallbacks,
-): { remaining: string; finalPayload: StreamEventMap["final"] | null } {
+): {
+  remaining: string;
+  finalPayload: StreamEventMap["final"] | null;
+  lastError: string | null;
+} {
   let remaining = buffer;
   let finalPayload: StreamEventMap["final"] | null = null;
+  let lastError: string | null = null;
 
   for (;;) {
     const boundary = remaining.indexOf("\n\n");
     if (boundary === -1) {
-      return { remaining, finalPayload };
+      return { remaining, finalPayload, lastError };
     }
 
     const rawEvent = remaining.slice(0, boundary);
@@ -151,6 +157,14 @@ function consumeSseBuffer(
     }
 
     const payload = dispatchStreamEvent(eventName, dataLines.join("\n"), callbacks);
+    if (eventName === "error" && payload === null) {
+      try {
+        const errorPayload = JSON.parse(dataLines.join("\n")) as StreamEventMap["error"];
+        lastError = errorPayload.error;
+      } catch {
+        lastError = `Stream failed while handling '${eventName}'`;
+      }
+    }
     if (payload !== null) {
       finalPayload = payload;
     }
@@ -161,9 +175,13 @@ async function readSseStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   decoder: TextDecoder,
   callbacks?: StreamCallbacks,
-): Promise<StreamEventMap["final"] | null> {
+): Promise<{
+  finalPayload: StreamEventMap["final"] | null;
+  lastError: string | null;
+}> {
   let buffer = "";
   let finalPayload: StreamEventMap["final"] | null = null;
+  let lastError: string | null = null;
 
   for (;;) {
     const { done, value } = await reader.read();
@@ -172,12 +190,14 @@ async function readSseStream(
     const result = consumeSseBuffer(buffer, callbacks);
     buffer = result.remaining;
     if (result.finalPayload !== null) finalPayload = result.finalPayload;
+    if (result.lastError !== null) lastError = result.lastError;
   }
 
   buffer += decoder.decode();
   const result = consumeSseBuffer(buffer, callbacks);
   if (result.finalPayload !== null) finalPayload = result.finalPayload;
-  return finalPayload;
+  if (result.lastError !== null) lastError = result.lastError;
+  return { finalPayload, lastError };
 }
 
 async function streamProjectChat(
@@ -199,9 +219,15 @@ async function streamProjectChat(
     throw new Error("Streaming response body is unavailable");
   }
 
-  const finalPayload = await readSseStream(response.body.getReader(), new TextDecoder(), callbacks);
+  const { finalPayload, lastError } = await readSseStream(
+    response.body.getReader(),
+    new TextDecoder(),
+    callbacks,
+  );
 
-  if (finalPayload === null) throw new Error("Stream completed without a final payload");
+  if (finalPayload === null) {
+    throw new Error(lastError ?? "Stream completed without a final payload");
+  }
   if (!finalPayload.success) throw new Error(finalPayload.error ?? "Agent chat failed");
   if (finalPayload.project_state === undefined) {
     throw new Error("Agent chat succeeded but returned no project state");
