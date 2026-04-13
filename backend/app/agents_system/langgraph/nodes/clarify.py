@@ -34,10 +34,16 @@ async def execute_clarification_planner_node(
     *,
     worker: ClarificationPlannerWorker | None = None,
     resolution_worker: ClarificationResolutionWorker | Any | None = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the clarify stage through the clarification planning worker."""
     if state.get("next_stage") != "clarify":
         return {}
+
+    event_callback = (
+        ((config or {}).get("configurable") or {}).get("event_callback")
+        or state.get("event_callback")
+    )
 
     project_state = _project_state_from_graph_state(state)
     user_message = str(state.get("user_message") or "")
@@ -56,7 +62,7 @@ async def execute_clarification_planner_node(
             )
             updated_project_state = await read_project_state(str(state["project_id"]), db)
             final_answer = _format_clarification_resolution(change_set)
-            await _emit_stage_message(state.get("event_callback"), final_answer)
+            await _emit_stage_message(event_callback, final_answer)
             return {
                 "agent_output": final_answer,
                 "final_answer": final_answer,
@@ -66,20 +72,25 @@ async def execute_clarification_planner_node(
                 "success": True,
             }
         except ValueError as exc:
-            final_answer = f"ERROR: {exc!s}"
-            await _emit_stage_message(state.get("event_callback"), final_answer)
+            logger.warning("Clarification resolution did not yield actionable updates: %s", exc)
+            final_answer = (
+                "I couldn't identify specific answers to the clarification questions in your message. "
+                "Could you reply more directly to one of the questions above? "
+                "For example, answer the identity or recovery question, and I'll capture it as a reviewable update."
+            )
+            await _emit_stage_message(event_callback, final_answer)
             return {
                 "agent_output": final_answer,
                 "final_answer": final_answer,
                 "intermediate_steps": [],
+                "updated_project_state": project_state,
                 "handled_by_stage_worker": True,
-                "success": False,
-                "error": str(exc),
+                "success": True,
             }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("clarify resolution worker failed: %s", exc, exc_info=True)
             final_answer = f"ERROR: Clarification resolution failed: {exc!s}"
-            await _emit_stage_message(state.get("event_callback"), final_answer)
+            await _emit_stage_message(event_callback, final_answer)
             return {
                 "agent_output": final_answer,
                 "final_answer": final_answer,
@@ -97,7 +108,7 @@ async def execute_clarification_planner_node(
             mindmap_coverage=_mindmap_coverage_from_graph_state(state),
         )
         final_answer = _format_clarification_plan(plan)
-        await _emit_stage_message(state.get("event_callback"), final_answer)
+        await _emit_stage_message(event_callback, final_answer)
         return {
             "agent_output": final_answer,
             "final_answer": final_answer,
@@ -107,7 +118,7 @@ async def execute_clarification_planner_node(
         }
     except ValueError as exc:
         final_answer = f"ERROR: {exc!s}"
-        await _emit_stage_message(state.get("event_callback"), final_answer)
+        await _emit_stage_message(event_callback, final_answer)
         return {
             "agent_output": final_answer,
             "final_answer": final_answer,
@@ -116,10 +127,10 @@ async def execute_clarification_planner_node(
             "success": False,
             "error": str(exc),
         }
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("clarify stage worker failed: %s", exc, exc_info=True)
         final_answer = f"ERROR: Clarification planning failed: {exc!s}"
-        await _emit_stage_message(state.get("event_callback"), final_answer)
+        await _emit_stage_message(event_callback, final_answer)
         return {
             "agent_output": final_answer,
             "final_answer": final_answer,
@@ -166,7 +177,7 @@ def _format_clarification_plan(plan: ClarificationPlanningResultContract) -> str
 def _format_clarification_resolution(change_set: Any) -> str:
     resolution_patch = {}
     if hasattr(change_set, "proposed_patch"):
-        proposed_patch = getattr(change_set, "proposed_patch")
+        proposed_patch = change_set.proposed_patch
         if isinstance(proposed_patch, dict):
             resolution_patch = proposed_patch.get("_clarificationResolution") or {}
     question_count = len(resolution_patch.get("clarificationQuestions") or [])

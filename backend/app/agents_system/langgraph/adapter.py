@@ -182,9 +182,13 @@ async def execute_project_chat_stream(
                 "thread_id": effective_thread_id,
                 "success": False,
                 "retry_count": 0,
-                "event_callback": _emit,
             }
-            config = _build_thread_config(effective_thread_id)
+            config: dict[str, Any] = {
+                "configurable": {
+                    "thread_id": effective_thread_id,
+                    "event_callback": _emit,
+                }
+            }
             result_state = await graph.ainvoke(initial_state, config=config)
             final_answer = str(result_state.get("final_answer", ""))
             success = bool(result_state.get("success", False))

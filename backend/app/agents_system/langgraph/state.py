@@ -59,7 +59,6 @@ class GraphState(TypedDict, total=False):
     # Phase 4+ fields
     user_message_id: str | None
     agent_message_id: str | None
-    event_callback: Any
 
     # Phase 5 fields (stage routing and retry)
     next_stage: str | None

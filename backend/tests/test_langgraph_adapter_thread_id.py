@@ -91,8 +91,12 @@ async def test_execute_project_chat_stream_generates_thread_id_when_missing(monk
                 "thread_id": final_payload["thread_id"],
                 "success": False,
                 "retry_count": 0,
-                "event_callback": graph.calls[0][0]["event_callback"],
             },
-            {"configurable": {"thread_id": final_payload["thread_id"]}},
+            {
+                "configurable": {
+                    "thread_id": final_payload["thread_id"],
+                    "event_callback": graph.calls[0][1]["configurable"]["event_callback"],
+                }
+            },
         )
     ]

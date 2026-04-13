@@ -27,10 +27,16 @@ async def execute_extract_requirements_node(
     db: AsyncSession,
     *,
     entry_service: ProjectRequirementsExtractionEntryService | None = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the extract_requirements stage worker inside the project chat graph."""
     if state.get("next_stage") != "extract_requirements":
         return {}
+
+    event_callback = (
+        ((config or {}).get("configurable") or {}).get("event_callback")
+        or state.get("event_callback")
+    )
 
     project_id = state["project_id"]
     service = entry_service or create_requirements_extraction_entry_service()
@@ -50,7 +56,7 @@ async def execute_extract_requirements_node(
             f"I created pending change set `{change_set.id}` with {requirement_count} requirement draft(s). "
             "Review and approve it before it becomes canonical."
         )
-        await _emit_stage_message(state.get("event_callback"), final_answer)
+        await _emit_stage_message(event_callback, final_answer)
         return {
             "agent_output": final_answer,
             "final_answer": final_answer,
@@ -61,7 +67,7 @@ async def execute_extract_requirements_node(
         }
     except ValueError as exc:
         final_answer = f"ERROR: {exc!s}"
-        await _emit_stage_message(state.get("event_callback"), final_answer)
+        await _emit_stage_message(event_callback, final_answer)
         return {
             "agent_output": final_answer,
             "final_answer": final_answer,
@@ -70,10 +76,10 @@ async def execute_extract_requirements_node(
             "success": False,
             "error": str(exc),
         }
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("extract_requirements stage worker failed: %s", exc, exc_info=True)
         final_answer = f"ERROR: Requirements extraction failed: {exc!s}"
-        await _emit_stage_message(state.get("event_callback"), final_answer)
+        await _emit_stage_message(event_callback, final_answer)
         return {
             "agent_output": final_answer,
             "final_answer": final_answer,

@@ -3,6 +3,7 @@
 import logging
 from typing import Literal
 
+from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -98,14 +99,14 @@ def _wrap_postprocess(response_message_id: str):
 
 
 def _wrap_extract_requirements(db: AsyncSession):
-    async def extract_requirements(state: GraphState) -> dict:
-        return await execute_extract_requirements_node(state, db)
+    async def extract_requirements(state: GraphState, config: RunnableConfig) -> dict:
+        return await execute_extract_requirements_node(state, db, config=config)
     return extract_requirements
 
 
 def _wrap_clarify(db: AsyncSession):
-    async def clarify(state: GraphState) -> dict:
-        return await execute_clarification_planner_node(state, db)
+    async def clarify(state: GraphState, config: RunnableConfig) -> dict:
+        return await execute_clarification_planner_node(state, db, config=config)
     return clarify
 
 
@@ -128,8 +129,8 @@ def _wrap_apply_updates(db: AsyncSession):
 
 
 def _wrap_run_agent(db: AsyncSession):
-    async def run_agent(state: GraphState) -> dict:
-        return await run_agent_node(state)
+    async def run_agent(state: GraphState, config: RunnableConfig) -> dict:
+        return await run_agent_node(state, config=config)
     return run_agent
 
 

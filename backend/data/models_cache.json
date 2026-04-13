@@ -872,7 +872,7 @@
           "pricing": null
         }
       ],
-      "fetched_at": "2026-03-31T20:36:46.757657+00:00",
+      "fetched_at": "2026-04-10T12:10:45.368990+00:00",
       "ttl_days": 7
     },
     "azure:e67f4b5889133ae5": {
@@ -883,453 +883,9 @@
           "name": "aaadp",
           "context_window": 8192,
           "pricing": null
-        },
-        {
-          "id": "codex-mini-2025-05-16",
-          "name": "codex-mini-2025-05-16",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-35-turbo",
-          "name": "gpt-35-turbo",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-35-turbo-0125",
-          "name": "gpt-35-turbo-0125",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-35-turbo-0301",
-          "name": "gpt-35-turbo-0301",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-35-turbo-0613",
-          "name": "gpt-35-turbo-0613",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-35-turbo-1106",
-          "name": "gpt-35-turbo-1106",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-35-turbo-16k",
-          "name": "gpt-35-turbo-16k",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-35-turbo-16k-0613",
-          "name": "gpt-35-turbo-16k-0613",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-35-turbo-instruct",
-          "name": "gpt-35-turbo-instruct",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-35-turbo-instruct-0914",
-          "name": "gpt-35-turbo-instruct-0914",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4",
-          "name": "gpt-4",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4-0125-Preview",
-          "name": "gpt-4-0125-Preview",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4-0314",
-          "name": "gpt-4-0314",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4-0613",
-          "name": "gpt-4-0613",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4-1106-Preview",
-          "name": "gpt-4-1106-Preview",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4-32k",
-          "name": "gpt-4-32k",
-          "context_window": 32768,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4-32k-0314",
-          "name": "gpt-4-32k-0314",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4-32k-0613",
-          "name": "gpt-4-32k-0613",
-          "context_window": 32768,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4-turbo-2024-04-09",
-          "name": "gpt-4-turbo-2024-04-09",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4-turbo-jp",
-          "name": "gpt-4-turbo-jp",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4-vision-preview",
-          "name": "gpt-4-vision-preview",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4.1",
-          "name": "gpt-4.1",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4.1-2025-04-14",
-          "name": "gpt-4.1-2025-04-14",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4.1-2025-04-14-text",
-          "name": "gpt-4.1-2025-04-14-text",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4.1-mini",
-          "name": "gpt-4.1-mini",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4.1-mini-2025-04-14",
-          "name": "gpt-4.1-mini-2025-04-14",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4.1-nano",
-          "name": "gpt-4.1-nano",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4.1-nano-2025-04-14",
-          "name": "gpt-4.1-nano-2025-04-14",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o",
-          "name": "gpt-4o",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o-2024-05-13",
-          "name": "gpt-4o-2024-05-13",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o-2024-08-06",
-          "name": "gpt-4o-2024-08-06",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o-2024-11-20",
-          "name": "gpt-4o-2024-11-20",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o-audio-mai",
-          "name": "gpt-4o-audio-mai",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o-audio-preview-2024-10-01",
-          "name": "gpt-4o-audio-preview-2024-10-01",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o-audio-preview-2024-12-17",
-          "name": "gpt-4o-audio-preview-2024-12-17",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o-audio-preview-2025-06-03",
-          "name": "gpt-4o-audio-preview-2025-06-03",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o-canvas-2024-09-25",
-          "name": "gpt-4o-canvas-2024-09-25",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o-mini",
-          "name": "gpt-4o-mini",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o-mini-2024-07-18",
-          "name": "gpt-4o-mini-2024-07-18",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-4o-mini-audio-preview-2024-12-17",
-          "name": "gpt-4o-mini-audio-preview-2024-12-17",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5-2025-08-07",
-          "name": "gpt-5-2025-08-07",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5-chat-2025-08-07",
-          "name": "gpt-5-chat-2025-08-07",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5-chat-2025-08-15",
-          "name": "gpt-5-chat-2025-08-15",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5-chat-2025-10-03",
-          "name": "gpt-5-chat-2025-10-03",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5-codex-2025-09-15",
-          "name": "gpt-5-codex-2025-09-15",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5-mini-2025-08-07",
-          "name": "gpt-5-mini-2025-08-07",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5-mini-2025-08-07-lite",
-          "name": "gpt-5-mini-2025-08-07-lite",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5-mini-lite-2025-08-07",
-          "name": "gpt-5-mini-lite-2025-08-07",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5-nano-2025-08-07",
-          "name": "gpt-5-nano-2025-08-07",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5-pro-2025-10-06",
-          "name": "gpt-5-pro-2025-10-06",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.1",
-          "name": "gpt-5.1",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.1-2025-11-13",
-          "name": "gpt-5.1-2025-11-13",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.1-chat-2025-11-13",
-          "name": "gpt-5.1-chat-2025-11-13",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.1-codex-2025-11-13",
-          "name": "gpt-5.1-codex-2025-11-13",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.1-codex-max-2025-12-04",
-          "name": "gpt-5.1-codex-max-2025-12-04",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.1-codex-mini-2025-11-13",
-          "name": "gpt-5.1-codex-mini-2025-11-13",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.2-chat-2025-12-11",
-          "name": "gpt-5.2-chat-2025-12-11",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.2-chat-2026-02-10",
-          "name": "gpt-5.2-chat-2026-02-10",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.3-chat-2026-03-03",
-          "name": "gpt-5.3-chat-2026-03-03",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.3-codex-2026-02-20",
-          "name": "gpt-5.3-codex-2026-02-20",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.4-mini-2026-03-17",
-          "name": "gpt-5.4-mini-2026-03-17",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "gpt-5.4-nano-2026-03-17",
-          "name": "gpt-5.4-nano-2026-03-17",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "o1-2024-12-17",
-          "name": "o1-2024-12-17",
-          "context_window": 200000,
-          "pricing": null
-        },
-        {
-          "id": "o1-mini-2024-09-12",
-          "name": "o1-mini-2024-09-12",
-          "context_window": 128000,
-          "pricing": null
-        },
-        {
-          "id": "o1-pro",
-          "name": "o1-pro",
-          "context_window": 200000,
-          "pricing": null
-        },
-        {
-          "id": "o1-pro-2025-03-19",
-          "name": "o1-pro-2025-03-19",
-          "context_window": 200000,
-          "pricing": null
-        },
-        {
-          "id": "o3-deep-research-2025-06-26",
-          "name": "o3-deep-research-2025-06-26",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "o3-deep-research-2025-06-26-ev3",
-          "name": "o3-deep-research-2025-06-26-ev3",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "o3-mini",
-          "name": "o3-mini",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "o3-mini-2025-01-31",
-          "name": "o3-mini-2025-01-31",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "o3-mini-alpha",
-          "name": "o3-mini-alpha",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "o3-mini-alpha-2024-12-17",
-          "name": "o3-mini-alpha-2024-12-17",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "o4-mini",
-          "name": "o4-mini",
-          "context_window": 8192,
-          "pricing": null
-        },
-        {
-          "id": "o4-mini-2025-04-16",
-          "name": "o4-mini-2025-04-16",
-          "context_window": 8192,
-          "pricing": null
         }
       ],
-      "fetched_at": "2026-03-31T20:36:46.902268+00:00",
+      "fetched_at": "2026-04-10T12:10:45.458579+00:00",
       "ttl_days": 7
     },
     "copilot:e311cf93b88d5f5c": {
@@ -2353,6 +1909,91 @@
         }
       ],
       "fetched_at": "2026-04-07T16:09:05.586771+00:00",
+      "ttl_days": 7
+    },
+    "copilot:7af099c3a07e6000": {
+      "provider": "copilot",
+      "models": [
+        {
+          "id": "claude-haiku-4.5",
+          "name": "Claude Haiku 4.5",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "claude-opus-4.5",
+          "name": "Claude Opus 4.5",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "claude-opus-4.6",
+          "name": "Claude Opus 4.6",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "claude-opus-4.6-fast",
+          "name": "Claude Opus 4.6 (fast mode)",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "claude-sonnet-4",
+          "name": "Claude Sonnet 4",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "claude-sonnet-4.5",
+          "name": "Claude Sonnet 4.5",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "claude-sonnet-4.6",
+          "name": "Claude Sonnet 4.6",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-4.1",
+          "name": "GPT-4.1",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-5-mini",
+          "name": "GPT-5 mini",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-5.1",
+          "name": "GPT-5.1",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-5.2",
+          "name": "GPT-5.2",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-5.2-codex",
+          "name": "GPT-5.2-Codex",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-5.3-codex",
+          "name": "GPT-5.3-Codex",
+          "context_window": 8192,
+          "pricing": null
+        }
+      ],
+      "fetched_at": "2026-04-10T12:10:45.541671+00:00",
       "ttl_days": 7
     }
   }

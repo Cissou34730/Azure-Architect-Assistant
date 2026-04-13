@@ -260,6 +260,7 @@ async def run_stage_aware_agent(
     *,
     mcp_client: MicrosoftLearnMCPClient,
     openai_settings: object = None,  # kept for call-site compat; no longer used
+    event_callback: Any = None,
 ) -> dict[str, Any]:
     """Execute a stage-aware agent using LangGraph ToolNode."""
     if mcp_client is None:
@@ -283,7 +284,7 @@ async def run_stage_aware_agent(
         "iterations": 0,
     }
 
-    event_callback = state.get("event_callback")
+    event_callback = event_callback or state.get("event_callback")
     if callable(event_callback):
         logger.info("Running stage-aware native agent with streaming events")
         return await _run_streaming_agent_loop(

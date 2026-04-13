@@ -64,7 +64,7 @@ def _get_shortcut_result(state: GraphState, user_message: str) -> dict[str, Any]
     return None
 
 
-async def run_agent_node(state: GraphState) -> dict[str, Any]:
+async def run_agent_node(state: GraphState, config: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     Execute agent with project context and stage directives.
 
@@ -75,6 +75,7 @@ async def run_agent_node(state: GraphState) -> dict[str, Any]:
         State update with agent output and intermediate steps
     """
     user_message = state["user_message"]
+    event_callback = ((config or {}).get("configurable") or {}).get("event_callback")
 
     shortcut_result = _get_shortcut_result(state, user_message)
     if shortcut_result is not None:
@@ -88,11 +89,13 @@ async def run_agent_node(state: GraphState) -> dict[str, Any]:
             state,
             mcp_client=getattr(runner, "mcp_client", None),
             openai_settings=getattr(runner, "openai_settings", None),
+            event_callback=event_callback,
         )
         scope_recovered = await _recover_from_over_refusal(
             result=result,
             state=state,
             runner=runner,
+            event_callback=event_callback,
         )
         if scope_recovered is not None:
             return scope_recovered
@@ -113,6 +116,7 @@ async def _recover_from_over_refusal(
     result: dict[str, Any],
     state: GraphState,
     runner: Any,
+    event_callback: Any = None,
 ) -> dict[str, Any] | None:
     """Retry once when a likely in-scope request is incorrectly refused."""
     user_message = str(state.get("user_message", ""))
@@ -137,6 +141,7 @@ async def _recover_from_over_refusal(
         retry_state,
         mcp_client=getattr(runner, "mcp_client", None),
         openai_settings=getattr(runner, "openai_settings", None),
+        event_callback=event_callback,
     )
     retry_output = str(retry_result.get("agent_output", ""))
     if retry_output.strip() and not is_scope_refusal(retry_output):

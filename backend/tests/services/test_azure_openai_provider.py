@@ -286,30 +286,96 @@ class TestAzureOpenAILLMModelListing:
         assert "gpt-5.3-codex-2026-02-20" in ids
 
     @pytest.mark.asyncio
-    async def test_list_runtime_models_returns_configured_deployments_only(
+    async def test_list_runtime_models_returns_succeeded_deployments_from_api(
         self, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Runtime selection must expose Azure deployment names, not catalog model ids."""
-        mock_client = SimpleNamespace(
-            chat=SimpleNamespace(completions=MagicMock()),
-        )
-        monkeypatch.setattr(
-            "app.shared.ai.providers.azure_openai_client._azure_client",
-            mock_client,
-        )
+        """list_runtime_models calls /openai/deployments and returns deployment IDs."""
+        mock_client = SimpleNamespace(chat=SimpleNamespace(completions=MagicMock()))
+        monkeypatch.setattr("app.shared.ai.providers.azure_openai_client._azure_client", mock_client)
         config = _azure_config(azure_llm_deployments="deploy-a,deploy-b")
         provider = AzureOpenAILLMProvider(config)
 
-        fake_payload = {
+        # Mock the deployments data-plane endpoint
+        fake_deployments = {
             "data": [
-                {"id": "gpt-4o-mini", "capabilities": {"chat_completion": True, "inference": True}},
-                {"id": "gpt-4o", "capabilities": {"chat_completion": True, "inference": True}},
+                {"id": "my-gpt4o", "status": "succeeded", "model": "gpt-4o"},
+                {"id": "my-gpt4mini", "status": "succeeded", "model": "gpt-4o-mini"},
+                {"id": "old-deploy", "status": "running", "model": "gpt-4"},  # not succeeded
             ],
         }
-        fake_request = httpx.Request("GET", "https://aaaoi.openai.azure.com/openai/models")
+        fake_request = httpx.Request("GET", "https://aaaoi.openai.azure.com/openai/deployments")
 
         async def fake_get(self, url, *, params=None, headers=None):
-            return httpx.Response(200, json=fake_payload, request=fake_request)
+            return httpx.Response(200, json=fake_deployments, request=fake_request)
+
+        monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+
+        result = await provider.list_runtime_models()
+        ids = [entry["id"] for entry in result]
+        assert "my-gpt4o" in ids
+        assert "my-gpt4mini" in ids
+        # non-succeeded deployments must be excluded
+        assert "old-deploy" not in ids
+
+    @pytest.mark.asyncio
+    async def test_list_runtime_models_api_preserves_deployment_and_model_names(
+        self, llm_provider: AzureOpenAILLMProvider, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Each returned entry has 'id' = deployment name and 'model' = base model id."""
+        fake_deployments = {
+            "data": [
+                {"id": "aaadp", "status": "succeeded", "model": "gpt-4o-mini"},
+            ],
+        }
+        fake_request = httpx.Request("GET", "https://aaaoi.openai.azure.com/openai/deployments")
+
+        async def fake_get(self, url, *, params=None, headers=None):
+            return httpx.Response(200, json=fake_deployments, request=fake_request)
+
+        monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+
+        result = await llm_provider.list_runtime_models()
+        assert result == [{"id": "aaadp", "model": "gpt-4o-mini"}]
+
+    @pytest.mark.asyncio
+    async def test_list_runtime_models_excludes_embedding_deployments(
+        self, llm_provider: AzureOpenAILLMProvider, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Embedding, DALL-E and other non-LLM deployments must be filtered out."""
+        fake_deployments = {
+            "data": [
+                {"id": "my-gpt4o", "status": "succeeded", "model": "gpt-4o"},
+                {"id": "my-embed", "status": "succeeded", "model": "text-embedding-3-small"},
+                {"id": "my-dalle", "status": "succeeded", "model": "dall-e-3"},
+                {"id": "my-whisper", "status": "succeeded", "model": "whisper-1"},
+            ],
+        }
+        fake_request = httpx.Request("GET", "https://aaaoi.openai.azure.com/openai/deployments")
+
+        async def fake_get(self, url, *, params=None, headers=None):
+            return httpx.Response(200, json=fake_deployments, request=fake_request)
+
+        monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+
+        result = await llm_provider.list_runtime_models()
+        ids = [entry["id"] for entry in result]
+        assert "my-gpt4o" in ids
+        assert "my-embed" not in ids
+        assert "my-dalle" not in ids
+        assert "my-whisper" not in ids
+
+    @pytest.mark.asyncio
+    async def test_list_runtime_models_falls_back_to_configured_when_api_fails(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When /openai/deployments fails, fall back to deployments configured in env vars."""
+        mock_client = SimpleNamespace(chat=SimpleNamespace(completions=MagicMock()))
+        monkeypatch.setattr("app.shared.ai.providers.azure_openai_client._azure_client", mock_client)
+        config = _azure_config(azure_llm_deployments="deploy-a,deploy-b")
+        provider = AzureOpenAILLMProvider(config)
+
+        async def fake_get(self, url, *, params=None, headers=None):
+            raise httpx.ConnectError("Connection refused")
 
         monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
 
@@ -318,17 +384,57 @@ class TestAzureOpenAILLMModelListing:
         assert ids == ["aaadp", "deploy-a", "deploy-b"]
 
     @pytest.mark.asyncio
-    async def test_models_api_failure_falls_back_to_configured(
+    async def test_list_runtime_models_falls_back_to_configured_when_api_returns_empty(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When /openai/deployments returns no LLM deployments, fall back to configured."""
+        mock_client = SimpleNamespace(chat=SimpleNamespace(completions=MagicMock()))
+        monkeypatch.setattr("app.shared.ai.providers.azure_openai_client._azure_client", mock_client)
+        config = _azure_config()
+        provider = AzureOpenAILLMProvider(config)
+
+        fake_request = httpx.Request("GET", "https://aaaoi.openai.azure.com/openai/deployments")
+
+        async def fake_get(self, url, *, params=None, headers=None):
+            return httpx.Response(200, json={"data": []}, request=fake_request)
+
+        monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+
+        result = await provider.list_runtime_models()
+        # Falls back to the single configured deployment
+        assert result == [{"id": "aaadp", "model": "aaadp"}]
+
+    @pytest.mark.asyncio
+    async def test_list_runtime_models_uses_ga_api_version_for_deployments(
         self, llm_provider: AzureOpenAILLMProvider, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """When /openai/models fails, fall back to configured deployments."""
+        """The deployments listing uses GA api-version 2024-10-21."""
+        captured_params: dict = {}
+        fake_request = httpx.Request("GET", "https://aaaoi.openai.azure.com/openai/deployments")
+
+        async def fake_get(self, url, *, params=None, headers=None):
+            captured_params.update(params or {})
+            return httpx.Response(200, json={"data": [{"id": "aaadp", "status": "succeeded", "model": "gpt-4o"}]}, request=fake_request)
+
+        monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+
+        await llm_provider.list_runtime_models()
+        assert captured_params.get("api-version") == "2024-10-21"
+
+    @pytest.mark.asyncio
+    async def test_models_api_failure_does_not_affect_available_models(
+        self, llm_provider: AzureOpenAILLMProvider, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When /openai/models fails, _fetch_available_models returns empty (not configured list)."""
         async def fake_get(self, url, *, params=None, headers=None):
             raise httpx.ConnectError("Connection refused")
 
         monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
 
-        result = await llm_provider.list_runtime_models()
-        assert result == [{"id": "aaadp", "model": "aaadp"}]
+        # _fetch_available_models should propagate the error / return empty
+        # rather than silently falling back to configured deployments
+        result = await llm_provider._fetch_available_models()
+        assert result == []
 
     @pytest.mark.asyncio
     async def test_fetch_available_models_returns_sorted_by_id(
