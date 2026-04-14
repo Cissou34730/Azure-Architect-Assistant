@@ -111,12 +111,16 @@ class AppSettings(
         )
 
     @property
-    def effective_azure_openai_endpoint(self) -> str:
-        return _read_secretkeeper_secret("AI_AZURE_OPENAI_ENDPOINT") or self.ai_azure_openai_endpoint or ""
+    def effective_foundry_endpoint(self) -> str:
+        return _read_secretkeeper_secret("AI_FOUNDRY_ENDPOINT") or self.ai_foundry_endpoint or ""
 
     @property
-    def effective_azure_openai_api_key(self) -> str:
-        return _read_secretkeeper_secret("AI_AZURE_OPENAI_API_KEY") or self.ai_azure_openai_api_key or ""
+    def effective_foundry_api_key(self) -> str:
+        return _read_secretkeeper_secret("AI_FOUNDRY_API_KEY") or self.ai_foundry_api_key or ""
+
+    @property
+    def effective_foundry_resource_id(self) -> str:
+        return _read_secretkeeper_secret("AI_FOUNDRY_RESOURCE_ID") or self.ai_foundry_resource_id or ""
 
     @property
     def runtime_ai_selection(self) -> RuntimeAISelection | None:
@@ -134,42 +138,12 @@ class AppSettings(
             return selection.model_id
         return self.openai_model or self.ai_openai_llm_model
 
-    def _configured_azure_llm_deployment_ids(self) -> set[str]:
-        configured: set[str] = set()
-        primary = _read_secretkeeper_secret("AI_AZURE_LLM_DEPLOYMENT") or self.ai_azure_llm_deployment
-        if primary:
-            configured.add(primary)
-
-        additional = _read_secretkeeper_secret("AI_AZURE_LLM_DEPLOYMENTS") or self.ai_azure_llm_deployments
-        if additional:
-            configured.update(
-                item.strip()
-                for item in additional.split(",")
-                if item.strip()
-            )
-        return configured
-
     @property
-    def effective_azure_llm_deployment(self) -> str:
-        primary = _read_secretkeeper_secret("AI_AZURE_LLM_DEPLOYMENT") or self.ai_azure_llm_deployment
+    def effective_foundry_model(self) -> str:
         selection = self.runtime_ai_selection
-        if selection is not None and selection.llm_provider == "azure":
-            configured = self._configured_azure_llm_deployment_ids()
-            if not configured or selection.model_id in configured:
-                return selection.model_id
-            logger.warning(
-                "Ignoring runtime Azure deployment selection '%s' because it is not one of the configured deployment ids.",
-                selection.model_id,
-            )
-        return primary
-
-    @property
-    def effective_azure_llm_deployments(self) -> str:
-        return _read_secretkeeper_secret("AI_AZURE_LLM_DEPLOYMENTS") or self.ai_azure_llm_deployments or ""
-
-    @property
-    def effective_azure_embedding_deployment(self) -> str:
-        return _read_secretkeeper_secret("AI_AZURE_EMBEDDING_DEPLOYMENT") or self.ai_azure_embedding_deployment or ""
+        if selection is not None and selection.llm_provider == "foundry":
+            return selection.model_id
+        return ""
 
     @property
     def effective_copilot_default_model(self) -> str:

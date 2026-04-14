@@ -1,66 +1,80 @@
 import pytest
+from unittest.mock import AsyncMock
+from types import SimpleNamespace
 
 from app.shared.ai.config import AIConfig
 from app.shared.ai.models_service import ModelsService
 
 
 @pytest.mark.asyncio
-async def test_models_service_uses_azure_deployments_for_azure_provider(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
-    config = AIConfig(
-        llm_provider="azure",
-        embedding_provider="azure",
-        azure_openai_endpoint="https://example.openai.azure.com",
-        azure_openai_api_key="test-azure-key",
-        azure_llm_deployment="primary-deployment",
-        azure_llm_deployments="secondary-deployment, tertiary-deployment",
-        azure_embedding_deployment="embedding-deployment",
-    )
-    service = ModelsService(cache_path=tmp_path / "models_cache.json", config=config)
-    async def _no_live_deployments() -> list[dict[str, str]]:
-        return []
-
-    monkeypatch.setattr(service, "_fetch_azure_deployments_data_plane", _no_live_deployments)
-
-    models = await service._fetch_azure_models()
-
-    model_ids = [model.id for model in models]
-    assert model_ids == [
-        "primary-deployment",
-        "secondary-deployment",
-        "tertiary-deployment",
-    ]
-
-
-@pytest.mark.asyncio
-async def test_models_service_reuses_cached_models_for_azure_provider(
+async def test_models_service_uses_runtime_listing_for_foundry_provider(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     config = AIConfig(
-        llm_provider="azure",
-        embedding_provider="openai",
-        openai_api_key="test-openai-key",
-        azure_openai_endpoint="https://example.openai.azure.com",
-        azure_openai_api_key="test-azure-key",
-        azure_llm_deployment="primary-deployment",
+        llm_provider="foundry",
+        embedding_provider="foundry",
+        foundry_endpoint="https://example.services.ai.azure.com",
+        foundry_api_key="test-foundry-key",
+        foundry_resource_id="/subscriptions/test/resourceGroups/rg/providers/Microsoft.CognitiveServices/accounts/foundry",
+        foundry_model="gpt-5.3-chat",
+        foundry_embedding_model="text-embedding-3-small",
     )
     service = ModelsService(cache_path=tmp_path / "models_cache.json", config=config)
+    runtime_service = SimpleNamespace(
+        list_llm_runtime_models=AsyncMock(
+            return_value=[
+                {"id": "gpt-5.3-chat", "model": "gpt-5.3-chat"},
+                {"id": "Phi-4", "model": "Phi-4"},
+            ]
+        )
+    )
 
-    async def _live_models() -> list[dict[str, str]]:
-        return [{"id": "primary-deployment", "model": "gpt-4o"}]
+    monkeypatch.setattr(
+        "app.shared.ai.models_service.AIServiceManager.create_probe",
+        lambda _config: runtime_service,
+    )
 
-    monkeypatch.setattr(service, "_fetch_azure_deployments_data_plane", _live_models)
+    models, _ = await service.get_available_models(force_refresh=True)
+
+    model_ids = [model.id for model in models]
+    assert model_ids == ["gpt-5.3-chat", "Phi-4"]
+
+
+@pytest.mark.asyncio
+async def test_models_service_reuses_cached_models_for_foundry_provider(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = AIConfig(
+        llm_provider="foundry",
+        embedding_provider="foundry",
+        foundry_endpoint="https://example.services.ai.azure.com",
+        foundry_api_key="test-foundry-key",
+        foundry_resource_id="/subscriptions/test/resourceGroups/rg/providers/Microsoft.CognitiveServices/accounts/foundry",
+        foundry_model="gpt-5.3-chat",
+        foundry_embedding_model="text-embedding-3-small",
+    )
+    service = ModelsService(cache_path=tmp_path / "models_cache.json", config=config)
+    runtime_service = SimpleNamespace(
+        list_llm_runtime_models=AsyncMock(
+            side_effect=[
+                [{"id": "gpt-5.3-chat", "model": "gpt-5.3-chat"}],
+                RuntimeError("foundry unavailable"),
+            ]
+        )
+    )
+    monkeypatch.setattr(
+        "app.shared.ai.models_service.AIServiceManager.create_probe",
+        lambda _config: runtime_service,
+    )
 
     first_models, _ = await service.get_available_models(force_refresh=True)
-    assert [model.id for model in first_models] == ["primary-deployment"]
-
-    async def _boom() -> list[dict[str, str]]:
-        raise RuntimeError("azure unavailable")
-
-    monkeypatch.setattr(service, "_fetch_azure_deployments_data_plane", _boom)
+    assert [model.id for model in first_models] == ["gpt-5.3-chat"]
 
     cached_models, _ = await service.get_available_models(force_refresh=False)
-    assert [model.id for model in cached_models] == ["primary-deployment"]
+    assert [model.id for model in cached_models] == ["gpt-5.3-chat"]
+    assert runtime_service.list_llm_runtime_models.await_count == 1
 
 
 @pytest.mark.asyncio

@@ -26,11 +26,13 @@ _SAFE_PROVIDER_PROBE_ERRORS = (
 class SettingsModelsService:
     """Coordinates provider-aware model listing and runtime switching."""
 
+    _SUPPORTED_PROVIDER_IDS = frozenset({"openai", "foundry", "copilot"})
+
     def _get_fallback_provider_and_model(self) -> tuple[str, str]:
         settings = get_app_settings()
         provider = settings.effective_ai_llm_provider
-        if provider == "azure":
-            return provider, settings.effective_azure_llm_deployment
+        if provider == "foundry":
+            return provider, settings.effective_foundry_model
         if provider == "copilot":
             return provider, settings.effective_copilot_default_model
         return provider, settings.effective_openai_llm_model
@@ -112,6 +114,7 @@ class SettingsModelsService:
         return await self.set_selection(provider_id=current_provider, model_id=model_id)
 
     async def set_selection(self, *, provider_id: str, model_id: str) -> dict[str, Any]:
+        self._validate_provider_id(provider_id)
         probe_config = self._build_probe_config(
             provider_id=provider_id,
             model_id=model_id,
@@ -183,7 +186,7 @@ class SettingsModelsService:
         refresh: bool,
     ) -> list[dict[str, Any]]:
         base_config = AIConfig.default()
-        providers: list[str] = ["openai", "azure", "copilot"]
+        providers: list[str] = ["openai", "foundry", "copilot"]
         payloads: list[dict[str, Any]] = []
 
         for provider_id in providers:
@@ -252,15 +255,15 @@ class SettingsModelsService:
     def _provider_name(provider_id: str) -> str:
         names = {
             "openai": "OpenAI",
-            "azure": "Azure OpenAI",
+            "foundry": "Azure AI Foundry",
             "copilot": "GitHub Copilot",
         }
         return names.get(provider_id, provider_id)
 
     @staticmethod
     def _default_model_for_provider(base_config: AIConfig, provider_id: str) -> str:
-        if provider_id == "azure":
-            return base_config.azure_llm_deployment
+        if provider_id == "foundry":
+            return base_config.foundry_model
         if provider_id == "copilot":
             return base_config.copilot_default_model
         return base_config.openai_llm_model
@@ -275,12 +278,7 @@ class SettingsModelsService:
         return AIServiceManager._build_config_for_selection(
             provider_id,
             model_id,
-            base_config=base_config.model_copy(
-                update={
-                    "fallback_enabled": False,
-                    "fallback_provider": "none",
-                }
-            ),
+            base_config=base_config,
         )
 
     @staticmethod
@@ -313,6 +311,19 @@ class SettingsModelsService:
         if config.copilot_default_model:
             ids.add(config.copilot_default_model)
         return ids
+
+    @classmethod
+    def _validate_provider_id(cls, provider_id: str) -> None:
+        if provider_id == "azure":
+            raise HTTPException(
+                status_code=400,
+                detail="Provider 'azure' is no longer supported. Use 'foundry'.",
+            )
+        if provider_id not in cls._SUPPORTED_PROVIDER_IDS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported provider '{provider_id}'.",
+            )
 
     @staticmethod
     def _persist_runtime_selection(*, provider_id: str, model_id: str) -> None:

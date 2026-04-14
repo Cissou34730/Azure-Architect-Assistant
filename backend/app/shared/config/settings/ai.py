@@ -17,11 +17,8 @@ if TYPE_CHECKING:
 
 class AISettingsMixin(BaseModel):
     # ── Provider selection ────────────────────────────────────────────────────
-    ai_llm_provider: Literal["openai", "azure", "anthropic", "local", "copilot"] = "openai"
-    ai_embedding_provider: Literal["openai", "azure", "local"] = "openai"
-    ai_fallback_provider: Literal["openai", "azure", "none"] = "none"
-    ai_fallback_enabled: bool = False
-    ai_fallback_on_transient_only: bool = True
+    ai_llm_provider: Literal["openai", "foundry", "anthropic", "local", "copilot"] = "openai"
+    ai_embedding_provider: Literal["openai", "foundry", "local"] = "openai"
 
     # ── Legacy bare env vars (OPENAI_API_KEY, OPENAI_MODEL, …) ──────────────
     # Kept so .env files using the un-prefixed form still work.
@@ -38,13 +35,11 @@ class AISettingsMixin(BaseModel):
     ai_openai_timeout: float = Field(default=600.0)
     ai_openai_max_retries: int = Field(default=0)  # callers own retry strategy
 
-    # ── Azure OpenAI settings (AI_AZURE_* env vars) ──────────────────────────
-    ai_azure_openai_endpoint: str = ""
-    ai_azure_openai_api_key: str = ""
-    ai_azure_openai_api_version: str = "2024-02-15-preview"
-    ai_azure_llm_deployment: str = ""
-    ai_azure_llm_deployments: str = ""
-    ai_azure_embedding_deployment: str = ""
+    # ── AI Foundry settings (AI_FOUNDRY_* env vars) ──────────────────────────
+    ai_foundry_endpoint: str = ""
+    ai_foundry_api_key: str = ""
+    ai_foundry_api_version: str = "2024-10-21"
+    ai_foundry_resource_id: str = ""
 
     # ── GitHub Copilot settings (AI_COPILOT_* env vars) ────────────────────
     ai_copilot_token: str = ""              # reads AI_COPILOT_TOKEN; also accepts GITHUB_TOKEN
