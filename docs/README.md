@@ -40,7 +40,7 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 - [`backend/README.md`](./backend/README.md)
 - [`backend/BACKEND_REFERENCE.md`](./backend/BACKEND_REFERENCE.md) — Backend entry points, API surface, current ProjectState decomposition status, and eval/E2E harness locations
 - [`backend/AI_PROVIDER_ROUTING.md`](./backend/AI_PROVIDER_ROUTING.md)
-- [`backend/AZURE_OPENAI_SETUP.md`](./backend/AZURE_OPENAI_SETUP.md)
+- [`backend/AZURE_FOUNDRY_SETUP.md`](./backend/AZURE_FOUNDRY_SETUP.md)
 - [`backend/COPILOT_SETUP.md`](./backend/COPILOT_SETUP.md)
 - [`backend/DATA_ROOT_STORAGE_POLICY.md`](./backend/DATA_ROOT_STORAGE_POLICY.md)
 - [`backend/TESTING_DEPENDENCY_INJECTION.md`](./backend/TESTING_DEPENDENCY_INJECTION.md)
@@ -48,6 +48,7 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 ### Refactor
 
 - [`refactor/AAA-refactor.md`](./refactor/AAA-refactor.md) — Approved 13-phase AAA runtime rebuild plan; implementation starts with the Phase 0 eval scaffold and Phase 1 runtime stabilization
+- [`refactor/plan-ai-foundry-migration.md`](./refactor/plan-ai-foundry-migration.md) — Completed Azure OpenAI to Azure AI Foundry provider migration plan and execution record
 
 ### Ingestion
 

@@ -128,10 +128,10 @@
 - `backend/config/ingestion.config.json` and `backend/config/kb_defaults.json` are file-backed defaults loaded by `IngestionSettingsMixin` into `AppSettings` (`ingestion_queue`, `kb_defaults`).
 - `backend/config/mcp/mcp_config.json` is loaded through `AppSettings.get_mcp_server_config(...)`.
 - Storage paths come through `AppSettings`; relative values from process env or `.env` resolve against `backend/`. The fallback data root is `backend/data`, which covers `projects.db`, `ingestion.db`, and the `knowledge_bases/` directory.
-- `SettingsModelsService` validates `PUT /api/settings/llm-selection` against provider model listings and persists the selection to `runtime_ai_selection.json`; it does not require a live chat completion probe to accept a listed model.
+- `SettingsModelsService` validates `PUT /api/settings/llm-selection` against provider model listings, rejects the legacy `azure` provider id in favor of `foundry`, and persists the active selection to `runtime_ai_selection.json`.
 - `backend/config/prompts/*.yaml` and `backend/config/checklists/*.json` are content/resource files (not env settings) loaded by dedicated services. `PromptLoader.compose_prompt(agent_type, stage, context_budget)` now assembles modular prompt fragments (`base_persona`, agent-specific routing, stage-specific instructions, tool strategy, guardrails) and falls back to `agent_prompts.yaml` when modular files are absent; the dead ReAct template sections and compatibility shim were removed in Phase 12 because the runtime is native tool-calling only.
 - Agent runtime is LangGraph-only (legacy LangChain ReAct backend paths were removed).
-- AI provider routing and fallback behavior is documented in `docs/backend/AI_PROVIDER_ROUTING.md`.
+- AI provider routing for `openai`, `foundry`, and `copilot` is documented in `docs/backend/AI_PROVIDER_ROUTING.md`.
 
 ## Remaining compatibility paths
 
@@ -149,8 +149,8 @@ The backend uses singletons for expensive, shared resources with lifecycle manag
 |---------|----------|---------------|-------------------|
 | **AgentRunner** | `app/agents_system/runner.py` | Lifecycle coordination for shared MCP/OpenAI runtime context used by LangGraph nodes | Startup: 2-3s (MCP + LLM init) |
 | **KBManager** | `app/service_registry.py` | Vector index caching (150MB in memory), preloaded at startup | 3.2s load time per KB, indices cached in memory |
-| **LLMService** | `app/services/llm_service.py` | Connection pooling to OpenAI/Azure | HTTP client reuse, rate limiting |
-| **AIService** | `app/services/ai/ai_service.py` | Provider abstraction (OpenAI, Azure, Anthropic) | Model caching, connection pooling |
+| **LLMService** | `app/services/llm_service.py` | Connection pooling to OpenAI/Foundry-backed runtimes | HTTP client reuse, rate limiting |
+| **AIService** | `app/services/ai/ai_service.py` | Provider abstraction (OpenAI, Foundry, Copilot, Anthropic) | Model caching, connection pooling |
 | **PromptLoader** | `app/agents_system/config/prompt_loader.py` | File I/O caching for YAML prompts | Avoids repeated disk reads |
 
 ### Accessing Singletons
