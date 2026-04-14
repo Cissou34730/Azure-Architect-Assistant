@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 /**
  * Model picker / backend sync E2E test.
@@ -11,8 +12,6 @@ import { expect, test } from "@playwright/test";
  */
 
 const BACKEND_BASE_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
-const REFRESH_OPTION_VALUE = "__refresh__";
-
 /** Shape of the raw /api/settings/llm-options response (snake_case, as FastAPI returns it). */
 interface BackendModel {
   id: string;
@@ -36,169 +35,187 @@ interface BackendLLMOptionsResponse {
   providers: BackendProvider[];
 }
 
-test.describe("Model picker / backend sync", () => {
+function hasStringProperty(candidate: object, propertyName: string): boolean {
+  return typeof Reflect.get(candidate, propertyName) === "string";
+}
+
+function hasNullableStringProperty(candidate: object, propertyName: string): boolean {
+  const propertyValue = Reflect.get(candidate, propertyName);
+  return propertyValue === null || typeof propertyValue === "string";
+}
+
+function hasNullableObjectProperty(candidate: object, propertyName: string): boolean {
+  const propertyValue = Reflect.get(candidate, propertyName);
+  return propertyValue === null || typeof propertyValue === "object";
+}
+
+function hasBooleanProperty(candidate: object, propertyName: string): boolean {
+  return typeof Reflect.get(candidate, propertyName) === "boolean";
+}
+
+function isBackendModel(value: object | null): value is BackendModel {
+  if (value === null) {
+    return false;
+  }
+
+  return hasStringProperty(value, "id") &&
+    hasStringProperty(value, "name") &&
+    typeof Reflect.get(value, "context_window") === "number" &&
+    hasNullableObjectProperty(value, "pricing");
+}
+
+function isBackendProvider(value: object | null): value is BackendProvider {
+  if (value === null) {
+    return false;
+  }
+
+  const providerModels = Reflect.get(value, "models");
+  return hasStringProperty(value, "id") &&
+    hasStringProperty(value, "name") &&
+    hasStringProperty(value, "status") &&
+    hasNullableStringProperty(value, "status_message") &&
+    hasBooleanProperty(value, "selected") &&
+    Array.isArray(providerModels) &&
+    providerModels.every(isBackendModel);
+}
+
+function isBackendLLMOptionsResponse(value: object | null): value is BackendLLMOptionsResponse {
+  if (value === null) {
+    return false;
+  }
+
+  const responseProviders = Reflect.get(value, "providers");
+  return hasStringProperty(value, "active_provider") &&
+    hasStringProperty(value, "active_model") &&
+    Array.isArray(responseProviders) &&
+    responseProviders.every(isBackendProvider);
+}
+
+async function readEnabledOptionValues(selectLocator: Locator): Promise<string[]> {
+  return selectLocator.locator("option").evaluateAll((optionElements) =>
+    optionElements
+      .filter(
+        (optionElement): optionElement is HTMLOptionElement =>
+          optionElement instanceof HTMLOptionElement && !optionElement.disabled,
+      )
+      .map((optionElement) => optionElement.value)
+      .filter((optionValue) => optionValue !== "" && optionValue !== "__refresh__"),
+  );
+}
+
+async function fetchBackendOptions(page: Page, refresh = false): Promise<BackendLLMOptionsResponse> {
+  const apiResponse = await page.request.get(
+    `${BACKEND_BASE_URL}/api/settings/llm-options${refresh ? "?refresh=true" : ""}`,
+  );
+  expect(
+    apiResponse.ok(),
+    `Backend /api/settings/llm-options${refresh ? "?refresh=true" : ""} returned HTTP ${apiResponse.status()}`,
+  ).toBe(true);
+
+  const responsePayload = await apiResponse.json();
+  expect(isBackendLLMOptionsResponse(responsePayload)).toBe(true);
+  if (!isBackendLLMOptionsResponse(responsePayload)) {
+    throw new Error("Unexpected /api/settings/llm-options response payload.");
+  }
+  return responsePayload;
+}
+
+async function expectInitialModelsLoaded(modelSelect: Locator): Promise<void> {
+  await expect(
+    modelSelect,
+    "Model picker dropdown is not visible on the page",
+  ).toBeVisible({ timeout: 20_000 });
+
+  await expect(async () => {
+    const enabledOptions = await readEnabledOptionValues(modelSelect);
+    expect(enabledOptions.length).toBeGreaterThan(0);
+  }).toPass({ timeout: 30_000 });
+}
+
+test("model dropdown matches the live backend model list for the active provider", async ({ page }) => {
   test.setTimeout(60_000);
 
-  test("model dropdown matches the live backend model list for the active provider", async ({
-    page,
-  }) => {
-    // ── Step 1: Load the frontend ───────────────────────────────────────────
+  await page.goto("/");
 
-    await page.goto("/");
+  const modelSelect = page.locator('select[aria-label="LLM Model"]');
+  await expectInitialModelsLoaded(modelSelect);
 
-    const modelSelect = page.locator('select[aria-label="LLM Model"]');
-    await expect(
-      modelSelect,
-      "Model picker dropdown is not visible on the page",
-    ).toBeVisible({ timeout: 20_000 });
+  // The initial load may return a cached subset. The refresh sentinel asks the
+  // active provider, including Azure AI Foundry, for its full deployed model list.
+  await modelSelect.selectOption("__refresh__");
+  await expect(
+    modelSelect.locator('option[value="__refresh__"]'),
+    "Refresh did not complete within timeout",
+  ).toHaveText("Refresh models", { timeout: 30_000 });
 
-    // Wait for the initial model list to be populated (not just the refresh sentinel).
-    // 30s budget: the first backend call may wait up to 5s for the Azure deployments
-    // discovery probe before falling back, on top of the normal network round-trip.
-    await expect(async () => {
-      const enabledOptions = await modelSelect
-        .locator("option:not([disabled])")
-        .evaluateAll((opts) =>
-          opts
-            .map((el) => (el as HTMLOptionElement).value)
-            .filter((v) => v !== "__refresh__" && v !== ""),
-        );
-      expect(enabledOptions.length).toBeGreaterThan(0);
-    }).toPass({ timeout: 30_000 });
+  const backendOptions = await fetchBackendOptions(page, true);
+  const activeProvider = backendOptions.providers.find(
+    (provider) => provider.id === backendOptions.active_provider,
+  );
+  expect(
+    activeProvider,
+    `Active provider "${backendOptions.active_provider}" not found in providers list`,
+  ).toBeDefined();
+  if (activeProvider === undefined) {
+    return;
+  }
 
-    // ── Step 2: Trigger "Refresh models" so the UI fetches the full list ────
-    //
-    // The initial load uses refresh=false, which may return only the configured
-    // deployment ID. Selecting the "__refresh__" sentinel fires refresh=true on
-    // the backend, which queries the provider API for all deployed models.
-
-    await modelSelect.selectOption("__refresh__");
-
-    // Wait for the refresh spinner to disappear — the option text switches back
-    // from "Refreshing models..." to "Refresh models" once the fetch is done.
-    await expect(
-      modelSelect.locator('option[value="__refresh__"]'),
-      "Refresh did not complete within timeout",
-    ).toHaveText("Refresh models", { timeout: 30_000 });
-
-    // ── Step 3: Fetch the same refreshed data from the backend ─────────────
-
-    const apiResponse = await page.request.get(
-      `${BACKEND_BASE_URL}/api/settings/llm-options?refresh=true`,
+  const backendModelIds = activeProvider.models.map((backendModel) => backendModel.id);
+  console.log(
+    `Backend (refreshed): active provider = "${backendOptions.active_provider}", ` +
+      `${backendModelIds.length} model(s): ${backendModelIds.join(", ")}`,
+  );
+  if (backendModelIds.length === 0) {
+    console.warn(
+      `Provider "${backendOptions.active_provider}" has 0 models after refresh — ` +
+        "skipping UI comparison (environment not fully configured).",
     );
+    return;
+  }
 
-    expect(
-      apiResponse.ok(),
-      `Backend /api/settings/llm-options?refresh=true returned HTTP ${apiResponse.status()}`,
-    ).toBe(true);
+  const uiModelIds = await readEnabledOptionValues(modelSelect);
+  console.log(`UI dropdown (refreshed): ${uiModelIds.length} model(s): ${uiModelIds.join(", ")}`);
 
-    const data = (await apiResponse.json()) as BackendLLMOptionsResponse;
-    const activeProvider = data.providers.find((p) => p.id === data.active_provider);
-
-    expect(
-      activeProvider,
-      `Active provider "${data.active_provider}" not found in providers list`,
-    ).toBeDefined();
-
-    const backendModelIds = (activeProvider!).models.map((m) => m.id);
-
-    console.log(
-      `Backend (refreshed): active provider = "${data.active_provider}", ` +
-        `${backendModelIds.length} model(s): ${backendModelIds.join(", ")}`,
+  for (const backendModelId of backendModelIds) {
+    expect(uiModelIds, `Backend model "${backendModelId}" is missing from the UI model picker`).toContain(
+      backendModelId,
     );
-
-    if (backendModelIds.length === 0) {
-      console.warn(
-        `Provider "${data.active_provider}" has 0 models after refresh — ` +
-          "skipping UI comparison (environment not fully configured).",
-      );
-      return;
-    }
-
-    // ── Step 4: Extract model IDs that the UI is now showing ───────────────
-
-    const uiModelIds: string[] = await modelSelect
-      .locator("option")
-      .evaluateAll((opts) =>
-        opts
-          .filter((el) => !(el as HTMLOptionElement).disabled)
-          .map((el) => (el as HTMLOptionElement).value)
-          .filter((v) => v !== "" && v !== "__refresh__"),
-      );
-
-    console.log(`UI dropdown (refreshed): ${uiModelIds.length} model(s): ${uiModelIds.join(", ")}`);
-
-    // ── Step 5: Assert exact bidirectional match ────────────────────────────
-
-    for (const modelId of backendModelIds) {
-      expect(
-        uiModelIds,
-        `Backend model "${modelId}" is missing from the UI model picker`,
-      ).toContain(modelId);
-    }
-
-    for (const modelId of uiModelIds) {
-      expect(
-        backendModelIds,
-        `UI model picker shows "${modelId}" but the backend did not return it`,
-      ).toContain(modelId);
-    }
-
-    expect(
-      uiModelIds.length,
-      `UI has ${uiModelIds.length} models but backend returned ${backendModelIds.length}`,
-    ).toBe(backendModelIds.length);
-  });
-
-  test("provider picker only shows providers that the backend knows about", async ({
-    page,
-  }) => {
-    // Fetch the full provider list from the backend
-    const apiResponse = await page.request.get(
-      `${BACKEND_BASE_URL}/api/settings/llm-options`,
+  }
+  for (const uiModelId of uiModelIds) {
+    expect(backendModelIds, `UI model picker shows "${uiModelId}" but the backend did not return it`).toContain(
+      uiModelId,
     );
-    expect(apiResponse.ok()).toBe(true);
+  }
+  expect(
+    uiModelIds.length,
+    `UI has ${uiModelIds.length} models but backend returned ${backendModelIds.length}`,
+  ).toBe(backendModelIds.length);
+});
 
-    const data = (await apiResponse.json()) as BackendLLMOptionsResponse;
-    const backendProviderIds = data.providers.map((p) => p.id);
-    const activeProviderId = data.active_provider;
+test("provider picker only shows providers that the backend knows about", async ({ page }) => {
+  test.setTimeout(60_000);
 
-    console.log(
-      `Backend providers: ${backendProviderIds.join(", ")} (active: ${activeProviderId})`,
+  const backendOptions = await fetchBackendOptions(page);
+  const backendProviderIds = backendOptions.providers.map((provider) => provider.id);
+  console.log(
+    `Backend providers: ${backendProviderIds.join(", ")} (active: ${backendOptions.active_provider})`,
+  );
+
+  await page.goto("/");
+
+  const providerSelect = page.locator('select[aria-label="LLM Provider"]');
+  await expect(providerSelect).toBeVisible({ timeout: 20_000 });
+  await expect(
+    providerSelect.locator(`option[value="${backendOptions.active_provider}"]`),
+    `Active provider "${backendOptions.active_provider}" must appear in the provider picker`,
+  ).toBeAttached({ timeout: 15_000 });
+
+  const uiProviderIds = await readEnabledOptionValues(providerSelect);
+  console.log(`UI providers: ${uiProviderIds.join(", ")}`);
+
+  for (const uiProviderId of uiProviderIds) {
+    expect(backendProviderIds, `UI shows provider "${uiProviderId}" but backend did not return it`).toContain(
+      uiProviderId,
     );
-
-    await page.goto("/");
-
-    const providerSelect = page.locator('select[aria-label="LLM Provider"]');
-    await expect(providerSelect).toBeVisible({ timeout: 20_000 });
-
-    // Wait until the active provider's option is present, so we know the
-    // async data has been fetched and the options have been rendered.
-    await expect(
-      providerSelect.locator(`option[value="${activeProviderId}"]`),
-      `Active provider "${activeProviderId}" must appear in the provider picker`,
-    ).toBeAttached({ timeout: 15_000 });
-
-    // Collect all provider options rendered by the UI
-    const uiProviderIds: string[] = await providerSelect
-      .locator("option")
-      .evaluateAll((opts) =>
-        opts
-          .filter((el) => !(el as HTMLOptionElement).disabled)
-          .map((el) => (el as HTMLOptionElement).value)
-          .filter((v) => v !== ""),
-      );
-
-    console.log(`UI providers: ${uiProviderIds.join(", ")}`);
-
-    // Every option shown in the UI must be a provider known by the backend.
-    // (The UI may hide providers the backend returns — that is acceptable —
-    //  but it must never invent providers the backend doesn't know about.)
-    for (const providerId of uiProviderIds) {
-      expect(
-        backendProviderIds,
-        `UI shows provider "${providerId}" but backend did not return it`,
-      ).toContain(providerId);
-    }
-  });
+  }
 });
