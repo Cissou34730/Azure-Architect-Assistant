@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 import app.shared.config.app_settings as app_settings_module
 from app.shared.ai.ai_service import AIService, AIServiceManager
@@ -26,14 +27,27 @@ def _foundry_fields() -> dict:
     }
 
 
-def test_validate_requires_foundry_fields_when_foundry_is_selected() -> None:
+def test_validate_requires_foundry_endpoint_and_api_key() -> None:
+    """Only endpoint + api_key are required; resource_id and model are optional."""
     config = AIConfig(
         llm_provider="foundry",
         embedding_provider="foundry",
     )
 
-    with pytest.raises(ValueError, match="Foundry endpoint, API key"):
+    with pytest.raises(ValueError, match="Foundry endpoint and API key"):
         config.validate_provider_config()
+
+
+def test_validate_foundry_passes_with_only_endpoint_and_api_key() -> None:
+    """Listing/discovery works without resource_id or a pre-selected model."""
+    config = AIConfig(
+        llm_provider="foundry",
+        embedding_provider="foundry",
+        foundry_endpoint="https://example.services.ai.azure.com",
+        foundry_api_key="test-foundry-key",
+    )
+
+    config.validate_provider_config()  # must not raise
 
 
 def test_validate_foundry_embeddings_do_not_require_explicit_embedding_model() -> None:

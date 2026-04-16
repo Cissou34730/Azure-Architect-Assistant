@@ -91,7 +91,7 @@ That selection is persisted to `backend/data/runtime_ai_selection.json` and reus
 Foundry deployment discovery uses:
 
 1. Cognitive Services management-plane deployment listing
-2. data-plane `/openai/deployments` fallback when management-plane API-key auth is rejected
+2. data-plane `/openai/deployments` fallback (pinned to `api-version=2023-03-15-preview`, the only version accepted by the listing endpoint) when management-plane API-key auth is rejected
 
 The backend filters out non-chat deployments for runtime LLM selection and keeps embedding discovery separate.
 

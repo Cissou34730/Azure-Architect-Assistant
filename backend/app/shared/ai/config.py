@@ -126,23 +126,20 @@ class AIConfig(BaseModel):
             [
                 self.foundry_endpoint,
                 self.foundry_api_key,
-                self.foundry_resource_id,
-                self.foundry_model,
             ]
         ):
             raise ValueError(
-                "Foundry endpoint, API key, resource id, and runtime model required for Foundry provider"
+                "Foundry endpoint and API key required for Foundry provider"
             )
 
         if needs_foundry_embedding and not all(
             [
                 self.foundry_endpoint,
                 self.foundry_api_key,
-                self.foundry_resource_id,
             ]
         ):
             raise ValueError(
-                "Foundry endpoint, API key, and resource id required for Foundry embeddings"
+                "Foundry endpoint and API key required for Foundry embeddings"
             )
 
         if needs_copilot and not self.copilot_default_model:

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 import httpx
 
@@ -14,6 +13,9 @@ from .openai_llm import OpenAILLMProvider
 logger = logging.getLogger(__name__)
 
 _MANAGEMENT_API_VERSION = "2024-10-01"
+# Data-plane deployments listing only works with the control-plane preview
+# API version; the runtime chat api-version (e.g. 2024-10-21) returns 404.
+_DATA_PLANE_LIST_API_VERSION = "2023-03-15-preview"
 
 _EXCLUDED_MODEL_PREFIXES = (
     "text-embedding",
@@ -137,7 +139,7 @@ async def discover_foundry_deployments(config: AIConfig) -> list[dict[str, str]]
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(
                 data_plane_url,
-                params={"api-version": config.foundry_api_version},
+                params={"api-version": _DATA_PLANE_LIST_API_VERSION},
                 headers={"api-key": api_key},
             )
             response.raise_for_status()

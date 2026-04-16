@@ -173,6 +173,11 @@ test("model dropdown matches the live backend model list for the active provider
     return;
   }
 
+  await expect(async () => {
+    const currentUiModelIds = await readEnabledOptionValues(modelSelect);
+    expect(currentUiModelIds.length).toBe(backendModelIds.length);
+  }).toPass({ timeout: 30_000 });
+
   const uiModelIds = await readEnabledOptionValues(modelSelect);
   console.log(`UI dropdown (refreshed): ${uiModelIds.length} model(s): ${uiModelIds.join(", ")}`);
 
