@@ -75,7 +75,7 @@ class OpenAILLMProvider(LLMProvider):
     def _build_params(  # noqa: PLR0913
         self,
         messages: list[ChatMessage],
-        temperature: float,
+        temperature: float | None,
         max_tokens: int,
         token_limit_param: str = "max_tokens",  # noqa: S107
         include_temperature: bool = True,
@@ -86,7 +86,7 @@ class OpenAILLMProvider(LLMProvider):
             "messages": self._to_messages(messages),
             token_limit_param: max_tokens,
         }
-        if include_temperature:
+        if include_temperature and temperature is not None:
             params["temperature"] = temperature
         if isinstance(response_format, dict):
             params["response_format"] = response_format
@@ -111,7 +111,7 @@ class OpenAILLMProvider(LLMProvider):
     def _build_responses_params(  # noqa: PLR0913
         self,
         messages: list[ChatMessage],
-        temperature: float,
+        temperature: float | None,
         max_tokens: int,
         include_temperature: bool = True,
         include_text_format: bool = True,
@@ -124,7 +124,7 @@ class OpenAILLMProvider(LLMProvider):
             "max_output_tokens": max_tokens,
         }
 
-        if include_temperature:
+        if include_temperature and temperature is not None:
             params["temperature"] = temperature
 
         if include_text_format and isinstance(response_format, dict):
@@ -141,7 +141,7 @@ class OpenAILLMProvider(LLMProvider):
         self,
         client: Any,
         messages: list[ChatMessage],
-        temperature: float,
+        temperature: float | None,
         max_tokens: int,
         response_format: dict | None,
     ) -> LLMResponse:
@@ -223,7 +223,7 @@ class OpenAILLMProvider(LLMProvider):
         self,
         client: Any,
         messages: list[ChatMessage],
-        temperature: float,
+        temperature: float | None,
         max_tokens: int,
         response_format: dict | None,
     ) -> LLMResponse:
@@ -283,7 +283,7 @@ class OpenAILLMProvider(LLMProvider):
     async def chat(  # noqa: C901, PLR0912
         self,
         messages: list[ChatMessage],
-        temperature: float = 0.7,
+        temperature: float | None = 0.7,
         max_tokens: int = 1000,
         stream: bool = False,
         **kwargs,
@@ -364,7 +364,7 @@ class OpenAILLMProvider(LLMProvider):
     async def _stream_chat(  # noqa: C901, PLR0912
         self,
         messages: list[ChatMessage],
-        temperature: float,
+        temperature: float | None,
         max_tokens: int,
         **kwargs,
     ) -> AsyncIterator[str]:
@@ -451,7 +451,7 @@ class OpenAILLMProvider(LLMProvider):
             raise
 
     async def complete(
-        self, prompt: str, temperature: float = 0.7, max_tokens: int = 1000, **kwargs
+        self, prompt: str, temperature: float | None = 0.7, max_tokens: int = 1000, **kwargs
     ) -> str:
         messages = [ChatMessage(role="user", content=prompt)]
         kwargs.pop("stream", None)  # complete() is always non-streaming

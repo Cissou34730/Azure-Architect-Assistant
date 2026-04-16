@@ -161,7 +161,8 @@ EXTRACTION RULES (mandatory):
         try:
             response = await self.ai_service.chat(
                 messages=messages,
-                temperature=self.ai_service.config.default_temperature,
+                temperature=None,
+                use_model_default_temperature=True,
                 max_tokens=max_tokens,
                 response_format={"type": "json_object"},
                 timeout=self.app_settings.llm_request_timeout_seconds,
@@ -171,7 +172,8 @@ EXTRACTION RULES (mandatory):
             logger.warning(f"JSON mode failed, retrying without response_format: {e}")
             response = await self.ai_service.chat(
                 messages=messages,
-                temperature=self.ai_service.config.default_temperature,
+                temperature=None,
+                use_model_default_temperature=True,
                 max_tokens=max_tokens,
                 timeout=self.app_settings.llm_request_timeout_seconds,
             )

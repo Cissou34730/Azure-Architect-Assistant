@@ -154,7 +154,8 @@ class AIService:
                 for m in dict_messages
             ]
 
-        temp = (
+        use_model_default_temperature = bool(kwargs.pop("use_model_default_temperature", False))
+        temp = None if use_model_default_temperature else (
             temperature if temperature is not None else self.config.default_temperature
         )
         tokens = (
@@ -188,7 +189,8 @@ class AIService:
         Returns:
             Generated text
         """
-        temp = (
+        use_model_default_temperature = bool(kwargs.pop("use_model_default_temperature", False))
+        temp = None if use_model_default_temperature else (
             temperature if temperature is not None else self.config.default_temperature
         )
         tokens = (

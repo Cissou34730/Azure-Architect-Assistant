@@ -34,7 +34,7 @@ class CopilotLLMProvider(LLMProvider):
     async def _chat_once(
         self,
         messages: list[ChatMessage],
-        _temperature: float,
+        _temperature: float | None,
         _max_tokens: int,
         **_kwargs: Any,
     ) -> LLMResponse:
@@ -51,7 +51,7 @@ class CopilotLLMProvider(LLMProvider):
     async def chat(
         self,
         messages: list[ChatMessage],
-        temperature: float = 0.7,
+        temperature: float | None = 0.7,
         max_tokens: int = 1000,
         stream: bool = False,
         **kwargs: Any,
@@ -68,7 +68,7 @@ class CopilotLLMProvider(LLMProvider):
         return await self._chat_once(messages, temperature, max_tokens, **kwargs)
 
     async def complete(
-        self, prompt: str, temperature: float = 0.7, max_tokens: int = 1000, **kwargs: Any
+        self, prompt: str, temperature: float | None = 0.7, max_tokens: int = 1000, **kwargs: Any
     ) -> str:
         response = await self.chat(
             [ChatMessage(role="user", content=prompt)],
