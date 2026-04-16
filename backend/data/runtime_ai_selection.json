@@ -1,4 +1,4 @@
 {
-  "llm_provider": "azure",
-  "model_id": "new-deployment"
+  "llm_provider": "foundry",
+  "model_id": "gpt-5.3-chat"
 }

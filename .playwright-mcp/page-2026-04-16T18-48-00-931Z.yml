@@ -1,0 +1,34 @@
+- generic [ref=e3]:
+  - generic [ref=e4]: 🔧 MAIN BRANCH //////
+  - navigation "Main navigation" [ref=e5]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - link "View architecture projects" [ref=e9] [cursor=pointer]:
+          - /url: /project
+          - text: Projects
+        - link "Query knowledge bases" [ref=e10] [cursor=pointer]:
+          - /url: /kb
+          - text: Knowledge Base
+        - link "Manage knowledge bases" [ref=e11] [cursor=pointer]:
+          - /url: /kb-management
+          - text: KB Management
+      - generic [ref=e12]:
+        - combobox "LLM Provider" [disabled] [ref=e13]
+        - combobox "LLM Model" [disabled] [ref=e14]:
+          - option "No models available" [disabled] [selected]
+          - option "Select model" [disabled]
+          - option "──────────" [disabled]
+          - option "Refresh models"
+        - combobox "Theme" [ref=e15]:
+          - option "System" [selected]
+          - option "Light"
+          - option "Dark"
+        - generic [ref=e16]: Azure Architect Assistant
+  - main [ref=e17]:
+    - generic [ref=e19]:
+      - heading "Architecture Projects" [level=1] [ref=e20]
+      - generic [ref=e22]:
+        - heading "Projects" [level=2] [ref=e23]
+        - generic [ref=e24]:
+          - textbox "New project name" [ref=e25]
+          - button "Create Project" [ref=e26] [cursor=pointer]

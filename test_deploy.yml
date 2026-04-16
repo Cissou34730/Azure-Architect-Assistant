@@ -1,0 +1,2 @@
+name: phi-4-reasoning-ep
+modelId: azureml://registries/azureml/models/Phi-4-reasoning
