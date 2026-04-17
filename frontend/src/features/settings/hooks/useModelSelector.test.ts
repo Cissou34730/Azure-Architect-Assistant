@@ -32,10 +32,10 @@ function makeResponse(overrides?: Partial<LLMOptionsResponse>): LLMOptionsRespon
         auth: null,
       },
       {
-        id: "azure",
-        name: "Azure OpenAI",
+        id: "foundry",
+        name: "Azure AI Foundry",
         status: "error",
-        statusMessage: "Azure endpoint, API key, and LLM deployment name required",
+        statusMessage: "Foundry endpoint, API key, resource id, and runtime model required for Foundry provider",
         selected: false,
         models: [],
         auth: null,
@@ -60,7 +60,7 @@ beforeEach(() => {
 
 describe("useModelSelector", () => {
   it("does not loop when selecting a provider that returns 0 models", async () => {
-    // Azure always returns 0 models (not configured).
+    // Foundry always returns 0 models (not configured).
     fetchLLMOptions.mockResolvedValue(makeResponse());
 
     const { result } = renderHook(() => useModelSelector());
@@ -72,9 +72,9 @@ describe("useModelSelector", () => {
     const callsAfterMount = fetchLLMOptions.mock.calls.length;
     expect(callsAfterMount).toBe(1);
 
-    // User selects Azure (which has 0 models and status "error").
+    // User selects Foundry (which has 0 models and status "error").
     act(() => {
-      result.current.selectProvider("azure");
+      result.current.selectProvider("foundry");
     });
 
     // The third useEffect may fire ONE refresh attempt (refresh=true).
@@ -87,10 +87,10 @@ describe("useModelSelector", () => {
   });
 
   it("does not loop for a provider with status ready but 0 models", async () => {
-    // Azure returns status "ready" but still with 0 models.
+    // Foundry returns status "ready" but still with 0 models.
     const response = makeResponse();
     const patchedProviders = response.providers.map((p) =>
-      p.id === "azure" ? { ...p, status: "ready", statusMessage: null } : p,
+      p.id === "foundry" ? { ...p, status: "ready", statusMessage: null } : p,
     );
     fetchLLMOptions.mockResolvedValue({ ...response, providers: patchedProviders });
 
@@ -100,7 +100,7 @@ describe("useModelSelector", () => {
     const callsAfterMount = fetchLLMOptions.mock.calls.length;
 
     act(() => {
-      result.current.selectProvider("azure");
+      result.current.selectProvider("foundry");
     });
 
     await waitFor(() => { expect(result.current.isRefreshing).toBe(false); }, { timeout: 2000 });
@@ -116,16 +116,16 @@ describe("useModelSelector", () => {
     await waitFor(() => { expect(result.current.isLoading).toBe(false); });
 
     act(() => {
-      result.current.selectProvider("azure");
+      result.current.selectProvider("foundry");
     });
 
     await waitFor(() => { expect(result.current.isRefreshing).toBe(false); }, { timeout: 2000 });
 
-    // activeProviderInfo should reflect the errored Azure provider with its message.
-    expect(result.current.activeProviderInfo?.id).toBe("azure");
+    // activeProviderInfo should reflect the errored Foundry provider with its message.
+    expect(result.current.activeProviderInfo?.id).toBe("foundry");
     expect(result.current.activeProviderInfo?.status).toBe("error");
     expect(result.current.activeProviderInfo?.statusMessage).toBe(
-      "Azure endpoint, API key, and LLM deployment name required",
+      "Foundry endpoint, API key, resource id, and runtime model required for Foundry provider",
     );
     expect(result.current.models).toHaveLength(0);
   });

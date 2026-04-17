@@ -64,34 +64,24 @@ async def test_get_current_model(async_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_get_llm_options(async_client: AsyncClient) -> None:
     payload = {
-        "active_provider": "copilot",
-        "active_model": "gpt-5.2",
+        "active_provider": "foundry",
+        "active_model": "gpt-5.3-chat",
         "providers": [
             {
-                "id": "copilot",
-                "name": "GitHub Copilot",
+                "id": "foundry",
+                "name": "Azure AI Foundry",
                 "status": "ready",
                 "status_message": None,
                 "selected": True,
                 "models": [
                     {
-                        "id": "gpt-5.2",
-                        "name": "GPT-5.2",
+                        "id": "gpt-5.3-chat",
+                        "name": "GPT-5.3 Chat",
                         "context_window": 200000,
                         "pricing": None,
                     }
                 ],
-                "auth": {
-                    "available": True,
-                    "authenticated": True,
-                    "state": "ready",
-                    "login": "alice",
-                    "auth_type": "oauth",
-                    "host": "https://github.com",
-                    "status_message": None,
-                    "cli_path": "copilot",
-                    "quota": None,
-                },
+                "auth": None,
             }
         ],
     }
@@ -105,8 +95,8 @@ async def test_get_llm_options(async_client: AsyncClient) -> None:
 
     assert response.status_code == 200
     data = response.json()
-    assert data["active_provider"] == "copilot"
-    assert data["providers"][0]["auth"]["authenticated"] is True
+    assert data["active_provider"] == "foundry"
+    assert data["providers"][0]["id"] == "foundry"
 
 
 @pytest.mark.asyncio

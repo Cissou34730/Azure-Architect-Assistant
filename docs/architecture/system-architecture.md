@@ -12,7 +12,7 @@ Comprehensive human-oriented architecture reference for runtime topology, layeri
 
 ## Runtime topology
 
-Frontend (React + Vite) -> FastAPI backend -> OpenAI / LlamaIndex / MCP
+Frontend (React + Vite) -> FastAPI backend -> OpenAI / Azure AI Foundry / GitHub Copilot / LlamaIndex / MCP
 
 - The frontend calls the backend at `BACKEND_URL` (default `http://localhost:8000`).
 - The backend owns all business logic: project management, KB ingestion/query, agent chat, and diagram generation.
@@ -138,7 +138,7 @@ Primary code:
 
 ## Configuration
 
-- `.env` in repo root supplies ports, API keys, and storage paths.
+- `.env` in repo root supplies ports and non-secret runtime defaults; SecretKeeper-backed AI credentials are resolved through `backend/app/shared/config/app_settings.py`.
 - `backend/app/shared/config/app_settings.py` is the canonical AppSettings entry point; add new env-backed settings via the `backend/app/core/settings/` mixins and consume them through `AppSettings`.
 - `backend/config/ingestion.config.json` and `backend/config/kb_defaults.json` tune ingestion defaults.
 - `backend/config/prompts/agent_prompts.yaml` controls agent behavior.

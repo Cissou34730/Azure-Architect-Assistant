@@ -123,6 +123,27 @@ def test_classify_stage_export():
     assert result["next_stage"] == ProjectStage.EXPORT.value
 
 
+def test_classify_stage_prefers_general_artifact_update_over_clarify() -> None:
+    state: GraphState = {
+        "user_message": "update the requirements and related artifacts based on my latest message",
+        "current_project_state": {
+            "requirements": [{"id": "req-1", "text": "Support partner sign-in"}],
+            "clarificationQuestions": [
+                {
+                    "id": "q-1",
+                    "question": "Do partners use their own tenant or a shared tenant?",
+                    "status": "open",
+                }
+            ],
+        },
+        "agent_output": "",
+    }
+
+    result = classify_next_stage(state)
+
+    assert result["next_stage"] == ProjectStage.GENERAL.value
+
+
 def test_check_for_retry_no_error():
     """Test retry check when no error present."""
     state: GraphState = {

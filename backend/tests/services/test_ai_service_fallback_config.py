@@ -1,9 +1,11 @@
+from unittest.mock import patch
+
 import pytest
 
 import app.shared.config.app_settings as app_settings_module
-from app.shared.ai.ai_service import AIService
+from app.shared.ai.ai_service import AIService, AIServiceManager
 from app.shared.ai.config import AIConfig
-from app.shared.ai.providers import AzureOpenAILLMProvider
+from app.shared.ai.providers import FoundryEmbeddingProvider, FoundryLLMProvider
 from app.shared.config.app_settings import AppSettings
 
 
@@ -15,91 +17,146 @@ def _base_openai_config() -> dict:
     }
 
 
-def _azure_fields() -> dict:
+def _foundry_fields() -> dict:
     return {
-        "azure_openai_endpoint": "https://example.openai.azure.com",
-        "azure_openai_api_key": "test-azure-key",
-        "azure_llm_deployment": "gpt-4o-mini-deployment",
-        "azure_embedding_deployment": "text-embedding-deployment",
+        "foundry_endpoint": "https://example.services.ai.azure.com",
+        "foundry_api_key": "test-foundry-key",
+        "foundry_resource_id": "/subscriptions/test/resourceGroups/rg/providers/Microsoft.CognitiveServices/accounts/foundry",
+        "foundry_model": "gpt-5.3-chat",
+        "foundry_embedding_model": "text-embedding-3-small",
     }
 
 
-def test_validate_requires_azure_fields_when_azure_is_fallback() -> None:
+def test_validate_requires_foundry_endpoint_and_api_key() -> None:
+    """Only endpoint + api_key are required; resource_id and model are optional."""
     config = AIConfig(
-        **_base_openai_config(),
-        fallback_enabled=True,
-        fallback_provider="azure",
-        llm_provider="openai",
-        embedding_provider="openai",
+        llm_provider="foundry",
+        embedding_provider="foundry",
     )
 
-    with pytest.raises(ValueError, match="Azure endpoint, API key"):
+    with pytest.raises(ValueError, match="Foundry endpoint and API key"):
         config.validate_provider_config()
 
 
-def test_validate_azure_llm_fallback_does_not_require_embedding_deployment() -> None:
-    """Azure as LLM fallback should NOT require embedding deployment."""
+def test_validate_foundry_passes_with_only_endpoint_and_api_key() -> None:
+    """Listing/discovery works without resource_id or a pre-selected model."""
     config = AIConfig(
-        **_base_openai_config(),
-        azure_openai_endpoint="https://example.openai.azure.com",
-        azure_openai_api_key="test-azure-key",
-        azure_llm_deployment="gpt-4o-mini-deployment",
-        # No azure_embedding_deployment — intentionally omitted
-        fallback_enabled=True,
-        fallback_provider="azure",
-        llm_provider="openai",
-        embedding_provider="openai",
+        llm_provider="foundry",
+        embedding_provider="foundry",
+        foundry_endpoint="https://example.services.ai.azure.com",
+        foundry_api_key="test-foundry-key",
     )
 
-    # Should NOT raise — embedding deployment is not needed for LLM-only fallback
+    config.validate_provider_config()  # must not raise
+
+
+def test_validate_foundry_embeddings_do_not_require_explicit_embedding_model() -> None:
+    config = AIConfig(
+        llm_provider="foundry",
+        embedding_provider="foundry",
+        foundry_endpoint="https://example.services.ai.azure.com",
+        foundry_api_key="test-foundry-key",
+        foundry_resource_id="/subscriptions/test/resourceGroups/rg/providers/Microsoft.CognitiveServices/accounts/foundry",
+        foundry_model="gpt-5.3-chat",
+    )
+
     config.validate_provider_config()
 
 
-def test_validate_requires_openai_key_when_openai_is_fallback() -> None:
+def test_validate_requires_openai_key_when_openai_is_selected() -> None:
     config = AIConfig(
-        **_azure_fields(),
-        fallback_enabled=True,
-        fallback_provider="openai",
-        llm_provider="azure",
-        embedding_provider="azure",
+        **_foundry_fields(),
+        llm_provider="foundry",
+        embedding_provider="openai",
     )
 
     with pytest.raises(ValueError, match="OpenAI API key"):
         config.validate_provider_config()
 
 
-def test_ai_service_builds_azure_llm_fallback_only() -> None:
+def test_ai_service_builds_foundry_providers() -> None:
     config = AIConfig(
-        **_base_openai_config(),
-        **_azure_fields(),
-        llm_provider="openai",
-        embedding_provider="openai",
-        fallback_enabled=True,
-        fallback_provider="azure",
+        **_foundry_fields(),
+        llm_provider="foundry",
+        embedding_provider="foundry",
     )
 
     service = AIService(config)
 
-    assert isinstance(service._fallback_llm_provider, AzureOpenAILLMProvider)
-    # Embedding fallback is always disabled (dimension mismatch risk)
-    assert service._fallback_embedding_provider is None
+    assert isinstance(service._llm_provider, FoundryLLMProvider)
+    assert isinstance(service._embedding_provider, FoundryEmbeddingProvider)
+
+
+def test_create_chat_llm_uses_foundry_azure_chat_openai() -> None:
+    config = AIConfig(
+        **_foundry_fields(),
+        llm_provider="foundry",
+        embedding_provider="foundry",
+        default_temperature=0.3,
+    )
+    service = AIService(config)
+
+    with patch("langchain_openai.AzureChatOpenAI") as mock_chat_model:
+        service.create_chat_llm()
+
+    mock_chat_model.assert_called_once_with(
+        azure_deployment="gpt-5.3-chat",
+        api_version=config.foundry_api_version,
+        azure_endpoint=config.foundry_endpoint,
+        api_key=config.foundry_api_key,
+        temperature=0.3,
+    )
+
+
+def test_build_config_for_selection_uses_foundry_runtime_model() -> None:
+    base_config = AIConfig(
+        **_foundry_fields(),
+        llm_provider="openai",
+        embedding_provider="foundry",
+        **_base_openai_config(),
+    )
+
+    updated = AIServiceManager._build_config_for_selection(
+        "foundry",
+        "Phi-4",
+        base_config=base_config,
+    )
+
+    assert updated.llm_provider == "foundry"
+    assert updated.foundry_model == "Phi-4"
+
+
+def test_build_config_for_selection_rejects_legacy_azure_provider() -> None:
+    base_config = AIConfig(
+        **_foundry_fields(),
+        llm_provider="openai",
+        embedding_provider="foundry",
+        **_base_openai_config(),
+    )
+
+    with pytest.raises(ValueError, match="Provider 'azure' is no longer supported. Use 'foundry'."):
+        AIServiceManager._build_config_for_selection(
+            "azure",
+            "legacy-deployment",
+            base_config=base_config,
+        )
 
 
 def test_app_settings_effective_keys_prefer_secretkeeper(monkeypatch: pytest.MonkeyPatch) -> None:
     values = {
         "AI_OPENAI_API_KEY": "sk-openai-key",
-        "AI_AZURE_OPENAI_API_KEY": "sk-azure-key",
+        "AI_FOUNDRY_API_KEY": "sk-foundry-key",
     }
     monkeypatch.setattr("app.shared.config.app_settings._read_secretkeeper_secret", lambda key: values.get(key))
 
     settings = AppSettings(
         ai_openai_api_key="env-openai-key",
-        ai_azure_openai_api_key="env-azure-key",
+        ai_foundry_api_key="env-foundry-key",
         openai_api_key="legacy-openai-key",
     )
 
     assert settings.effective_openai_api_key == "sk-openai-key"
-    assert settings.effective_azure_openai_api_key == "sk-azure-key"
+    assert settings.effective_foundry_api_key == "sk-foundry-key"
 
 
 def test_app_settings_effective_keys_fall_back_to_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -107,12 +164,12 @@ def test_app_settings_effective_keys_fall_back_to_env(monkeypatch: pytest.Monkey
 
     settings = AppSettings(
         ai_openai_api_key="",
-        ai_azure_openai_api_key="env-azure-key",
+        ai_foundry_api_key="env-foundry-key",
         openai_api_key="legacy-openai-key",
     )
 
     assert settings.effective_openai_api_key == "legacy-openai-key"
-    assert settings.effective_azure_openai_api_key == "env-azure-key"
+    assert settings.effective_foundry_api_key == "env-foundry-key"
 
 
 def test_app_settings_effective_openai_key_empty_when_unconfigured(

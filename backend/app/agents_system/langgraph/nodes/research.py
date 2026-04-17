@@ -114,6 +114,11 @@ async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
             "Azure Architecture Center pattern relevant to the workload",
             "Azure Well-Architected Framework pillar alignment (reliability/security/cost)",
         ]
+    elif stage_value == ProjectStage.GENERAL.value:
+        plan = [
+            "Current project artifacts affected by the requested edit",
+            "AAA tools needed to persist the requested state changes",
+        ]
     elif stage_value == ProjectStage.MANAGE_ADR.value:
         plan = [
             "Azure decision trade-offs for the chosen services",
@@ -151,6 +156,13 @@ async def build_research_plan_node(state: GraphState) -> dict[str, Any]:
         f"aligned to the research plan, then cite the exact document names/URLs and WAF/ASB topics. "
         f"Never refuse; if data is missing, ask focused clarifications and propose 2-3 options with trade-offs."
     )
+    if stage_value == ProjectStage.GENERAL.value:
+        stage_directives += (
+            "\nArtifact update rule: when the user asks to update/edit project artifacts, use the AAA persistence tools "
+            "to record concrete state changes in the same turn whenever the target artifacts are identifiable. "
+            "If the request implies linked artifacts must stay aligned, update the related artifacts in the same turn "
+            "or state the exact blocker preventing the linked update."
+        )
     stage_directives += (
         "\nChecklist-first rule: Treat WAF checklist as a first-class artifact. "
         "When the user reports completion/progress/regression for a pillar or topic, persist checklist updates in AAA_STATE_UPDATE "

@@ -1,15 +1,10 @@
-# AI Provider Routing (OpenAI Primary, Azure Fallback)
+# AI Provider Routing
 
 ## Overview
 
-The backend AI abstraction (`app/services/ai`) now supports a single runtime call path with optional failover:
+The backend AI abstraction now routes through a single active provider with no fallback path in the migrated runtime.
 
-- Primary provider from `AIConfig.llm_provider` / `AIConfig.embedding_provider`
-- Optional fallback provider from `AIConfig.fallback_provider`
-- Fallback gate from `AIConfig.fallback_enabled`
-- Fallback policy from `AIConfig.fallback_on_transient_only`
-
-Application code still uses `AIService` as the only public entry point for:
+Application code still uses `AIService` as the public entry point for:
 
 - `chat`
 - `complete`
@@ -17,36 +12,38 @@ Application code still uses `AIService` as the only public entry point for:
 - `embed_batch`
 - provider-selected LangGraph chat adapter creation
 
+## Supported providers
+
+- `openai`
+- `foundry`
+- `copilot`
+
+`foundry` is the Azure-hosted provider ID used for Azure AI Foundry / AIServices deployments. The legacy runtime provider id `azure` is rejected and callers must switch to `foundry`.
+
 ## Configuration
 
-All fields use the `AI_` env prefix (Pydantic settings):
+All fields use the `AI_` env prefix and are read through `AppSettings`.
 
-- `AI_LLM_PROVIDER` (`openai`, `azure`, `anthropic`, `local`, `copilot`)
-- `AI_EMBEDDING_PROVIDER` (`openai`, `azure`, `local`)
-- `AI_FALLBACK_PROVIDER` (`openai`, `azure`, `none`)
-- `AI_FALLBACK_ENABLED` (`true`/`false`)
-- `AI_FALLBACK_ON_TRANSIENT_ONLY` (`true`/`false`)
+### OpenAI
 
-OpenAI fields:
-
-- `AI_OPENAI_API_KEY` (SecretKeeper vault key; not stored in `.env`)
+- `AI_OPENAI_API_KEY` (SecretKeeper-first)
 - `AI_OPENAI_LLM_MODEL`
 - `AI_OPENAI_EMBEDDING_MODEL`
 - `AI_OPENAI_TIMEOUT`
 - `AI_OPENAI_MAX_RETRIES`
 
-Azure OpenAI fields:
+### Azure AI Foundry
 
-- `AI_AZURE_OPENAI_ENDPOINT`
-- `AI_AZURE_OPENAI_API_KEY` (SecretKeeper vault key; not stored in `.env`)
-- `AI_AZURE_OPENAI_API_VERSION`
-- `AI_AZURE_LLM_DEPLOYMENT`
-- `AI_AZURE_LLM_DEPLOYMENTS` (optional comma-separated list for model-list endpoint metadata)
-- `AI_AZURE_EMBEDDING_DEPLOYMENT`
+- `AI_FOUNDRY_ENDPOINT`
+- `AI_FOUNDRY_API_KEY` (SecretKeeper-first)
+- `AI_FOUNDRY_API_VERSION` (default: `2024-10-21`)
+- `AI_FOUNDRY_RESOURCE_ID`
 
-GitHub Copilot fields:
+There is no static Foundry deployment env var. The active Foundry deployment is selected through the settings API and persisted at runtime.
 
-- `AI_COPILOT_TOKEN` (GitHub PAT with `copilot` scope; or `GITHUB_TOKEN` as fallback)
+### GitHub Copilot
+
+- `AI_COPILOT_TOKEN` (or `GITHUB_TOKEN`)
 - `AI_COPILOT_DEFAULT_MODEL`
 - `AI_COPILOT_ALLOWED_MODELS`
 - `AI_COPILOT_REQUEST_TIMEOUT`
@@ -54,88 +51,66 @@ GitHub Copilot fields:
 - `AI_COPILOT_AUTH_POLL_INTERVAL`
 - `AI_COPILOT_AUTH_TIMEOUT`
 
-> **Note:** The Copilot LangChain path uses the GitHub Models API (`https://models.github.ai/inference`)
-> with a GitHub PAT as the API key. This provides full `ChatOpenAI` compatibility including
-> native tool calling, streaming, and temperature/max_tokens support.
-> Model discovery uses the Copilot SDK (`CopilotRuntime.list_models()`) which returns
-> subscription-scoped models with SDK-native IDs (e.g. `gpt-5.2`, `claude-sonnet-4.6`).
-> Model discovery uses the GitHub Models catalog API (`https://models.github.ai/catalog/models`)
-> with `X-GitHub-Api-Version: 2026-03-10` header. Model IDs use the full `{publisher}/{model-name}` format
-> (e.g. `openai/gpt-4o-mini`) as required by the official inference endpoint.
+## Runtime selection persistence
 
-### Runtime Selection Persistence
+Provider/model changes made through `PUT /api/settings/llm-selection` are persisted to `DATA_ROOT/runtime_ai_selection.json`.
 
-Provider/model changes made through the settings API are persisted to `DATA_ROOT/runtime_ai_selection.json`.
+- `AppSettings` reapplies the saved provider/model before `AIConfig.default()` is built.
+- `AIServiceManager.reinitialize_with_selection(...)` switches the live singleton immediately.
+- Saved selections support `openai`, `foundry`, and `copilot`.
 
-- The live `AIService` singleton is still reinitialized immediately.
-- On the next backend startup, `AppSettings` re-applies the persisted provider/model override before `AIConfig.default()` is built.
-- This keeps LangGraph native agent execution aligned with the last UI-selected provider instead of falling back to the env default after restart.
+## SecretKeeper resolution
 
-### SecretKeeper Notes
+The migrated runtime resolves secrets centrally through `AppSettings`:
 
-- The backend resolves `AI_OPENAI_API_KEY` and `AI_AZURE_OPENAI_API_KEY` from SecretKeeper first.
-- Resolution is centralized in `AppSettings` (`effective_openai_api_key`, `effective_azure_openai_api_key`) and consumed by AI runtime config.
-- If a key is not present in SecretKeeper, runtime falls back to existing environment values for compatibility.
-- Ensure vault is unlocked before startup: `sk unlock`.
+- `effective_openai_api_key`
+- `effective_foundry_endpoint`
+- `effective_foundry_api_key`
+- `effective_foundry_resource_id`
+- `effective_copilot_token`
 
-## Validation Rules
+Resolution order is SecretKeeper first, then env/config values, then empty string where applicable.
 
-`AIConfig.validate_provider_config()` requires credentials/deployments conditionally:
+## Validation rules
 
-- OpenAI key is required when OpenAI is primary **or** fallback
-- Azure endpoint/key/LLM deployment required when Azure is LLM primary **or** fallback
-- Azure endpoint/key/embedding deployment required when Azure is the *primary* embedding provider (embedding fallback is disabled — different providers produce incompatible vector dimensions)
-- Copilot default model required when Copilot is selected as the LLM provider; authentication is handled by the Copilot SDK via CLI login (no token required at startup)
+`AIConfig.validate_provider_config()` currently enforces:
 
-## Fallback Behavior
+- OpenAI key when OpenAI is the active LLM or embedding provider
+- Foundry endpoint + API key + resource id + runtime model when Foundry is the active LLM provider
+- Foundry endpoint + API key + resource id when Foundry is the active embedding provider
+- Copilot default model when Copilot is the active LLM provider
 
-Fallback is attempted only when all are true:
+## Model listing strategy
 
-1. `AI_FALLBACK_ENABLED=true`
-2. fallback provider exists and differs from primary
-3. error matches policy
+`ModelsService` uses provider-backed runtime discovery with disk caching:
 
-With `AI_FALLBACK_ON_TRANSIENT_ONLY=true`, fallback triggers for transient failures only:
+- OpenAI: `AIService.list_llm_runtime_models()`
+- Foundry: `FoundryLLMProvider.list_runtime_models()`
+- Copilot: `CopilotLLMProvider.list_runtime_models()`
 
-- timeouts
-- rate limits
-- retriable API errors (`429`, `5xx`)
+For Foundry, deployment discovery uses the Cognitive Services management-plane endpoint first and falls back to the data-plane `/openai/deployments` endpoint when management-plane API-key auth is rejected.
 
-Non-transient failures are re-raised from primary.
+## LangGraph path
 
-For streaming, fallback is only attempted before the first token is emitted.
+`backend/app/agents_system/langgraph/nodes/agent_native.py` builds its chat LLM through `AIService.create_chat_llm()`.
 
-## Model Listing Strategy
+For Foundry, `AIService.create_chat_llm()` uses `langchain_openai.AzureChatOpenAI` with:
 
-`ModelsService` behavior:
+- `azure_endpoint=config.foundry_endpoint`
+- `api_key=config.foundry_api_key`
+- `api_version=config.foundry_api_version`
+- `azure_deployment=config.foundry_model`
 
-- OpenAI primary: list via `AIService.list_llm_runtime_models()` with disk cache
-- Azure primary: list via `AIService.list_llm_runtime_models()` using configured Azure deployment ids only (`AI_AZURE_LLM_DEPLOYMENT` plus optional `AI_AZURE_LLM_DEPLOYMENTS`)
-- Copilot primary: `CopilotLLMProvider.list_runtime_models()` queries the Copilot SDK (`CopilotRuntime.list_models()`) returning subscription-scoped models. Only models the user actually has access to (including Claude, codex, and GPT-5.x exclusives) are listed. Falls back to the configured `AI_COPILOT_ALLOWED_MODELS` allowlist on failure.
-- OpenAI primary + Azure fallback: if OpenAI model listing fails, query Azure via provider-backed runtime listing
+## KB and ingestion defaults
 
-`ModelsService` no longer imports provider SDK clients directly for listing. The model/deployment discovery path now flows through the centralized AI service/provider abstraction.
+Provider-neutral defaults continue to resolve from the active AI configuration:
 
-## LangGraph Path
+- KB defaults use the active LLM and embedding identities
+- ingestion embedding defaults follow the active embedding identity
+- vector/index metadata uses the active runtime model identity
 
-`backend/app/agents_system/langgraph/nodes/agent_native.py` now builds its chat LLM through `AIService.create_chat_llm()` instead of constructing provider clients directly inside the LangGraph node.
+## Setup runbook
 
-This keeps provider selection in one place and aligns runtime wiring with AI service configuration.
+For Azure AI Foundry setup and runtime activation steps, see:
 
-At this stage, the native LangGraph tool-binding path centralizes provider selection and credentials in `AIService`, but fallback behavior still applies only to the `AIService.chat` / `complete` / `embed_*` call path until native failover is implemented.
-
-## KB And Ingestion Defaults
-
-Provider-neutral defaults now resolve from the active AI configuration rather than from OpenAI-only settings names:
-
-- KB config defaults use the active LLM and embedding identities
-- KB management request defaults use the active embedding identity
-- ingestion pipeline components default to the active embedding identity
-- the active ingestion embedder delegates to `AIService.embed_text()` rather than constructing `OpenAIEmbedding` directly
-- LlamaIndex adapters and vector indexing metadata use the active runtime model or deployment names
-
-## Setup Runbook
-
-For full Azure resource provisioning and project configuration steps, see:
-
-- `docs/backend/AZURE_OPENAI_SETUP.md`
+- `docs/backend/AZURE_FOUNDRY_SETUP.md`

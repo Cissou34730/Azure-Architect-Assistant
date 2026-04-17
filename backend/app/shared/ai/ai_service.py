@@ -12,13 +12,13 @@ from typing import Any, cast
 from .config import AIConfig
 from .interfaces import ChatMessage, EmbeddingProvider, LLMProvider, LLMResponse
 from .providers import (
-    AzureOpenAIEmbeddingProvider,
-    AzureOpenAILLMProvider,
     CopilotLLMProvider,
+    FoundryEmbeddingProvider,
+    FoundryLLMProvider,
     OpenAIEmbeddingProvider,
     OpenAILLMProvider,
-    reset_azure_openai_client,
     reset_copilot_runtime,
+    reset_foundry_client,
     reset_github_models_client,
     reset_openai_client,
 )
@@ -47,22 +47,15 @@ class AIService:
         self._embedding_provider = self._create_embedding_provider(
             self.config.embedding_provider
         )
-        self._fallback_llm_provider = self._create_fallback_llm_provider()
-        self._fallback_embedding_provider = self._create_fallback_embedding_provider()
         self._router = AIRouter(
             primary_llm=self._llm_provider,
             primary_embedding=self._embedding_provider,
-            fallback_llm=self._fallback_llm_provider,
-            fallback_embedding=self._fallback_embedding_provider,
-            fallback_enabled=self.config.fallback_enabled,
-            fallback_on_transient_only=self.config.fallback_on_transient_only,
         )
 
         logger.info(
-            "AIService initialized - LLM: %s, Embedding: %s, fallback: %s",
+            "AIService initialized - LLM: %s, Embedding: %s",
             self.config.llm_provider,
             self.config.embedding_provider,
-            self.config.fallback_provider if self.config.fallback_enabled else "disabled",
         )
 
     def create_chat_llm(self, *, temperature: float | None = None, **kwargs: Any) -> Any:
@@ -71,14 +64,14 @@ class AIService:
             temperature if temperature is not None else self.config.default_temperature
         )
 
-        if self.config.llm_provider == "azure":
+        if self.config.llm_provider == "foundry":
             from langchain_openai import AzureChatOpenAI  # noqa: PLC0415
 
             return AzureChatOpenAI(
-                azure_deployment=self.config.azure_llm_deployment,
-                api_version=self.config.azure_openai_api_version,
-                azure_endpoint=self.config.azure_openai_endpoint,
-                api_key=self.config.azure_openai_api_key,
+                azure_deployment=self.config.foundry_model,
+                api_version=self.config.foundry_api_version,
+                azure_endpoint=self.config.foundry_endpoint,
+                api_key=self.config.foundry_api_key,
                 temperature=effective_temperature,
                 **kwargs,
             )
@@ -111,8 +104,8 @@ class AIService:
         """Factory method to create LLM provider based on config."""
         if provider_name == "openai":
             return OpenAILLMProvider(self.config)
-        elif provider_name == "azure":
-            return AzureOpenAILLMProvider(self.config)
+        elif provider_name == "foundry":
+            return FoundryLLMProvider(self.config)
         elif provider_name == "copilot":
             return CopilotLLMProvider(self.config)
         elif provider_name == "anthropic":
@@ -125,23 +118,10 @@ class AIService:
         """Factory method to create embedding provider based on config."""
         if provider_name == "openai":
             return OpenAIEmbeddingProvider(self.config)
-        elif provider_name == "azure":
-            return AzureOpenAIEmbeddingProvider(self.config)
+        elif provider_name == "foundry":
+            return FoundryEmbeddingProvider(self.config)
         else:
             raise ValueError(f"Unknown embedding provider: {provider_name}")
-
-    def _create_fallback_llm_provider(self) -> LLMProvider | None:
-        if not self.config.fallback_enabled or self.config.fallback_provider == "none":
-            return None
-        if self.config.fallback_provider == self.config.llm_provider:
-            return None
-        return self._create_llm_provider(self.config.fallback_provider)
-
-    def _create_fallback_embedding_provider(self) -> EmbeddingProvider | None:
-        # Embedding fallback is disabled: different providers may produce
-        # vectors of incompatible dimensions, making cross-provider fallback
-        # unreliable for retrieval workloads.
-        return None
 
     # ============ LLM Methods ============
 
@@ -174,7 +154,8 @@ class AIService:
                 for m in dict_messages
             ]
 
-        temp = (
+        use_model_default_temperature = bool(kwargs.pop("use_model_default_temperature", False))
+        temp = None if use_model_default_temperature else (
             temperature if temperature is not None else self.config.default_temperature
         )
         tokens = (
@@ -208,7 +189,8 @@ class AIService:
         Returns:
             Generated text
         """
-        temp = (
+        use_model_default_temperature = bool(kwargs.pop("use_model_default_temperature", False))
+        temp = None if use_model_default_temperature else (
             temperature if temperature is not None else self.config.default_temperature
         )
         tokens = (
@@ -275,7 +257,7 @@ class AIServiceManager:
     Manages the AIService singleton instance.
 
     SINGLETON RATIONALE:
-    - Provider abstraction: Manages OpenAI, Azure OpenAI, Anthropic clients
+    - Provider abstraction: Manages OpenAI, AI Foundry, Anthropic clients
     - Connection pooling: Shared HTTP clients across requests
     - Model caching: Embedding models loaded once and reused
     - Configuration consistency: All requests use same AI provider settings
@@ -386,7 +368,7 @@ class AIServiceManager:
     async def _reinitialize(cls, new_config: AIConfig) -> None:
         new_config.validate_provider_config()
         reset_openai_client()
-        reset_azure_openai_client()
+        reset_foundry_client()
         reset_github_models_client()
         await reset_copilot_runtime()
         cls._instance = AIService(new_config)
@@ -399,9 +381,14 @@ class AIServiceManager:
         *,
         base_config: AIConfig,
     ) -> AIConfig:
-        updates: dict[str, str] = {"llm_provider": provider_name}
         if provider_name == "azure":
-            updates["azure_llm_deployment"] = model_id
+            raise ValueError("Provider 'azure' is no longer supported. Use 'foundry'.")
+        if provider_name not in {"openai", "foundry", "copilot"}:
+            raise ValueError(f"Unknown runtime AI provider: {provider_name}")
+
+        updates: dict[str, str] = {"llm_provider": provider_name}
+        if provider_name == "foundry":
+            updates["foundry_model"] = model_id
         elif provider_name == "copilot":
             updates["copilot_default_model"] = model_id
         else:

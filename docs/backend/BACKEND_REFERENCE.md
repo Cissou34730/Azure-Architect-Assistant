@@ -128,10 +128,10 @@
 - `backend/config/ingestion.config.json` and `backend/config/kb_defaults.json` are file-backed defaults loaded by `IngestionSettingsMixin` into `AppSettings` (`ingestion_queue`, `kb_defaults`).
 - `backend/config/mcp/mcp_config.json` is loaded through `AppSettings.get_mcp_server_config(...)`.
 - Storage paths come through `AppSettings`; relative values from process env or `.env` resolve against `backend/`. The fallback data root is `backend/data`, which covers `projects.db`, `ingestion.db`, and the `knowledge_bases/` directory.
-- `SettingsModelsService` validates `PUT /api/settings/llm-selection` against provider model listings and persists the selection to `runtime_ai_selection.json`; it does not require a live chat completion probe to accept a listed model.
+- `SettingsModelsService` validates `PUT /api/settings/llm-selection` against provider model listings, rejects the legacy `azure` provider id in favor of `foundry`, and persists the active selection to `runtime_ai_selection.json`.
 - `backend/config/prompts/*.yaml` and `backend/config/checklists/*.json` are content/resource files (not env settings) loaded by dedicated services. `PromptLoader.compose_prompt(agent_type, stage, context_budget)` now assembles modular prompt fragments (`base_persona`, agent-specific routing, stage-specific instructions, tool strategy, guardrails) and falls back to `agent_prompts.yaml` when modular files are absent; the dead ReAct template sections and compatibility shim were removed in Phase 12 because the runtime is native tool-calling only.
 - Agent runtime is LangGraph-only (legacy LangChain ReAct backend paths were removed).
-- AI provider routing and fallback behavior is documented in `docs/backend/AI_PROVIDER_ROUTING.md`.
+- AI provider routing for `openai`, `foundry`, and `copilot` is documented in `docs/backend/AI_PROVIDER_ROUTING.md`.
 
 ## Remaining compatibility paths
 
@@ -149,8 +149,8 @@ The backend uses singletons for expensive, shared resources with lifecycle manag
 |---------|----------|---------------|-------------------|
 | **AgentRunner** | `app/agents_system/runner.py` | Lifecycle coordination for shared MCP/OpenAI runtime context used by LangGraph nodes | Startup: 2-3s (MCP + LLM init) |
 | **KBManager** | `app/service_registry.py` | Vector index caching (150MB in memory), preloaded at startup | 3.2s load time per KB, indices cached in memory |
-| **LLMService** | `app/services/llm_service.py` | Connection pooling to OpenAI/Azure | HTTP client reuse, rate limiting |
-| **AIService** | `app/services/ai/ai_service.py` | Provider abstraction (OpenAI, Azure, Anthropic) | Model caching, connection pooling |
+| **LLMService** | `app/services/llm_service.py` | Connection pooling to OpenAI/Foundry-backed runtimes | HTTP client reuse, rate limiting |
+| **AIService** | `app/services/ai/ai_service.py` | Provider abstraction (OpenAI, Foundry, Copilot, Anthropic) | Model caching, connection pooling |
 | **PromptLoader** | `app/agents_system/config/prompt_loader.py` | File I/O caching for YAML prompts | Avoids repeated disk reads |
 
 ### Accessing Singletons
@@ -226,7 +226,7 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `config/prompt_loader.py` — YAML prompt loader; supports both the legacy `agent_prompts.yaml` surface and modular prompt composition for stage-aware orchestrator prompts, and truncates composed directives to the supplied context budget when one is provided.
 - `memory/compaction_service.py` — Conversation compaction helper; loads `memory_compaction_prompt.yaml` through `PromptLoader` so both the system prompt and summary/update templates stay hot-reloadable in YAML.
 - `memory/context_packs/stage_packers.py` — Stage-specific compaction builders; ADR packs read canonical `adrs`, validation packs summarize `wafChecklist.items[*].evaluations[*].status` from the current checklist payload, the context-pack runtime consumes `aaa_context_max_budget_tokens` as the pack assembly budget instead of reusing the compaction trigger threshold, and Phase 11 turns `aaa_context_compaction_enabled` / `aaa_thread_memory_enabled` on by default.
-- `nodes/stage_routing.py` — Core stage enum, classification, retry logic. When parsed project documents exist but approved requirements are still missing, the state-aware default now routes to `extract_requirements` before falling back to clarification, and explicit spend phrasing such as `how much` / `TCO` now classifies directly to `pricing`.
+- `nodes/stage_routing.py` — Core stage enum, classification, retry logic. When parsed project documents exist but approved requirements are still missing, the state-aware default now routes to `extract_requirements` before falling back to clarification, explicit spend phrasing such as `how much` / `TCO` now classifies directly to `pricing`, and explicit artifact-edit requests such as `update the requirements` now route to the generic agent/tool path even when open clarification questions still exist.
 - `features/agent/infrastructure/tools/aaa_export_tool.py` — Canonical AAA export serializer; export payloads now include a `mindmapCoverageScorecard` with 13-topic evidence packaging built from current project artifacts.
 - `nodes/agent_native.py` — Native LangGraph orchestrator node; builds system directives from the composed stage-aware prompt surface.
 - `features/projects/application/pending_changes_service.py` — Read-side projection for `pendingChangeSets`, providing typed summaries/details without changing persistence semantics yet.

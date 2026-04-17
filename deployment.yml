@@ -1,0 +1,8 @@
+
+name: claude-deployment
+endpoint_name: claude-sonnet-ep
+model: azureml://registries/anthropic/models/claude-3-5-sonnet
+sku:
+  name: GlobalStandard
+  capacity: 1
+

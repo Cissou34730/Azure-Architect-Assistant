@@ -1,0 +1,5 @@
+
+name: claude-sonnet-ep
+type: online
+auth_mode: key
+

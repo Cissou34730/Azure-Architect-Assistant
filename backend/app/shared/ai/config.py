@@ -21,11 +21,8 @@ class AIConfig(BaseModel):
     """Focused AI provider configuration consumed by AIService and providers."""
 
     # Provider selection
-    llm_provider: Literal["openai", "azure", "anthropic", "local", "copilot"] = "openai"
-    embedding_provider: Literal["openai", "azure", "local"] = "openai"
-    fallback_provider: Literal["openai", "azure", "none"] = "none"
-    fallback_enabled: bool = False
-    fallback_on_transient_only: bool = True
+    llm_provider: Literal["openai", "foundry", "anthropic", "local", "copilot"] = "openai"
+    embedding_provider: Literal["openai", "foundry", "local"] = "openai"
 
     # OpenAI
     openai_api_key: str = ""
@@ -36,13 +33,13 @@ class AIConfig(BaseModel):
     openai_timeout: float = 600.0
     openai_max_retries: int = 0
 
-    # Azure OpenAI
-    azure_openai_endpoint: str = ""
-    azure_openai_api_key: str = ""
-    azure_openai_api_version: str = "2024-02-15-preview"
-    azure_llm_deployment: str = ""      # active deployment used for LLM inference
-    azure_llm_deployments: str = ""     # comma-separated list for model-selection UI only; not used for inference
-    azure_embedding_deployment: str = ""
+    # AI Foundry
+    foundry_endpoint: str = ""
+    foundry_api_key: str = ""
+    foundry_api_version: str = "2024-10-21"
+    foundry_resource_id: str = ""
+    foundry_model: str = ""
+    foundry_embedding_model: str = ""
 
     # GitHub Copilot
     copilot_token: str = ""
@@ -64,8 +61,8 @@ class AIConfig(BaseModel):
     @property
     def active_llm_model(self) -> str:
         """Return the configured runtime LLM identity for the selected provider."""
-        if self.llm_provider == "azure":
-            return self.azure_llm_deployment
+        if self.llm_provider == "foundry":
+            return self.foundry_model
         if self.llm_provider == "copilot":
             return self.copilot_default_model
         return self.openai_llm_model
@@ -73,8 +70,8 @@ class AIConfig(BaseModel):
     @property
     def active_embedding_model(self) -> str:
         """Return the configured runtime embedding identity for the selected provider."""
-        if self.embedding_provider == "azure":
-            return self.azure_embedding_deployment
+        if self.embedding_provider == "foundry":
+            return self.foundry_embedding_model or self.openai_embedding_model
         return self.openai_embedding_model
 
     @classmethod
@@ -84,9 +81,6 @@ class AIConfig(BaseModel):
         return cls(
             llm_provider=settings.effective_ai_llm_provider,
             embedding_provider=settings.ai_embedding_provider,
-            fallback_provider=settings.ai_fallback_provider,
-            fallback_enabled=settings.ai_fallback_enabled,
-            fallback_on_transient_only=settings.ai_fallback_on_transient_only,
             openai_api_key=settings.effective_openai_api_key,
             openai_project=settings.ai_openai_project,
             openai_organization=settings.ai_openai_organization,
@@ -94,12 +88,11 @@ class AIConfig(BaseModel):
             openai_embedding_model=effective_emb_model,
             openai_timeout=settings.ai_openai_timeout,
             openai_max_retries=settings.ai_openai_max_retries,
-            azure_openai_endpoint=settings.effective_azure_openai_endpoint,
-            azure_openai_api_key=settings.effective_azure_openai_api_key,
-            azure_openai_api_version=settings.ai_azure_openai_api_version,
-            azure_llm_deployment=settings.effective_azure_llm_deployment,
-            azure_llm_deployments=settings.effective_azure_llm_deployments,
-            azure_embedding_deployment=settings.effective_azure_embedding_deployment,
+            foundry_endpoint=settings.effective_foundry_endpoint,
+            foundry_api_key=settings.effective_foundry_api_key,
+            foundry_api_version=settings.ai_foundry_api_version,
+            foundry_resource_id=settings.effective_foundry_resource_id,
+            foundry_model=settings.effective_foundry_model,
             copilot_token=settings.effective_copilot_token,
             copilot_default_model=settings.effective_copilot_default_model,
             copilot_allowed_models=settings.ai_copilot_allowed_models,
@@ -121,43 +114,32 @@ class AIConfig(BaseModel):
 
     def validate_provider_config(self) -> None:
         """Validate that required config for selected provider is present."""
-        needs_openai = (
-            self.llm_provider == "openai"
-            or self.embedding_provider == "openai"
-            or (self.fallback_enabled and self.fallback_provider == "openai")
-        )
+        needs_openai = self.llm_provider == "openai" or self.embedding_provider == "openai"
         needs_copilot = self.llm_provider == "copilot"
-        needs_azure_llm = self.llm_provider == "azure" or (
-            self.fallback_enabled and self.fallback_provider == "azure"
-        )
-        # Embedding fallback is not supported (dimension mismatch risk),
-        # so Azure embedding credentials are only required when Azure is
-        # the *primary* embedding provider.
-        needs_azure_embedding = self.embedding_provider == "azure"
+        needs_foundry_llm = self.llm_provider == "foundry"
+        needs_foundry_embedding = self.embedding_provider == "foundry"
 
         if needs_openai and not self.openai_api_key:
             raise ValueError("OpenAI API key is required for OpenAI provider")
 
-        if needs_azure_llm and not all(
+        if needs_foundry_llm and not all(
             [
-                self.azure_openai_endpoint,
-                self.azure_openai_api_key,
-                self.azure_llm_deployment,
+                self.foundry_endpoint,
+                self.foundry_api_key,
             ]
         ):
             raise ValueError(
-                "Azure endpoint, API key, and LLM deployment name required for Azure provider"
+                "Foundry endpoint and API key required for Foundry provider"
             )
 
-        if needs_azure_embedding and not all(
+        if needs_foundry_embedding and not all(
             [
-                self.azure_openai_endpoint,
-                self.azure_openai_api_key,
-                self.azure_embedding_deployment,
+                self.foundry_endpoint,
+                self.foundry_api_key,
             ]
         ):
             raise ValueError(
-                "Azure endpoint, API key, and embedding deployment name required for Azure embeddings"
+                "Foundry endpoint and API key required for Foundry embeddings"
             )
 
         if needs_copilot and not self.copilot_default_model:

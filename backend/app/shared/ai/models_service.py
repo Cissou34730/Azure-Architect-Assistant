@@ -163,9 +163,7 @@ class ModelsService:
             raise
 
     async def _fetch_models_for_provider(self) -> list[ModelInfo]:
-        if self.config.llm_provider == "azure":
-            return await self._fetch_azure_models()
-        if self.config.llm_provider == "copilot":
+        if self.config.llm_provider in {"copilot", "foundry"}:
             return await self._fetch_provider_models()
         return await self._fetch_from_openai()
 
@@ -216,65 +214,6 @@ class ModelsService:
 
         return model_infos
 
-    async def _fetch_azure_models(self) -> list[ModelInfo]:
-        """Return Azure model list.
-
-        Strategy:
-        1) Try Azure OpenAI data-plane deployment listing (live account state)
-        2) Fall back to configured deployment metadata from env
-        """
-        deployment_entries = await self._fetch_azure_deployments_data_plane()
-
-        if not deployment_entries:
-            deployment_entries = self._configured_azure_deployments()
-
-        model_infos = [
-            ModelInfo(
-                id=entry["id"],
-                name=self._format_azure_display_name(
-                    deployment=entry["id"],
-                    model=entry.get("model", entry["id"]),
-                ),
-                context_window=self._extract_context_window(
-                    entry.get("model", entry["id"])
-                ),
-                pricing=None,
-            )
-            for entry in deployment_entries
-        ]
-        return model_infos
-
-    async def _fetch_azure_deployments_data_plane(self) -> list[dict[str, str]]:
-        azure_probe_config = self.config.model_copy(
-            update={
-                "llm_provider": "azure",
-                "fallback_enabled": False,
-            }
-        )
-        azure_service = AIServiceManager.create_probe(azure_probe_config)
-        return await azure_service.list_llm_runtime_models()
-
-    def _configured_azure_deployments(self) -> list[dict[str, str]]:
-        deployments: list[str] = []
-        if self.config.azure_llm_deployment:
-            deployments.append(self.config.azure_llm_deployment)
-        if self.config.azure_llm_deployments:
-            deployments.extend(
-                [
-                    item.strip()
-                    for item in self.config.azure_llm_deployments.split(",")
-                    if item.strip()
-                ]
-            )
-        deduped: list[dict[str, str]] = []
-        seen: set[str] = set()
-        for deployment in deployments:
-            if deployment in seen:
-                continue
-            seen.add(deployment)
-            deduped.append({"id": deployment, "model": deployment})
-        return deduped
-
     async def _fetch_provider_models(self) -> list[ModelInfo]:
         runtime_models = await (await self._get_ai_service()).list_llm_runtime_models()
         model_infos: list[ModelInfo] = []
@@ -298,20 +237,14 @@ class ModelsService:
         return model_infos
 
     async def _configured_fallback_models(self) -> list[ModelInfo]:
-        if self.config.llm_provider == "azure":
+        if self.config.llm_provider == "foundry" and self.config.foundry_model:
             return [
                 ModelInfo(
-                    id=entry["id"],
-                    name=self._format_azure_display_name(
-                        deployment=entry["id"],
-                        model=entry.get("model", entry["id"]),
-                    ),
-                    context_window=self._extract_context_window(
-                        entry.get("model", entry["id"])
-                    ),
+                    id=self.config.foundry_model,
+                    name=self.config.foundry_model,
+                    context_window=self._extract_context_window(self.config.foundry_model),
                     pricing=None,
                 )
-                for entry in self._configured_azure_deployments()
             ]
         if self.config.llm_provider == "copilot":
             allowed = [
@@ -331,12 +264,6 @@ class ModelsService:
                 for model_id in allowed
             ]
         return []
-
-    @staticmethod
-    def _format_azure_display_name(deployment: str, model: str) -> str:
-        if model and model != deployment:
-            return f"{model} ({deployment})"
-        return deployment
 
     def _extract_context_window(self, model_id: str) -> int:  # noqa: PLR0911
         """
@@ -548,13 +475,13 @@ class ModelsService:
 
     def _cache_key(self) -> str:
         provider = self.config.llm_provider
-        if provider == "azure":
+        if provider == "foundry":
             raw = "|".join(
                 [
                     provider,
-                    self.config.azure_openai_endpoint,
-                    self.config.azure_llm_deployment,
-                    self.config.azure_llm_deployments,
+                    self.config.foundry_endpoint,
+                    self.config.foundry_resource_id,
+                    self.config.foundry_model,
                 ]
             )
         elif provider == "copilot":

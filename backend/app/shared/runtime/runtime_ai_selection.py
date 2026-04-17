@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class RuntimeAISelection(BaseModel):
     """Persisted runtime override for the active LLM provider/model."""
 
-    llm_provider: Literal["openai", "azure", "copilot"]
+    llm_provider: Literal["openai", "foundry", "copilot"]
     model_id: str = Field(min_length=1)
 
 
@@ -33,7 +33,7 @@ def load_runtime_ai_selection(path: Path) -> RuntimeAISelection | None:
 def persist_runtime_ai_selection(
     path: Path,
     *,
-    llm_provider: Literal["openai", "azure", "copilot"],
+    llm_provider: Literal["openai", "foundry", "copilot"],
     model_id: str,
 ) -> None:
     """Persist the selected provider/model atomically under DATA_ROOT."""

@@ -33,6 +33,10 @@ function getPricingLabel(model: ModelInfo): string {
   return pricing.length > 0 ? `${model.name} - ${pricing}` : model.name;
 }
 
+function getProviderDisplayName(provider: LLMProviderInfo): string {
+  return provider.id === "foundry" ? "Azure AI Foundry" : provider.name;
+}
+
 function handleThemePreferenceChange(
   event: ChangeEvent<HTMLSelectElement>,
   setPreference: (themePreference: ThemePreference) => void,
@@ -187,8 +191,8 @@ function ProviderSelector({
       {providers.map((provider) => (
         <option key={provider.id} value={provider.id}>
           {provider.models.length === 0 && provider.status === "error"
-            ? `${provider.name} (not configured)`
-            : provider.name}
+            ? `${getProviderDisplayName(provider)} (not configured)`
+            : getProviderDisplayName(provider)}
         </option>
       ))}
     </select>

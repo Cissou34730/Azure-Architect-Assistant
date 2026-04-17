@@ -34,9 +34,35 @@ _NON_ARCH_INTENT_KEYWORDS = [
     "infrastructure as code",
 ]
 
+_ARTIFACT_EDIT_VERBS = (
+    "update",
+    "edit",
+    "modify",
+    "change",
+    "revise",
+    "refresh",
+)
+
+_ARTIFACT_EDIT_TARGETS = (
+    "artifact",
+    "artifacts",
+    "requirement",
+    "requirements",
+    "assumption",
+    "assumptions",
+    "clarification question",
+    "clarification questions",
+    "candidate architecture",
+    "candidate architectures",
+    "diagram",
+    "diagrams",
+    "traceability",
+)
+
 
 class ProjectStage(str, Enum):
     """Project workflow stages."""
+    GENERAL = "general"
     EXTRACT_REQUIREMENTS = "extract_requirements"
     CLARIFY = "clarify"
     PROPOSE_CANDIDATE = "propose_candidate"
@@ -98,11 +124,20 @@ def _detect_intent_from_keywords(user_message: str, agent_output: str) -> Projec
         if any(kw in user_message for kw in keywords):
             return stage
 
+    if _has_explicit_artifact_edit_intent(user_message):
+        return ProjectStage.GENERAL
+
     # Check agent output for proposal intents
     if any(kw in agent_output for kw in ["candidate", "solution", "propose", "suggest"]):
         return ProjectStage.PROPOSE_CANDIDATE
 
     return None
+
+
+def _has_explicit_artifact_edit_intent(user_message: str) -> bool:
+    return any(verb in user_message for verb in _ARTIFACT_EDIT_VERBS) and any(
+        target in user_message for target in _ARTIFACT_EDIT_TARGETS
+    )
 
 
 def _detect_intent_from_state(project_state: dict[str, Any]) -> ProjectStage:
