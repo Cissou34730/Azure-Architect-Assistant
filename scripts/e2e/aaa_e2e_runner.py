@@ -775,7 +775,7 @@ async def _preflight_kb_query_service(client: httpx.AsyncClient) -> None:
 
     try:
         response = await client.get("/api/kb/health")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise RuntimeError(
             "KB preflight failed: unable to call /api/kb/health. "
             "This usually means the backend app or routing isn't initialized correctly."
@@ -864,7 +864,7 @@ def _assert_db_persistence(*, project_id: str, report: dict[str, Any]) -> dict[s
     repo_root = Path(__file__).resolve().parents[2]
     projects_db_path = repo_root / "backend" / "data" / "projects.db"
     diagrams_db_path = repo_root / "backend" / "data" / "diagrams.db"
-    
+
     results = {
         "projectId": project_id,
         "projectsDbPath": str(projects_db_path),
@@ -878,33 +878,33 @@ def _assert_db_persistence(*, project_id: str, report: dict[str, Any]) -> dict[s
         },
         "details": {},
     }
-    
+
     # Check projects.db
     if not projects_db_path.exists():
         results["error"] = f"projects.db not found at {projects_db_path}"
         return results
-    
+
     try:
         conn = sqlite3.connect(str(projects_db_path))
         conn.row_factory = sqlite3.Row
-        
+
         # Check project row
         cursor = conn.execute("SELECT id, name FROM project WHERE id = ?", (project_id,))
         project_row = cursor.fetchone()
         if project_row:
             results["assertions"]["projectRowExists"] = True
             results["details"]["projectName"] = project_row["name"]
-        
+
         # Check project_state row
         cursor = conn.execute("SELECT state FROM project_state WHERE project_id = ?", (project_id,))
         state_row = cursor.fetchone()
         if state_row:
             results["assertions"]["projectStateRowExists"] = True
-            
+
             # Parse state JSON
             try:
                 state = json.loads(state_row["state"])
-                
+
                 # Check WAF checklist
                 waf_checklist = state.get("wafChecklist", {})
                 if isinstance(waf_checklist, dict):
@@ -912,48 +912,48 @@ def _assert_db_persistence(*, project_id: str, report: dict[str, Any]) -> dict[s
                     if isinstance(items, list) and len(items) > 0:
                         results["assertions"]["wafChecklistNonEmpty"] = True
                         results["details"]["wafChecklistItemCount"] = len(items)
-                
+
                 # Check ADRs
                 adrs = state.get("adrs", [])
                 if isinstance(adrs, list) and len(adrs) > 0:
                     results["assertions"]["adrsNonEmpty"] = True
                     results["details"]["adrCount"] = len(adrs)
-                
+
                 # Check diagrams references
                 diagrams = state.get("diagrams", [])
                 if isinstance(diagrams, list) and len(diagrams) > 0:
                     results["details"]["diagramRefCount"] = len(diagrams)
-                
+
             except json.JSONDecodeError:
                 results["details"]["stateParseError"] = "Failed to parse state JSON"
-        
+
         conn.close()
-        
+
     except Exception as exc:
         results["error"] = f"projects.db query failed: {exc!s}"
         return results
-    
+
     # Check diagrams.db
     if not diagrams_db_path.exists():
         results["details"]["diagramsDbNote"] = f"diagrams.db not found at {diagrams_db_path}"
         return results
-    
+
     try:
         conn = sqlite3.connect(str(diagrams_db_path))
         conn.row_factory = sqlite3.Row
-        
+
         # Count diagram rows (we don't have adr_id to filter directly, so count all)
         cursor = conn.execute("SELECT COUNT(*) as cnt FROM diagram")
         row = cursor.fetchone()
         if row and row["cnt"] > 0:
             results["assertions"]["diagramsExist"] = True
             results["details"]["diagramRowCount"] = row["cnt"]
-        
+
         conn.close()
-        
+
     except Exception as exc:
         results["details"]["diagramsDbError"] = f"diagrams.db query failed: {exc!s}"
-    
+
     # Compute overall pass/fail
     assertions = results["assertions"]
     all_pass = all([
@@ -962,7 +962,7 @@ def _assert_db_persistence(*, project_id: str, report: dict[str, Any]) -> dict[s
         # Note: not requiring WAF/ADRs/diagrams for initial implementation
         # These will be tested once persistence tools are working
     ])
-    
+
     results["status"] = "PASS" if all_pass else "FAIL"
     return results
 
@@ -1062,7 +1062,7 @@ async def run_scenario(config: RunnerConfig) -> dict[str, Any]:
     if project_id:
         db_assertions = _assert_db_persistence(project_id=project_id, report=report)
         report["dbPersistence"] = db_assertions
-    
+
     normalized = _write_run_outputs(report=report, run_dir=run_dir)
     report["goldenStatus"] = _compare_or_update_golden(
         scenario_id=scenario.id,
@@ -1105,7 +1105,7 @@ def _evaluate_advisory_quality(answer: str, request: str) -> dict[str, Any]:
         "clarity": 0,
     }
     details = {}
-    
+
     # Proactivity (0-2): Does agent propose next steps, suggest improvements, or drive forward?
     proactivity_indicators = [
         "i recommend", "i suggest", "consider", "shall i", "shall we",
@@ -1121,7 +1121,7 @@ def _evaluate_advisory_quality(answer: str, request: str) -> dict[str, Any]:
         details["proactivity"] = f"Some proactivity ({proactive_count} indicators)"
     else:
         details["proactivity"] = "Passive response (no proactive indicators)"
-    
+
     # Correction (0-2): Does agent challenge assumptions or point out issues?
     correction_indicators = [
         "however", "but", "contradict", "risk", "issue", "problem",
@@ -1137,7 +1137,7 @@ def _evaluate_advisory_quality(answer: str, request: str) -> dict[str, Any]:
         details["correction"] = f"Some correction/challenge ({correction_count} indicators)"
     else:
         details["correction"] = "No challenges or corrections"
-    
+
     # Evidence (0-2): Does agent provide citations, sources, or references?
     evidence_indicators = [
         "http://", "https://", "microsoft.com", "azure.com", "learn.microsoft",
@@ -1153,14 +1153,14 @@ def _evaluate_advisory_quality(answer: str, request: str) -> dict[str, Any]:
         details["evidence"] = f"Some evidence ({evidence_count} references)"
     else:
         details["evidence"] = "Minimal evidence/citations"
-    
+
     # Clarity (0-2): Is the response structured and clear?
     # Check for structured formatting (headings, lists, sections)
     has_headings = "##" in answer or "###" in answer
     has_lists = answer.count("\n- ") >= 3 or answer.count("\n* ") >= 3 or answer.count("\n1.") >= 3
     has_sections = answer.count("\n\n") >= 3
     is_long_enough = len(answer) >= 200
-    
+
     clarity_score = 0
     if has_headings and has_lists:
         clarity_score = 2
@@ -1174,9 +1174,9 @@ def _evaluate_advisory_quality(answer: str, request: str) -> dict[str, Any]:
     else:
         details["clarity"] = "Brief or unstructured"
     scores["clarity"] = clarity_score
-    
+
     total = sum(scores.values())
-    
+
     return {
         **scores,
         "total": total,
@@ -1380,7 +1380,7 @@ async def _run_with_client(
         for step in steps
         if step.get("advisoryQuality")
     ]
-    
+
     if advisory_scores:
         avg_proactivity = sum(s.get("proactivity", 0) for s in advisory_scores) / len(advisory_scores)
         avg_correction = sum(s.get("correction", 0) for s in advisory_scores) / len(advisory_scores)
@@ -1388,7 +1388,7 @@ async def _run_with_client(
         avg_clarity = sum(s.get("clarity", 0) for s in advisory_scores) / len(advisory_scores)
         avg_total = sum(s.get("total", 0) for s in advisory_scores) / len(advisory_scores)
         passed_count = sum(1 for s in advisory_scores if s.get("passed", False))
-        
+
         advisory_summary = {
             "averages": {
                 "proactivity": round(avg_proactivity, 2),

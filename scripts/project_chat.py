@@ -13,15 +13,15 @@ def _ensure_backend_on_path() -> None:
 
 _ensure_backend_on_path()
 
-from app.core.app_settings import get_settings
-from app.agents_system.runner import initialize_agent_runner, shutdown_agent_runner, get_agent_runner
-from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
-from app.projects_database import AsyncSessionLocal
-from app.lifecycle import startup as app_startup, shutdown as app_shutdown
-from sqlalchemy import select
 import json
+
+from app.core.app_settings import get_settings
+from app.projects_database import AsyncSessionLocal
+from sqlalchemy import select
+
+from app.lifecycle import shutdown as app_shutdown
+from app.lifecycle import startup as app_startup
 from app.models.project import Project
-from pathlib import Path
 
 
 async def main(project_id: str, message: str, project_json: str | None = None) -> None:
@@ -72,7 +72,8 @@ async def main(project_id: str, message: str, project_json: str | None = None) -
             print("Success:", result.get("success"))
             print("Answer:\n", result.get("answer") or "")
         except Exception as e:
-            import traceback, json as _json
+            import json as _json
+            import traceback
 
             print("Project chat execution failed:", type(e).__name__, str(e))
             traceback.print_exc()

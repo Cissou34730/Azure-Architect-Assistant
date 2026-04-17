@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
-import json
+
 from sqlalchemy import select
 
 
@@ -21,9 +21,11 @@ async def run_test(project_id: str, message: str) -> None:
     # diagnose where imports or startup hang.
     print("[debug] Importing app lifecycle and DB helpers...")
     try:
-        from app.lifecycle import startup as app_startup, shutdown as app_shutdown
         from app.projects_database import AsyncSessionLocal
-        from app.models.project import Project, ConversationMessage
+
+        from app.lifecycle import shutdown as app_shutdown
+        from app.lifecycle import startup as app_startup
+        from app.models.project import ConversationMessage, Project
     except Exception as e:
         print("[error] Failed importing backend application modules:", repr(e))
         raise

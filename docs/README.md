@@ -38,12 +38,13 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 ### Backend
 
 - [`backend/README.md`](./backend/README.md)
-- [`backend/BACKEND_REFERENCE.md`](./backend/BACKEND_REFERENCE.md) — Backend entry points, API surface, current ProjectState decomposition status, and eval/E2E harness locations
+- [`backend/BACKEND_REFERENCE.md`](./backend/BACKEND_REFERENCE.md) — Backend entry points, API surface, current ProjectState decomposition status, eval/E2E harness locations, the canonical pending-changes v1 API surface (`/pending-changes` with hidden `/changes` compatibility aliases; `revise` disabled), the project-notes + quality-gate + trace workspace endpoints, the typed project-chat `workflow_result` + canonical SSE event contract, and the SQLite-backed LangGraph thread-memory persistence path
 - [`backend/AI_PROVIDER_ROUTING.md`](./backend/AI_PROVIDER_ROUTING.md)
 - [`backend/AZURE_FOUNDRY_SETUP.md`](./backend/AZURE_FOUNDRY_SETUP.md)
 - [`backend/COPILOT_SETUP.md`](./backend/COPILOT_SETUP.md)
 - [`backend/DATA_ROOT_STORAGE_POLICY.md`](./backend/DATA_ROOT_STORAGE_POLICY.md)
 - [`backend/TESTING_DEPENDENCY_INJECTION.md`](./backend/TESTING_DEPENDENCY_INJECTION.md)
+- [`backend/EVAL_HARNESS.md`](./backend/EVAL_HARNESS.md) — Phase 0 golden-scenario eval harness for committed normalized runner reports
 
 ### Refactor
 
@@ -59,7 +60,7 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 ### Frontend
 
 - [`frontend/README.md`](./frontend/README.md)
-- [`frontend/FRONTEND_REFERENCE.md`](./frontend/FRONTEND_REFERENCE.md)
+- [`frontend/FRONTEND_REFERENCE.md`](./frontend/FRONTEND_REFERENCE.md) — Frontend structure, unified workspace tabs (including notes, quality gate, and trace), and project-chat SSE parsing notes for typed `workflowResult` payloads and canonical stream-event handling
 - [`frontend/UX_IDE_WORKFLOW.md`](./frontend/UX_IDE_WORKFLOW.md)
 - [`frontend/UNIFIED_UX_IMPLEMENTATION_CHECKLIST.md`](./frontend/UNIFIED_UX_IMPLEMENTATION_CHECKLIST.md)
 
@@ -113,7 +114,7 @@ Current legacy pointers are tracked in [`operations/DOC_MIGRATION_INDEX.md`](./o
 
 These technical READMEs are intentionally local to code and must stay discoverable from this index:
 
-- [`/backend/app/agents_system/langgraph/README.md`](../backend/app/agents_system/langgraph/README.md)
+- [`/backend/app/agents_system/langgraph/README.md`](../backend/app/agents_system/langgraph/README.md) — Code-near LangGraph runtime guide, including SQLite-backed thread-memory persistence details
 - [`/backend/app/kb/README.md`](../backend/app/kb/README.md)
 
 Add new exceptions only when code-near maintainability clearly benefits.
@@ -121,5 +122,6 @@ Add new exceptions only when code-near maintainability clearly benefits.
 ---
 
 **Status**: Active  
-**Last Updated**: 2026-04-06
+**Last Updated**: 2026-04-17
 **Owner**: Engineering
+

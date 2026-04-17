@@ -13,14 +13,15 @@ def _ensure_backend_on_path() -> None:
 
 _ensure_backend_on_path()
 
+
 from app.core.app_settings import get_settings
-from app.agents_system.runner import get_agent_runner
-from app.lifecycle import startup as app_startup, shutdown as app_shutdown
 from app.projects_database import AsyncSessionLocal
 from sqlalchemy import select
+
+from app.agents_system.runner import get_agent_runner
+from app.lifecycle import shutdown as app_shutdown
+from app.lifecycle import startup as app_startup
 from app.models.project import Project
-import json
-import uuid
 
 
 async def run_dialogue(project_id: str, messages: list[str]) -> None:

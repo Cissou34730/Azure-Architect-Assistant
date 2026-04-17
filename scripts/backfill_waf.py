@@ -20,12 +20,13 @@ def _ensure_backend_on_path() -> None:
 
 _ensure_backend_on_path()
 
-from app.agents_system.checklists.engine import ChecklistEngine  # noqa: E402
-from app.agents_system.checklists.registry import ChecklistRegistry  # noqa: E402
 from app.core.app_settings import get_settings  # noqa: E402
-from app.models.project import ProjectState  # noqa: E402
 from app.projects_database import AsyncSessionLocal, close_database  # noqa: E402
 from app.services.backfill_service import BackfillService  # noqa: E402
+
+from app.agents_system.checklists.engine import ChecklistEngine  # noqa: E402
+from app.agents_system.checklists.registry import ChecklistRegistry  # noqa: E402
+from app.models.project import ProjectState  # noqa: E402
 
 
 def _build_services(batch_size: int) -> tuple[ChecklistEngine, BackfillService]:
@@ -84,7 +85,7 @@ async def _cmd_verify(args: argparse.Namespace) -> int:
         return 0
 
     sample_size = min(args.sample_size, len(project_ids))
-    sampled = random.sample(project_ids, sample_size)  # noqa: S311
+    sampled = random.sample(project_ids, sample_size)
     failures: list[dict[str, Any]] = []
     for project_id in sampled:
         ok, diffs = await service.verify_project_consistency(project_id)

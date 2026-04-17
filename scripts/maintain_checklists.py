@@ -8,7 +8,6 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
 from sqlalchemy import delete, func, select
 
@@ -22,12 +21,13 @@ def _ensure_backend_on_path() -> None:
 
 _ensure_backend_on_path()
 
+from app.core.app_settings import get_settings  # noqa: E402
+from app.projects_database import AsyncSessionLocal, close_database  # noqa: E402
+
 from app.agents_system.checklists.engine import ChecklistEngine  # noqa: E402
 from app.agents_system.checklists.registry import ChecklistRegistry  # noqa: E402
-from app.core.app_settings import get_settings  # noqa: E402
 from app.models.checklist import Checklist, ChecklistItem, ChecklistItemEvaluation  # noqa: E402
 from app.models.project import ProjectState  # noqa: E402
-from app.projects_database import AsyncSessionLocal, close_database  # noqa: E402
 
 
 def _build_engine() -> ChecklistEngine:

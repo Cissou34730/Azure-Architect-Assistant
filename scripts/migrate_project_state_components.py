@@ -14,6 +14,7 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.core.app_settings import get_app_settings
+
 from app.features.projects.infrastructure.project_state_components_repository import (
     PROJECT_STATE_COMPONENT_KEYS,
     extract_project_state_components,

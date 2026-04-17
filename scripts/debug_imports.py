@@ -1,4 +1,5 @@
-import traceback, sys
+import traceback
+
 modules = [
     'backend.tests.agents.test_mcp_react_agent_llm_wiring',
     'backend.tests.agents_system.test_conflict_choice_guard',

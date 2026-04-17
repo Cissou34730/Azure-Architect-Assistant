@@ -15,16 +15,16 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 
 async def _create_and_analyze(json_path: str, project_id: str) -> str:
     # Lazy imports to keep module import lightweight
     from app.projects_database import AsyncSessionLocal
-    from app.models.project import Project
-    from app.models import ProjectState
     from app.routers.project_management.services.document_service import DocumentService
     from sqlalchemy import select
+
+    from app.models import ProjectState
+    from app.models.project import Project
 
     path = Path(json_path)
     if not path.exists():
@@ -78,7 +78,7 @@ async def _create_and_analyze(json_path: str, project_id: str) -> str:
         return "project created" if created else "project exists"
 
 
-def main(argv: Optional[list] = None):
+def main(argv: list | None = None):
     argv = argv if argv is not None else sys.argv[1:]
     if len(argv) < 2:
         print("Usage: python scripts/create_and_analyze.py path/to/project.json <project-id>")

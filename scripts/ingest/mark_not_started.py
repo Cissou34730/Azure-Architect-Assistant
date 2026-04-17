@@ -13,8 +13,9 @@ BACKEND = ROOT / "backend"
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
-from app.ingestion.infrastructure.repository import DatabaseRepository
 from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
+from app.ingestion.infrastructure.repository import DatabaseRepository
+
 from app.ingestion.domain.enums import JobStatus
 
 

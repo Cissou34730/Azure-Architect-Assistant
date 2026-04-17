@@ -14,8 +14,13 @@ def _ensure_backend_on_path() -> None:
 _ensure_backend_on_path()
 
 from app.core.app_settings import get_settings
-from app.agents_system.runner import initialize_agent_runner, shutdown_agent_runner, get_agent_runner
 from app.services.mcp.learn_mcp_client import MicrosoftLearnMCPClient
+
+from app.agents_system.runner import (
+    get_agent_runner,
+    initialize_agent_runner,
+    shutdown_agent_runner,
+)
 
 
 async def main(message: str) -> None:

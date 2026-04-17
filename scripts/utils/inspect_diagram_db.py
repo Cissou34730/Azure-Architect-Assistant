@@ -15,7 +15,7 @@ def inspect_db(path: str) -> None:
     print(f"\n=== Inspecting {path}")
     conn = sqlite3.connect(path)
     cur = conn.cursor()
-    tables = [row[0] for row in cur.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")]  
+    tables = [row[0] for row in cur.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")]
     print("Tables:", tables)
     for t in tables:
         schema = cur.execute("SELECT sql FROM sqlite_master WHERE name=?", (t,)).fetchone()

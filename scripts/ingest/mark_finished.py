@@ -5,8 +5,8 @@ Usage:
   python scripts/ingest/mark_finished.py caf nist-sp
 """
 import sys
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 
 # Ensure backend is on sys.path
 ROOT = Path(__file__).resolve().parents[2]
@@ -14,8 +14,9 @@ BACKEND = ROOT / "backend"
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
-from app.ingestion.infrastructure.repository import DatabaseRepository
 from app.ingestion.infrastructure.persistence import LocalDiskPersistenceStore
+from app.ingestion.infrastructure.repository import DatabaseRepository
+
 from app.ingestion.domain.enums import JobStatus
 
 
