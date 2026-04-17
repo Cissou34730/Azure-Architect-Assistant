@@ -1995,6 +1995,73 @@
       ],
       "fetched_at": "2026-04-10T12:10:45.541671+00:00",
       "ttl_days": 7
+    },
+    "foundry:7560ea0a45112bf7": {
+      "provider": "foundry",
+      "models": [
+        {
+          "id": "DeepSeek-R1-0528",
+          "name": "DeepSeek-R1-0528",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "Phi-4",
+          "name": "Phi-4",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "aaadp",
+          "name": "gpt-4o-mini",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-5-chat",
+          "name": "gpt-5-chat",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-5-mini",
+          "name": "gpt-5-mini",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-5-pro",
+          "name": "gpt-5-pro",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-5.3-chat",
+          "name": "gpt-5.3-chat",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-54-mini",
+          "name": "gpt-5.4-mini",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "gpt-54-nano",
+          "name": "gpt-5.4-nano",
+          "context_window": 8192,
+          "pricing": null
+        },
+        {
+          "id": "grok-4-20-reasoning",
+          "name": "grok-4-20-reasoning",
+          "context_window": 8192,
+          "pricing": null
+        }
+      ],
+      "fetched_at": "2026-04-17T08:41:48.078716+00:00",
+      "ttl_days": 7
     }
   }
 }
