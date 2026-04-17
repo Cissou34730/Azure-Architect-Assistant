@@ -1,0 +1,11 @@
+{
+  "id": "scenario-behavior",
+  "name": "Behavior Test - Proactive Advisory",
+  "description": "Baseline advisory-quality regression snapshot for the current backend-driven runner report shape.",
+  "tags": ["behavior", "baseline"],
+  "expectedBaselineFailures": [
+    "Database persistence assertions failed.",
+    "Low tool usage score (1.0/5).",
+    "Low persistence score (1.0/5)."
+  ]
+}

@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents_system.contracts import (
+    ClarificationQuestionPayloadItem,
+    ClarificationQuestionsPayload,
+)
 from app.agents_system.services.project_context import read_project_state
 from app.features.agent.application.clarification_planner_worker import (
     ClarificationPlannerWorker,
@@ -24,6 +29,7 @@ from app.features.agent.contracts.clarification_planner import (
 from ..state import GraphState
 
 logger = logging.getLogger(__name__)
+_NON_ALPHANUMERIC_RE = re.compile(r"[^a-z0-9]+")
 
 StreamEventCallback = Callable[[str, dict[str, Any]], Awaitable[None] | None]
 
@@ -115,6 +121,7 @@ async def execute_clarification_planner_node(
             "intermediate_steps": [],
             "handled_by_stage_worker": True,
             "success": True,
+            "structured_payload": _build_clarification_structured_payload(plan),
         }
     except ValueError as exc:
         final_answer = f"ERROR: {exc!s}"
@@ -172,6 +179,35 @@ def _format_clarification_plan(plan: ClarificationPlanningResultContract) -> str
 
     lines.append("Please answer the questions you can, and I will use them to refine the architecture.")
     return "\n".join(lines).strip()
+
+
+def _build_clarification_structured_payload(
+    plan: ClarificationPlanningResultContract,
+) -> dict[str, Any]:
+    questions: list[ClarificationQuestionPayloadItem] = []
+    for group in plan.question_groups:
+        theme_slug = _slugify_theme(group.theme)
+        for index, question in enumerate(group.questions, start=1):
+            questions.append(
+                ClarificationQuestionPayloadItem(
+                    id=f"{theme_slug}-{index}",
+                    text=question.question,
+                    theme=group.theme,
+                    why_it_matters=question.why_it_matters,
+                    architectural_impact=question.architectural_impact,
+                    priority=question.priority,
+                    related_requirement_ids=list(question.related_requirement_ids),
+                )
+            )
+    return ClarificationQuestionsPayload(questions=questions).model_dump(
+        mode="json",
+        by_alias=True,
+    )
+
+
+def _slugify_theme(theme: str) -> str:
+    normalized = _NON_ALPHANUMERIC_RE.sub("-", theme.strip().lower()).strip("-")
+    return normalized or "clarification"
 
 
 def _format_clarification_resolution(change_set: Any) -> str:

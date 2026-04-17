@@ -51,6 +51,11 @@ class Project(Base):
         back_populates="project",
         cascade="all, delete-orphan",
     )
+    pending_change_sets: Mapped[list[PendingChangeSetRecord]] = relationship(
+        "PendingChangeSetRecord",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
     messages: Mapped[list[ConversationMessage]] = relationship(
         "ConversationMessage", back_populates="project", cascade="all, delete-orphan"
     )
@@ -64,6 +69,9 @@ class Project(Base):
     )
     threads: Mapped[list[ProjectThread]] = relationship(
         "ProjectThread", back_populates="project", cascade="all, delete-orphan"
+    )
+    notes: Mapped[list[ProjectNote]] = relationship(
+        "ProjectNote", back_populates="project", cascade="all, delete-orphan"
     )
 
     def to_dict(self) -> dict[str, str | None]:
@@ -199,6 +207,58 @@ class ProjectStateComponent(Base):
     project: Mapped[Project] = relationship("Project", back_populates="state_components")
 
 
+class PendingChangeSetRecord(Base):
+    """Dedicated persisted store for approval-first pending change sets."""
+
+    __tablename__ = "pending_change_sets"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    stage: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[str] = mapped_column(String(30), nullable=False)
+    source_message_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    superseded_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    bundle_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    proposed_patch_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    citations_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_at: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    review_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    waf_delta_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mindmap_delta_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    project: Mapped[Project] = relationship("Project", back_populates="pending_change_sets")
+    artifact_drafts: Mapped[list[ArtifactDraftRecord]] = relationship(
+        "ArtifactDraftRecord",
+        back_populates="change_set",
+        cascade="all, delete-orphan",
+    )
+
+
+class ArtifactDraftRecord(Base):
+    """Dedicated persisted store for change-set artifact drafts."""
+
+    __tablename__ = "artifact_drafts"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    change_set_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("pending_change_sets.id", ondelete="CASCADE"), nullable=False
+    )
+    artifact_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    artifact_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    content_json: Mapped[str] = mapped_column(Text, nullable=False)
+    citations_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[str | None] = mapped_column(String(30), nullable=True)
+
+    change_set: Mapped[PendingChangeSetRecord] = relationship(
+        "PendingChangeSetRecord",
+        back_populates="artifact_drafts",
+    )
+
+
 class ConversationMessage(Base):
     """Chat message in project conversation."""
 
@@ -280,6 +340,59 @@ class ProjectThread(Base):
             "stage": self.stage,
             "title": self.title,
             "isActive": self.is_active,
+            "createdAt": str(self.created_at),
+            "updatedAt": str(self.updated_at),
+        }
+
+
+class ArchitectProfileRecord(Base):
+    """Singleton installation-level architect profile persisted in SQLite."""
+
+    __tablename__ = "architect_profiles"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    profile_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    updated_at: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+    )
+
+
+class ProjectNote(Base):
+    """Pinned long-term note associated with a single project."""
+
+    __tablename__ = "project_notes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    category: Mapped[str] = mapped_column(String(32), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    source_message_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("messages.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+    )
+    updated_at: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc).isoformat(),
+    )
+
+    project: Mapped[Project] = relationship("Project", back_populates="notes")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": str(self.id),
+            "projectId": str(self.project_id),
+            "category": str(self.category),
+            "content": str(self.content),
+            "sourceMessageId": self.source_message_id,
             "createdAt": str(self.created_at),
             "updatedAt": str(self.updated_at),
         }

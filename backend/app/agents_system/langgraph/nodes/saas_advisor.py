@@ -45,7 +45,7 @@ async def saas_advisor_node(state: GraphState) -> dict[str, Any]:
     try:
         # Load SaaS advisor prompt
         prompt_loader = PromptLoader()
-        saas_prompt = prompt_loader.load_prompt("saas_advisor_prompt.yaml")
+        saas_prompt = prompt_loader.load_prompt_file("saas_advisor_prompt.yaml")
 
         # Prepare handoff context for SaaS advisor
         handoff_context = state.get("agent_handoff_context", {})
@@ -215,3 +215,4 @@ def _extract_tenant_model(proposal: str) -> str:
         return "pool"
 
     return "unknown"
+

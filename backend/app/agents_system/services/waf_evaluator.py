@@ -262,9 +262,7 @@ class WAFEvaluatorService:
         normalized = token.strip().lower()
         if len(normalized) > 7 and normalized.endswith("ement"):
             normalized = normalized[:-5]
-        elif len(normalized) > 6 and normalized.endswith("ion"):
-            normalized = normalized[:-3]
-        elif len(normalized) > 6 and normalized.endswith("ing"):
+        elif (len(normalized) > 6 and normalized.endswith("ion")) or (len(normalized) > 6 and normalized.endswith("ing")):
             normalized = normalized[:-3]
         elif len(normalized) > 5 and normalized.endswith("ed"):
             normalized = normalized[:-2]

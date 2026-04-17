@@ -9,17 +9,17 @@ from typing import Any, Protocol
 from app.features.projects.application.pending_changes_merge_service import (
     PendingChangesMergeService,
 )
-from app.features.projects.infrastructure.project_state_store import ProjectStateStore
 from app.features.projects.contracts import (
     ChangeSetReviewResultContract,
     ChangeSetStatus,
     PendingChangeSetContract,
     PendingChangeSetSummaryContract,
 )
+from app.features.projects.infrastructure.project_state_store import ProjectStateStore
 
 
 class PendingChangesStateProvider(Protocol):
-    async def get_project_state(self, project_id: str, db: object) -> dict[str, Any]: ...
+    async def get_project_state(self, project_id: str, db: Any) -> dict[str, Any]: ...
 
 
 class PendingChangesStateStore(Protocol):
@@ -28,7 +28,7 @@ class PendingChangesStateStore(Protocol):
         *,
         project_id: str,
         state: dict[str, Any],
-        db: object,
+        db: Any,
         replace_missing: bool,
         updated_at: str | None = None,
     ) -> dict[str, Any]: ...
@@ -52,7 +52,7 @@ class ProjectPendingChangesService:
         self,
         *,
         project_id: str,
-        db: object,
+        db: Any,
         status: ChangeSetStatus | None = None,
     ) -> list[PendingChangeSetSummaryContract]:
         change_sets = await self._load_change_sets(project_id=project_id, db=db)
@@ -62,13 +62,13 @@ class ProjectPendingChangesService:
         return [
             PendingChangeSetSummaryContract(
                 id=change.id,
-                project_id=change.project_id,
+                projectId=change.project_id,
                 stage=change.stage,
                 status=change.status,
-                created_at=change.created_at,
-                source_message_id=change.source_message_id,
-                bundle_summary=change.bundle_summary,
-                artifact_count=len(change.artifact_drafts),
+                createdAt=change.created_at,
+                sourceMessageId=change.source_message_id,
+                bundleSummary=change.bundle_summary,
+                artifactCount=len(change.artifact_drafts),
             )
             for change in change_sets
         ]
@@ -78,7 +78,7 @@ class ProjectPendingChangesService:
         *,
         project_id: str,
         change_set_id: str,
-        db: object,
+        db: Any,
     ) -> PendingChangeSetContract:
         for change in await self._load_change_sets(project_id=project_id, db=db):
             if change.id == change_set_id:
@@ -117,8 +117,8 @@ class ProjectPendingChangesService:
             updated_at=timestamp,
         )
         return ChangeSetReviewResultContract(
-            change_set=PendingChangeSetContract.model_validate(raw_change_set),
-            project_state=merged_state,
+            changeSet=PendingChangeSetContract.model_validate(raw_change_set),
+            projectState=merged_state,
             conflicts=[],
         )
 
@@ -178,7 +178,7 @@ class ProjectPendingChangesService:
         self,
         *,
         project_id: str,
-        db: object,
+        db: Any,
     ) -> list[PendingChangeSetContract]:
         state = await self._state_provider.get_project_state(project_id, db)
         raw_change_sets = state.get("pendingChangeSets", [])
@@ -200,7 +200,7 @@ class ProjectPendingChangesService:
         self,
         *,
         project_id: str,
-        db: object,
+        db: Any,
     ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         state = deepcopy(await self._state_provider.get_project_state(project_id, db))
         raw_change_sets = state.get("pendingChangeSets", [])
@@ -262,8 +262,8 @@ class ProjectPendingChangesService:
             updated_at=timestamp,
         )
         return ChangeSetReviewResultContract(
-            change_set=PendingChangeSetContract.model_validate(raw_change_set),
-            project_state=None,
+            changeSet=PendingChangeSetContract.model_validate(raw_change_set),
+            projectState=None,
             conflicts=[],
         )
 

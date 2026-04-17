@@ -11,12 +11,16 @@ from app.features.projects.infrastructure.architecture_inputs_repository import 
     ProjectArchitectureInputsRepository,
     merge_architecture_inputs,
 )
+from app.features.projects.infrastructure.pending_changes_repository import (
+    PendingChangesRepository,
+)
 from app.features.projects.infrastructure.project_state_components_repository import (
     ProjectStateComponentsRepository,
     merge_project_state_components,
 )
 
 _architecture_inputs_repository = ProjectArchitectureInputsRepository()
+_pending_changes_repository = PendingChangesRepository()
 _project_state_components_repository = ProjectStateComponentsRepository()
 
 
@@ -45,7 +49,18 @@ async def compose_project_state(
         project_id=project_id,
         db=db,
     )
-    return merge_project_state_components(merged_state, components)
+    merged_state = merge_project_state_components(merged_state, components)
+
+    pending_change_sets = await _pending_changes_repository.list_change_sets(
+        project_id=project_id,
+        db=db,
+    )
+    if pending_change_sets:
+        merged_state["pendingChangeSets"] = [
+            change_set.model_dump(mode="json", by_alias=True, exclude_none=True)
+            for change_set in pending_change_sets
+        ]
+    return merged_state
 
 
 async def sync_project_state(
@@ -57,9 +72,15 @@ async def sync_project_state(
     updated_at: str | None = None,
 ) -> dict[str, Any]:
     """Persist decomposed families and return the stripped compatibility blob."""
-    stripped_state = await _architecture_inputs_repository.sync_from_state(
+    stripped_state = await _pending_changes_repository.sync_from_state(
         project_id=project_id,
         state=state,
+        db=db,
+        replace_missing=replace_missing,
+    )
+    stripped_state = await _architecture_inputs_repository.sync_from_state(
+        project_id=project_id,
+        state=stripped_state,
         db=db,
         replace_missing=replace_missing,
         updated_at=updated_at,

@@ -4,16 +4,19 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import app
+from app.features.settings.api.models_router import _settings_models_service, router
 from app.shared.db.projects_database import get_db
-from app.features.settings.api.models_router import _settings_models_service
 
 
 @pytest.fixture
 async def async_client(test_db_session: AsyncSession):
+    app = FastAPI()
+    app.include_router(router, prefix="/api/settings")
+
     def override_get_db():
         yield test_db_session
 
@@ -123,3 +126,56 @@ async def test_get_copilot_status(async_client: AsyncClient) -> None:
     assert response.status_code == 200
     data = response.json()
     assert data["state"] == "unauthenticated"
+
+
+@pytest.mark.asyncio
+async def test_architect_profile_defaults_and_roundtrip(async_client: AsyncClient) -> None:
+    response = await async_client.get("/api/settings/architect-profile")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "profile": {
+            "defaultRegionPrimary": "eastus",
+            "defaultRegionSecondary": None,
+            "defaultIacFlavor": "bicep",
+            "complianceBaseline": [],
+            "monthlyCostCeiling": None,
+            "preferredVmSeries": [],
+            "teamDevopsMaturity": "basic",
+            "notes": "",
+        },
+        "updatedAt": None,
+    }
+
+    update_response = await async_client.put(
+        "/api/settings/architect-profile",
+        json={
+            "defaultRegionPrimary": "westeurope",
+            "defaultRegionSecondary": "northeurope",
+            "defaultIacFlavor": "terraform",
+            "complianceBaseline": ["GDPR", "SOC2"],
+            "monthlyCostCeiling": 5000,
+            "preferredVmSeries": ["D", "E"],
+            "teamDevopsMaturity": "advanced",
+            "notes": "Prefer managed services first.",
+        },
+    )
+
+    assert update_response.status_code == 200
+    payload = update_response.json()
+    assert payload["profile"] == {
+        "defaultRegionPrimary": "westeurope",
+        "defaultRegionSecondary": "northeurope",
+        "defaultIacFlavor": "terraform",
+        "complianceBaseline": ["GDPR", "SOC2"],
+        "monthlyCostCeiling": 5000.0,
+        "preferredVmSeries": ["D", "E"],
+        "teamDevopsMaturity": "advanced",
+        "notes": "Prefer managed services first.",
+    }
+    assert isinstance(payload["updatedAt"], str)
+
+    read_back = await async_client.get("/api/settings/architect-profile")
+
+    assert read_back.status_code == 200
+    assert read_back.json()["profile"] == payload["profile"]

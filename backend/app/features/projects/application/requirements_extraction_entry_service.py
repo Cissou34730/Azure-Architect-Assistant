@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -68,7 +68,7 @@ def create_requirements_extraction_entry_service() -> ProjectRequirementsExtract
         ProjectPendingChangesService,
     )
 
-    pending_changes_service = ProjectPendingChangesService(state_provider=ChatService())
+    pending_changes_service = ProjectPendingChangesService(state_provider=cast(Any, ChatService()))
     worker = RequirementsExtractionWorker(
         pending_change_recorder=pending_changes_service,
     )

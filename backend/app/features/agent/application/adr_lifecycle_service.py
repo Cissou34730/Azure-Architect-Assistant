@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Mapping
+from typing import Any
 from uuid import uuid4
 
 from pydantic import ValidationError
 
 from app.agents_system.services.aaa_state_models import (
-    ADRStatus,
     AdrArtifact,
+    ADRStatus,
     ensure_aaa_defaults,
     generate_traceability_links,
 )

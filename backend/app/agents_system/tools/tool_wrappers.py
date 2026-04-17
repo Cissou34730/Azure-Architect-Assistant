@@ -6,8 +6,16 @@ import threading
 from concurrent.futures import Future
 from typing import Any
 
+from .tool_registry import ToolRuntimeContext, maybe_persist_tool_result
 
-def make_single_input_wrapper(name: str, func: Any, async_func: Any | None = None):
+
+def make_single_input_wrapper(
+    name: str,
+    func: Any,
+    async_func: Any | None = None,
+    *,
+    runtime_context: ToolRuntimeContext | None = None,
+):
     """Wrap a tool function to handle JSON string/dict/raw single-input payloads."""
 
     async def _async_runner(single_input):
@@ -15,9 +23,15 @@ def make_single_input_wrapper(name: str, func: Any, async_func: Any | None = Non
         target_fn = async_func or func
 
         try:
-            return await _call_function(target_fn, payload)
+            raw_result = await _call_function(target_fn, payload)
         except Exception:  # noqa: BLE001
-            return await _call_function_fallback(target_fn, payload)
+            raw_result = await _call_function_fallback(target_fn, payload)
+
+        return await maybe_persist_tool_result(
+            tool_name=name,
+            raw_result=raw_result,
+            runtime_context=runtime_context,
+        )
 
     def _sync_wrapper(single_input):
         try:

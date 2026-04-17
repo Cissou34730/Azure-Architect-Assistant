@@ -62,7 +62,7 @@ class ClarificationPlanningResultContract(BaseModel):
     question_groups: list[ClarificationQuestionGroupContract] = Field(alias="questionGroups")
 
     @model_validator(mode="after")
-    def _validate_total_questions(self) -> "ClarificationPlanningResultContract":
+    def _validate_total_questions(self) -> ClarificationPlanningResultContract:
         total_questions = sum(len(group.questions) for group in self.question_groups)
         if total_questions <= 0:
             raise ValueError("Clarification planning result must include at least one question")

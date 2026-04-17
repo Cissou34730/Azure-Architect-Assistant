@@ -93,7 +93,7 @@ class ClarificationResolutionResultContract(BaseModel):
         return cleaned
 
     @model_validator(mode="after")
-    def _validate_actionable_output(self) -> "ClarificationResolutionResultContract":
+    def _validate_actionable_output(self) -> ClarificationResolutionResultContract:
         if not self.requirement_updates and not self.question_updates and not self.assumptions:
             raise ValueError("Clarification resolution result must include at least one update")
         return self

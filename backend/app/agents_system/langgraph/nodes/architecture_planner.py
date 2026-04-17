@@ -10,6 +10,7 @@ from typing import Any
 
 from app.agents_system.config.prompt_loader import PromptLoader
 from app.agents_system.runner import get_agent_runner
+from app.agents_system.tools.research_tool import normalize_grounded_research_packet
 
 from ..state import GraphState
 from .agent_native import run_stage_aware_agent
@@ -18,33 +19,53 @@ logger = logging.getLogger(__name__)
 _ARCHITECTURE_PLANNER_PROMPT = "architecture_planner_prompt.yaml"
 
 
+def _append_grounded_evidence_lines(lines: list[str], packet: Any) -> None:
+    consulted_sources = getattr(packet, "consulted_sources", [])
+    if consulted_sources:
+        lines.append(
+            "  Consulted sources: "
+            + ", ".join(str(source) for source in consulted_sources[:3])
+        )
+
+    evidence_items = getattr(packet, "evidence", [])
+    if not evidence_items:
+        return
+
+    lines.append("  Grounded evidence:")
+    for evidence_item in evidence_items[:2]:
+        lines.append(f"    - {evidence_item.title}")
+        if evidence_item.excerpt:
+            lines.append(f"      Excerpt: {evidence_item.excerpt[:180]}")
+        if evidence_item.url:
+            lines.append(f"      URL: {evidence_item.url}")
+
+
 def _format_research_evidence_packets(packets: list[dict[str, Any]]) -> str:
     if not packets:
         return "No research evidence packets were prepared."
 
     lines: list[str] = []
-    for packet in packets[:5]:
-        packet_id = packet.get("packet_id", "research-packet")
-        focus = packet.get("focus", "Research focus")
-        query = packet.get("query", "")
-        requirement_targets = packet.get("requirement_targets") or []
-        recommended_sources = packet.get("recommended_sources") or []
+    for raw_packet in packets[:5]:
+        packet = normalize_grounded_research_packet(raw_packet)
+        if packet is None:
+            continue
 
-        lines.append(f"- {packet_id}: {focus}")
-        if query:
-            lines.append(f"  Query: {query}")
-        if requirement_targets:
+        lines.append(f"- {packet.packet_id}: {packet.focus}")
+        if packet.query:
+            lines.append(f"  Query: {packet.query}")
+        if packet.requirement_targets:
             lines.append(
                 "  Requirement targets: "
-                + ", ".join(str(target) for target in requirement_targets[:3])
+                + ", ".join(str(target) for target in packet.requirement_targets[:3])
             )
-        if recommended_sources:
+        if packet.recommended_sources:
             lines.append(
                 "  Preferred sources: "
-                + ", ".join(str(source) for source in recommended_sources[:3])
+                + ", ".join(str(source) for source in packet.recommended_sources[:3])
             )
+        _append_grounded_evidence_lines(lines, packet)
 
-    return "\n".join(lines)
+    return "\n".join(lines) if lines else "No research evidence packets were prepared."
 
 
 def _format_mindmap_delta_targets(mindmap_guidance: dict[str, Any] | None) -> str:
@@ -123,8 +144,7 @@ def _build_synthesizer_contract(state: GraphState, handoff_context: dict[str, An
         "- Make trade-offs specific to Azure service choices, not generic pros/cons.\n"
         "- Keep WAF delta specific: name the affected pillar/checklist themes and what changed.\n"
         "- Keep mindmap delta specific: name the uncovered topics addressed now vs. left open.\n"
-        "- Persist reviewable artifacts through aaa_create_diagram_set and aaa_generate_candidate_architecture so the existing "
-        "pending-change review flow captures an AAA_STATE_UPDATE block.\n"
+        "- Persist reviewable artifacts through aaa_create_diagram_set and aaa_generate_candidate_architecture so the pending-change review flow records typed pending-change confirmations.\n"
         "\n"
         "**WAF Snapshot:**\n"
         f"{_format_waf_snapshot(state.get('current_project_state') or {})}\n\n"
@@ -220,7 +240,7 @@ async def architecture_planner_node(state: GraphState) -> dict[str, Any]:
     try:
         # Load architecture planner prompt
         prompt_loader = PromptLoader()
-        arch_planner_prompt = prompt_loader.load_prompt(_ARCHITECTURE_PLANNER_PROMPT)
+        arch_planner_prompt = prompt_loader.load_prompt_file(_ARCHITECTURE_PLANNER_PROMPT)
 
         # Prepare handoff context for architecture planner
         handoff_context = state.get("agent_handoff_context", {})
@@ -375,4 +395,5 @@ def _format_previous_decisions(decisions: list[dict[str, Any]]) -> str:
         rationale = decision.get("rationale", "No rationale provided")
         formatted.append(f"{idx}. **{title}**\n   Rationale: {rationale}")
     return "\n".join(formatted)
+
 

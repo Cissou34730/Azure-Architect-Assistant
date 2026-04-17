@@ -72,7 +72,7 @@ class ADRDrafterWorker:
         requested_action: ADRDraftAction,
         target_adr: Mapping[str, Any] | None = None,
     ) -> ADRDraftEnvelope:
-        prompt = self._prompt_loader.load_prompt("adr_writer.yaml")
+        prompt = self._prompt_loader.load_prompt_file("adr_writer.yaml")
         system_prompt = str(prompt.get("system_prompt") or "").strip()
         user_prompt = self._build_user_prompt(
             user_message=user_message,
@@ -173,3 +173,4 @@ class ADRDrafterWorker:
 
 
 __all__ = ["ADRDraftArtifact", "ADRDraftEnvelope", "ADRDrafterWorker"]
+

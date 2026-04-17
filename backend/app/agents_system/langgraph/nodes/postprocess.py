@@ -8,6 +8,13 @@ import logging
 import re
 from typing import Any
 
+from app.agents_system.contracts import (
+    ArchitectChoiceOption,
+    ArchitectChoicePayload,
+    normalize_structured_payload,
+)
+from app.agents_system.tools.tool_registry import normalize_pending_change_tool_result
+
 from ...services.iteration_logging import (
     build_iteration_event_update,
     derive_mcp_query_updates_from_steps,
@@ -20,6 +27,10 @@ logger = logging.getLogger(__name__)
 _AAA_STATE_UPDATE_MARKER = "AAA_STATE_UPDATE"
 _ARCHITECT_CHOICE_MARKER_RE = re.compile(
     r"architect\s+choice\s+required\s*:", re.IGNORECASE
+)
+_ARCHITECT_OPTION_RE = re.compile(
+    r"^\s*(?:[-*]|\d+[.)]|option\s+[a-z0-9]+[:.)-])\s+(?P<text>.+)$",
+    re.IGNORECASE,
 )
 
 
@@ -58,11 +69,18 @@ async def postprocess_node(state: GraphState, response_message_id: str) -> dict[
     architect_choice_required = _extract_architect_choice_required_section(agent_output)
     if architect_choice_required:
         logger.warning("Architect choice required detected; will block state updates")
+    structured_payload = _resolve_structured_payload(
+        state.get("structured_payload"),
+        architect_choice_required,
+    )
+    pending_change_set = _extract_pending_change_set(intermediate_steps)
 
     # 2) Extract and merge state updates
-    state_updates = _extract_and_merge_state_updates(
-        agent_output, intermediate_steps, user_message, current_project_state
-    )
+    state_updates = None
+    if pending_change_set is None:
+        state_updates = _extract_and_merge_state_updates(
+            agent_output, intermediate_steps, user_message, current_project_state
+        )
 
     # FR-018: Block state updates if architect choice is required
     if architect_choice_required:
@@ -91,10 +109,58 @@ async def postprocess_node(state: GraphState, response_message_id: str) -> dict[
 
     return {
         "architect_choice_required_section": architect_choice_required,
+        "pending_change_set": pending_change_set,
+        "structured_payload": structured_payload,
         "state_updates": state_updates,
         "derived_updates": derived_updates,
         "combined_updates": combined_updates,
     }
+
+
+def _resolve_structured_payload(
+    existing_payload: Any,
+    architect_choice_required: str | None,
+) -> dict[str, Any] | None:
+    if architect_choice_required:
+        return _build_architect_choice_structured_payload(architect_choice_required)
+    return normalize_structured_payload(existing_payload) if existing_payload is not None else None
+
+
+def _build_architect_choice_structured_payload(section: str) -> dict[str, Any]:
+    lines = [line.strip() for line in section.splitlines() if line.strip()]
+    if not lines:
+        return ArchitectChoicePayload(prompt=section).model_dump(mode="json", by_alias=True)
+
+    prompt_lines: list[str] = []
+    options: list[ArchitectChoiceOption] = []
+    for line in lines:
+        marker_match = _ARCHITECT_CHOICE_MARKER_RE.search(line)
+        if marker_match:
+            prompt_text = line[marker_match.end() :].strip()
+            if prompt_text:
+                prompt_lines.append(prompt_text)
+            continue
+
+        option_match = _ARCHITECT_OPTION_RE.match(line)
+        if option_match:
+            option_text = option_match.group("text").strip()
+            if option_text:
+                options.append(
+                    ArchitectChoiceOption(
+                        id=f"option-{len(options) + 1}",
+                        title=option_text,
+                    )
+                )
+            continue
+
+        if not options:
+            prompt_lines.append(line)
+
+    prompt = " ".join(prompt_lines).strip() or section.strip()
+    return ArchitectChoicePayload(prompt=prompt, options=options).model_dump(
+        mode="json",
+        by_alias=True,
+    )
 
 
 def _extract_from_steps(
@@ -103,11 +169,22 @@ def _extract_from_steps(
     """Extract state updates from intermediate tool observations."""
     extracted = []
     for _, observation in steps:
+        if normalize_pending_change_tool_result(observation) is not None:
+            continue
         if isinstance(observation, str) and _AAA_STATE_UPDATE_MARKER in observation:
             tool_u = extract_state_updates(observation, user_message, project_state)
             if tool_u:
                 extracted.append(tool_u)
     return extracted
+
+
+def _extract_pending_change_set(steps: list[Any]) -> dict[str, Any] | None:
+    for _, observation in reversed(steps):
+        canonical_result = normalize_pending_change_tool_result(observation)
+        if canonical_result is None:
+            continue
+        return canonical_result.pending_change_set.model_dump(mode="json", by_alias=True)
+    return None
 
 
 def _merge_update_sets(update_sets: list[dict[str, Any]]) -> dict[str, Any]:

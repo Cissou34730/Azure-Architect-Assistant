@@ -26,6 +26,8 @@ from .aaa_cost_tool import AAAGenerateCostTool
 from .aaa_diagram_tool import AAACreateDiagramSetTool
 from .aaa_export_tool import AAAExportTool
 from .aaa_iac_tool import AAAGenerateIacTool
+from .aaa_iac_validation_tool import AAAValidateIacBundleTool
+from .aaa_mermaid_validation_tool import AAAMermaidValidationTool
 from .aaa_validation_tool import AAARunValidationTool
 
 
@@ -172,7 +174,9 @@ def create_aaa_tools(_context: Any | None = None) -> list[BaseTool]:
         AAAManageAdrTool(),
         AAAManageArtifactsTool(),
         AAACreateDiagramSetTool(),
+        AAAMermaidValidationTool(),
         AAARunValidationTool(),
+        AAAValidateIacBundleTool(),
         AAAGenerateIacTool(),
         AAAGenerateCostTool(),
         AAAExportTool(),

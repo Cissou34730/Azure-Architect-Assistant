@@ -15,7 +15,6 @@ from app.agents_system.memory.context_packs.stage_packers import (
     build_validate_sections,
 )
 
-
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
 @pytest.fixture()

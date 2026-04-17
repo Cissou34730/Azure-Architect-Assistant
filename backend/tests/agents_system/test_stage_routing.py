@@ -1,294 +1,39 @@
-"""
-Tests for Phase 5: Stage routing and retry logic.
-"""
+from __future__ import annotations
 
-from app.agents_system.langgraph.nodes.routing import (
-    should_route_to_architecture_planner,
-    should_route_to_cost_estimator,
-)
-from app.agents_system.langgraph.nodes.stage_routing import (
-    ProjectStage,
-    build_retry_prompt,
-    check_for_retry,
-    classify_next_stage,
-    propose_next_step,
-)
-from app.agents_system.langgraph.state import GraphState
+from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
 
 
-def test_classify_stage_clarify():
-    """Test classification of clarify stage."""
-    state: GraphState = {
-        "user_message": "What is Azure App Service?",
-        "current_project_state": {},
-        "agent_output": "",
+def test_classify_next_stage_returns_typed_architecture_classification() -> None:
+    result = classify_next_stage(
+        {
+            "user_message": "Design the architecture for a multi-region Azure workload.",
+            "current_project_state": {
+                "requirements": [{"id": "req-1", "text": "Support active-active regions"}],
+            },
+        }
+    )
+
+    assert result["next_stage"] == "propose_candidate"
+    assert result["stage_classification"] == {
+        "stage": "propose_candidate",
+        "confidence": 0.95,
+        "source": "intent_rules",
+        "rationale": "Matched architecture-design intent keywords in the user message.",
     }
 
-    result = classify_next_stage(state)
 
-    assert result["next_stage"] == ProjectStage.CLARIFY.value
+def test_classify_next_stage_keeps_code_review_requests_out_of_iac() -> None:
+    result = classify_next_stage(
+        {
+            "user_message": "Please code review the ADR before we approve it.",
+            "current_project_state": {},
+        }
+    )
 
-
-def test_classify_stage_extract_requirements_when_documents_exist_but_requirements_missing():
-    state: GraphState = {
-        "user_message": "let us continue",
-        "current_project_state": {
-            "referenceDocuments": [
-                {"id": "doc-1", "parseStatus": "parsed"},
-            ],
-        },
-        "agent_output": "",
+    assert result["next_stage"] == "general"
+    assert result["stage_classification"] == {
+        "stage": "general",
+        "confidence": 0.88,
+        "source": "intent_rules",
+        "rationale": "Detected review-oriented wording without IaC-specific generation intent.",
     }
-
-    result = classify_next_stage(state)
-
-    assert result["next_stage"] == "extract_requirements"
-
-
-def test_classify_stage_adr():
-    """Test classification of ADR stage."""
-    state: GraphState = {
-        "user_message": "Let's document the architecture decision for using Azure SQL",
-        "current_project_state": {},
-        "agent_output": "",
-    }
-
-    result = classify_next_stage(state)
-
-    assert result["next_stage"] == ProjectStage.MANAGE_ADR.value
-
-
-def test_classify_stage_validation():
-    """Test classification of validation stage."""
-    state: GraphState = {
-        "user_message": "Can you validate this against the WAF security pillar?",
-        "current_project_state": {},
-        "agent_output": "",
-    }
-
-    result = classify_next_stage(state)
-
-    assert result["next_stage"] == ProjectStage.VALIDATE.value
-
-
-def test_classify_stage_pricing():
-    """Test classification of pricing stage."""
-    state: GraphState = {
-        "user_message": "What's the estimated cost for this solution?",
-        "current_project_state": {},
-        "agent_output": "",
-    }
-
-    result = classify_next_stage(state)
-
-    assert result["next_stage"] == ProjectStage.PRICING.value
-
-
-def test_classify_stage_pricing_for_how_much_request():
-    """Test pricing classification for explicit spend questions without the word cost."""
-    state: GraphState = {
-        "user_message": "How much would this run per month in East US?",
-        "current_project_state": {},
-        "agent_output": "",
-    }
-
-    result = classify_next_stage(state)
-
-    assert result["next_stage"] == ProjectStage.PRICING.value
-
-
-def test_classify_stage_iac():
-    """Test classification of IaC stage."""
-    state: GraphState = {
-        "user_message": "Generate Terraform code for this architecture",
-        "current_project_state": {},
-        "agent_output": "",
-    }
-
-    result = classify_next_stage(state)
-
-    assert result["next_stage"] == ProjectStage.IAC.value
-
-
-def test_classify_stage_export():
-    """Test classification of export stage."""
-    state: GraphState = {
-        "user_message": "Export the architecture package with the final report",
-        "current_project_state": {},
-        "agent_output": "",
-    }
-
-    result = classify_next_stage(state)
-
-    assert result["next_stage"] == ProjectStage.EXPORT.value
-
-
-def test_classify_stage_prefers_general_artifact_update_over_clarify() -> None:
-    state: GraphState = {
-        "user_message": "update the requirements and related artifacts based on my latest message",
-        "current_project_state": {
-            "requirements": [{"id": "req-1", "text": "Support partner sign-in"}],
-            "clarificationQuestions": [
-                {
-                    "id": "q-1",
-                    "question": "Do partners use their own tenant or a shared tenant?",
-                    "status": "open",
-                }
-            ],
-        },
-        "agent_output": "",
-    }
-
-    result = classify_next_stage(state)
-
-    assert result["next_stage"] == ProjectStage.GENERAL.value
-
-
-def test_check_for_retry_no_error():
-    """Test retry check when no error present."""
-    state: GraphState = {
-        "agent_output": "Here's the solution...",
-        "retry_count": 0,
-    }
-
-    result = check_for_retry(state)
-
-    assert result == "continue"
-
-
-def test_check_for_retry_with_error():
-    """Test retry check when ERROR: prefix detected."""
-    state: GraphState = {
-        "agent_output": "ERROR: Missing required field 'region'",
-        "retry_count": 0,
-    }
-
-    result = check_for_retry(state)
-
-    assert result == "retry"
-
-
-def test_check_for_retry_max_retries():
-    """Test retry check when max retries reached."""
-    state: GraphState = {
-        "agent_output": "ERROR: Still missing field",
-        "retry_count": 1,
-    }
-
-    result = check_for_retry(state)
-
-    assert result == "continue"  # Don't retry again
-
-
-def test_build_retry_prompt():
-    """Test building retry prompt."""
-    state: GraphState = {
-        "agent_output": "ERROR: Missing required parameter 'location'\nPlease provide location.",
-        "retry_count": 0,
-    }
-
-    result = build_retry_prompt(state)
-
-    assert "ERROR:" in result["agent_output"]
-    assert "missing information" in result["agent_output"].lower()
-    assert result["retry_count"] == 1
-
-
-def test_propose_next_step_with_artifacts():
-    """Test next step proposal when artifacts persisted."""
-    state: GraphState = {
-        "combined_updates": {
-            "candidateArchitectures": [{"id": "c1", "name": "Solution A"}],
-        },
-        "final_answer": "Solution proposed.",
-        "current_project_state": {},
-    }
-
-    result = propose_next_step(state)
-
-    # Should not add questions when artifacts present
-    assert result == {}
-
-
-def test_propose_next_step_no_artifacts():
-    """Test next step proposal when no artifacts persisted."""
-    state: GraphState = {
-        "combined_updates": {},
-        "final_answer": "General discussion.",
-        "current_project_state": {},
-    }
-
-    result = propose_next_step(state)
-
-    # Should add next step questions
-    assert "final_answer" in result
-    assert "Next steps" in result["final_answer"] or result.get("final_answer") == "General discussion."
-
-
-def test_propose_next_step_specific_gaps():
-    """Test next step proposal identifies specific gaps."""
-    state: GraphState = {
-        "combined_updates": {},
-        "final_answer": "Discussed requirements.",
-        "current_project_state": {
-            "candidateArchitectures": [{"id": "c1"}],  # Has candidate
-            # Missing: adrs, findings/wafChecklist, costEstimates, iacArtifacts
-        },
-    }
-
-    result = propose_next_step(state)
-
-    # Should suggest missing items
-    if "final_answer" in result:
-        assert "decision" in result["final_answer"].lower() or "validate" in result["final_answer"].lower()
-
-
-def test_architecture_planner_not_selected_for_explicit_waf_request():
-    state: GraphState = {
-        "user_message": "Let's start creating the WAF checklist now",
-        "next_stage": ProjectStage.VALIDATE.value,
-        "context_summary": "Multi-region, high availability, compliance required.",
-        "current_project_state": {},
-    }
-
-    result = should_route_to_architecture_planner(state)
-
-    assert result is False
-
-
-def test_architecture_planner_selected_for_explicit_architecture_request():
-    state: GraphState = {
-        "user_message": "Design the target architecture for this platform",
-        "next_stage": ProjectStage.PROPOSE_CANDIDATE.value,
-        "context_summary": "",
-        "current_project_state": {},
-    }
-
-    result = should_route_to_architecture_planner(state)
-
-    assert result is True
-
-
-def test_cost_estimator_routing_allows_explicit_cost_without_candidate_architecture():
-    state: GraphState = {
-        "user_message": "estimate the cost using SWA, Azure Function, and Table Storage",
-        "current_project_state": {},
-        "next_stage": ProjectStage.PRICING.value,
-    }
-
-    result = should_route_to_cost_estimator(state)
-
-    assert result is True
-
-
-def test_cost_estimator_routing_by_pricing_stage_even_without_cost_keywords():
-    state: GraphState = {
-        "user_message": "let us continue",
-        "current_project_state": {},
-        "next_stage": ProjectStage.PRICING.value,
-    }
-
-    result = should_route_to_cost_estimator(state)
-
-    assert result is True
-

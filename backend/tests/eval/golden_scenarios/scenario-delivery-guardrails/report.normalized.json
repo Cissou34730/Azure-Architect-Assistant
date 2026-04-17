@@ -1,0 +1,121 @@
+{
+  "scenario": {
+    "id": "scenario-delivery-guardrails",
+    "name": "Delivery Artifact Guardrails"
+  },
+  "final": {
+    "missingRequiredKeys": [],
+    "stateSummary": {
+      "keys": [
+        "candidateArchitectures",
+        "costEstimates",
+        "iacArtifacts",
+        "pendingChangeSets",
+        "requirements",
+        "traceabilityLinks"
+      ],
+      "counts": {
+        "candidateArchitectures": 1,
+        "costEstimates": 1,
+        "iacArtifacts": 1,
+        "pendingChangeSets": 1,
+        "requirements": 2,
+        "traceabilityLinks": 1
+      }
+    },
+    "exportPayload": {
+      "present": true,
+      "missingRequiredKeys": ["mindmapCoverageScorecard"],
+      "stateMissingRequiredKeys": ["mindMapCoverage"],
+      "mindmapCoverageScorecard": {
+        "topicCount": 12,
+        "missingTopicKeys": ["13_learning_and_practice"],
+        "summary": {
+          "addressed": 12,
+          "partial": 0,
+          "notAddressed": 1
+        }
+      }
+    },
+    "candidatePayload": {
+      "present": true,
+      "missingRequiredKeys": [],
+      "stateSummary": {
+        "keys": ["candidateArchitectures", "requirements"],
+        "counts": {"candidateArchitectures": 1, "requirements": 2}
+      },
+      "latestCandidate": {
+        "id": "cand-1",
+        "title": "Hub and spoke baseline",
+        "assumptionIdCount": 1,
+        "citationCount": 0,
+        "diagramIdCount": 0
+      }
+    },
+    "adrPayload": {
+      "present": true,
+      "missingRequiredKeys": [],
+      "pendingChangeSetCount": 1,
+      "stateSummary": {
+        "keys": ["pendingChangeSets"],
+        "counts": {"pendingChangeSets": 1}
+      },
+      "latestChangeSet": {
+        "id": "cs-1",
+        "status": "applied",
+        "hasLifecycleCommand": false,
+        "lifecycleAction": null,
+        "artifactDraftCount": 0,
+        "adrDraftCount": 0,
+        "citationCount": 0,
+        "relatedRequirementIdCount": 0,
+        "missingDraftFields": ["decision", "sourceCitations"]
+      }
+    },
+    "costPayload": {
+      "present": false,
+      "missingRequiredKeys": ["costEstimates"],
+      "stateSummary": {
+        "keys": [],
+        "counts": {}
+      },
+      "pricingLogCount": 0,
+      "latestEstimate": null
+    },
+    "iacPayload": {
+      "present": true,
+      "missingRequiredKeys": [],
+      "stateSummary": {
+        "keys": ["iacArtifacts"],
+        "counts": {"iacArtifacts": 1}
+      },
+      "latestArtifact": {
+        "id": "iac-1",
+        "fileCount": 0,
+        "formats": [],
+        "validationResultCount": 0,
+        "validationStatusCounts": {}
+      }
+    }
+  },
+  "dbPersistence": {"status": "PASS"},
+  "steps": [
+    {
+      "id": "us2-delivery",
+      "request": "Create the candidate architecture, ADR, export package, IaC package, and cost estimate.",
+      "answer": "The candidate architecture, ADR draft, export package, IaC package, and cost estimate were prepared for review with explicit delivery notes.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 1,
+      "pricingCallCount": 0,
+      "kbCallCount": 1,
+      "advisoryQuality": {
+        "proactivity": 1,
+        "correction": 1,
+        "evidence": 1,
+        "clarity": 2,
+        "total": 5
+      }
+    }
+  ]
+}

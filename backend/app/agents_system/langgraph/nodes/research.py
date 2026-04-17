@@ -8,6 +8,14 @@ to consult required references and MCP servers before answering.
 import logging
 from typing import Any
 
+from app.agents_system.tools.research_tool import (
+    GroundedResearchPacket,
+    ResearchExecutionArtifact,
+    ResearchFacade,
+    ResearchScope,
+    build_research_facade,
+)
+
 from ..state import GraphState
 from .stage_routing import ProjectStage
 
@@ -248,6 +256,7 @@ def _build_evidence_packet(
     plan_item: str,
     stage_value: str,
     state: GraphState,
+    grounding: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     project_state = state.get("current_project_state") or {}
     requirements = project_state.get("requirements") or []
@@ -269,71 +278,116 @@ def _build_evidence_packet(
             f"Address these uncovered mind map topics when relevant: {', '.join(mindmap_topics[:3])}."
         )
 
-    return {
-        "packet_id": packet_id,
-        "focus": plan_item,
-        "query": query,
-        "stage": stage_value,
-        "requirement_targets": _format_requirement_targets(requirements),
-        "mindmap_topics": mindmap_topics,
-        "recommended_sources": _preferred_sources_for_stage(stage_value),
-        "expected_evidence": expected_evidence,
-        "consumer_guidance": (
+    packet = GroundedResearchPacket(
+        packet_id=packet_id,
+        focus=plan_item,
+        query=query,
+        stage=stage_value,
+        requirement_targets=_format_requirement_targets(requirements),
+        mindmap_topics=mindmap_topics,
+        recommended_sources=_preferred_sources_for_stage(stage_value),
+        expected_evidence=expected_evidence,
+        consumer_guidance=(
             "Use this packet to ground architecture choices in explicit evidence, "
             "not generic Azure defaults."
         ),
-    }
+        evidence=(grounding or {}).get("evidence", []),
+        consulted_sources=(grounding or {}).get("consultedSources", []),
+        grounding_status=(grounding or {}).get("groundingStatus", "planned"),
+    )
+    return packet.model_dump(mode="json", by_alias=True)
 
 
-async def execute_research_worker_node(state: GraphState) -> dict[str, Any]:
+async def execute_research_worker_node(
+    state: GraphState,
+    *,
+    research_facade: ResearchFacade | Any | None = None,
+) -> dict[str, Any]:
     """Materialize research plan items into concrete evidence packets for synthesis."""
     stage_value = state.get("next_stage") or ProjectStage.CLARIFY.value
     plan = state.get("research_plan") or []
 
     if stage_value != ProjectStage.PROPOSE_CANDIDATE.value:
+        artifact = ResearchExecutionArtifact(
+            status="skipped",
+            reason="unsupported_stage",
+            stage=stage_value,
+            packets_created=0,
+        )
         return {
             "research_evidence_packets": [],
-            "research_execution_artifact": {
-                "status": "skipped",
-                "reason": "unsupported_stage",
-                "stage": stage_value,
-                "packets_created": 0,
-            },
+            "research_execution_artifact": artifact.model_dump(mode="json", by_alias=True),
         }
 
     if not plan:
+        artifact = ResearchExecutionArtifact(
+            status="skipped",
+            reason="no_research_plan",
+            stage=stage_value,
+            packets_created=0,
+        )
         return {
             "research_evidence_packets": [],
-            "research_execution_artifact": {
-                "status": "skipped",
-                "reason": "no_research_plan",
-                "stage": stage_value,
-                "packets_created": 0,
-            },
+            "research_execution_artifact": artifact.model_dump(mode="json", by_alias=True),
         }
 
-    packets = [
-        _build_evidence_packet(
+    facade = research_facade
+    if facade is None:
+        facade = build_research_facade(
+            project_id=state.get("project_id"),
+            db_session=state.get("db"),
+        )
+
+    packets: list[dict[str, Any]] = []
+    grounded_packets = 0
+    for index, plan_item in enumerate(plan, start=1):
+        base_packet = _build_evidence_packet(
             index=index,
             plan_item=plan_item,
             stage_value=stage_value,
             state=state,
         )
-        for index, plan_item in enumerate(plan, start=1)
-    ]
+        evidence: list[dict[str, Any]] = []
+        consulted_sources: list[str] = []
+        if facade is not None:
+            try:
+                research_result = await facade.research(base_packet["query"], scope=ResearchScope.ALL)
+            except Exception:  # noqa: BLE001
+                research_result = None
+            if research_result is not None:
+                raw_evidence = getattr(research_result, "evidence", [])
+                evidence = [item for item in raw_evidence if isinstance(item, dict)]
+                raw_sources = getattr(research_result, "consulted_sources", [])
+                consulted_sources = [item for item in raw_sources if isinstance(item, str)]
+        packet = _build_evidence_packet(
+            index=index,
+            plan_item=plan_item,
+            stage_value=stage_value,
+            state=state,
+            grounding={
+                "evidence": evidence,
+                "consultedSources": consulted_sources,
+                "groundingStatus": "grounded" if evidence else "planned",
+            },
+        )
+        if evidence:
+            grounded_packets += 1
+        packets.append(packet)
 
     logger.info(
         "Built research worker evidence packets (stage=%s, packets=%d)",
         stage_value,
         len(packets),
     )
+    artifact = ResearchExecutionArtifact(
+        status="completed",
+        stage=stage_value,
+        packets_created=len(packets),
+        plan_items=len(plan),
+        grounded_packets=grounded_packets,
+    )
     return {
         "research_evidence_packets": packets,
-        "research_execution_artifact": {
-            "status": "completed",
-            "stage": stage_value,
-            "packets_created": len(packets),
-            "plan_items": len(plan),
-        },
+        "research_execution_artifact": artifact.model_dump(mode="json", by_alias=True),
     }
 

@@ -8,8 +8,8 @@ from app.features.agent.application.requirements_extraction_service import (
 from app.features.agent.contracts.extract_requirements import (
     ExtractedRequirementContract,
     RequirementAmbiguityContract,
-    RequirementSourceContract,
     RequirementsExtractionResultContract,
+    RequirementSourceContract,
 )
 
 

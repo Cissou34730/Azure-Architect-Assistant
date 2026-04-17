@@ -1,6 +1,5 @@
 """Unit tests for KnowledgeBaseService with mocked LlamaIndex."""
 
-import os
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -25,7 +24,7 @@ class TestKnowledgeBaseService:
     @patch(f"{_SVC_MODULE}.StorageContext")
     @patch("os.path.exists", return_value=True)
     def test_get_index_loads_and_caches(self, mock_exists, mock_sc, mock_load):
-        from app.features.knowledge.infrastructure.service import KnowledgeBaseService, _INDEX_CACHE
+        from app.features.knowledge.infrastructure.service import _INDEX_CACHE, KnowledgeBaseService
 
         mock_sc_instance = MagicMock()
         mock_sc.from_defaults.return_value = mock_sc_instance

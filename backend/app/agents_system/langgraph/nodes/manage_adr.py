@@ -70,7 +70,7 @@ async def execute_manage_adr_stage_worker_node(
             "success": False,
             "error": str(exc),
         }
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("manage_adr stage worker failed: %s", exc, exc_info=True)
         final_answer = f"ERROR: ADR drafting failed: {exc!s}"
         await _emit_stage_message(state.get("event_callback"), final_answer)

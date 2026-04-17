@@ -18,6 +18,7 @@ class GraphState(TypedDict, total=False):
     # Input
     project_id: str
     user_message: str
+    db: Any
 
     # Thread memory (Phase 1+)
     thread_id: str | None
@@ -45,6 +46,8 @@ class GraphState(TypedDict, total=False):
 
     # Post-processing
     architect_choice_required_section: str | None
+    pending_change_set: dict[str, Any] | None
+    structured_payload: dict[str, Any] | None
     derived_updates: dict[str, Any]  # MCP logs + iteration events
     state_updates: dict[str, Any] | None  # From AAA_STATE_UPDATE extraction
     combined_updates: dict[str, Any]
@@ -62,6 +65,7 @@ class GraphState(TypedDict, total=False):
 
     # Phase 5 fields (stage routing and retry)
     next_stage: str | None
+    stage_classification: dict[str, Any] | None
     retry_count: int
 
     # Phase 2 fields (multi-agent handoff)
@@ -75,4 +79,3 @@ class GraphState(TypedDict, total=False):
 # Graph configuration constants
 MAX_AGENT_ITERATIONS = 10
 MAX_EXECUTION_TIME_SECONDS = 60
-

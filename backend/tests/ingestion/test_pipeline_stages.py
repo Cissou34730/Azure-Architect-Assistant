@@ -8,9 +8,11 @@ import pytest
 from app.ingestion.application.job_lifecycle import JobLifecycleManager
 from app.ingestion.application.pipeline_stage import PipelineContext
 from app.ingestion.application.policies import RetryPolicy
-from app.ingestion.application.stages.embedding_stage import EmbeddingProcessingDeps
 from app.ingestion.application.stages.chunking_stage import ChunkingStage
-from app.ingestion.application.stages.embedding_stage import EmbeddingIndexingStage
+from app.ingestion.application.stages.embedding_stage import (
+    EmbeddingIndexingStage,
+    EmbeddingProcessingDeps,
+)
 from app.ingestion.application.stages.loading_stage import LoadingStage
 
 

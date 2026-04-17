@@ -118,9 +118,22 @@ async def apply_state_updates_node(
 
     if not combined_updates:
         logger.info(f"No state updates to apply for project {project_id}")
+        pending_change_set = state.get("pending_change_set")
+        if isinstance(pending_change_set, dict):
+            refreshed_state = await read_project_state(project_id, db)
+            return {
+                "updated_project_state": (
+                    refreshed_state
+                    if isinstance(refreshed_state, dict)
+                    else state.get("current_project_state")
+                ),
+                "final_answer": sanitize_agent_output(str(agent_output)),
+                "success": True,
+            }
         return {
             "updated_project_state": state.get("current_project_state"),
             "final_answer": sanitize_agent_output(str(agent_output)),
+            "success": True,
         }
 
     try:

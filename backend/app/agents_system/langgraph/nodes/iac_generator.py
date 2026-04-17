@@ -5,8 +5,8 @@ This module provides a specialized sub-agent for generating production-ready
 Bicep and Terraform code with schema validation.
 """
 
-from collections.abc import Awaitable, Callable
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from app.agents_system.config.prompt_loader import PromptLoader
@@ -80,7 +80,7 @@ async def iac_generator_node(state: GraphState) -> dict[str, Any]:
     try:
         # Load IaC generator prompt
         prompt_loader = PromptLoader()
-        iac_generator_prompt = prompt_loader.load_prompt("iac_generator_prompt.yaml")
+        iac_generator_prompt = prompt_loader.load_prompt_file("iac_generator_prompt.yaml")
 
         # Prepare handoff context for IaC generator
         handoff_context = state.get("agent_handoff_context", {})
@@ -230,3 +230,4 @@ def _format_constraints(constraints: dict[str, Any]) -> str:
         formatted.append(f"- Compliance: {', '.join(constraints['compliance'])}")
 
     return "\n".join(formatted) if formatted else "No explicit constraints provided."
+

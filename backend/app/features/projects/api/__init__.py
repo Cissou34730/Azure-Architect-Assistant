@@ -15,12 +15,18 @@ __all__ = [
     "get_document_service_dep",
     "get_pending_changes_service_dep",
     "get_project_analysis_service_dep",
+    "get_project_notes_service_dep",
     "get_project_service_dep",
+    "get_quality_gate_service_dep",
+    "get_trace_service_dep",
     "get_state_edit_service_dep",
     "get_workspace_composer_dep",
     "project_management_router",
+    "project_notes_router",
     "project_router",
+    "quality_gate_router",
     "state_router",
+    "trace_router",
     "workspace_router",
 ]
 
@@ -30,7 +36,10 @@ def __getattr__(name: str) -> Any:
         "changes_router",
         "document_router",
         "project_router",
+        "project_notes_router",
+        "quality_gate_router",
         "state_router",
+        "trace_router",
         "workspace_router",
     }:
         module = import_module(f"{__name__}.{name}")
@@ -42,8 +51,11 @@ def __getattr__(name: str) -> Any:
         "get_document_content_service_dep",
         "get_document_service_dep",
         "get_pending_changes_service_dep",
+        "get_project_notes_service_dep",
         "get_project_analysis_service_dep",
         "get_project_service_dep",
+        "get_quality_gate_service_dep",
+        "get_trace_service_dep",
         "get_requirements_extraction_entry_service_dep",
         "get_state_edit_service_dep",
         "get_workspace_composer_dep",
@@ -58,6 +70,9 @@ def __getattr__(name: str) -> Any:
         router.include_router(__getattr__("project_router").router)
         router.include_router(__getattr__("document_router").router)
         router.include_router(__getattr__("changes_router").router)
+        router.include_router(__getattr__("project_notes_router").router)
+        router.include_router(__getattr__("quality_gate_router").router)
+        router.include_router(__getattr__("trace_router").router)
         router.include_router(__getattr__("state_router").router)
         router.include_router(__getattr__("workspace_router").router)
         globals()[name] = router

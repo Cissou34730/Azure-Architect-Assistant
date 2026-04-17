@@ -9,6 +9,7 @@ from app.agents_system.services.mindmap_loader import (
     load_mindmap,
 )
 
+
 def _write_json(path: Path, content: dict[str, Any]) -> None:
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(content, handle)

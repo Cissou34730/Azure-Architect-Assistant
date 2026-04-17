@@ -8,13 +8,13 @@ Requires real Azure OpenAI access. Skipped when env vars are missing.
 import os
 
 import pytest
+from app.shared.ai.providers.azure_openai_client import reset_azure_openai_client
+from app.shared.ai.providers.azure_openai_embedding import AzureOpenAIEmbeddingProvider
+from app.shared.ai.providers.azure_openai_llm import AzureOpenAILLMProvider
 
 from app.shared.ai.ai_service import AIService
 from app.shared.ai.config import AIConfig
 from app.shared.ai.interfaces import ChatMessage
-from app.shared.ai.providers.azure_openai_client import reset_azure_openai_client
-from app.shared.ai.providers.azure_openai_embedding import AzureOpenAIEmbeddingProvider
-from app.shared.ai.providers.azure_openai_llm import AzureOpenAILLMProvider
 
 # Skip entire module if Azure config is missing
 pytestmark = pytest.mark.skipif(

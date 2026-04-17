@@ -15,15 +15,15 @@ from .conversation_summary import ConversationSummaryContract
 from .extract_requirements import (
     ExtractedRequirementContract,
     RequirementAmbiguityContract,
-    RequirementSourceContract,
     RequirementsExtractionResultContract,
+    RequirementSourceContract,
 )
 
 __all__ = [
+    "ClarificationAssumptionContract",
     "ClarificationPlanningResultContract",
     "ClarificationQuestionContract",
     "ClarificationQuestionGroupContract",
-    "ClarificationAssumptionContract",
     "ClarificationQuestionUpdateContract",
     "ClarificationRequirementUpdateContract",
     "ClarificationResolutionResultContract",

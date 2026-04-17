@@ -8,17 +8,17 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
-from langchain_openai import AzureChatOpenAI
-
-from app.shared.ai.ai_service import AIService, AIServiceManager
-from app.shared.ai.config import AIConfig
-from app.shared.ai.interfaces import ChatMessage
 from app.shared.ai.providers.azure_openai_embedding import AzureOpenAIEmbeddingProvider
 from app.shared.ai.providers.azure_openai_llm import (
     AzureOpenAILLMProvider,
     _dedupe_deployments,
     _normalize_deployment_entry,
 )
+from langchain_openai import AzureChatOpenAI
+
+from app.shared.ai.ai_service import AIService, AIServiceManager
+from app.shared.ai.config import AIConfig
+from app.shared.ai.interfaces import ChatMessage
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 

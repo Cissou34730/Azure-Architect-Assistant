@@ -64,7 +64,12 @@ def _get_shortcut_result(state: GraphState, user_message: str) -> dict[str, Any]
     return None
 
 
-async def run_agent_node(state: GraphState, config: dict[str, Any] | None = None) -> dict[str, Any]:
+async def run_agent_node(
+    state: GraphState,
+    config: dict[str, Any] | None = None,
+    *,
+    db: Any | None = None,
+) -> dict[str, Any]:
     """
     Execute agent with project context and stage directives.
 
@@ -86,7 +91,7 @@ async def run_agent_node(state: GraphState, config: dict[str, Any] | None = None
         runner = await get_agent_runner()
         logger.info(f"Executing stage-aware agent for message: {user_message[:100]}...")
         result = await run_stage_aware_agent(
-            state,
+            {**state, "db": db},
             mcp_client=getattr(runner, "mcp_client", None),
             openai_settings=getattr(runner, "openai_settings", None),
             event_callback=event_callback,

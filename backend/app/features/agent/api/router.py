@@ -75,6 +75,7 @@ async def chat_with_project_context(
             answer=str(payload.get("answer", "")),
             success=bool(payload.get("success", False)),
             project_state=payload.get("project_state"),
+            workflow_result=payload.get("workflow_result"),
             reasoning_steps=[
                 AgentStep(**step) for step in payload.get("reasoning_steps", [])
             ],

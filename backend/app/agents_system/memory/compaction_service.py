@@ -136,7 +136,7 @@ class CompactionService:
         return result
 
     def _load_compaction_prompt(self) -> dict[str, str]:
-        prompt = self._prompt_loader.load_prompt(_COMPACTION_PROMPT_FILE)
+        prompt = self._prompt_loader.load_prompt_file(_COMPACTION_PROMPT_FILE)
         compaction_prompt = prompt.get("compaction")
         if not isinstance(compaction_prompt, dict):
             raise ValueError("memory_compaction_prompt.yaml must define a 'compaction' mapping.")
@@ -162,3 +162,4 @@ class CompactionService:
             f"[{message.get('role', 'unknown')}]: {message.get('content', '')}"
             for message in messages
         )
+

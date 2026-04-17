@@ -265,23 +265,23 @@ class ClarificationResolutionWorker:
             project_id=project_id,
             stage="clarify",
             status=ChangeSetStatus.PENDING,
-            created_at=created_at,
+            createdAt=created_at,
             source_message_id=source_message_id,
-            bundle_summary=resolution.summary,
-            proposed_patch={
+            bundleSummary=resolution.summary,
+            proposedPatch={
                 "_clarificationResolution": {
                     "requirements": requirement_payloads,
                     "clarificationQuestions": question_payloads,
                     "assumptions": assumption_payloads,
                 }
             },
-            artifact_drafts=artifact_drafts,
+            artifactDrafts=artifact_drafts,
             citations=list(resolution.citations),
         )
 
     async def _resolve_with_llm(self, resolution_input: dict[str, Any]) -> dict[str, Any]:
         prompt_payload = json.dumps(resolution_input, ensure_ascii=False, indent=2)
-        prompt_data = self._prompt_loader.load_prompt("clarification_resolution.yaml")
+        prompt_data = self._prompt_loader.load_prompt_file("clarification_resolution.yaml")
         system_prompt = str(prompt_data.get("system_prompt") or "").strip()
         system_prompt = (
             f"{system_prompt}\n\n"
@@ -323,7 +323,7 @@ class ClarificationResolutionWorker:
             "Resolution input:\n"
             f"{prompt_payload}"
         )
-        return await llm_service.get_llm_service()._complete_json(  # noqa: SLF001
+        return await llm_service.get_llm_service()._complete_json(
             system_prompt,
             user_prompt,
             max_tokens=min(get_app_settings().llm_analyze_max_tokens, 4000),
@@ -352,3 +352,4 @@ __all__ = [
     "PendingChangeRecorder",
     "create_clarification_resolution_worker",
 ]
+

@@ -1,6 +1,5 @@
 """Projects feature contracts."""
 
-from .project_summary import ProjectSummaryContract
 from .changes import (
     ArtifactDraftContract,
     ArtifactDraftType,
@@ -10,6 +9,22 @@ from .changes import (
     PendingChangeSetContract,
     PendingChangeSetSummaryContract,
 )
+from .project_notes import (
+    ProjectNoteContract,
+    ProjectNoteDeleteResponse,
+    ProjectNoteResponse,
+    ProjectNotesListResponse,
+    ProjectNoteUpsertRequest,
+)
+from .quality_gate import (
+    QualityGateMissingArtifactsContract,
+    QualityGateMindMapSummaryContract,
+    QualityGateOpenClarificationsContract,
+    QualityGateReportContract,
+    QualityGateWafSummaryContract,
+)
+from .trace import ProjectTraceEventContract, ProjectTraceEventsResponse
+from .project_summary import ProjectSummaryContract
 from .workspace import (
     AgentWorkspaceSummary,
     ProjectWorkspaceArtifacts,
@@ -34,7 +49,19 @@ __all__ = [
     "ChangeSetStatus",
     "PendingChangeSetContract",
     "PendingChangeSetSummaryContract",
+    "ProjectNoteContract",
+    "ProjectNoteDeleteResponse",
+    "ProjectNoteResponse",
+    "ProjectNoteUpsertRequest",
+    "ProjectNotesListResponse",
     "ProjectSummaryContract",
+    "QualityGateMissingArtifactsContract",
+    "QualityGateMindMapSummaryContract",
+    "QualityGateOpenClarificationsContract",
+    "QualityGateReportContract",
+    "QualityGateWafSummaryContract",
+    "ProjectTraceEventContract",
+    "ProjectTraceEventsResponse",
     "ProjectWorkspaceArtifacts",
     "ProjectWorkspaceChecklistSummary",
     "ProjectWorkspaceDiagramSummary",

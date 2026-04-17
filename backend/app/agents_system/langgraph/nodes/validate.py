@@ -109,7 +109,7 @@ async def execute_validate_stage_worker_node(
                 "waf_evaluations_generated": waf_evaluations_count,
             },
         }
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("validate stage worker failed: %s", exc, exc_info=True)
         error_message = f"Validate stage worker failed: {exc!s}"
         return {

@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.agents_system.contracts import WorkflowStageResult
+
 
 class ChatMessage(BaseModel):
     """Single chat message."""
@@ -60,6 +62,10 @@ class ProjectAgentChatResponse(BaseModel):
     success: bool = Field(description="Whether execution was successful")
     project_state: dict[str, Any] | None = Field(
         default=None, description="Updated project state if modified"
+    )
+    workflow_result: WorkflowStageResult | None = Field(
+        default=None,
+        description="Typed workflow-stage result for structured chat interactions",
     )
     reasoning_steps: list[AgentStep] = Field(default=[], description="Agent's reasoning steps")
     error: str | None = Field(default=None, description="Error message if failed")

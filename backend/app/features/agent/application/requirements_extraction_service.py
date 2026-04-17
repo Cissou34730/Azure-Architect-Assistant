@@ -7,8 +7,8 @@ from collections import OrderedDict
 from app.features.agent.contracts import (
     ExtractedRequirementContract,
     RequirementAmbiguityContract,
-    RequirementSourceContract,
     RequirementsExtractionResultContract,
+    RequirementSourceContract,
 )
 
 

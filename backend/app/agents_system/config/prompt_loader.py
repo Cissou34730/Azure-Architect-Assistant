@@ -86,9 +86,6 @@ class PromptLoader:
                         Defaults to backend/config/prompts/
         """
         if prompts_dir is None:
-            # Default to config/prompts relative to backend root
-            # This file is in: backend/app/agents_system/config/prompt_loader.py
-            # We need to go up to backend root: ../../../config/prompts
             backend_root = Path(__file__).parent.parent.parent.parent
             prompts_dir = backend_root / "config" / "prompts"
 
@@ -98,7 +95,7 @@ class PromptLoader:
         self._file_path = self.prompts_dir / "agent_prompts.yaml"
         self._token_counter = TokenCounter()
 
-        logger.info(f"PromptLoader initialized with directory: {self.prompts_dir}")
+        logger.info("PromptLoader initialized with directory: %s", self.prompts_dir)
 
     def load_prompts(self, force_reload: bool = False) -> dict[str, Any]:
         """
@@ -109,10 +106,6 @@ class PromptLoader:
 
         Returns:
             Dictionary of prompts
-
-        Raises:
-            FileNotFoundError: If prompts file doesn't exist
-            yaml.YAMLError: If YAML parsing fails
         """
         if self._cache and not force_reload:
             logger.debug("Using cached prompts")
@@ -121,7 +114,8 @@ class PromptLoader:
         prompts = self._load_yaml_file(self._file_path, force_reload=force_reload)
         self._cache = prompts
         logger.info(
-            f"Successfully loaded prompts (version: {prompts.get('version', 'unknown')})"
+            "Successfully loaded prompts (version: %s)",
+            prompts.get("version", "unknown"),
         )
         return deepcopy(prompts)
 
@@ -129,23 +123,16 @@ class PromptLoader:
         """
         Load a specific prompt file or section.
 
-        This method is used by LangGraph specialist nodes that expect prompt files
-        such as "architecture_planner_prompt.yaml". It also supports legacy setups
-        where prompt sections are nested in the main agent_prompts.yaml file.
-
-        Args:
-            prompt_name: Prompt filename (with or without .yaml/.yml), or section key
-            force_reload: If True, bypass cache and reload from disk
-
-        Returns:
-            Prompt dictionary (typically containing system_prompt)
+        This method preserves the legacy monolithic-section fallback. Stage workers
+        that must remain isolated from the monolith should call ``load_prompt_file``.
         """
         if not prompt_name:
             raise ValueError("prompt_name must be a non-empty string")
 
-        for file_path in self._build_prompt_file_candidates(prompt_name):
-            if file_path.exists():
-                return self._load_yaml_file(file_path, force_reload=force_reload)
+        try:
+            return self.load_prompt_file(prompt_name, force_reload=force_reload)
+        except FileNotFoundError:
+            pass
 
         shared_prompts = self.load_prompts(force_reload=force_reload)
         prompt_section = self._extract_prompt_section(shared_prompts, prompt_name)
@@ -157,13 +144,24 @@ class PromptLoader:
             "section exists in agent_prompts.yaml."
         )
 
+    def load_prompt_file(self, prompt_name: str, force_reload: bool = False) -> dict[str, Any]:
+        """Load a prompt file from disk without falling back to monolithic sections."""
+        if not prompt_name:
+            raise ValueError("prompt_name must be a non-empty string")
+
+        for file_path in self._build_prompt_file_candidates(prompt_name):
+            if file_path.exists():
+                return self._load_yaml_file(file_path, force_reload=force_reload)
+
+        raise FileNotFoundError(f"Prompt file '{prompt_name}' not found in {self.prompts_dir}.")
+
     def _load_yaml_file(
         self, file_path: Path, force_reload: bool = False
     ) -> dict[str, Any]:
         """Load and cache a YAML file."""
         cache_key = str(file_path.resolve())
         if cache_key in self._file_cache and not force_reload:
-            logger.debug(f"Using cached prompt file: {file_path.name}")
+            logger.debug("Using cached prompt file: %s", file_path.name)
             return deepcopy(self._file_cache[cache_key])
 
         if not file_path.exists():
@@ -173,7 +171,7 @@ class PromptLoader:
             )
 
         try:
-            logger.info(f"Loading prompts from {file_path}")
+            logger.info("Loading prompts from %s", file_path)
             with open(file_path, encoding="utf-8") as file:
                 prompts = yaml.safe_load(file)
 
@@ -183,10 +181,10 @@ class PromptLoader:
             self._file_cache[cache_key] = prompts
             return deepcopy(prompts)
         except yaml.YAMLError as exc:
-            logger.error(f"Failed to parse prompts YAML: {exc}")
+            logger.error("Failed to parse prompts YAML: %s", exc)
             raise
         except Exception as exc:
-            logger.error(f"Unexpected error loading prompts: {exc}")
+            logger.error("Unexpected error loading prompts: %s", exc)
             raise
 
     def _build_prompt_file_candidates(self, prompt_name: str) -> list[Path]:
@@ -202,7 +200,6 @@ class PromptLoader:
             candidates.append(self.prompts_dir / f"{base_name}.yaml")
             candidates.append(self.prompts_dir / f"{base_name}.yml")
 
-        # Also support stem-only requests, e.g. "architecture_planner_prompt".
         candidates.append(self.prompts_dir / f"{stem}.yaml")
         candidates.append(self.prompts_dir / f"{stem}.yml")
 
@@ -246,15 +243,7 @@ class PromptLoader:
         *,
         force_reload: bool = False,
     ) -> str:
-        """Compose a modular system prompt with legacy fallback.
-
-        Shared prompt modules are assembled in a fixed order:
-        base_persona -> agent-specific routing/persona -> stage-specific prompt ->
-        tool_strategy -> guardrails.
-
-        If none of the modular files are present, the legacy monolithic
-        `agent_prompts.yaml` system_prompt is returned unchanged.
-        """
+        """Compose a modular system prompt with legacy fallback."""
         sections: list[str] = []
         seen_files: set[str] = set()
         substitutions = {
@@ -263,19 +252,13 @@ class PromptLoader:
             "context_budget": str(context_budget),
         }
 
-        prompt_files = [
-            _SHARED_PROMPT_FILES[0],
-            _AGENT_PROMPT_FILE_MAP.get(agent_type, ""),
-            _STAGE_PROMPT_FILE_MAP.get(stage, ""),
-            *_SHARED_PROMPT_FILES[1:],
-        ]
-
+        prompt_files = self._compose_prompt_files(agent_type=agent_type, stage=stage)
         for prompt_file in prompt_files:
             if not prompt_file or prompt_file in seen_files:
                 continue
             seen_files.add(prompt_file)
 
-            prompt_text = self._load_optional_system_prompt(
+            prompt_text = self._load_optional_system_prompt_file(
                 prompt_file,
                 force_reload=force_reload,
             )
@@ -297,6 +280,17 @@ class PromptLoader:
         )
         return self._token_counter.truncate_to_budget(composed_prompt, context_budget)
 
+    def _compose_prompt_files(self, *, agent_type: str, stage: str) -> list[str]:
+        stage_prompt_file = _STAGE_PROMPT_FILE_MAP.get(stage, "")
+        agent_prompt_file = _AGENT_PROMPT_FILE_MAP.get(agent_type, "")
+        prompt_files = [_SHARED_PROMPT_FILES[0]]
+        if agent_prompt_file and not (agent_type == "orchestrator" and stage_prompt_file):
+            prompt_files.append(agent_prompt_file)
+        if stage_prompt_file:
+            prompt_files.append(stage_prompt_file)
+        prompt_files.extend(_SHARED_PROMPT_FILES[1:])
+        return prompt_files
+
     def get_clarification_prompt(self) -> str:
         """Get the clarification prompt template."""
         prompts = self.load_prompts()
@@ -312,14 +306,14 @@ class PromptLoader:
         prompts = self.load_prompts()
         return prompts.get("few_shot_examples", [])
 
-    def _load_optional_system_prompt(
+    def _load_optional_system_prompt_file(
         self,
         prompt_name: str,
         *,
         force_reload: bool = False,
     ) -> str | None:
         try:
-            prompt = self.load_prompt(prompt_name, force_reload=force_reload)
+            prompt = self.load_prompt_file(prompt_name, force_reload=force_reload)
         except FileNotFoundError:
             return None
 
@@ -361,4 +355,3 @@ def get_conflict_resolution_prompt() -> str:
 def reload_prompts() -> None:
     """Force reload all prompts from file."""
     get_prompt_loader().reload()
-

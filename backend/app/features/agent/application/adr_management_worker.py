@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 import uuid
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime, timezone
 from typing import Any, Protocol
 
@@ -132,13 +132,13 @@ class ADRManagementWorker:
         created_at = self._now_factory()
         return PendingChangeSetContract(
             id=self._change_set_id_factory(),
-            project_id=project_id,
+            projectId=project_id,
             stage="manage_adr",
             status=ChangeSetStatus.PENDING,
-            created_at=created_at,
+            createdAt=created_at,
             source_message_id=source_message_id,
-            bundle_summary=f"Draft ADR '{draft.adr.title}' for approval",
-            proposed_patch={
+            bundleSummary=f"Draft ADR '{draft.adr.title}' for approval",
+            proposedPatch={
                 "_adrLifecycle": {
                     "action": "create",
                     "adrPayload": self._lifecycle_payload(draft),
@@ -147,7 +147,7 @@ class ADRManagementWorker:
                     },
                 }
             },
-            artifact_drafts=[
+            artifactDrafts=[
                 {
                     "id": self._artifact_id_factory(),
                     "artifactType": ArtifactDraftType.ADR.value,
@@ -174,15 +174,15 @@ class ADRManagementWorker:
         target_adr_id = str(superseded_preview.get("id") or "").strip()
         return PendingChangeSetContract(
             id=self._change_set_id_factory(),
-            project_id=project_id,
+            projectId=project_id,
             stage="manage_adr",
             status=ChangeSetStatus.PENDING,
-            created_at=created_at,
-            source_message_id=source_message_id,
-            bundle_summary=(
+            createdAt=created_at,
+            sourceMessageId=source_message_id,
+            bundleSummary=(
                 f"Supersede ADR '{superseded_preview.get('title')}' with '{draft.adr.title}'"
             ),
-            proposed_patch={
+            proposedPatch={
                 "_adrLifecycle": {
                     "action": "supersede",
                     "adrId": target_adr_id,
@@ -192,7 +192,7 @@ class ADRManagementWorker:
                     },
                 }
             },
-            artifact_drafts=[
+            artifactDrafts=[
                 {
                     "id": self._artifact_id_factory(),
                     "artifactType": ArtifactDraftType.ADR.value,

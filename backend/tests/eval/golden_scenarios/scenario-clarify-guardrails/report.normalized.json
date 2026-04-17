@@ -1,0 +1,43 @@
+{
+  "scenario": {
+    "id": "scenario-clarify-guardrails",
+    "name": "Clarify Payload Guardrails"
+  },
+  "final": {
+    "missingRequiredKeys": [],
+    "stateSummary": {
+      "keys": ["requirements"],
+      "counts": {"requirements": 1}
+    },
+    "clarifyPayload": {
+      "present": false,
+      "missingRequiredKeys": ["questionGroups"],
+      "themeCount": 0,
+      "themes": [],
+      "questionCount": 0,
+      "whyItMattersCount": 0,
+      "architecturalImpactCounts": {},
+      "ungroupedQuestionCount": 1
+    }
+  },
+  "dbPersistence": {"status": "PASS"},
+  "steps": [
+    {
+      "id": "us1-clarify",
+      "request": "Ask the key clarification questions before designing the architecture.",
+      "answer": "Before designing the architecture, I need clarification questions about traffic, security, and failover.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "kbCallCount": 0,
+      "advisoryQuality": {
+        "proactivity": 1,
+        "correction": 1,
+        "evidence": 1,
+        "clarity": 1,
+        "total": 4
+      }
+    }
+  ]
+}

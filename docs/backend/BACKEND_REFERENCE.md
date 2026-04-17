@@ -46,14 +46,29 @@
 - `POST /api/projects/{project_id}/chat`
 - `GET /api/projects/{project_id}/state` - legacy compatibility read, now returned with deprecation headers and a successor link to the workspace view
 - `GET /api/projects/{project_id}/workspace` - canonical composed workspace read spanning project, state summary, full composed `projectState`, agent, checklist, KB, diagram, and runtime sections
+- `GET /api/projects/{project_id}/notes` - list persisted long-term project notes (`decision`, `context`, `question`, `risk`) for the unified workspace notes tab
+- `POST /api/projects/{project_id}/notes` - create a persisted project note
+- `PUT /api/projects/{project_id}/notes/{note_id}` - update an existing project note
+- `DELETE /api/projects/{project_id}/notes/{note_id}` - delete a persisted project note
+- `GET /api/projects/{project_id}/quality-gate` - compute the current quality gate report from canonical project state plus persisted `project_trace_events`, including weighted WAF coverage, mindmap coverage, open clarifications, missing deliverables, and a recent trace-activity summary for the unified workspace quality tab
+- `GET /api/projects/{project_id}/trace` - list persisted `project_trace_events` for the project (optionally filtered by `thread_id` and bounded by `limit`) for the unified workspace trace tab timeline
 - `GET /api/projects/{project_id}/messages`
-- `GET /api/projects/{project_id}/changes` - read-only pending change-set summaries projected from `projectState.pendingChangeSets`; supports an optional `status` filter.
-- `GET /api/projects/{project_id}/changes/{change_set_id}` - read-only pending change-set detail, including artifact drafts and proposed patch payload.
-- `POST /api/projects/{project_id}/changes/{change_set_id}/approve` - approves a pending change set, merges its `proposedPatch` into canonical project state, and returns the reviewed change set plus updated state.
-- `POST /api/projects/{project_id}/changes/{change_set_id}/reject` - marks a pending change set rejected without mutating canonical project state.
-- `POST /api/projects/{project_id}/changes/{change_set_id}/revise` - marks a pending change set superseded so a revised bundle can replace it later.
+- `GET /api/projects/{project_id}/pending-changes` - canonical pending change-set summary route backed by dedicated `pending_change_sets` / `artifact_drafts` tables and projected into `projectState.pendingChangeSets`; supports an optional `status` filter. Legacy `GET /api/projects/{project_id}/changes` remains as a hidden compatibility alias.
+- `GET /api/projects/{project_id}/pending-changes/{change_set_id}` - canonical pending change-set detail route, including artifact drafts and proposed patch payload loaded from dedicated pending-change tables. Legacy `GET /api/projects/{project_id}/changes/{change_set_id}` remains as a hidden compatibility alias.
+- `POST /api/projects/{project_id}/pending-changes/{change_set_id}/approve` - canonical approval route; merges `proposedPatch` into canonical project state and returns the reviewed change set plus updated state. Legacy `POST /api/projects/{project_id}/changes/{change_set_id}/approve` remains as a hidden compatibility alias.
+- `POST /api/projects/{project_id}/pending-changes/{change_set_id}/reject` - canonical rejection route; marks a pending change set rejected without mutating canonical project state. Legacy `POST /api/projects/{project_id}/changes/{change_set_id}/reject` remains as a hidden compatibility alias.
+- `POST /api/projects/{project_id}/changes/{change_set_id}/revise` - disabled compatibility endpoint that now returns `410 Gone` because revise/supersession is deferred to v2.
 - `POST /api/projects/{project_id}/extract-requirements` - loads parsed project documents, runs the Phase 4 extraction worker, and records a pending requirements change set for review.
 - `GET /api/projects/{project_id}/architecture/proposal` (SSE)
+
+### Settings
+- `GET /api/settings/architect-profile` - read the single-user architect profile persisted for installation-wide defaults
+- `PUT /api/settings/architect-profile` - update the persisted architect profile
+- `GET /api/settings/llm-options`
+- `PUT /api/settings/llm-selection`
+- `GET /api/settings/copilot/status`
+- `POST /api/settings/copilot/login`
+- `POST /api/settings/copilot/logout`
 
 ### Knowledge base management
 - `POST /api/kb/create`
@@ -80,6 +95,7 @@
 ### Agent chat
 - `POST /api/agent/chat`
 - `POST /api/agent/projects/{project_id}/chat`
+- `POST /api/agent/projects/{project_id}/chat/stream` - SSE stream whose `final` event preserves the legacy top-level response fields and now includes a typed `workflow_result` object (`stage`, `nextStep`, `toolCalls`, `citations`, `structuredPayload`) for structured chat interactions; the stream also emits canonical `stage`, `text`, and `tool_call` events while keeping legacy `token` / `tool_start` compatibility frames.
 - `GET /api/agent/projects/{project_id}/history`
 - `GET /api/agent/health`
 - `GET /api/agent/capabilities`
@@ -91,7 +107,11 @@
 ## Data models (high level)
 
 - Project: name, requirements, created/updated timestamps.
-- Project state: mixed compatibility blob + composed reads. Architecture inputs live in `project_architecture_inputs`, most remaining top-level artifact families live in `project_state_components`, normalized checklist rows are the preferred source for `wafChecklist`, and the initial Phase 3 approval scaffold reads/writes `pendingChangeSets` from the recomposed compatibility payload without changing the current agent mutation path yet.
+- Project state: mixed compatibility blob + composed reads. Architecture inputs live in `project_architecture_inputs`, most remaining top-level artifact families live in `project_state_components`, pending review bundles now live in dedicated `pending_change_sets` and `artifact_drafts` tables, normalized checklist rows are the preferred source for `wafChecklist`, and composed reads still project `pendingChangeSets` back into the compatibility payload for existing callers.
+- Architect profile: installation-scoped singleton row in `architect_profiles`, storing default region, IaC flavor, compliance posture, cost ceiling, VM preferences, DevOps maturity, and free-form notes.
+- Project notes: normalized `project_notes` rows linked to `projects.id`, used by the unified workspace notes tab for durable long-term notes.
+- Quality gate report: computed on demand by `app.features.projects.application.quality_gate_service.QualityGateService` from the canonical composed project state plus persisted `project_trace_events`; no additional persistence layer or migration is required.
+- Project trace timeline: read on demand by `app.features.projects.application.trace_service.ProjectTraceService`, which projects normalized `project_trace_events` rows into the `/trace` workspace timeline contract without introducing a second trace store.
 - Knowledge base: config in `data/knowledge_bases/config.json` with per-KB settings.
 - Diagram set: input description, diagrams, ambiguities, stored in `data/diagrams.db`.
 
@@ -99,7 +119,7 @@
 
 - Dedicated architecture-input persistence now lives in `backend/app/models/project.py` as `ProjectArchitectureInputs` (`project_architecture_inputs` table).
 - Dedicated generic artifact persistence now lives in `backend/app/models/project.py` as `ProjectStateComponent` (`project_state_components` table), keyed by `project_id + component_key`.
-- Canonical read path: `app.agents_system.services.project_context.read_project_state(...)` composes the compatibility blob with `project_architecture_inputs`, `project_state_components`, and normalized checklist rows, then applies AAA normalization and document-derived metadata.
+- Canonical read path: `app.agents_system.services.project_context.read_project_state(...)` composes the compatibility blob with `project_architecture_inputs`, `project_state_components`, dedicated pending-change tables, and normalized checklist rows, then applies AAA normalization and document-derived metadata.
 - Deterministic Phase 8 checklist evaluation now lives in `app.agents_system.services.waf_evaluator.WAFEvaluatorService`, which inspects recomposed project state and emits structured WAF coverage summaries for the dedicated validate-stage graph worker.
 - The follow-on validate-stage findings worker now lives in `app.agents_system.services.waf_findings_worker.WAFFindingsWorker`; it turns actionable evaluator items into validation-tool-ready `findings` + `wafEvaluations` payloads, preserves stable finding ids for checklist linking, backfills source citations from recorded `referenceDocuments` / `mcpQueries` when needed, and now feeds the dedicated validate-stage runtime path.
 - Clarification-answer turns now branch through `app.features.agent.application.clarification_resolution_worker.ClarificationResolutionWorker`, which packages resolved requirement updates, answered clarification-question statuses, and new assumptions into `_clarificationResolution` pending-change bundles; `app.features.projects.application.pending_changes_merge_service.PendingChangesMergeService` applies that command only during approval.
@@ -116,7 +136,7 @@
     - `uv run python scripts/migrate_arch_inputs.py` copies legacy architecture-input keys from `project_states.state` into `project_architecture_inputs`
     - `uv run python scripts/migrate_project_state_components.py` copies remaining owned top-level families from `project_states.state` into `project_state_components`
     - Use `--prune-blob` only when you explicitly want to remove migrated keys from historical blob rows.
-- Residual exceptions: `ProjectState.state` can still hold unknown historical keys and legacy `wafChecklist` payloads for projects that have not yet been normalized into checklist rows. Those cases are compatibility fallbacks, not the preferred canonical store.
+- Residual exceptions: `ProjectState.state` can still hold unknown historical keys, legacy `pendingChangeSets` payloads for rows not yet rewritten through the new service path, and legacy `wafChecklist` payloads for projects that have not yet been normalized into checklist rows. Those cases are compatibility fallbacks, not the preferred canonical store.
 
 ## Configuration and settings
 
@@ -129,7 +149,8 @@
 - `backend/config/mcp/mcp_config.json` is loaded through `AppSettings.get_mcp_server_config(...)`.
 - Storage paths come through `AppSettings`; relative values from process env or `.env` resolve against `backend/`. The fallback data root is `backend/data`, which covers `projects.db`, `ingestion.db`, and the `knowledge_bases/` directory.
 - `SettingsModelsService` validates `PUT /api/settings/llm-selection` against provider model listings, rejects the legacy `azure` provider id in favor of `foundry`, and persists the active selection to `runtime_ai_selection.json`.
-- `backend/config/prompts/*.yaml` and `backend/config/checklists/*.json` are content/resource files (not env settings) loaded by dedicated services. `PromptLoader.compose_prompt(agent_type, stage, context_budget)` now assembles modular prompt fragments (`base_persona`, agent-specific routing, stage-specific instructions, tool strategy, guardrails) and falls back to `agent_prompts.yaml` when modular files are absent; the dead ReAct template sections and compatibility shim were removed in Phase 12 because the runtime is native tool-calling only.
+- `ArchitectProfileService` persists the single-user architect profile in the projects SQLite database; both the legacy summary builder and context-pack path now inject `ARCHITECT_PREFERENCES` plus recent `PROJECT NOTES` into agent prompt context.
+- `backend/config/prompts/*.yaml` and `backend/config/checklists/*.json` are content/resource files (not env settings) loaded by dedicated services. `PromptLoader.compose_prompt(agent_type, stage, context_budget)` now assembles modular prompt fragments (`base_persona`, agent-specific routing, stage-specific instructions, tool strategy, guardrails), skips `orchestrator_routing.yaml` when a dedicated stage prompt is available, and falls back to `agent_prompts.yaml` only when modular files are absent; direct stage-worker call sites now use `load_prompt_file(...)` so they do not inherit legacy monolithic sections by accident.
 - Agent runtime is LangGraph-only (legacy LangChain ReAct backend paths were removed).
 - AI provider routing for `openai`, `foundry`, and `copilot` is documented in `docs/backend/AI_PROVIDER_ROUTING.md`.
 
@@ -221,17 +242,18 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 
 ## Agent system module layout
 
-- `langgraph/graph_factory.py` — Project chat graph assembly; stage routing resolves before context summary/context-pack construction so stage-specific compaction sees the routed stage, `extract_requirements` has a dedicated runtime node, `clarify` now routes through a dedicated planner/resolution stage worker, `manage_adr` now branches into a dedicated ADR stage worker, `propose_candidate` routes through a dedicated research-worker → architecture-planner synthesizer slice, `validate` now branches into a dedicated validate-stage worker before the generic agent path, `pricing` now branches into a dedicated cost-stage worker that reuses the existing handoff + estimator nodes, `iac` now branches into a dedicated IaC-stage worker that reuses the specialized handoff + generator nodes while preserving `aaa_record_iac_artifacts`, and `export` now routes into a dedicated export-stage worker that reuses the AAA export tool instead of the generic agent loop. Phase 12 removed the abandoned multi-agent specialist branch and the old runtime flags, so project chat now follows a single graph/runtime path.
-- `langgraph/adapter.py` — Project-chat adapter; mints an effective `thread_id` when the caller omits one so `MemorySaver`-backed graphs always receive a valid `configurable.thread_id`, and the streaming `final` SSE payload echoes that effective thread identifier alongside the project-state/result payload.
-- `config/prompt_loader.py` — YAML prompt loader; supports both the legacy `agent_prompts.yaml` surface and modular prompt composition for stage-aware orchestrator prompts, and truncates composed directives to the supplied context budget when one is provided.
+- `langgraph/graph_factory.py` — Project chat graph assembly; stage routing resolves before context summary/context-pack construction so stage-specific compaction sees the routed stage, `extract_requirements` has a dedicated runtime node, `clarify` now routes through a dedicated planner/resolution stage worker, `manage_adr` now branches into a dedicated ADR stage worker, `propose_candidate` routes through a dedicated research-worker → architecture-planner synthesizer slice, `validate` now branches into a dedicated validate-stage worker before the generic agent path, `pricing` now branches into a dedicated cost-stage worker that reuses the existing handoff + estimator nodes, `iac` now branches into a dedicated IaC-stage worker that reuses the specialized handoff + generator nodes while preserving `aaa_record_iac_artifacts`, and `export` now routes into a dedicated export-stage worker that reuses the AAA export tool instead of the generic agent loop. When `AAA_THREAD_MEMORY_ENABLED` is on, the compiled graph now uses a SQLite-backed LangGraph `AsyncSqliteSaver` rooted at `DATA_ROOT/checkpoints.db` instead of in-memory checkpoints. Phase 12 removed the abandoned multi-agent specialist branch and the old runtime flags, so project chat now follows a single graph/runtime path.
+- `langgraph/adapter.py` — Project-chat adapter; mints an effective `thread_id` when the caller omits one so SQLite-checkpointer-backed graphs always receive a valid `configurable.thread_id`, echoes that effective thread identifier in the streaming `final` payload, assembles a typed `workflow_result` contract (stage, stage classification, next step, tool traces, citations, structured payload) alongside the legacy `answer` / `project_state` fields, and now validates/emits canonical SSE payloads for `stage`, `text`, `tool_call`, `tool_result`, `pending_change`, and `final` without removing the current legacy aliases. The `stage` event and `workflow_result.stageClassification` now carry the routed stage plus confidence/source/rationale metadata for downstream UX and eval consumers.
+- `config/prompt_loader.py` — YAML prompt loader; supports both the legacy `agent_prompts.yaml` surface and modular prompt composition for stage-aware orchestrator prompts, exposes `load_prompt_file(...)` for file-only stage worker prompts, and truncates composed directives to the supplied context budget when one is provided.
 - `memory/compaction_service.py` — Conversation compaction helper; loads `memory_compaction_prompt.yaml` through `PromptLoader` so both the system prompt and summary/update templates stay hot-reloadable in YAML.
 - `memory/context_packs/stage_packers.py` — Stage-specific compaction builders; ADR packs read canonical `adrs`, validation packs summarize `wafChecklist.items[*].evaluations[*].status` from the current checklist payload, the context-pack runtime consumes `aaa_context_max_budget_tokens` as the pack assembly budget instead of reusing the compaction trigger threshold, and Phase 11 turns `aaa_context_compaction_enabled` / `aaa_thread_memory_enabled` on by default.
-- `nodes/stage_routing.py` — Core stage enum, classification, retry logic. When parsed project documents exist but approved requirements are still missing, the state-aware default now routes to `extract_requirements` before falling back to clarification, explicit spend phrasing such as `how much` / `TCO` now classifies directly to `pricing`, and explicit artifact-edit requests such as `update the requirements` now route to the generic agent/tool path even when open clarification questions still exist.
+- `nodes/stage_routing.py` — Core stage enum, classification, retry logic. Classification now returns a typed stage-classification payload (`stage`, `confidence`, `source`, `rationale`) in addition to `next_stage`; rule guards now keep architecture-design language on `propose_candidate`, keep review-style ADR/code-review wording on `general`, keep IaC routing tied to Terraform/Bicep/IaC-specific wording, and still fall back to state-gap routing when intent rules do not match.
 - `features/agent/infrastructure/tools/aaa_export_tool.py` — Canonical AAA export serializer; export payloads now include a `mindmapCoverageScorecard` with 13-topic evidence packaging built from current project artifacts.
 - `nodes/agent_native.py` — Native LangGraph orchestrator node; builds system directives from the composed stage-aware prompt surface.
 - `features/projects/application/pending_changes_service.py` — Read-side projection for `pendingChangeSets`, providing typed summaries/details without changing persistence semantics yet.
 - `features/projects/application/pending_changes_merge_service.py` — Deterministic approval merge helper built on the existing non-overwrite state merge behavior; conflicts surface as 409s instead of silently overwriting canonical state, and explicit `_adrLifecycle` commands are executed through `ADRLifecycleService` only during approval.
-- `features/projects/api/changes_router.py` — Project-scoped pending change-set read and review endpoints.
+- `features/projects/api/changes_router.py` — Canonical `/pending-changes` project-scoped pending change-set read/review endpoints plus hidden `/changes` compatibility aliases.
+- `features/projects/application/quality_gate_service.py` + `features/projects/api/quality_gate_router.py` — Compute and expose the project-scoped quality gate report (`/quality-gate`) from canonical project state, normalized WAF/mindmap coverage inputs, and persisted trace-event summaries.
 - `features/agent/contracts/extract_requirements.py` — Strict contracts for source-grounded extracted requirements, ambiguity markers, and bundle summaries.
 - `features/agent/application/adr_lifecycle_service.py` — Deterministic ADR lifecycle helper for draft/create, reject, accept, and supersede transitions; normalizes ADR payloads and refreshes traceability links so later stage workers can mutate `projectState.adrs` without router-specific logic.
 - `features/agent/application/clarification_planner_worker.py` — Clarify-stage worker that turns canonical requirements, ambiguity markers, WAF gaps, mindmap gaps, and prior clarification history into grouped high-impact question sets without mutating canonical state.
@@ -244,11 +266,11 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `nodes/routing/` — Per-agent routing subpackage (architecture_planner, iac_generator, saas_advisor, cost_estimator, `_helpers.py` for shared utils).
 - `nodes/extract_requirements.py` — Dedicated Phase 4 stage worker; executes the requirements extraction entry service inside the graph, records a pending requirements bundle, refreshes project state, and emits a review-focused response without invoking the general LLM path.
 - `nodes/manage_adr.py` — Dedicated Phase 7 stage worker; runs the ADR management worker inside the graph, records pending ADR/supersession bundles, refreshes project state, and skips the generic agent/postprocess mutation path for ADR turns.
-- `nodes/research.py` — Phase 6 research-planning/runtime helper; turns research plans into concrete evidence packets and records a deterministic execution artifact before architecture synthesis.
-- `nodes/validate.py` — Dedicated Phase 8 validate-stage worker; evaluates current architecture evidence with the deterministic WAF evaluator, invokes the WAF findings worker for actionable gaps, emits `aaa_record_validation_results`-compatible output for the existing postprocess/apply path, and deterministically skips when checklist/evidence input is insufficient.
-- `nodes/iac_generator.py` — Dedicated Phase 10 IaC-stage worker; prepares IaC-specific handoff context, invokes the specialized IaC generator node, preserves the existing `aaa_record_iac_artifacts` persistence path, and surfaces explicit errors instead of falling back to the generic graph agent loop.
-- `nodes/cost_estimator.py` — Dedicated Phase 9 cost-stage worker/runtime; prepares cost handoff context with the existing routing helper, executes the specialized cost estimator node, and keeps `aaa_record_cost_estimate` / `costEstimates` persistence on the shared postprocess/apply path.
-- `nodes/architecture_planner.py` — Dedicated architecture synthesizer for `propose_candidate`; consumes the research-worker handoff packets alongside requirements/NFR context.
+- `nodes/research.py` — Phase 6 research-planning/runtime helper; turns research plans into grounded evidence packets (with consulted sources + evidence excerpts) and records a deterministic execution artifact before architecture synthesis.
+- `nodes/validate.py` — Dedicated Phase 8 validate-stage worker; evaluates current architecture evidence with the deterministic WAF evaluator, invokes the WAF findings worker for actionable gaps, emits `aaa_record_validation_results`-compatible output, and deterministically skips when checklist/evidence input is insufficient.
+- `nodes/iac_generator.py` — Dedicated Phase 10 IaC-stage worker; prepares IaC-specific handoff context, invokes the specialized IaC generator node, and surfaces explicit errors instead of falling back to the generic graph agent loop.
+- `nodes/cost_estimator.py` — Dedicated Phase 9 cost-stage worker/runtime; prepares cost handoff context with the existing routing helper, executes the specialized cost estimator node, and records `costEstimates` for review-first persistence.
+- `nodes/architecture_planner.py` — Dedicated architecture synthesizer for `propose_candidate`; consumes the research-worker handoff packets alongside requirements/NFR context and now receives grounded evidence excerpts/URLs instead of plan-only placeholders.
 - `nodes/agent.py` — Main agent node entry (`run_agent_node`) for non-`extract_requirements` stage execution and guardrail shortcuts.
 - `nodes/scope_guard.py` — Scope-detection patterns and guardrails.
 - `nodes/waf_shortcuts.py` — Deterministic WAF-checklist shortcut handlers.
@@ -261,10 +283,13 @@ See [Singleton Pattern Analysis](reviews/SINGLETON_PATTERN_ANALYSIS.md) for deta
 - `scripts/e2e/aaa_e2e_runner.py` — Canonical end-to-end AAA scenario runner; replays scenario chat turns against the agent API, records advisory/tool usage signals, captures dedicated cost-stage pricing logs plus persisted `costEstimates` summaries, records separate IaC artifact summaries from persisted `iacArtifacts`, and manages normalized goldens under `scripts/e2e/goldens/`.
 - `scripts/e2e/scenarios/` — Golden scenario inputs used to baseline AAA behavior across requirements, architecture, ADR, validation, IaC, cost, and traceability flows.
 - `backend/tests/eval/reporting.py` — Typed Phase 0 evaluation summary layer that converts the existing E2E runner report shape into rubric-friendly scenario/turn summaries for regression tracking, including export-payload, cost-payload, and IaC-payload regression checks.
+- `backend/tests/eval/eval_runner.py` + `backend/tests/eval/golden_scenarios/` — Report-driven baseline harness for committed normalized eval snapshots; loads the representative scenario set, reuses `reporting.py` for scoring, and asserts expected baseline failures without re-implementing the live replay runner.
 
 ## AAA ProjectState tools
 
-All AAA tools live in `backend/app/agents_system/tools/` and are registered by `create_aaa_tools()` in `aaa_candidate_tool.py`.  Each tool emits `AAA_STATE_UPDATE` (or `AAA_EXPORT`) JSON blocks that the state-update parser (`state_update_parser.py`) picks up during the postprocess node.
+AAA tools still originate from `create_aaa_tools()` in `aaa_candidate_tool.py`, but project-state mutation now flows through `backend/app/agents_system/tools/tool_registry.py`. The registry narrows pending-change tools by stage, `tool_wrappers.py` upgrades legacy `AAA_STATE_UPDATE` tool responses into canonical typed confirmations, and those confirmations are recorded via the DB-backed `pending_change_sets` / `artifact_drafts` tables before postprocess runs. `postprocess.py` now treats canonical tool results as authoritative and only falls back to legacy text extraction for non-migrated paths.
+
+The same registry also stage-scopes non-persistence runtime tools where v1 needs them: `azure_retail_prices` is exposed for general/pricing turns, `aaa_validate_mermaid_diagram` is exposed for general/candidate/validate turns, and `aaa_validate_iac_bundle` is exposed for general/IaC turns. The unified research facade remains an internal backend seam used by the research worker to materialize grounded packet contracts consistently.
 
 | Tool | File | Purpose |
 |------|------|---------|
@@ -273,8 +298,12 @@ All AAA tools live in `backend/app/agents_system/tools/` and are registered by `
 | `aaa_manage_artifacts` | `aaa_artifacts_tool.py` | CRUD for requirements, assumptions, and clarification questions |
 | `aaa_create_diagram_set` | `aaa_diagram_tool.py` | Persist diagram bundles |
 | `aaa_record_validation_results` | `aaa_validation_tool.py` | Persist validation findings (WAF, security, etc.) |
+| `aaa_validate_mermaid_diagram` | `aaa_mermaid_validation_tool.py` | Validate Mermaid syntax with line-aware diagnostics |
+| `aaa_validate_iac_bundle` | `aaa_iac_validation_tool.py` | Validate ARM/JSON/YAML plus lightweight Bicep/Terraform structure |
 | `aaa_record_iac_artifacts` | `aaa_iac_tool.py` | Persist IaC file artifacts |
-| `aaa_generate_cost` | `aaa_cost_tool.py` | Persist cost estimate artifacts |
+| `azure_retail_prices` | `azure_retail_prices_tool.py` | Query the public Azure Retail Prices API (public/no-auth, cached, structured items) |
+| `research_tool.py` | `research_tool.py` | Internal unified facade + typed grounded research packet contract for the research worker |
+| `aaa_generate_cost` | `aaa_cost_tool.py` | Persist cost estimate artifacts using the standalone Retail Prices tool path |
 | `aaa_export_state` | `aaa_export_tool.py` | Export with traceability links |
 
 ### State update merge semantics
@@ -297,3 +326,5 @@ These flags are emitted by `aaa_manage_artifacts` when the action is `replace_al
 - Add new diagram types in `backend/app/models/diagram/diagram.py`.
 - Update the generator in `backend/app/services/diagram/`.
 - Update UI labels in `frontend/src/components/diagrams/DiagramSetViewer.tsx`.
+
+

@@ -8,12 +8,13 @@ import logging
 from enum import Enum
 from typing import Any, Literal
 
+from app.agents_system.contracts import StageClassification
+
 from ..state import GraphState
 
 logger = logging.getLogger(__name__)
 
 COMPLEXITY_THRESHOLD = 3
-
 
 _NON_ARCH_INTENT_KEYWORDS = [
     "waf",
@@ -59,9 +60,80 @@ _ARTIFACT_EDIT_TARGETS = (
     "traceability",
 )
 
+_ARCHITECTURE_KEYWORDS = (
+    "architecture",
+    "architectural",
+    "design",
+    "candidate",
+    "topology",
+    "blueprint",
+    "landing zone",
+    "propose",
+    "suggest architecture",
+    "draw",
+    "diagram",
+    "c4",
+    "container diagram",
+    "system context",
+)
+
+_VALIDATE_KEYWORDS = (
+    "validate",
+    "validation",
+    "waf",
+    "compliance",
+    "benchmark",
+    "assess",
+    "review security posture",
+)
+
+_PRICING_KEYWORDS = (
+    "cost",
+    "price",
+    "pricing",
+    "budget",
+    "estimate",
+    "how much",
+    "tco",
+    "total cost of ownership",
+    "monthly total",
+    "annual total",
+)
+
+_IAC_KEYWORDS = (
+    "terraform",
+    "bicep",
+    "iac",
+    "infrastructure as code",
+    "deployment template",
+    "arm template",
+    "module",
+)
+
+_EXPORT_KEYWORDS = (
+    "export",
+    "document",
+    "report",
+    "summary",
+)
+
+_REVIEW_KEYWORDS = (
+    "code review",
+    "review the adr",
+    "review adr",
+    "peer review",
+)
+
+_ADR_KEYWORDS = (
+    "adr",
+    "decision",
+    "architecture decision",
+)
+
 
 class ProjectStage(str, Enum):
     """Project workflow stages."""
+
     GENERAL = "general"
     EXTRACT_REQUIREMENTS = "extract_requirements"
     CLARIFY = "clarify"
@@ -74,64 +146,156 @@ class ProjectStage(str, Enum):
 
 
 def classify_next_stage(state: GraphState) -> dict[str, Any]:
-    """
-    Classify which stage should be executed next.
-    """
-    user_message = (state.get("user_message") or "").lower()
+    """Classify which stage should be executed next."""
+    user_message = _normalize_text(state.get("user_message"))
     project_state = state.get("current_project_state") or {}
-    agent_output = (state.get("agent_output") or "").lower()
+    agent_output = _normalize_text(state.get("agent_output"))
 
-    # 1. Keyword-based intent detection (highest priority)
-    next_stage = _detect_intent_from_keywords(user_message, agent_output)
+    classification = _detect_intent_from_keywords(user_message, agent_output)
+    if classification is None:
+        classification = _detect_intent_from_state(project_state)
 
-    # 2. State-aware defaults
-    if next_stage is None:
-        next_stage = _detect_intent_from_state(project_state)
-
-    final_stage = next_stage or ProjectStage.CLARIFY
-    logger.info(f"Classified next stage: {final_stage.value}")
-
+    logger.info(
+        "Classified next stage: %s (confidence=%.2f, source=%s)",
+        classification.stage,
+        classification.confidence,
+        classification.source,
+    )
     return {
-        "next_stage": final_stage.value,
+        "next_stage": classification.stage,
+        "stage_classification": classification.model_dump(mode="json", by_alias=True),
     }
 
 
-def _detect_intent_from_keywords(user_message: str, agent_output: str) -> ProjectStage | None:
+def _detect_intent_from_keywords(
+    user_message: str,
+    agent_output: str,
+) -> StageClassification | None:
     """Detect intended stage from keywords in user message or agent output."""
-    mapping = [
-        (["validate", "validation", "waf", "security", "compliance", "benchmark"], ProjectStage.VALIDATE),
-        (["adr", "decision", "architecture decision"], ProjectStage.MANAGE_ADR),
+    intent_rules = (
         (
-            [
-                "cost",
-                "price",
-                "pricing",
-                "budget",
-                "estimate",
-                "how much",
-                "tco",
-                "total cost of ownership",
-                "monthly total",
-                "annual total",
-            ],
-            ProjectStage.PRICING,
+            _has_review_intent(user_message),
+            _build_classification(
+                stage=ProjectStage.GENERAL,
+                confidence=0.88,
+                source="intent_rules",
+                rationale="Detected review-oriented wording without IaC-specific generation intent.",
+            ),
         ),
-        (["terraform", "bicep", "iac", "infrastructure", "code"], ProjectStage.IAC),
-        (["export", "document", "report", "summary"], ProjectStage.EXPORT),
-    ]
+        (
+            _has_explicit_artifact_edit_intent(user_message),
+            _build_classification(
+                stage=ProjectStage.GENERAL,
+                confidence=0.86,
+                source="intent_rules",
+                rationale="Detected explicit artifact-edit intent that should stay in the general workflow.",
+            ),
+        ),
+        (
+            _contains_any(user_message, _ARCHITECTURE_KEYWORDS),
+            _build_classification(
+                stage=ProjectStage.PROPOSE_CANDIDATE,
+                confidence=0.95,
+                source="intent_rules",
+                rationale="Matched architecture-design intent keywords in the user message.",
+            ),
+        ),
+        (
+            _contains_any(user_message, _PRICING_KEYWORDS),
+            _build_classification(
+                stage=ProjectStage.PRICING,
+                confidence=0.93,
+                source="intent_rules",
+                rationale="Matched pricing-estimation intent keywords in the user message.",
+            ),
+        ),
+        (
+            _contains_iac_generation_intent(user_message),
+            _build_classification(
+                stage=ProjectStage.IAC,
+                confidence=0.92,
+                source="intent_rules",
+                rationale="Matched infrastructure-as-code generation intent keywords in the user message.",
+            ),
+        ),
+        (
+            _contains_any(user_message, _VALIDATE_KEYWORDS),
+            _build_classification(
+                stage=ProjectStage.VALIDATE,
+                confidence=0.9,
+                source="intent_rules",
+                rationale="Matched validation and compliance intent keywords in the user message.",
+            ),
+        ),
+        (
+            _contains_any(user_message, _ADR_KEYWORDS),
+            _build_classification(
+                stage=ProjectStage.MANAGE_ADR,
+                confidence=0.89,
+                source="intent_rules",
+                rationale="Matched ADR and architectural decision intent keywords in the user message.",
+            ),
+        ),
+        (
+            _contains_any(user_message, _EXPORT_KEYWORDS),
+            _build_classification(
+                stage=ProjectStage.EXPORT,
+                confidence=0.84,
+                source="intent_rules",
+                rationale="Matched export and reporting intent keywords in the user message.",
+            ),
+        ),
+        (
+            _contains_any(agent_output, ("candidate", "solution", "propose", "suggest")),
+            _build_classification(
+                stage=ProjectStage.PROPOSE_CANDIDATE,
+                confidence=0.72,
+                source="agent_output",
+                rationale="Agent output already contains proposal language, so continue proposal work.",
+            ),
+        ),
+    )
 
-    for keywords, stage in mapping:
-        if any(kw in user_message for kw in keywords):
-            return stage
-
-    if _has_explicit_artifact_edit_intent(user_message):
-        return ProjectStage.GENERAL
-
-    # Check agent output for proposal intents
-    if any(kw in agent_output for kw in ["candidate", "solution", "propose", "suggest"]):
-        return ProjectStage.PROPOSE_CANDIDATE
+    for matched, classification in intent_rules:
+        if matched:
+            return classification
 
     return None
+
+
+def _build_classification(
+    *,
+    stage: ProjectStage,
+    confidence: float,
+    source: Literal["agent_output", "intent_rules", "state_gaps"],
+    rationale: str,
+) -> StageClassification:
+    return StageClassification(
+        stage=stage.value,
+        confidence=confidence,
+        source=source,
+        rationale=rationale,
+    )
+
+
+def _normalize_text(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def _contains_any(text: str, keywords: tuple[str, ...] | list[str]) -> bool:
+    return any(keyword in text for keyword in keywords)
+
+
+def _has_review_intent(user_message: str) -> bool:
+    return _contains_any(user_message, _REVIEW_KEYWORDS) or (
+        "review" in user_message and "adr" in user_message and not _contains_iac_generation_intent(user_message)
+    )
+
+
+def _contains_iac_generation_intent(user_message: str) -> bool:
+    if "code review" in user_message:
+        return False
+    return _contains_any(user_message, _IAC_KEYWORDS)
 
 
 def _has_explicit_artifact_edit_intent(user_message: str) -> bool:
@@ -140,39 +304,92 @@ def _has_explicit_artifact_edit_intent(user_message: str) -> bool:
     )
 
 
-def _detect_intent_from_state(project_state: dict[str, Any]) -> ProjectStage:
+def _detect_intent_from_state(project_state: dict[str, Any]) -> StageClassification:
     """Detect next stage based on gaps in current project state."""
     if _has_parsed_documents(project_state) and not project_state.get("requirements"):
-        return ProjectStage.EXTRACT_REQUIREMENTS
+        return _build_classification(
+            stage=ProjectStage.EXTRACT_REQUIREMENTS,
+            confidence=0.82,
+            source="state_gaps",
+            rationale="Parsed documents exist, but canonical requirements have not been extracted yet.",
+        )
     if _has_open_clarification_questions(project_state):
-        return ProjectStage.CLARIFY
+        return _build_classification(
+            stage=ProjectStage.CLARIFY,
+            confidence=0.74,
+            source="state_gaps",
+            rationale="Open clarification questions remain unresolved.",
+        )
 
-    # List of required fields and their corresponding stages
     requirements = [
-        ("requirements", ProjectStage.CLARIFY),
-        ("candidateArchitectures", ProjectStage.PROPOSE_CANDIDATE),
-        ("adrs", ProjectStage.MANAGE_ADR),
+        (
+            "requirements",
+            ProjectStage.CLARIFY,
+            0.68,
+            "Requirements are still missing from project state, so clarification should continue.",
+        ),
+        (
+            "candidateArchitectures",
+            ProjectStage.PROPOSE_CANDIDATE,
+            0.7,
+            "Requirements exist, but no candidate architecture has been proposed yet.",
+        ),
+        (
+            "adrs",
+            ProjectStage.MANAGE_ADR,
+            0.69,
+            "Candidate architecture exists, but key decisions are not yet captured as ADRs.",
+        ),
     ]
 
-    for field, stage in requirements:
+    for field, stage, confidence, rationale in requirements:
         if not project_state.get(field):
-            return stage
+            return _build_classification(
+                stage=stage,
+                confidence=confidence,
+                source="state_gaps",
+                rationale=rationale,
+            )
 
     waf = project_state.get("wafChecklist") or {}
     if not project_state.get("findings") or not waf:
-        return ProjectStage.VALIDATE
+        return _build_classification(
+            stage=ProjectStage.VALIDATE,
+            confidence=0.71,
+            source="state_gaps",
+            rationale="Validation findings or checklist evidence are still missing from project state.",
+        )
 
-    # Post-validation stages
-    post_val = [
-        ("costEstimates", ProjectStage.PRICING),
-        ("iacArtifacts", ProjectStage.IAC),
+    post_validation = [
+        (
+            "costEstimates",
+            ProjectStage.PRICING,
+            0.67,
+            "Validation is complete, but baseline pricing has not been captured yet.",
+        ),
+        (
+            "iacArtifacts",
+            ProjectStage.IAC,
+            0.67,
+            "Validation is complete, but IaC artifacts have not been generated yet.",
+        ),
     ]
 
-    for field, stage in post_val:
+    for field, stage, confidence, rationale in post_validation:
         if not project_state.get(field):
-            return stage
+            return _build_classification(
+                stage=stage,
+                confidence=confidence,
+                source="state_gaps",
+                rationale=rationale,
+            )
 
-    return ProjectStage.CLARIFY
+    return _build_classification(
+        stage=ProjectStage.CLARIFY,
+        confidence=0.55,
+        source="state_gaps",
+        rationale="No stronger state gap was detected, so continue with clarification.",
+    )
 
 
 def _has_parsed_documents(project_state: dict[str, Any]) -> bool:
@@ -211,21 +428,10 @@ def _has_open_clarification_questions(project_state: dict[str, Any]) -> bool:
 
 
 def check_for_retry(state: GraphState) -> Literal["retry", "continue"]:
-    """
-    Check if agent output requires a retry.
-
-    Phase 5: Detects ERROR: prefixes and suggests retry.
-
-    Args:
-        state: Current graph state
-
-    Returns:
-        "retry" if error detected, "continue" otherwise
-    """
+    """Check if agent output requires a retry."""
     agent_output = state.get("agent_output", "")
     retry_count = state.get("retry_count", 0)
 
-    # Check for ERROR: prefix
     if agent_output.strip().startswith("ERROR:") and retry_count < 1:
         logger.warning("Error detected in agent output, suggesting retry")
         return "retry"
@@ -234,31 +440,19 @@ def check_for_retry(state: GraphState) -> Literal["retry", "continue"]:
 
 
 def build_retry_prompt(state: GraphState) -> dict[str, Any]:
-    """
-    Build a retry prompt asking for missing fields.
-
-    Phase 5: Extracts error and asks user to provide missing information.
-
-    Args:
-        state: Current graph state
-
-    Returns:
-        State update with retry prompt
-    """
+    """Build a retry prompt asking for missing fields."""
     agent_output = state.get("agent_output", "")
     retry_count = state.get("retry_count", 0)
 
-    # Extract error message
     error_lines = [line for line in agent_output.split("\n") if line.strip().startswith("ERROR:")]
     error_message = error_lines[0] if error_lines else "An error occurred"
 
     retry_prompt = (
         f"{error_message}\n\n"
-        f"Please provide the missing information or clarify your request."
+        "Please provide the missing information or clarify your request."
     )
 
-    logger.info(f"Built retry prompt (attempt {retry_count + 1})")
-
+    logger.info("Built retry prompt (attempt %d)", retry_count + 1)
     return {
         "agent_output": retry_prompt,
         "retry_count": retry_count + 1,
@@ -277,35 +471,19 @@ def _generate_next_step_questions(current_state: dict[str, Any]) -> list[str]:
             "Which decisions should be captured as ADRs with WAF or diagram evidence?"
         )
     if not current_state.get("findings") or not current_state.get("wafChecklist"):
-        questions.append(
-            "Do you want validation against WAF + Azure Security Benchmark now?"
-        )
+        questions.append("Do you want validation against WAF + Azure Security Benchmark now?")
     if not current_state.get("iacArtifacts"):
-        questions.append(
-            "Should we generate Terraform/Bicep for the proposed components?"
-        )
+        questions.append("Should we generate Terraform/Bicep for the proposed components?")
     if not current_state.get("costEstimates"):
         questions.append("Do you need a cost estimate with key usage assumptions?")
-
     return questions[:5]
 
 
 def propose_next_step(state: GraphState) -> dict[str, Any]:
-    """
-    Always propose next step if no artifact was persisted.
-
-    Phase 5: Ensures system returns either persisted update or clarifying questions.
-
-    Args:
-        state: Current graph state
-
-    Returns:
-        State update with next step questions
-    """
+    """Always propose next step if no artifact was persisted."""
     combined_updates = state.get("combined_updates", {})
     final_answer = state.get("final_answer", "")
 
-    # Check if any artifact was persisted
     artifact_keys = [
         "candidateArchitectures",
         "adrs",
@@ -314,21 +492,21 @@ def propose_next_step(state: GraphState) -> dict[str, Any]:
         "costEstimates",
         "diagrams",
     ]
-    if any(combined_updates.get(k) for k in artifact_keys):
+    if any(combined_updates.get(key) for key in artifact_keys):
         return {}
 
-    # Generate high-impact questions based on project state
     questions = _generate_next_step_questions(state.get("current_project_state", {}))
-
     if not questions:
         return {}
 
     next_step_prompt = "\n\n**Next steps to consider:**\n" + "\n".join(
-        [f"- {q}" for q in questions]
+        [f"- {question}" for question in questions]
     )
 
-    logger.info(f"Proposed {len(questions)} next step questions")
+    logger.info("Proposed %d next step questions", len(questions))
     return {
         "final_answer": final_answer + next_step_prompt,
     }
+
+
 

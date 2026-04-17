@@ -22,6 +22,7 @@ from langchain_core.tools import BaseTool, Tool
 from langgraph.graph import END, StateGraph, add_messages
 from langgraph.prebuilt import ToolNode
 
+from app.features.agent.infrastructure.tools.azure_retail_prices_tool import AzureRetailPricesTool
 from app.shared.ai.ai_service import get_ai_service
 from app.shared.config.app_settings import get_app_settings
 from app.shared.db.projects_database import AsyncSessionLocal
@@ -32,7 +33,12 @@ from ...tools.aaa_candidate_tool import create_aaa_tools
 from ...tools.kb_tool import create_kb_tools
 from ...tools.mcp_tool import create_mcp_tools
 from ...tools.project_document_tool import ProjectDocumentSearchTool
-from ...tools.tool_wrappers import make_single_input_wrapper
+from ...tools.research_tool import normalize_grounded_research_packet
+from ...tools.tool_registry import (
+    get_allowed_pending_change_tool_names,
+    get_allowed_runtime_tool_names,
+)
+from ...tools.tool_wrappers import ToolRuntimeContext, make_single_input_wrapper
 from ..state import MAX_AGENT_ITERATIONS, GraphState
 
 logger = logging.getLogger(__name__)
@@ -82,6 +88,29 @@ def _mindmap_guidance_section(mindmap_guidance: Any) -> str:
     return "### Mind map advisory guidance\n" + "\n".join(lines)
 
 
+def _append_grounded_evidence_lines(lines: list[str], packet: dict[str, Any]) -> None:
+    normalized_packet = normalize_grounded_research_packet(packet)
+    if normalized_packet is None:
+        return
+
+    if normalized_packet.consulted_sources:
+        lines.append(
+            "  Consulted sources: "
+            + ", ".join(str(source) for source in normalized_packet.consulted_sources[:3])
+        )
+
+    if not normalized_packet.evidence:
+        return
+
+    lines.append("  Grounded evidence:")
+    for evidence_item in normalized_packet.evidence[:2]:
+        lines.append(f"    - {evidence_item.title}")
+        if evidence_item.excerpt:
+            lines.append(f"      Excerpt: {evidence_item.excerpt[:180]}")
+        if evidence_item.url:
+            lines.append(f"      URL: {evidence_item.url}")
+
+
 def _research_evidence_packets_section(research_packets: Any) -> str:
     if not isinstance(research_packets, list) or not research_packets:
         return ""
@@ -104,6 +133,7 @@ def _research_evidence_packets_section(research_packets: Any) -> str:
                 "  Preferred sources: "
                 + ", ".join(str(source) for source in recommended_sources[:3])
             )
+        _append_grounded_evidence_lines(lines, packet)
 
     if not lines:
         return ""
@@ -187,7 +217,7 @@ def _build_system_directives(state: GraphState) -> str:
         "- Challenge assumptions: If a user choice contradicts Azure WAF best practices or NFRs, you MUST explain the risk and offer alternatives.\n"
         "- Treat WAF checklist as first-class: when analysis supports a status change, proactively persist checklist updates (fixed/in_progress/open) without waiting for explicit user wording.\n"
         "- If evidence is insufficient for a status change, ask a focused status/evidence clarification and propose the next checklist completion step.\n"
-        "- Persist decisions: Whenever a design choice is made, use the appropriate AAA tool and include the 'AAA_STATE_UPDATE' block in your response to confirm it reached the system.\n"
+        "- Persist decisions: Whenever a design choice is made, use the appropriate AAA tool so the system records a reviewable pending change set and confirm that the architect should review/approve it.\n"
         "- Proactive driving: Drive the project forward. If requirements are clear, propose the architecture; if architecture is clear, move to ADRs.\n"
         "- Document recall: When discussing specific details from uploaded documents, use the project_document_search tool to retrieve exact excerpts. "
         "Do not rely solely on the context summary — original documents contain details that the summary may not fully capture."
@@ -200,7 +230,11 @@ def _build_system_directives(state: GraphState) -> str:
     return "\n\n".join(directives)
 
 
-def _normalize_tool(tool: Any) -> BaseTool | None:
+def _normalize_tool(
+    tool: Any,
+    *,
+    runtime_context: ToolRuntimeContext | None = None,
+) -> BaseTool | None:
     """Normalize a tool-like object into a LangChain BaseTool."""
     if isinstance(tool, BaseTool):
         return tool
@@ -220,7 +254,10 @@ def _normalize_tool(tool: Any) -> BaseTool | None:
         return None
 
     sync_wrapped, async_wrapped = make_single_input_wrapper(
-        name, sync_fn or async_fn, async_fn
+        name,
+        sync_fn or async_fn,
+        async_fn,
+        runtime_context=runtime_context,
     )
     return Tool(
         name=name,
@@ -230,25 +267,54 @@ def _normalize_tool(tool: Any) -> BaseTool | None:
     )
 
 
-async def _build_tools(mcp_client: MicrosoftLearnMCPClient, project_id: str = "") -> list[BaseTool]:
+async def _build_tools(
+    mcp_client: MicrosoftLearnMCPClient,
+    *,
+    project_id: str = "",
+    stage: str | None = None,
+    db: Any | None = None,
+    source_message_id: str | None = None,
+) -> list[BaseTool]:
     """Build a list of tools safe for provider-selected LangChain tool binding."""
+    runtime_tool_names = get_allowed_runtime_tool_names(stage)
     mcp_tools = await create_mcp_tools(mcp_client)
     kb_tools_any = create_kb_tools()
-    aaa_tools = create_aaa_tools()
+    allowed_pending_change_tools = get_allowed_pending_change_tool_names(stage)
+    all_pending_change_tools = get_allowed_pending_change_tool_names(None)
+    all_runtime_scoped_tools = get_allowed_runtime_tool_names(None)
+    aaa_tools = [
+        tool
+        for tool in create_aaa_tools()
+        if (
+            tool.name not in all_pending_change_tools
+            or tool.name in allowed_pending_change_tools
+        )
+        and (
+            tool.name not in all_runtime_scoped_tools
+            or tool.name in runtime_tool_names
+        )
+    ]
 
     tools_any: list[Any] = [*mcp_tools, *kb_tools_any, *aaa_tools]
 
-    # Add project document search tool when running in project context
     if project_id:
-        doc_tool = ProjectDocumentSearchTool(
-            db_factory=AsyncSessionLocal, project_id=project_id
+        tools_any.append(
+            ProjectDocumentSearchTool(db_factory=AsyncSessionLocal, project_id=project_id)
         )
-        tools_any.append(doc_tool)
+
+    if "azure_retail_prices" in runtime_tool_names:
+        tools_any.append(AzureRetailPricesTool())
 
     normalized: list[BaseTool] = []
+    runtime_context = ToolRuntimeContext(
+        project_id=project_id or None,
+        stage=stage,
+        db=db,
+        source_message_id=source_message_id,
+    )
 
     for t in tools_any:
-        tool = _normalize_tool(t)
+        tool = _normalize_tool(t, runtime_context=runtime_context)
         if tool:
             normalized.append(tool)
 
@@ -269,7 +335,13 @@ async def run_stage_aware_agent(
     user_message = state["user_message"]
     system_directives = _build_system_directives(state)
     project_id = state.get("project_id", "")
-    tools = await _build_tools(mcp_client, project_id=project_id)
+    tools = await _build_tools(
+        mcp_client,
+        project_id=project_id,
+        stage=state.get("next_stage"),
+        db=state.get("db"),
+        source_message_id=state.get("user_message_id"),
+    )
 
     ai_service = get_ai_service()
     temperature: float = get_app_settings().chat_temperature

@@ -3,13 +3,13 @@ Agent system services.
 Business logic and helper functions for agents.
 """
 
+from .adr_drafter_worker import ADRDrafterWorker
 from .mindmap_loader import (
     get_mindmap,
     get_top_level_topics,
     initialize_mindmap,
     is_mindmap_initialized,
 )
-from .adr_drafter_worker import ADRDrafterWorker
 from .project_context import read_project_state, update_project_state
 from .state_update_parser import extract_state_updates, merge_state_updates_no_overwrite
 from .waf_evaluator import WAFEvaluatorService
@@ -17,6 +17,8 @@ from .waf_findings_worker import WAFFindingsWorker
 
 __all__ = [
     "ADRDrafterWorker",
+    "WAFEvaluatorService",
+    "WAFFindingsWorker",
     "extract_state_updates",
     "get_mindmap",
     "get_top_level_topics",
@@ -25,7 +27,5 @@ __all__ = [
     "merge_state_updates_no_overwrite",
     "read_project_state",
     "update_project_state",
-    "WAFEvaluatorService",
-    "WAFFindingsWorker",
 ]
 

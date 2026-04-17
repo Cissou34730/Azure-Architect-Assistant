@@ -1,6 +1,7 @@
-import pytest
-from unittest.mock import AsyncMock
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
 
 from app.shared.ai.config import AIConfig
 from app.shared.ai.models_service import ModelsService

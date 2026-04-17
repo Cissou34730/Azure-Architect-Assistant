@@ -1,0 +1,50 @@
+{
+  "scenario": {
+    "id": "scenario-behavior",
+    "name": "Behavior Test - Proactive Advisory"
+  },
+  "final": {
+    "missingRequiredKeys": [],
+    "stateSummary": {
+      "keys": ["requirements"],
+      "counts": {"requirements": 1}
+    }
+  },
+  "dbPersistence": {"status": "FAIL"},
+  "steps": [
+    {
+      "id": "turn1-suboptimal-choice",
+      "request": "I want to use Azure SQL Database with DTU-based pricing for a global payment API.",
+      "answer": "Use Azure SQL Database with DTU pricing for the payment API.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "kbCallCount": 0,
+      "advisoryQuality": {
+        "proactivity": 2,
+        "correction": 2,
+        "evidence": 1,
+        "clarity": 2,
+        "total": 7
+      }
+    },
+    {
+      "id": "turn2-next-steps",
+      "request": "List the next steps to move forward safely.",
+      "answer": "Next steps: validate capacity assumptions and confirm disaster recovery expectations.",
+      "success": true,
+      "error": null,
+      "mcpCallCount": 0,
+      "pricingCallCount": 0,
+      "kbCallCount": 0,
+      "advisoryQuality": {
+        "proactivity": 1,
+        "correction": 1,
+        "evidence": 1,
+        "clarity": 1,
+        "total": 4
+      }
+    }
+  ]
+}

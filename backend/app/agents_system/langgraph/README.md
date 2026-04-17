@@ -46,8 +46,8 @@ The backend agent runtime is LangGraph-only and provides:
 - Message-based trace (AIMessage, ToolMessage)
 - Respects iteration limits and timeouts
 - `config/prompt_loader.py` keeps orchestrator directives YAML-driven and enforces the supplied prompt budget before the final system prompt is injected.
-- `nodes/context.py` builds stage-specific context packs with `AAA_CONTEXT_MAX_BUDGET_TOKENS`, while `graph_factory.py` adds a `MemorySaver` checkpointer with `AAA_THREAD_MEMORY_ENABLED` now defaulting on for thread-scoped LangGraph memory.
-- `adapter.py` now guarantees a non-empty `thread_id` for project-chat runs even when the caller omits one, so checkpointer-backed sync and streaming turns always invoke LangGraph with a valid configurable thread key. The SSE `final` event includes that effective `thread_id`.
+- `nodes/context.py` builds stage-specific context packs with `AAA_CONTEXT_MAX_BUDGET_TOKENS`, while `graph_factory.py` now opens an `AsyncSqliteSaver` checkpointer backed by `DATA_ROOT/checkpoints.db` when `AAA_THREAD_MEMORY_ENABLED` is on so thread-scoped LangGraph memory survives backend restarts.
+- `adapter.py` now guarantees a non-empty `thread_id` for project-chat runs even when the caller omits one, so SQLite-checkpointer-backed sync and streaming turns always invoke LangGraph with a valid configurable thread key. The SSE `final` event includes that effective `thread_id`.
 - `memory/compaction_service.py` reads `memory_compaction_prompt.yaml` through `PromptLoader`, so compaction prompt edits hot-reload with the rest of the prompt surface.
 
 ### Stage Routing + Retry
@@ -217,8 +217,8 @@ curl -X POST http://localhost:8000/api/agent/projects/{project_id}/chat \
 ## Performance Considerations
 
 - **Latency**: LangGraph adds minimal overhead (<100ms) for state management
-- **Memory**: Graph state is kept in memory during execution
-- **Checkpointing**: Optional for conversation persistence (not yet implemented)
+- **Memory**: Graph state is kept in memory during execution, and thread checkpoints persist to `DATA_ROOT/checkpoints.db` when thread memory is enabled
+- **Checkpointing**: Optional SQLite-backed conversation persistence via LangGraph `AsyncSqliteSaver`
 - **Parallelization**: Specialists can potentially run in parallel (future optimization)
 
 ## Troubleshooting
@@ -234,7 +234,7 @@ curl -X POST http://localhost:8000/api/agent/projects/{project_id}/chat \
 
 ## Future Enhancements
 
-- [ ] Checkpointing for conversation persistence
+- [ ] Multi-instance / Postgres-backed checkpointer for distributed deployments
 - [ ] Custom stage routing rules
 - [ ] Performance monitoring and metrics
 - [ ] A/B testing framework
@@ -244,3 +244,4 @@ curl -X POST http://localhost:8000/api/agent/projects/{project_id}/chat \
 - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
 - [Migration Plan](../../../../docs/LANGGRAPH_MIGRATION_PLAN.md)
 - [System Architecture](../../../../docs/SYSTEM_ARCHITECTURE.md)
+

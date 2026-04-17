@@ -1,6 +1,7 @@
 import logging
 
 import pytest
+
 from app.ingestion.application.orchestrator import IngestionOrchestrator
 from app.ingestion.domain.errors import PhaseNotFoundError, PhaseRepositoryError
 

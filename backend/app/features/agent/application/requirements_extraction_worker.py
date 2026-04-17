@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import inspect
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Protocol
+from typing import Any, Protocol
 
 from app.features.agent.application.requirements_extraction_service import (
     RequirementsExtractionService,
@@ -169,12 +170,12 @@ class RequirementsExtractionWorker:
             project_id=project_id,
             stage="extract_requirements",
             status=ChangeSetStatus.PENDING,
-            created_at=created_at,
+            createdAt=created_at,
             source_message_id=source_message_id,
-            bundle_summary=(
+            bundleSummary=(
                 f"Extracted {len(requirements_payload)} requirement(s) from "
                 f"{document_count} document(s)"
             ),
-            proposed_patch={"requirements": requirements_payload},
-            artifact_drafts=artifact_drafts,
+            proposedPatch={"requirements": requirements_payload},
+            artifactDrafts=artifact_drafts,
         )

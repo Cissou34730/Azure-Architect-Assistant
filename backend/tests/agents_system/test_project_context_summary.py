@@ -8,9 +8,9 @@ and clarification questions in the agent context.
 from __future__ import annotations
 
 import json
-from typing import Any
 from collections.abc import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
@@ -315,3 +315,4 @@ class TestGetProjectContextSummaryEnriched:
 
         assert "UPLOADED DOCUMENTS:" in summary
         assert "spec.pdf" in summary
+

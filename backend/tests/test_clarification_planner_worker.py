@@ -4,10 +4,10 @@ from typing import Any
 
 import pytest
 
+from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
 from app.features.agent.application.clarification_planner_worker import (
     ClarificationPlannerWorker,
 )
-from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
 
 
 @pytest.mark.asyncio

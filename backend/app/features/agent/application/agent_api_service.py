@@ -55,6 +55,7 @@ class AgentApiService:
             "reasoning_steps": normalized_reasoning_steps,
             "error": result.get("error"),
             "thread_id": result.get("thread_id", thread_id),
+            "workflow_result": result.get("workflow_result"),
         }
 
     async def project_chat_stream(

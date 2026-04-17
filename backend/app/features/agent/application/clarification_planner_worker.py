@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import inspect
 import json
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -262,7 +263,7 @@ class ClarificationPlannerWorker:
 
     async def _plan_with_llm(self, planning_input: dict[str, Any]) -> dict[str, Any]:
         prompt_payload = json.dumps(planning_input, ensure_ascii=False, indent=2)
-        prompt_data = self._prompt_loader.load_prompt("clarification_planner.yaml")
+        prompt_data = self._prompt_loader.load_prompt_file("clarification_planner.yaml")
         system_prompt = str(prompt_data.get("system_prompt") or "").strip()
         system_prompt = (
             f"{system_prompt}\n\n"
@@ -293,7 +294,7 @@ class ClarificationPlannerWorker:
             "Planning input:\n"
             f"{prompt_payload}"
         )
-        return await llm_service.get_llm_service()._complete_json(  # noqa: SLF001
+        return await llm_service.get_llm_service()._complete_json(
             system_prompt,
             user_prompt,
             max_tokens=min(get_app_settings().llm_analyze_max_tokens, 4000),
@@ -347,3 +348,4 @@ class ClarificationPlannerWorker:
 
     def _normalize_question_text(self, question: str) -> str:
         return " ".join(question.strip().lower().split())
+

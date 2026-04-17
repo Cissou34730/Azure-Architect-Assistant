@@ -1,6 +1,7 @@
 # Azure Architect Assistant Agent Prompts
 # Edit this file to update prompts without code changes
 # Changes take effect on next agent initialization or reload
+# This file is the fallback orchestrator prompt surface; stage workers should load dedicated YAML files directly.
 
 version: "1.2"
 last_updated: "2026-01-24"
@@ -333,3 +334,6 @@ few_shot_examples:
       **Option 2: AKS** (Complex scenarios)
       
       For detailed architecture with NFR analysis, I recommend engaging Architecture Planner sub-agent.
+
+
+

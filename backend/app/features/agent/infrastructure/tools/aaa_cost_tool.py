@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from langchain_core.tools import BaseTool
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from pydantic.alias_generators import to_camel
 
 from app.shared.pricing.pricing_normalizer import (
@@ -24,7 +24,8 @@ from app.shared.pricing.pricing_normalizer import (
     extract_unit_price,
     find_best_retail_price_item,
 )
-from app.shared.pricing.retail_prices_client import AzureRetailPricesClient
+
+from .azure_retail_prices_tool import AzureRetailPricesTool
 
 _MIN_SEARCH_TERM_LENGTH = 3
 _MAX_DISCOVERED_ITEMS = 300
@@ -97,6 +98,11 @@ class AAAGenerateCostToolInput(BaseModel):
 
 class AAAGenerateCostTool(BaseTool):
     name: str = "aaa_record_cost_estimate"
+    _retail_prices_tool: Any = PrivateAttr()
+
+    def __init__(self, *, retail_prices_tool: Any | None = None, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._retail_prices_tool = retail_prices_tool or AzureRetailPricesTool()
     description: str = (
         "Compute and record baseline cost estimates using Azure Retail Prices API. "
         "Returns an AAA_STATE_UPDATE JSON block with costEstimates."
@@ -195,52 +201,37 @@ class AAAGenerateCostTool(BaseTool):
     async def _fetch_live_prices(
         self, pricing_lines: list[PricingLineItemInput]
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        client = AzureRetailPricesClient()
         items: list[dict[str, Any]] = []
         log_entries: list[dict[str, Any]] = []
 
         for line in pricing_lines:
-            region = line.arm_region_name.replace("'", "''")
-            if not region:
-                continue
-
-            attempts: list[dict[str, Any]] = []
-            selected_items: list[dict[str, Any]] = []
-
-            strict_service = line.service_name.replace("'", "''")
-            strict_filter = f"serviceName eq '{strict_service}' and armRegionName eq '{region}'"
-            strict_items, strict_meta = await client.query_all_with_meta(
-                filter_expr=strict_filter,
-                max_pages=3,
-            )
-            attempts.append(
-                {
-                    "mode": "strict_service_region",
-                    "filterExpr": strict_filter,
-                    "matchedItems": len(strict_items),
-                    "meta": strict_meta,
-                }
-            )
-            selected_items = strict_items
-
-            if not selected_items:
-                discovered_items, discovered_attempts = await _discover_items_for_line(
-                    client=client,
-                    line=line,
-                    region=region,
-                )
-                attempts.extend(discovered_attempts)
-                selected_items = discovered_items
-
+            lookup_payload = {
+                "serviceName": line.service_name,
+                "region": line.arm_region_name,
+                "skuName": line.sku_name,
+                "productNameContains": line.product_name_contains,
+                "meterNameContains": line.meter_name_contains,
+                "currencyCode": "USD",
+            }
+            response = await self._retail_prices_tool.lookup_prices(lookup_payload)
+            selected_items = response.get("items") if isinstance(response, dict) else []
+            selected_items = [item for item in selected_items if isinstance(item, dict)]
             items = _merge_unique_items(items, selected_items)
-
             log_entries.append(
                 {
                     "name": line.name,
                     "requestedServiceName": line.service_name,
                     "armRegionName": line.arm_region_name,
                     "matchedItems": len(selected_items),
-                    "attempts": attempts,
+                    "attempts": [
+                        {
+                            "mode": "azure_retail_prices",
+                            "filterExpr": response.get("filterExpr") if isinstance(response, dict) else None,
+                            "matchedItems": len(selected_items),
+                            "meta": response.get("meta") if isinstance(response, dict) else None,
+                            "fromCache": response.get("fromCache") if isinstance(response, dict) else None,
+                        }
+                    ],
                 }
             )
 
@@ -324,7 +315,7 @@ def _merge_unique_items(
 
 async def _discover_items_for_line(
     *,
-    client: AzureRetailPricesClient,
+    client: Any,
     line: PricingLineItemInput,
     region: str,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:

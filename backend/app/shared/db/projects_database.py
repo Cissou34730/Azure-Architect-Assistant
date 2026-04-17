@@ -54,9 +54,16 @@ async def init_database() -> None:
 
 def _run_additive_schema_migrations(sync_conn) -> None:
     _ensure_documents_status_columns(sync_conn)
+    _ensure_pending_changes_tables(sync_conn)
 
 
 def _ensure_documents_status_columns(sync_conn) -> None:
+    result = sync_conn.execute(
+        text("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'documents'")
+    )
+    if result.scalar_one_or_none() is None:
+        return
+
     result = sync_conn.execute(text("PRAGMA table_info(documents)"))
     existing_columns = {str(row[1]) for row in result.fetchall()}
     additive_columns = (
@@ -75,6 +82,49 @@ def _ensure_documents_status_columns(sync_conn) -> None:
             "Applied additive migration on documents table: added column %s",
             column_name,
         )
+
+
+def _ensure_pending_changes_tables(sync_conn) -> None:
+    sync_conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS pending_change_sets (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                stage TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                source_message_id TEXT,
+                superseded_by TEXT,
+                bundle_summary TEXT NOT NULL,
+                proposed_patch_json TEXT NOT NULL DEFAULT '{}',
+                citations_json TEXT,
+                reviewed_at TEXT,
+                review_reason TEXT,
+                rejection_reason TEXT,
+                waf_delta_json TEXT,
+                mindmap_delta_json TEXT,
+                FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+            )
+            """
+        )
+    )
+    sync_conn.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS artifact_drafts (
+                id TEXT PRIMARY KEY,
+                change_set_id TEXT NOT NULL,
+                artifact_type TEXT NOT NULL,
+                artifact_id TEXT,
+                content_json TEXT NOT NULL,
+                citations_json TEXT,
+                created_at TEXT,
+                FOREIGN KEY(change_set_id) REFERENCES pending_change_sets(id) ON DELETE CASCADE
+            )
+            """
+        )
+    )
 
 
 async def get_db():

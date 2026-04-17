@@ -12,7 +12,10 @@ from .aaa_cost_tool import AAAGenerateCostTool
 from .aaa_diagram_tool import AAACreateDiagramSetTool
 from .aaa_export_tool import AAAExportTool
 from .aaa_iac_tool import AAAGenerateIacTool
+from .aaa_iac_validation_tool import AAAValidateIacBundleTool
+from .aaa_mermaid_validation_tool import AAAMermaidValidationTool
 from .aaa_validation_tool import AAARunValidationTool
+from .azure_retail_prices_tool import AzureRetailPricesTool, AzureRetailPricesToolInput
 
 __all__ = [
     "AAACreateDiagramSetTool",
@@ -24,6 +27,10 @@ __all__ = [
     "AAAGenerateIacTool",
     "AAAManageAdrTool",
     "AAAManageArtifactsTool",
+    "AAAMermaidValidationTool",
     "AAARunValidationTool",
+    "AAAValidateIacBundleTool",
+    "AzureRetailPricesTool",
+    "AzureRetailPricesToolInput",
     "create_aaa_tools",
 ]

@@ -72,11 +72,9 @@ class ScenarioEvalSummary(BaseModel):
 
 
 def build_phase0_eval_summary(report: dict[str, Any]) -> ScenarioEvalSummary:
-    scenario = report.get("scenario") if isinstance(report.get("scenario"), dict) else {}
-    final = report.get("final") if isinstance(report.get("final"), dict) else {}
-    state_summary = (
-        final.get("stateSummary") if isinstance(final.get("stateSummary"), dict) else {}
-    )
+    scenario = _coerce_mapping(report.get("scenario"))
+    final = _coerce_mapping(report.get("final"))
+    state_summary = _coerce_mapping(final.get("stateSummary"))
     persisted_state_keys = sorted(_coerce_string_list(state_summary.get("keys")))
     missing_required_keys = _coerce_string_list(final.get("missingRequiredKeys"))
 
@@ -114,7 +112,7 @@ def _build_turn_summary(
 ) -> TurnEvalSummary:
     request = str(step.get("request") or "")
     answer = str(step.get("answer") or "")
-    advisory = step.get("advisoryQuality") if isinstance(step.get("advisoryQuality"), dict) else {}
+    advisory = _coerce_mapping(step.get("advisoryQuality"))
     tool_call_count = sum(
         _coerce_non_negative_int(step.get(field))
         for field in ("mcpCallCount", "pricingCallCount", "kbCallCount")
@@ -227,10 +225,8 @@ def _collect_failures(
 
 
 def _collect_clarify_payload_failures(report: dict[str, Any]) -> list[str]:
-    final = report.get("final") if isinstance(report.get("final"), dict) else {}
-    clarify_payload = (
-        final.get("clarifyPayload") if isinstance(final.get("clarifyPayload"), dict) else {}
-    )
+    final = _coerce_mapping(report.get("final"))
+    clarify_payload = _coerce_mapping(final.get("clarifyPayload"))
     if not clarify_payload:
         return []
 
@@ -263,10 +259,8 @@ def _collect_clarify_payload_failures(report: dict[str, Any]) -> list[str]:
 
 
 def _collect_export_payload_failures(report: dict[str, Any]) -> list[str]:
-    final = report.get("final") if isinstance(report.get("final"), dict) else {}
-    export_payload = (
-        final.get("exportPayload") if isinstance(final.get("exportPayload"), dict) else {}
-    )
+    final = _coerce_mapping(report.get("final"))
+    export_payload = _coerce_mapping(final.get("exportPayload"))
     if not export_payload:
         return []
 
@@ -282,11 +276,7 @@ def _collect_export_payload_failures(report: dict[str, Any]) -> list[str]:
             + ", ".join(state_missing_keys)
         )
 
-    scorecard = (
-        export_payload.get("mindmapCoverageScorecard")
-        if isinstance(export_payload.get("mindmapCoverageScorecard"), dict)
-        else {}
-    )
+    scorecard = _coerce_mapping(export_payload.get("mindmapCoverageScorecard"))
     missing_topics = _coerce_string_list(scorecard.get("missingTopicKeys"))
     topic_count = scorecard.get("topicCount")
     if missing_topics or (isinstance(topic_count, int) and topic_count < 13):
@@ -296,10 +286,8 @@ def _collect_export_payload_failures(report: dict[str, Any]) -> list[str]:
 
 
 def _collect_candidate_payload_failures(report: dict[str, Any]) -> list[str]:
-    final = report.get("final") if isinstance(report.get("final"), dict) else {}
-    candidate_payload = (
-        final.get("candidatePayload") if isinstance(final.get("candidatePayload"), dict) else {}
-    )
+    final = _coerce_mapping(report.get("final"))
+    candidate_payload = _coerce_mapping(final.get("candidatePayload"))
     if not candidate_payload:
         return []
 
@@ -308,11 +296,7 @@ def _collect_candidate_payload_failures(report: dict[str, Any]) -> list[str]:
     if missing_keys:
         failures.append(f"Candidate payload missing required keys: {', '.join(missing_keys)}")
 
-    latest_candidate = (
-        candidate_payload.get("latestCandidate")
-        if isinstance(candidate_payload.get("latestCandidate"), dict)
-        else {}
-    )
+    latest_candidate = _coerce_mapping(candidate_payload.get("latestCandidate"))
     if candidate_payload.get("present"):
         citation_count = latest_candidate.get("citationCount")
         if not isinstance(citation_count, int) or citation_count < 1:
@@ -326,8 +310,8 @@ def _collect_candidate_payload_failures(report: dict[str, Any]) -> list[str]:
 
 
 def _collect_adr_payload_failures(report: dict[str, Any]) -> list[str]:
-    final = report.get("final") if isinstance(report.get("final"), dict) else {}
-    adr_payload = final.get("adrPayload") if isinstance(final.get("adrPayload"), dict) else {}
+    final = _coerce_mapping(report.get("final"))
+    adr_payload = _coerce_mapping(final.get("adrPayload"))
     if not adr_payload:
         return []
 
@@ -336,11 +320,7 @@ def _collect_adr_payload_failures(report: dict[str, Any]) -> list[str]:
     if missing_keys:
         failures.append(f"ADR payload missing required keys: {', '.join(missing_keys)}")
 
-    latest_change_set = (
-        adr_payload.get("latestChangeSet")
-        if isinstance(adr_payload.get("latestChangeSet"), dict)
-        else {}
-    )
+    latest_change_set = _coerce_mapping(adr_payload.get("latestChangeSet"))
     if adr_payload.get("present"):
         if str(latest_change_set.get("status") or "").lower() != "pending":
             failures.append("ADR payload latest change set is not pending.")
@@ -362,10 +342,8 @@ def _collect_adr_payload_failures(report: dict[str, Any]) -> list[str]:
 
 
 def _collect_cost_payload_failures(report: dict[str, Any]) -> list[str]:
-    final = report.get("final") if isinstance(report.get("final"), dict) else {}
-    cost_payload = (
-        final.get("costPayload") if isinstance(final.get("costPayload"), dict) else {}
-    )
+    final = _coerce_mapping(report.get("final"))
+    cost_payload = _coerce_mapping(final.get("costPayload"))
     if not cost_payload:
         return []
 
@@ -378,11 +356,7 @@ def _collect_cost_payload_failures(report: dict[str, Any]) -> list[str]:
     if not isinstance(pricing_log_count, int) or pricing_log_count < 1:
         failures.append("Cost payload missing pricing log evidence.")
 
-    latest_estimate = (
-        cost_payload.get("latestEstimate")
-        if isinstance(cost_payload.get("latestEstimate"), dict)
-        else {}
-    )
+    latest_estimate = _coerce_mapping(cost_payload.get("latestEstimate"))
     if cost_payload.get("present") and latest_estimate.get("totalMonthlyCost") is None:
         failures.append("Cost payload latest estimate missing totalMonthlyCost.")
 
@@ -390,8 +364,8 @@ def _collect_cost_payload_failures(report: dict[str, Any]) -> list[str]:
 
 
 def _collect_iac_payload_failures(report: dict[str, Any]) -> list[str]:
-    final = report.get("final") if isinstance(report.get("final"), dict) else {}
-    iac_payload = final.get("iacPayload") if isinstance(final.get("iacPayload"), dict) else {}
+    final = _coerce_mapping(report.get("final"))
+    iac_payload = _coerce_mapping(final.get("iacPayload"))
     if not iac_payload:
         return []
 
@@ -400,11 +374,7 @@ def _collect_iac_payload_failures(report: dict[str, Any]) -> list[str]:
     if missing_keys:
         failures.append(f"IaC payload missing required keys: {', '.join(missing_keys)}")
 
-    latest_artifact = (
-        iac_payload.get("latestArtifact")
-        if isinstance(iac_payload.get("latestArtifact"), dict)
-        else {}
-    )
+    latest_artifact = _coerce_mapping(iac_payload.get("latestArtifact"))
     file_count = latest_artifact.get("fileCount")
     if iac_payload.get("present") and (not isinstance(file_count, int) or file_count < 1):
         failures.append("IaC payload latest artifact missing files.")
@@ -509,6 +479,12 @@ def _coerce_non_negative_int(value: Any) -> int:
     return 0
 
 
+def _coerce_mapping(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {str(key): item for key, item in value.items() if isinstance(key, str)}
+
+
 def _coerce_mapping_list(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
@@ -531,7 +507,5 @@ def _meaningful_terms(text: str) -> set[str]:
 
 
 def _db_status(report: dict[str, Any]) -> str:
-    db_persistence = (
-        report.get("dbPersistence") if isinstance(report.get("dbPersistence"), dict) else {}
-    )
+    db_persistence = _coerce_mapping(report.get("dbPersistence"))
     return str(db_persistence.get("status") or "").upper()

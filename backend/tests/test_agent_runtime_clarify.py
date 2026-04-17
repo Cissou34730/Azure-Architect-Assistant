@@ -162,6 +162,29 @@ async def test_execute_clarification_planner_node_formats_grouped_questions() ->
     assert "Clarification planning complete." in result["final_answer"]
     assert "**Security**" in result["final_answer"]
     assert "Why it matters:" in result["final_answer"]
+    assert result["structured_payload"] == {
+        "type": "clarification_questions",
+        "questions": [
+            {
+                "id": "security-1",
+                "text": "Do partner users sign in with their own tenant or a shared enterprise tenant?",
+                "theme": "Security",
+                "whyItMatters": "Identity boundaries drive tenant, RBAC, and networking decisions.",
+                "architecturalImpact": "high",
+                "priority": 1,
+                "relatedRequirementIds": ["req-auth"],
+            },
+            {
+                "id": "operations-1",
+                "text": "What recovery time objective is required for the platform?",
+                "theme": "Operations",
+                "whyItMatters": "Recovery objectives influence region design and backup strategy.",
+                "architecturalImpact": "high",
+                "priority": 2,
+                "relatedRequirementIds": ["req-dr"],
+            },
+        ],
+    }
     assert emitted_events == [
         ("message_start", {"role": "assistant"}),
         ("token", {"text": result["final_answer"]}),

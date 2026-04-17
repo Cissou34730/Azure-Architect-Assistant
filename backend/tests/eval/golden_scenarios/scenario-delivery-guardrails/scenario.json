@@ -1,0 +1,21 @@
+{
+  "id": "scenario-delivery-guardrails",
+  "name": "Delivery Artifact Guardrails",
+  "description": "Baseline artifact regression snapshot covering candidate, ADR, export, cost, and IaC summaries.",
+  "tags": ["delivery", "guardrails"],
+  "expectedBaselineFailures": [
+    "Export payload missing required keys: mindmapCoverageScorecard",
+    "Export payload state missing required keys: mindMapCoverage",
+    "Export payload mind map scorecard does not cover all 13 topics.",
+    "Candidate payload latest candidate missing citations.",
+    "Candidate payload latest candidate missing diagram links.",
+    "ADR payload latest change set is not pending.",
+    "ADR payload missing lifecycle command.",
+    "ADR payload missing ADR draft artifacts.",
+    "ADR payload latest draft missing fields: decision, sourceCitations",
+    "Cost payload missing required keys: costEstimates",
+    "Cost payload missing pricing log evidence.",
+    "IaC payload latest artifact missing files.",
+    "IaC payload missing validation evidence."
+  ]
+}

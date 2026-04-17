@@ -16,6 +16,7 @@ from app.dependencies import (
     get_kb_manager,
     get_multi_query_service_dependency,
 )
+from app.features.agent.application import RequirementsExtractionWorker
 from app.features.checklists.application.api_service import ChecklistsApiService
 from app.features.checklists.domain.default_templates import resolve_bootstrap_template_slugs
 from app.features.checklists.infrastructure.engine import ChecklistEngine
@@ -31,19 +32,24 @@ from app.features.diagrams.infrastructure.models import DiagramSet
 from app.features.knowledge.application.management_orchestration_service import KBManagementService
 from app.features.knowledge.application.query_service import QueryProfile
 from app.features.knowledge.infrastructure import KBManager
-from app.features.agent.application import RequirementsExtractionWorker
 from app.features.projects.api.workspace_dependencies import create_workspace_composer
 from app.features.projects.application.chat_service import ChatService
 from app.features.projects.application.document_content_service import DocumentContentService
 from app.features.projects.application.document_service import DocumentService
-from app.features.projects.application.requirements_extraction_entry_service import (
-    ProjectRequirementsExtractionEntryService,
-)
 from app.features.projects.application.pending_changes_service import (
     ProjectPendingChangesService,
 )
 from app.features.projects.application.project_analysis_service import ProjectAnalysisService
+from app.features.projects.application.project_notes_service import ProjectNotesService
 from app.features.projects.application.project_service import ProjectService
+from app.features.projects.application.quality_gate_service import (
+    ProjectTraceSummaryProvider,
+    QualityGateService,
+)
+from app.features.projects.application.trace_service import ProjectTraceService
+from app.features.projects.application.requirements_extraction_entry_service import (
+    ProjectRequirementsExtractionEntryService,
+)
 from app.features.projects.application.state_edit_service import ProjectStateEditService
 from app.features.projects.infrastructure import (
     ProjectArchitectureInputsRepository,
@@ -166,11 +172,17 @@ _chat_service = ChatService(
     knowledge_query_gateway=_KnowledgeChatQueryAdapter(get_multi_query_service_dependency()),
 )
 _pending_changes_service = ProjectPendingChangesService(state_provider=_chat_service)
+_quality_gate_service = QualityGateService(
+    state_provider=_chat_service,
+    trace_summary_provider=ProjectTraceSummaryProvider(),
+)
+_trace_service = ProjectTraceService()
 _requirements_extraction_entry_service = ProjectRequirementsExtractionEntryService(
     worker=RequirementsExtractionWorker(
         pending_change_recorder=_pending_changes_service,
     )
 )
+_project_notes_service = ProjectNotesService()
 _project_state_edit_service = ProjectStateEditService()
 _checklists_api_service = ChecklistsApiService()
 _settings_models_service = SettingsModelsService()
@@ -202,8 +214,20 @@ def get_state_edit_service_dep() -> ProjectStateEditService:
     return _project_state_edit_service
 
 
+def get_project_notes_service_dep() -> ProjectNotesService:
+    return _project_notes_service
+
+
 def get_pending_changes_service_dep() -> ProjectPendingChangesService:
     return _pending_changes_service
+
+
+def get_quality_gate_service_dep() -> QualityGateService:
+    return _quality_gate_service
+
+
+def get_trace_service_dep() -> ProjectTraceService:
+    return _trace_service
 
 
 def get_requirements_extraction_entry_service_dep() -> ProjectRequirementsExtractionEntryService:

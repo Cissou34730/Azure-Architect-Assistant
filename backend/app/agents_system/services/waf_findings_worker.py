@@ -73,7 +73,7 @@ class WAFFindingsWorker:
             return {"findings": [], "wafEvaluations": []}
 
         normalized_state = self._coerce_project_state(architecture_state)
-        prompt = self._prompt_loader.load_prompt("waf_validator.yaml")
+        prompt = self._prompt_loader.load_prompt_file("waf_validator.yaml")
         system_prompt = str(prompt.get("system_prompt") or "").strip()
         user_prompt = self._build_user_prompt(
             actionable_items=actionable_items,
@@ -369,3 +369,4 @@ class WAFFindingsWorker:
 
 
 __all__ = ["WAFFindingsWorker"]
+

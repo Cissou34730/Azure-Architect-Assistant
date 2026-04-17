@@ -9,17 +9,26 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
+from app.features.settings.application.architect_profile_service import ArchitectProfileService
 from app.features.settings.application.settings_service import SettingsModelsService
+from app.features.settings.contracts import ArchitectProfileResponseContract
+from app.features.settings.domain.architect_profile import ArchitectProfile
+from app.shared.db.projects_database import get_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 _settings_models_service = SettingsModelsService()
+_architect_profile_service = ArchitectProfileService()
 
 
 def get_settings_models_service_dep() -> SettingsModelsService:
     return _settings_models_service
+
+
+def get_architect_profile_service_dep() -> ArchitectProfileService:
+    return _architect_profile_service
 
 
 class PricingInfo(BaseModel):
@@ -208,4 +217,27 @@ async def logout_copilot(
     return CopilotActionResponse(**payload)
 
 
-__all__ = ["_settings_models_service", "get_settings_models_service_dep", "router"]
+@router.get("/architect-profile", response_model=ArchitectProfileResponseContract)
+async def get_architect_profile(
+    db=Depends(get_db),
+    architect_profile_service: ArchitectProfileService = Depends(get_architect_profile_service_dep),
+) -> ArchitectProfileResponseContract:
+    return await architect_profile_service.get_profile(db)
+
+
+@router.put("/architect-profile", response_model=ArchitectProfileResponseContract)
+async def update_architect_profile(
+    request: ArchitectProfile,
+    db=Depends(get_db),
+    architect_profile_service: ArchitectProfileService = Depends(get_architect_profile_service_dep),
+) -> ArchitectProfileResponseContract:
+    return await architect_profile_service.update_profile(profile=request, db=db)
+
+
+__all__ = [
+    "_architect_profile_service",
+    "_settings_models_service",
+    "get_architect_profile_service_dep",
+    "get_settings_models_service_dep",
+    "router",
+]

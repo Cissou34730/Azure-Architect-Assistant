@@ -430,7 +430,7 @@ async def test_execute_cost_stage_worker_node_skips_other_stages() -> None:
 async def test_execute_cost_stage_worker_node_runs_real_cost_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_cost_tool_arun(self, payload=None, **kwargs):  # noqa: ANN001, ARG001
+    async def fake_cost_tool_arun(self, payload=None, **kwargs):
         return (
             "Recorded cost estimate at 2026-04-08T12:00:00+00:00 (pricingLines=1).\n\n"
             "AAA_STATE_UPDATE\n"
@@ -579,7 +579,7 @@ async def test_iac_generator_node_surfaces_errors_without_main_agent_fallback(
         AsyncMock(return_value=SimpleNamespace(mcp_client=None, openai_settings=None)),
     )
 
-    async def fake_run_stage_aware_agent(*args, **kwargs):  # noqa: ANN002, ANN003, ARG001
+    async def fake_run_stage_aware_agent(*args, **kwargs):
         raise RuntimeError("LLM unavailable")
 
     monkeypatch.setattr(
