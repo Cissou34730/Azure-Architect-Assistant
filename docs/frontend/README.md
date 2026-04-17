@@ -16,11 +16,12 @@ Comprehensive human-facing frontend documentation.
 ## Current Frontend Status
 
 - Projects workspace shell, navigation, and static tab content are now driven by manifest and registry modules under `frontend/src/features/projects/`.
+- The unified project workspace now includes first-class notes, chat review, quality-gate, and trace tabs; the old standalone `AgentChatWorkspace` surface has been retired.
 - The former root `frontend/src/{hooks,services,types}` compatibility layer has been removed.
 - Feature modules now resolve agent, ingestion, knowledge, settings, proposal, and diagram imports directly from canonical `features/*` modules, with ESLint enforcing the boundary.
 
 ---
 
 **Status**: Active  
-**Last Updated**: 2026-04-02  
+**Last Updated**: 2026-04-17  
 **Owner**: Engineering

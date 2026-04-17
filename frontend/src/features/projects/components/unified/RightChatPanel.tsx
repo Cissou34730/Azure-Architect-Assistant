@@ -1,11 +1,21 @@
 import { ChevronRight, MessageCircle } from "lucide-react";
 import { CenterChatArea } from "./CenterChatArea";
+import { ChatReviewPanel } from "./ChatReviewPanel";
+import { useProjectChatContext } from "../../context/useProjectChatContext";
+import { useProjectStateContext } from "../../context/useProjectStateContext";
 
 interface RightChatPanelProps {
   readonly onToggle: () => void;
 }
 
 export function RightChatPanel({ onToggle }: RightChatPanelProps) {
+  const {
+    activeReview,
+    sendMessage,
+    refreshMessages,
+  } = useProjectChatContext();
+  const { projectState, refreshState } = useProjectStateContext();
+
   return (
     <div className="flex flex-col h-full bg-card">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
@@ -27,6 +37,18 @@ export function RightChatPanel({ onToggle }: RightChatPanelProps) {
           <ChevronRight className="h-5 w-5 text-secondary" />
         </button>
       </div>
+
+      {projectState !== null && activeReview !== null && (
+        <div className="max-h-[45%] overflow-auto">
+          <ChatReviewPanel
+            projectId={projectState.projectId}
+            activeReview={activeReview}
+            onSendMessage={sendMessage}
+            onRefreshMessages={refreshMessages}
+            onRefreshProjectState={refreshState}
+          />
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden">
         <CenterChatArea />

@@ -63,6 +63,22 @@ export interface CopilotActionResponse {
 
 export type CopilotStatusResponse = ProviderAuthInfo;
 
+export interface ArchitectProfile {
+  readonly defaultRegionPrimary: string;
+  readonly defaultRegionSecondary: string | null;
+  readonly defaultIacFlavor: "bicep" | "terraform";
+  readonly complianceBaseline: readonly string[];
+  readonly monthlyCostCeiling: number | null;
+  readonly preferredVmSeries: readonly string[];
+  readonly teamDevopsMaturity: "none" | "basic" | "advanced";
+  readonly notes: string;
+}
+
+export interface ArchitectProfileResponse {
+  readonly profile: ArchitectProfile;
+  readonly updatedAt: string | null;
+}
+
 function mapModel(model: {
   readonly id: string;
   readonly name: string;
@@ -180,6 +196,26 @@ export const settingsApi = {
       `${API_BASE}/settings/copilot/status`,
       {},
       "fetch Copilot status",
+    );
+  },
+
+  async fetchArchitectProfile(): Promise<ArchitectProfileResponse> {
+    return fetchWithErrorHandling<ArchitectProfileResponse>(
+      `${API_BASE}/settings/architect-profile`,
+      {},
+      "fetch architect profile",
+    );
+  },
+
+  async updateArchitectProfile(profile: ArchitectProfile): Promise<ArchitectProfileResponse> {
+    return fetchWithErrorHandling<ArchitectProfileResponse>(
+      `${API_BASE}/settings/architect-profile`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      },
+      "update architect profile",
     );
   },
 };

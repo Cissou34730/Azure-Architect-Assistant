@@ -13,6 +13,7 @@
 - App root: `frontend/src/App.tsx`
 - Routes: `frontend/src/app/routes.tsx`
 - Layout: `frontend/src/app/Layout.tsx`
+- Global settings controls: `frontend/src/features/settings/components/NavigationSettingsControls.tsx` (provider/model selectors, theme picker, architect profile modal launcher)
 
 ## Routes
 
@@ -33,7 +34,7 @@ Top-level route modules are registered in `frontend/src/app/workspaceRegistry.ts
   - `projectMetaContext` — project metadata (name, id).
   - `projectInputContext` — input/workflow state (text requirements, file uploads, analysis).
   - `projectStateContext` — project state (requirements, ADRs, diagrams, etc.).
-  - `projectChatContext` — chat messages and send actions.
+  - `projectChatContext` — chat messages, send actions, and the latest typed workflow-review surface (`activeReview`).
 - State + orchestration: `frontend/src/features/projects/hooks/useProjectDetails.ts`.
 
 ### Workspace components
@@ -42,8 +43,12 @@ Top-level route modules are registered in `frontend/src/app/workspaceRegistry.ts
 - `CenterWorkspaceTabs.tsx` — tab container + content rendering.
 - `TabStrip.tsx` — Tab strip UI with drag-reorder, pin, close.
 - `ChatPanel.tsx` — Chat sidebar (composed from `ChatListHeader`, `ChatListFooter`, `ChatInputForm`, `ChatMessagesList`).
+- `ChatReviewPanel.tsx` — focused review surface embedded in the right chat panel for stage rail visibility, a typed clarification-answer form, pending-change review, and lightweight tool/citation inspection.
 - `workspaceTabRegistry.tsx` — static tab-content registry keyed from the workspace manifest; `WorkspaceTabContent.tsx` only special-cases dynamic document tabs.
 - `WafChecklistView.tsx` — WAF checklist tab.
+- `ProjectNotesPanel.tsx` — unified workspace notes surface for adding, editing, and deleting durable per-project notes.
+- `QualityGateTab.tsx` — unified workspace quality report surface for WAF coverage, mindmap coverage, open clarifications, missing deliverables, and recent persisted trace activity.
+- `TraceTab.tsx` — unified workspace execution timeline surface over persisted backend workflow trace events.
 
 ## Knowledge base UI
 
@@ -70,6 +75,11 @@ Top-level route modules are registered in `frontend/src/app/workspaceRegistry.ts
   - `frontend/src/features/settings/api/*.ts`
 - Root service compatibility pointers have been removed; feature modules import their API clients directly from feature-local `api/` folders.
 - Project workspace state reads now resolve through `frontend/src/features/projects/api/stateService.ts` and `frontend/src/features/agent/api/agentService.ts`, both of which call the canonical `/api/projects/{projectId}/workspace` endpoint and consume its `projectState` payload.
+- `frontend/src/features/projects/api/chatService.ts` consumes the project-chat SSE stream and now understands canonical `stage`, `text`, `tool_call`, `tool_result`, `pending_change`, and `final` payloads while still tolerating the current legacy `token` / `tool_start` compatibility events; it also preserves the typed `workflowResult` payload emitted by the backend (`nextStep`, `toolCalls`, `citations`, `structuredPayload`) while keeping the existing `message` + `projectState` return contract.
+- `frontend/src/features/projects/api/pendingChangesService.ts` drives the chat-review affordance against the canonical `/api/projects/{projectId}/pending-changes` list/detail/approve/reject endpoints.
+- `frontend/src/features/projects/api/qualityGateService.ts` loads the unified workspace quality report from `/api/projects/{projectId}/quality-gate`, including the recent trace-activity summary sourced from persisted backend workflow events.
+- `frontend/src/features/projects/api/traceService.ts` loads the unified workspace trace timeline from `/api/projects/{projectId}/trace`.
+- Architect profile editing uses `frontend/src/features/settings/api/settingsService.ts` against `/api/settings/architect-profile`, and project notes CRUD uses `frontend/src/features/projects/api/projectNotesService.ts` against `/api/projects/{projectId}/notes`.
 
 The base URL is `BACKEND_URL` from `.env` (default http://localhost:8000).
 

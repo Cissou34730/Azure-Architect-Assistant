@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { Message } from "../../knowledge/types/api-kb";
+import type { ActiveChatReview } from "../types/chat-review";
 
 export interface UseChatMessagingProps {
   readonly projectId: string | null;
@@ -7,6 +8,7 @@ export interface UseChatMessagingProps {
   readonly setMessages: Dispatch<SetStateAction<readonly Message[]>>;
   readonly setLoading: (loading: boolean) => void;
   readonly setLoadingMessage: (msg: string) => void;
+  readonly setActiveReview: Dispatch<SetStateAction<ActiveChatReview | null>>;
 }
 
 export interface FailedMessage {

@@ -30,6 +30,30 @@ describe("projects workspace manifest", () => {
 
   it("drives default tabs and route intents from static tab definitions", () => {
     expect(projectsWorkspaceManifest.workspace.defaultTabId).toBe("input-overview");
+    expect(createProjectWorkspaceTab("project-notes")).toEqual({
+      id: "project-notes",
+      kind: "project-notes",
+      title: "Notes",
+      group: "input",
+      pinned: false,
+      dirty: false,
+    });
+    expect(createProjectWorkspaceTab("quality-gate")).toEqual({
+      id: "quality-gate",
+      kind: "quality-gate",
+      title: "Quality Gate",
+      group: "input",
+      pinned: false,
+      dirty: false,
+    });
+    expect(createProjectWorkspaceTab("trace")).toEqual({
+      id: "trace",
+      kind: "trace",
+      title: "Trace",
+      group: "input",
+      pinned: false,
+      dirty: false,
+    });
     expect(createProjectWorkspaceTab("artifact-adrs")).toEqual({
       id: "artifact-adrs",
       kind: "artifact-adrs",
@@ -42,6 +66,22 @@ describe("projects workspace manifest", () => {
       id: "input-overview",
       kind: "input-overview",
       title: "Inputs",
+      group: "input",
+      pinned: false,
+      dirty: false,
+    });
+    expect(resolveProjectWorkspaceTabIntent("quality")).toEqual({
+      id: "quality-gate",
+      kind: "quality-gate",
+      title: "Quality Gate",
+      group: "input",
+      pinned: false,
+      dirty: false,
+    });
+    expect(resolveProjectWorkspaceTabIntent("trace")).toEqual({
+      id: "trace",
+      kind: "trace",
+      title: "Trace",
       group: "input",
       pinned: false,
       dirty: false,

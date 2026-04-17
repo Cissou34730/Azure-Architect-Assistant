@@ -1,5 +1,8 @@
 export type WorkspaceTabKind =
   | "input-overview"
+  | "project-notes"
+  | "quality-gate"
+  | "trace"
   | "input-document"
   | "artifact-requirements"
   | "artifact-assumptions"
@@ -26,8 +29,8 @@ interface BaseWorkspaceTab {
   readonly dirty: boolean;
 }
 
-export interface InputOverviewTab extends BaseWorkspaceTab {
-  readonly kind: "input-overview";
+export interface InputStaticWorkspaceTab extends BaseWorkspaceTab {
+  readonly kind: "input-overview" | "project-notes" | "quality-gate" | "trace";
   readonly group: "input";
 }
 
@@ -57,4 +60,7 @@ export interface ArtifactWorkspaceTab extends BaseWorkspaceTab {
   readonly group: "artifact";
 }
 
-export type WorkspaceTab = InputOverviewTab | InputDocumentTab | ArtifactWorkspaceTab;
+export type WorkspaceTab =
+  | InputStaticWorkspaceTab
+  | InputDocumentTab
+  | ArtifactWorkspaceTab;

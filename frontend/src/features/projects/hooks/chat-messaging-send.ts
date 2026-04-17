@@ -19,6 +19,7 @@ export function useSendMessage({
   setLoading,
   setLoadingMessage,
   setFailedMessages,
+  setActiveReview,
   fetchMessages,
 }: UseSendMessageArgs) {
   return useCallback(
@@ -31,6 +32,7 @@ export function useSendMessage({
         setLoading,
         setLoadingMessage,
         setFailedMessages,
+        setActiveReview,
         fetchMessages,
       });
     },
@@ -41,6 +43,7 @@ export function useSendMessage({
       setLoadingMessage,
       setMessages,
       setFailedMessages,
+      setActiveReview,
     ],
   );
 }

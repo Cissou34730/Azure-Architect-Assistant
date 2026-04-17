@@ -2,6 +2,7 @@ import { createContext } from "react";
 import type { Message, SendMessageResponse } from "../../knowledge/types/api-kb";
 import type { ProjectState } from "../types/api-project";
 import type { FailedMessage } from "../hooks/useChatMessaging";
+import type { ActiveChatReview } from "../types/chat-review";
 
 interface ProjectChatContextType {
   readonly messages: readonly Message[];
@@ -15,6 +16,7 @@ interface ProjectChatContextType {
   readonly fetchOlderMessages: (beforeId: string) => Promise<readonly Message[]>;
   readonly failedMessages: readonly FailedMessage[];
   readonly retrySendMessage: (failedId: string) => Promise<void>;
+  readonly activeReview: ActiveChatReview | null;
 }
 
 export const projectChatContext = createContext<ProjectChatContextType | null>(

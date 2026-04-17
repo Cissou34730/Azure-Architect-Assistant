@@ -13,6 +13,9 @@ import {
 interface InputsSectionProps {
   readonly documents: readonly ReferenceDocument[];
   readonly textRequirements: string;
+  readonly notesCount: number;
+  readonly qualityCount: number;
+  readonly traceCount: number;
   readonly uploadState: "idle" | "running" | "success" | "error";
   readonly analysisState: "idle" | "running" | "success" | "error";
   readonly workflowMessage: string;
@@ -24,6 +27,9 @@ interface InputsSectionProps {
 export function InputsSection({
   documents,
   textRequirements,
+  notesCount,
+  qualityCount,
+  traceCount,
   uploadState,
   analysisState,
   workflowMessage,
@@ -40,7 +46,17 @@ export function InputsSection({
           key={treeEntry.id}
           icon={treeEntry.icon}
           label={treeEntry.label}
-          badge={treeEntry.badgeKey === "inputs" ? inputsCount : (textRequirements.trim() !== "" ? 1 : 0)}
+          badge={
+            treeEntry.badgeKey === "inputs"
+              ? inputsCount
+              : treeEntry.badgeKey === "clarifications"
+              ? (textRequirements.trim() !== "" ? 1 : 0)
+              : treeEntry.badgeKey === "quality"
+              ? qualityCount
+              : treeEntry.badgeKey === "trace"
+              ? traceCount
+              : notesCount
+          }
           color={treeEntry.color}
           onClick={() => {
             onOpenTab(createProjectWorkspaceTab(treeEntry.tabId));

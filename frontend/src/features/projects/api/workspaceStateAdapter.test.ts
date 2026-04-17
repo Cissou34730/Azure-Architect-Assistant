@@ -70,7 +70,7 @@ describe("workspaceToProjectState", () => {
           analyzedDocuments: 1,
           skippedDocuments: 0,
         },
-        wafChecklist: { items: [] },
+        wafChecklist: { items: [], pillars: [] },
       },
       agent: { messageCount: 3, threadCount: 1, lastMessageAt: "2026-04-01T11:00:00Z" },
       checklists: [],

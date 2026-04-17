@@ -16,6 +16,7 @@ export function useChatMessaging({
   setMessages,
   setLoading,
   setLoadingMessage,
+  setActiveReview,
 }: UseChatMessagingProps) {
   const [failedMessages, setFailedMessages] = useState<
     readonly FailedMessage[]
@@ -35,6 +36,7 @@ export function useChatMessaging({
     setLoading,
     setLoadingMessage,
     setFailedMessages,
+    setActiveReview,
     fetchMessages,
   });
   const retrySendMessage = useRetrySendMessage({

@@ -16,7 +16,12 @@ export interface ProjectWorkspaceShellSection {
   readonly className?: string;
 }
 
-export type ProjectWorkspaceStaticTabId = "input-overview" | ArtifactTab;
+export type ProjectWorkspaceStaticTabId =
+  | "input-overview"
+  | "project-notes"
+  | "quality-gate"
+  | "trace"
+  | ArtifactTab;
 
 export type ProjectWorkspaceArtifactBadgeKey =
   | "requirements"
@@ -41,13 +46,13 @@ export interface ProjectWorkspaceTreeEntry {
 
 export interface ProjectWorkspaceInputTreeEntry extends ProjectWorkspaceTreeEntry {
   readonly id: string;
-  readonly tabId: "input-overview";
-  readonly badgeKey: "inputs" | "clarifications";
+  readonly tabId: "input-overview" | "project-notes" | "quality-gate" | "trace";
+  readonly badgeKey: "inputs" | "clarifications" | "notes" | "quality" | "trace";
 }
 
 export interface ProjectWorkspaceInputTabDefinition {
-  readonly id: "input-overview";
-  readonly kind: "input-overview";
+  readonly id: "input-overview" | "project-notes" | "quality-gate" | "trace";
+  readonly kind: "input-overview" | "project-notes" | "quality-gate" | "trace";
   readonly title: string;
   readonly group: "input";
   readonly intents: readonly string[];

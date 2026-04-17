@@ -7,6 +7,7 @@ import { projectMetaContext } from "./ProjectMetaContext";
 import { ErrorBoundary } from "../../../shared/ui/ErrorBoundary";
 import { useRenderCount } from "../../../shared/hooks/useRenderCount";
 
+// eslint-disable-next-line max-lines-per-function -- Provider composition keeps the workspace contexts memoized in one place.
 export function ProjectProvider({
   value,
   children,
@@ -15,13 +16,11 @@ export function ProjectProvider({
   readonly children: React.ReactNode;
 }) {
   useRenderCount("ProjectProvider");
-
   useEffect(() => {
     if (import.meta.env.DEV) {
       console.log("[Context] ProjectState value changed");
     }
   }, [value.projectState]);
-
   useEffect(() => {
     if (import.meta.env.DEV) {
       console.log("[Context] ProjectChat (messages) value changed");
@@ -54,6 +53,7 @@ export function ProjectProvider({
     fetchOlderMessages: value.fetchOlderMessages,
     failedMessages: value.failedMessages,
     retrySendMessage: value.retrySendMessage,
+    activeReview: value.activeReview,
   }), [
     value.messages,
     value.sendMessage,
@@ -63,6 +63,7 @@ export function ProjectProvider({
     value.fetchOlderMessages,
     value.failedMessages,
     value.retrySendMessage,
+    value.activeReview,
   ]);
 
   const inputValue = useMemo(() => ({

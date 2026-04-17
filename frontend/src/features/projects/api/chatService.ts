@@ -1,5 +1,9 @@
 /* eslint-disable max-lines -- SSE stream handler; each function is minimal but the full protocol implementation requires these lines */
-import type { Message, SendMessageResponse } from "../../knowledge/types/api-kb";
+import type {
+  Message,
+  SendMessageResponse,
+  WorkflowStageResult,
+} from "../../knowledge/types/api-kb";
 import { API_BASE } from "../../../shared/config/api";
 import { fetchWithErrorHandling } from "../../../shared/http/fetchWithErrorHandling";
 
@@ -12,16 +16,33 @@ interface ReasoningStep {
 interface StreamEventMap {
   readonly message_start: { readonly role: "assistant" };
   readonly token: { readonly text: string };
+  readonly text: { readonly delta: string };
+  readonly stage: {
+    readonly stage: string;
+    readonly confidence: number;
+  };
   readonly tool_start: {
     readonly tool: string;
     // eslint-disable-next-line @typescript-eslint/no-restricted-types -- tool_input is genuinely unknown at the API boundary
     readonly tool_input: unknown;
   };
+  readonly tool_call: {
+    readonly tool: string;
+    readonly argsPreview: string;
+  };
   readonly tool_result: {
     readonly tool: string;
     readonly tool_call_id?: string;
-    readonly content: string;
+    readonly toolCallId?: string;
+    readonly content?: string;
     readonly status?: string;
+    readonly resultPreview?: string;
+    readonly citations?: readonly string[];
+  };
+  readonly pending_change: {
+    readonly changeSetId: string;
+    readonly summary: string;
+    readonly patchCount: number;
   };
   readonly final: {
     readonly answer: string;
@@ -30,6 +51,7 @@ interface StreamEventMap {
     readonly reasoning_steps: readonly ReasoningStep[];
     readonly error?: string;
     readonly thread_id?: string;
+    readonly workflow_result?: WorkflowStageResult;
   };
   readonly error: { readonly error: string };
 }
@@ -39,8 +61,12 @@ type StreamEventName = keyof StreamEventMap;
 interface StreamCallbacks {
   readonly onMessageStart?: (payload: StreamEventMap["message_start"]) => void;
   readonly onToken?: (payload: StreamEventMap["token"]) => void;
+  readonly onText?: (payload: StreamEventMap["text"]) => void;
+  readonly onStage?: (payload: StreamEventMap["stage"]) => void;
   readonly onToolStart?: (payload: StreamEventMap["tool_start"]) => void;
+  readonly onToolCall?: (payload: StreamEventMap["tool_call"]) => void;
   readonly onToolResult?: (payload: StreamEventMap["tool_result"]) => void;
+  readonly onPendingChange?: (payload: StreamEventMap["pending_change"]) => void;
   readonly onFinal?: (payload: StreamEventMap["final"]) => void;
   readonly onError?: (payload: StreamEventMap["error"]) => void;
 }
@@ -79,14 +105,34 @@ const EVENT_DISPATCH: Readonly<Record<StreamEventName, EventHandlerFn>> = {
     cb.onToken?.(parsed as StreamEventMap["token"]);
     return null;
   },
+  text(parsed, cb) {
+    // eslint-disable-next-line no-restricted-syntax, @typescript-eslint/no-unsafe-type-assertion -- API boundary
+    cb.onText?.(parsed as StreamEventMap["text"]);
+    return null;
+  },
+  stage(parsed, cb) {
+    // eslint-disable-next-line no-restricted-syntax, @typescript-eslint/no-unsafe-type-assertion -- API boundary
+    cb.onStage?.(parsed as StreamEventMap["stage"]);
+    return null;
+  },
   tool_start(parsed, cb) {
     // eslint-disable-next-line no-restricted-syntax, @typescript-eslint/no-unsafe-type-assertion -- API boundary
     cb.onToolStart?.(parsed as StreamEventMap["tool_start"]);
     return null;
   },
+  tool_call(parsed, cb) {
+    // eslint-disable-next-line no-restricted-syntax, @typescript-eslint/no-unsafe-type-assertion -- API boundary
+    cb.onToolCall?.(parsed as StreamEventMap["tool_call"]);
+    return null;
+  },
   tool_result(parsed, cb) {
     // eslint-disable-next-line no-restricted-syntax, @typescript-eslint/no-unsafe-type-assertion -- API boundary
     cb.onToolResult?.(parsed as StreamEventMap["tool_result"]);
+    return null;
+  },
+  pending_change(parsed, cb) {
+    // eslint-disable-next-line no-restricted-syntax, @typescript-eslint/no-unsafe-type-assertion -- API boundary
+    cb.onPendingChange?.(parsed as StreamEventMap["pending_change"]);
     return null;
   },
   error(parsed, cb) {
@@ -232,7 +278,11 @@ async function streamProjectChat(
   if (finalPayload.project_state === undefined) {
     throw new Error("Agent chat succeeded but returned no project state");
   }
-  return { message: finalPayload.answer, projectState: finalPayload.project_state };
+  return {
+    message: finalPayload.answer,
+    projectState: finalPayload.project_state,
+    workflowResult: finalPayload.workflow_result,
+  };
 }
 
 export const chatApi = {

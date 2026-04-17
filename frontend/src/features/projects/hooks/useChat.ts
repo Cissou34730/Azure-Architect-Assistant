@@ -6,12 +6,14 @@ import { useState, useEffect } from "react";
 import type { Message } from "../../knowledge/types/api-kb";
 import { useChatMessaging } from "./useChatMessaging";
 import { archiveOldMessages } from "../utils/messageArchive";
+import type { ActiveChatReview } from "../types/chat-review";
 
 export const useChat = (projectId: string | null) => {
   const [messages, setMessages] = useState<readonly Message[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
+  const [activeReview, setActiveReview] = useState<ActiveChatReview | null>(null);
 
   const {
     fetchMessages,
@@ -25,6 +27,7 @@ export const useChat = (projectId: string | null) => {
     setMessages,
     setLoading,
     setLoadingMessage,
+    setActiveReview,
   });
 
   useEffect(() => {
@@ -47,6 +50,7 @@ export const useChat = (projectId: string | null) => {
     setChatInput,
     loading,
     loadingMessage,
+    activeReview,
     sendMessage,
     refreshMessages: fetchMessages,
     fetchOlderMessages,

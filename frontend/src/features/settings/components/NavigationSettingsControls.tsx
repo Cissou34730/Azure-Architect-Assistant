@@ -1,6 +1,7 @@
-import { useCallback, type ChangeEvent } from "react";
+import { useCallback, useState, type ChangeEvent } from "react";
 import { useModelSelector } from "../hooks/useModelSelector";
 import { useTheme, type ThemePreference } from "../../../shared/hooks/useTheme";
+import { ArchitectProfileForm } from "./ArchitectProfileForm";
 import type {
   LLMProviderInfo,
   ModelInfo,
@@ -87,6 +88,7 @@ async function handleCopilotAuthAction(
 }
 
 export function NavigationSettingsControls() {
+  const [isArchitectProfileOpen, setIsArchitectProfileOpen] = useState(false);
   const { preference, setPreference } = useTheme();
   const {
     providers,
@@ -164,7 +166,23 @@ export function NavigationSettingsControls() {
           onClick={handleCopilotAuth}
         />
       )}
+      <button
+        type="button"
+        onClick={() => {
+          setIsArchitectProfileOpen(true);
+        }}
+        className="rounded-md border border-border-stronger bg-card px-2 py-1 text-xs text-secondary focus:outline-none focus:ring-2 focus:ring-brand"
+      >
+        Profile
+      </button>
       <ThemeSelector preference={preference} onThemeChange={handleThemeChange} />
+      {isArchitectProfileOpen && (
+        <ArchitectProfileForm
+          onClose={() => {
+            setIsArchitectProfileOpen(false);
+          }}
+        />
+      )}
     </>
   );
 }

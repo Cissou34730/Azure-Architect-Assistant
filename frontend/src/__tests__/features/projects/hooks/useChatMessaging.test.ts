@@ -25,6 +25,7 @@ describe("useChatMessaging", () => {
   const setMessages = vi.fn() as unknown as Dispatch<SetStateAction<readonly Message[]>>;
   const setLoading = vi.fn();
   const setLoadingMessage = vi.fn();
+  const setActiveReview = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -38,6 +39,7 @@ describe("useChatMessaging", () => {
         setMessages,
         setLoading,
         setLoadingMessage,
+        setActiveReview,
       }),
     );
 
@@ -55,6 +57,7 @@ describe("useChatMessaging", () => {
         setMessages,
         setLoading,
         setLoadingMessage,
+        setActiveReview,
       }),
     );
 

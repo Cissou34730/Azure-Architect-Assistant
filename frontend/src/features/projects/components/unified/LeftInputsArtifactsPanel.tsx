@@ -2,8 +2,10 @@ import { memo, useEffect, useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { featureFlags } from "../../../../shared/config/featureFlags";
 import { checklistApi } from "../../api/checklistService";
+import { projectNotesApi } from "../../api/projectNotesService";
 import { useProjectInputContext } from "../../context/useProjectInputContext";
 import { useProjectStateContext } from "../../context/useProjectStateContext";
+import type { ProjectState } from "../../types/api-project";
 import type { WorkspaceTab } from "./workspace/types";
 import { InputsSection, ArtifactsSection } from "./LeftInputsArtifactsPanel/Sections";
 import type { ArtifactCounts } from "./LeftInputsArtifactsPanel/artifactCounts";
@@ -11,6 +13,35 @@ import type { ArtifactCounts } from "./LeftInputsArtifactsPanel/artifactCounts";
 interface LeftInputsArtifactsPanelProps {
   readonly onToggle: () => void;
   readonly onOpenTab: (tab: WorkspaceTab) => void;
+}
+
+const PROJECT_NOTES_UPDATED_EVENT = "project-notes-updated";
+
+function getQualityGateCount(projectState: ProjectState | null, wafCount: number): number {
+  if (projectState === null) {
+    return 0;
+  }
+
+  const openClarifications = projectState.clarificationQuestions.filter(
+    (question) => (question.status ?? "open").toLowerCase() !== "answered",
+  ).length;
+  const missingArtifacts = [
+    projectState.candidateArchitectures.length === 0,
+    projectState.diagrams.length === 0,
+    projectState.adrs.length === 0,
+    projectState.costEstimates.length === 0,
+    projectState.iacArtifacts.length === 0,
+    wafCount === 0,
+  ].filter(Boolean).length;
+
+  return openClarifications + missingArtifacts;
+}
+
+function getTraceCount(projectState: ProjectState | null): number {
+  if (projectState === null) {
+    return 0;
+  }
+  return projectState.iterationEvents.length;
 }
 
 function useWafArtifactCount(projectId: string | undefined, lastUpdated: string | undefined): number {
@@ -49,6 +80,50 @@ function useWafArtifactCount(projectId: string | undefined, lastUpdated: string 
   return wafCount;
 }
 
+function useProjectNotesCount(projectId: string | undefined): number {
+  const [notesCount, setNotesCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadNotesCount = async () => {
+      if (projectId === undefined || projectId === "") {
+        if (active) {
+          setNotesCount(0);
+        }
+        return;
+      }
+
+      try {
+        const response = await projectNotesApi.list(projectId);
+        if (active) {
+          setNotesCount(response.notes.length);
+        }
+      } catch {
+        if (active) {
+          setNotesCount(0);
+        }
+      }
+    };
+
+    const handleRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId?: string }>).detail;
+      if (detail?.projectId === projectId) {
+        void loadNotesCount();
+      }
+    };
+
+    void loadNotesCount();
+    window.addEventListener(PROJECT_NOTES_UPDATED_EVENT, handleRefresh);
+    return () => {
+      active = false;
+      window.removeEventListener(PROJECT_NOTES_UPDATED_EVENT, handleRefresh);
+    };
+  }, [projectId]);
+
+  return notesCount;
+}
+
 function LeftInputsArtifactsPanelBase({
   onToggle,
   onOpenTab,
@@ -56,6 +131,12 @@ function LeftInputsArtifactsPanelBase({
   const { projectState } = useProjectStateContext();
   const { textRequirements, inputWorkflow } = useProjectInputContext();
   const wafCount = useWafArtifactCount(projectState?.projectId, projectState?.lastUpdated);
+  const notesCount = useProjectNotesCount(projectState?.projectId);
+  const qualityCount = useMemo(
+    () => getQualityGateCount(projectState, wafCount),
+    [projectState, wafCount],
+  );
+  const traceCount = useMemo(() => getTraceCount(projectState), [projectState]);
 
   const documents = useMemo(
     () => projectState?.referenceDocuments ?? [],
@@ -140,6 +221,9 @@ function LeftInputsArtifactsPanelBase({
         <InputsSection
           documents={documents}
           textRequirements={textRequirements}
+          notesCount={notesCount}
+          qualityCount={qualityCount}
+          traceCount={traceCount}
           uploadState={uploadState}
           analysisState={analysisState}
           workflowMessage={inputWorkflow.message}

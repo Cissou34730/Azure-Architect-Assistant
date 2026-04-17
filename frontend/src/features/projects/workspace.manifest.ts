@@ -96,7 +96,7 @@ export function createProjectWorkspaceTab(
 
   return {
     id: tabDefinition.id,
-    kind: "input-overview",
+    kind: tabDefinition.kind,
     title: tabDefinition.title,
     group: "input",
     pinned: false,
