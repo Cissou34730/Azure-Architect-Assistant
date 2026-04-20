@@ -54,6 +54,100 @@ class TestArtifactEditDetection:
         classification = result["stage_classification"]
         assert classification["confidence"] >= 0.92
 
+    # --- Creation/generation verbs (NEW: addresses verb coverage gap) ---
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "can you also state some clarification questions",
+            "states some clarification questions",
+            "add requirements based on the input documents",
+            "create assumptions from the uploaded files",
+            "generate clarification questions for this project",
+            "suggest some requirements",
+            "propose assumptions based on the design",
+            "extract requirements from the uploaded documents",
+            "come up with clarification questions",
+        ],
+    )
+    def test_creation_verbs_trigger_artifact_edit(self, message: str) -> None:
+        from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
+
+        state = {
+            "user_message": message,
+            "current_project_state": {},
+            "agent_output": "",
+        }
+        result = classify_next_stage(state)
+        assert result["artifact_edit_detected"] is True, (
+            f"Expected artifact_edit_detected=True for: {message!r}"
+        )
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "what services do you suggest?",
+            "can you create a quick overview?",
+            "propose an approach",
+            "generate a summary of the project",
+        ],
+    )
+    def test_creation_verbs_without_artifact_target_no_trigger(self, message: str) -> None:
+        from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
+
+        state = {
+            "user_message": message,
+            "current_project_state": {},
+            "agent_output": "",
+        }
+        result = classify_next_stage(state)
+        assert result.get("artifact_edit_detected", False) is False, (
+            f"Should NOT trigger artifact_edit for: {message!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Issue: anti-inline guardrail in directives
+# ---------------------------------------------------------------------------
+
+
+class TestAntiInlineGuardrail:
+    """Verify system directives include anti-inline guardrail when artifact_edit detected."""
+
+    def test_anti_inline_directive_present_when_artifact_edit(self) -> None:
+        from app.agents_system.langgraph.nodes.agent_native import _build_system_directives
+
+        state = {
+            "next_stage": "general",
+            "user_message": "generate requirements",
+            "artifact_edit_detected": True,
+            "stage_classification": {
+                "stage": "general",
+                "confidence": 0.95,
+                "source": "intent_rules",
+                "rationale": "artifact edit",
+            },
+        }
+        directives = _build_system_directives(state)
+        directives_lower = directives.lower()
+        assert "never" in directives_lower and "inline" in directives_lower, (
+            "Should contain anti-inline directive forbidding inline diagrams/code"
+        )
+
+    def test_anti_inline_directive_mentions_diagrams_and_questions(self) -> None:
+        from app.agents_system.langgraph.nodes.agent_native import _build_system_directives
+
+        state = {
+            "next_stage": "general",
+            "user_message": "add clarification questions",
+            "artifact_edit_detected": True,
+        }
+        directives = _build_system_directives(state)
+        directives_lower = directives.lower()
+        # Should mention both diagrams and clarification questions
+        assert "diagram" in directives_lower
+        assert "clarification" in directives_lower or "question" in directives_lower
+
 
 # ---------------------------------------------------------------------------
 # Issue 1: _build_system_directives — mandatory artifact update directive

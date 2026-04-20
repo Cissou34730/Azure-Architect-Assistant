@@ -44,6 +44,19 @@ _ARTIFACT_EDIT_VERBS = (
     "refresh",
 )
 
+_ARTIFACT_CREATE_VERBS = (
+    "add",
+    "create",
+    "generate",
+    "state",
+    "suggest",
+    "propose",
+    "extract",
+    "come up with",
+)
+
+_ARTIFACT_ACTION_VERBS = _ARTIFACT_EDIT_VERBS + _ARTIFACT_CREATE_VERBS
+
 _ARTIFACT_EDIT_TARGETS = (
     "artifact",
     "artifacts",
@@ -304,7 +317,7 @@ def _contains_iac_generation_intent(user_message: str) -> bool:
 
 
 def _has_explicit_artifact_edit_intent(user_message: str) -> bool:
-    return any(verb in user_message for verb in _ARTIFACT_EDIT_VERBS) and any(
+    return any(verb in user_message for verb in _ARTIFACT_ACTION_VERBS) and any(
         target in user_message for target in _ARTIFACT_EDIT_TARGETS
     )
 

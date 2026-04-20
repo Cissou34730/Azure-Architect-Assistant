@@ -181,7 +181,7 @@ def _build_system_directives(state: GraphState) -> str:
     if artifact_edit:
         directives.append(
             "### Artifact persistence override\n"
-            "The user has explicitly asked to update project artifacts. "
+            "The user has explicitly asked to create or update project artifacts. "
             "You MUST persist changes using the appropriate AAA tool:\n"
             "- Requirements, assumptions, clarification questions → `aaa_manage_artifacts`\n"
             "- Candidate architectures → `aaa_generate_candidate_architecture`\n"
@@ -195,7 +195,17 @@ def _build_system_directives(state: GraphState) -> str:
             "Use `project_document_search` to gather evidence from uploaded documents, "
             "then call the appropriate AAA tool to persist each artifact. "
             "Do NOT require MCP searches before persisting when the user's "
-            "instruction and document content provide sufficient context."
+            "instruction and document content provide sufficient context.\n\n"
+            "### Output discipline — NEVER inline structured content\n"
+            "- NEVER include raw Mermaid, PlantUML, or diagram code in your response text — "
+            "always persist diagrams via `aaa_create_diagram_set`.\n"
+            "- NEVER list requirements, assumptions, or clarification questions as plain text "
+            "in your response — always persist them via `aaa_manage_artifacts`.\n"
+            "- NEVER include architecture proposals, trade-offs, or NFR analysis as inline text "
+            "— persist them via `aaa_generate_candidate_architecture`.\n"
+            "- Your chat response should be a concise summary of what you persisted "
+            "(e.g. 'I added 12 requirements and 8 clarification questions from the uploaded document'), "
+            "NOT a copy of the artifact content."
         )
 
     stage_text = state.get("stage_directives")
