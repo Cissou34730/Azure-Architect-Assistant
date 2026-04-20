@@ -77,7 +77,7 @@ def derive_mcp_query_updates_from_steps(
     mcp_queries: list[dict[str, Any]] = []
 
     for action, observation in intermediate_steps or []:
-        tool_name = getattr(action, "tool", None)
+        tool_name = action.get("tool") if isinstance(action, dict) else getattr(action, "tool", None)
         if tool_name not in {
             "microsoft_docs_search",
             "microsoft_docs_fetch",
@@ -117,7 +117,7 @@ def _process_single_tool_step(
 
 def _extract_query_text(action: Any, tool_name: str) -> str:
     """Extract raw query text from tool action input."""
-    tool_input = getattr(action, "tool_input", None)
+    tool_input = action.get("tool_input") if isinstance(action, dict) else getattr(action, "tool_input", None)
     if isinstance(tool_input, dict):
         text = tool_input.get("query") or tool_input.get("url")
     elif isinstance(tool_input, str):

@@ -104,7 +104,13 @@ class KBQueryService:
         sources: list[dict] = []
         scores: list[float] = []
         for i, node in enumerate(filtered, 1):
-            context_parts.append(f"[Source {i} - {self.kb_name}]\n{node.text}\n")
+            # Use get_content() which handles all node types, not .text
+            # which raises for non-TextNode instances.
+            try:
+                text = node.get_content()
+            except Exception:
+                text = getattr(node, "text", str(node))
+            context_parts.append(f"[Source {i} - {self.kb_name}]\n{text}\n")
             sources.append(
                 {
                     "url": node.metadata.get("url", ""),

@@ -623,15 +623,10 @@ def _parse_agent_results(result_state: dict[str, Any]) -> dict[str, Any]:
                 agent_output = msg.content
             if hasattr(msg, "tool_calls") and msg.tool_calls:
                 for tool_call in msg.tool_calls:
-                    # Capture tool call details in a format compatible with AgentFacade
-                    action = type(
-                        "Action",
-                        (),
-                        {
-                            "tool": tool_call.get("name", ""),
-                            "tool_input": tool_call.get("args", {}),
-                        },
-                    )()
+                    action = {
+                        "tool": tool_call.get("name", ""),
+                        "tool_input": tool_call.get("args", {}),
+                    }
                     intermediate_steps.append((action, ""))
         elif isinstance(msg, ToolMessage):
             if intermediate_steps:

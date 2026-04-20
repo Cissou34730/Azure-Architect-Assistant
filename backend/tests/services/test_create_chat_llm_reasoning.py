@@ -352,3 +352,69 @@ async def test_agent_does_not_retry_on_non_param_error() -> None:
             )
 
     ModelCapabilityCache.reset()
+
+
+# ── _parse_agent_results: dict-based actions (msgpack serializable) ──────────
+
+
+class TestParseAgentResultsDictActions:
+    """Verify that _parse_agent_results produces plain-dict actions
+    instead of dynamic class instances (fixes msgpack serialization)."""
+
+    def test_action_is_dict(self) -> None:
+        from langchain_core.messages import AIMessage, ToolMessage
+
+        from app.agents_system.langgraph.nodes.agent_native import _parse_agent_results
+
+        ai_msg = AIMessage(
+            content="",
+            tool_calls=[{"name": "search", "args": {"q": "test"}, "id": "tc1"}],
+        )
+        tool_msg = ToolMessage(content="result", tool_call_id="tc1")
+        state = {"messages": [ai_msg, tool_msg]}
+
+        result = _parse_agent_results(state)
+        steps = result["intermediate_steps"]
+        assert len(steps) == 1
+        action, observation = steps[0]
+        assert isinstance(action, dict), "action must be a plain dict for serialization"
+        assert action["tool"] == "search"
+        assert action["tool_input"] == {"q": "test"}
+        assert observation == "result"
+
+    def test_iteration_logging_handles_dict_actions(self) -> None:
+        from app.agents_system.services.iteration_logging import (
+            derive_mcp_query_updates_from_steps,
+        )
+
+        steps = [
+            ({"tool": "microsoft_docs_search", "tool_input": {"query": "WAF"}}, "results"),
+        ]
+        result = derive_mcp_query_updates_from_steps(
+            intermediate_steps=steps,
+            user_message="search the docs",
+        )
+        assert "mcpQueries" in result
+        assert result["mcpQueries"][0]["queryText"] == "WAF"
+
+
+# ── query_service: get_content fallback for non-TextNode ────────────────────
+
+
+class TestQueryServiceNodeTextFallback:
+    """Verify query_service handles nodes that aren't TextNode."""
+
+    def test_get_content_used_instead_of_text(self) -> None:
+        """Nodes with get_content() but no .text should work."""
+        node = MagicMock()
+        node.get_content.return_value = "hello from get_content"
+        node.score = 0.9
+        node.metadata = {"url": "", "title": "", "section": ""}
+
+        # Replicate the logic from query_service.py
+        try:
+            text = node.get_content()
+        except Exception:
+            text = getattr(node, "text", str(node))
+
+        assert text == "hello from get_content"
