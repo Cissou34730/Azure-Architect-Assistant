@@ -51,7 +51,7 @@ class AgentsSettingsMixin(BaseModel):
         description="Token threshold to trigger conversation compaction",
     )
     aaa_context_max_budget_tokens: int = Field(
-        default=12000,
+        default=24000,
         ge=1000,
         le=128000,
         description="Total token budget for context pack assembly",

@@ -67,7 +67,7 @@ class LLMTuningSettingsMixin(BaseModel):
 
     # ── Agent iteration budget ───────────────────────────────────────────────
     chat_max_agent_iterations: int = Field(
-        default=15, ge=5, le=50,
+        default=30, ge=5, le=100,
         description="Maximum tool-call iterations per agent turn before forcing a final answer",
     )
 

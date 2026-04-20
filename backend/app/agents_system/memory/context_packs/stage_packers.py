@@ -257,7 +257,7 @@ def _build_document_summaries_section(state: dict[str, Any]) -> ContextSection:
     """Include uploaded document titles and summaries in the context pack."""
     docs = state.get("referenceDocuments", [])
     if not docs:
-        return ContextSection(name="document_summaries", content="", priority=4)
+        return ContextSection(name="document_summaries", content="", priority=2)
     lines = ["UPLOADED DOCUMENTS:"]
     for doc in docs:
         if not isinstance(doc, dict):
@@ -266,6 +266,6 @@ def _build_document_summaries_section(state: dict[str, Any]) -> ContextSection:
         summary = doc.get("summary") or doc.get("analysisSummary") or ""
         line = f"  - {title}"
         if summary:
-            line += f": {str(summary)[:200]}"
+            line += f": {str(summary)[:500]}"
         lines.append(line)
-    return ContextSection(name="document_summaries", content="\n".join(lines), priority=4)
+    return ContextSection(name="document_summaries", content="\n".join(lines), priority=2)

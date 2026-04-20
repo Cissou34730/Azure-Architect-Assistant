@@ -34,9 +34,10 @@ class TestArtifactEditDetection:
 
     @pytest.mark.asyncio
     async def test_no_artifact_edit_intent_omits_flag(self) -> None:
-        from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
-        from app.agents_system.langgraph.nodes.intent_classifier import ArtifactIntentResult
         from unittest.mock import AsyncMock, patch
+
+        from app.agents_system.langgraph.nodes.intent_classifier import ArtifactIntentResult
+        from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
 
         # Mock LLM to return no intent (since keyword won't match)
         llm_result = ArtifactIntentResult(intent=False, types=[])
@@ -107,9 +108,10 @@ class TestArtifactEditDetection:
     )
     @pytest.mark.asyncio
     async def test_creation_verbs_without_artifact_target_no_trigger(self, message: str) -> None:
-        from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
-        from app.agents_system.langgraph.nodes.intent_classifier import ArtifactIntentResult
         from unittest.mock import AsyncMock, patch
+
+        from app.agents_system.langgraph.nodes.intent_classifier import ArtifactIntentResult
+        from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
 
         # Mock LLM to return no intent (these have no artifact target)
         llm_result = ArtifactIntentResult(intent=False, types=[])
@@ -239,11 +241,11 @@ class TestArtifactUpdateDirectiveInjection:
 class TestMaxAgentIterationsConfigurable:
     """Verify MAX_AGENT_ITERATIONS reads from settings."""
 
-    def test_default_max_iterations_is_15(self) -> None:
+    def test_default_max_iterations_is_30(self) -> None:
         from app.shared.config.settings.llm_tuning import LLMTuningSettingsMixin
 
         settings = LLMTuningSettingsMixin()
-        assert settings.chat_max_agent_iterations == 15
+        assert settings.chat_max_agent_iterations == 30
 
     def test_get_max_agent_iterations_returns_setting(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.agents_system.langgraph import state as state_module

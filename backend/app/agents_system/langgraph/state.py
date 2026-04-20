@@ -82,7 +82,7 @@ class GraphState(TypedDict, total=False):
 
 
 # Graph configuration constants
-MAX_AGENT_ITERATIONS = 15  # Legacy constant — prefer get_max_agent_iterations()
+MAX_AGENT_ITERATIONS = 30  # Legacy constant — prefer get_max_agent_iterations()
 MAX_EXECUTION_TIME_SECONDS = 60
 
 
