@@ -64,3 +64,9 @@ class LLMTuningSettingsMixin(BaseModel):
         default=0.1,
         description="Temperature for the stage-aware chat agent LLM calls",
     )
+
+    # ── Agent iteration budget ───────────────────────────────────────────────
+    chat_max_agent_iterations: int = Field(
+        default=15, ge=5, le=50,
+        description="Maximum tool-call iterations per agent turn before forcing a final answer",
+    )

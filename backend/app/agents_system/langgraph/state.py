@@ -6,6 +6,8 @@ Defines the typed state that carries data through the project chat graph.
 
 from typing import Any, TypedDict
 
+from app.shared.config.app_settings import get_app_settings
+
 
 class GraphState(TypedDict, total=False):
     """
@@ -66,6 +68,7 @@ class GraphState(TypedDict, total=False):
     # Phase 5 fields (stage routing and retry)
     next_stage: str | None
     stage_classification: dict[str, Any] | None
+    artifact_edit_detected: bool
     retry_count: int
 
     # Phase 2 fields (multi-agent handoff)
@@ -77,5 +80,13 @@ class GraphState(TypedDict, total=False):
 
 
 # Graph configuration constants
-MAX_AGENT_ITERATIONS = 10
+MAX_AGENT_ITERATIONS = 15  # Legacy constant — prefer get_max_agent_iterations()
 MAX_EXECUTION_TIME_SECONDS = 60
+
+
+def get_max_agent_iterations() -> int:
+    """Read chat_max_agent_iterations from AppSettings (default 15)."""
+    try:
+        return int(get_app_settings().chat_max_agent_iterations)
+    except Exception:
+        return MAX_AGENT_ITERATIONS

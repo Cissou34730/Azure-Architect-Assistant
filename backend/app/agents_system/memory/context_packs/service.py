@@ -14,6 +14,7 @@ from app.agents_system.memory.token_counter import TokenCounter
 from .schema import ContextPack, ContextSection
 from .stage_packers import (
     build_clarify_sections,
+    build_general_sections,
     build_iac_sections,
     build_manage_adr_sections,
     build_pricing_sections,
@@ -23,6 +24,7 @@ from .stage_packers import (
 
 _STAGE_REGISTRY: dict[str, Callable[..., list[ContextSection]]] = {
     "clarify": build_clarify_sections,
+    "general": build_general_sections,
     "propose_candidate": build_propose_candidate_sections,
     "manage_adr": build_manage_adr_sections,
     "validate": build_validate_sections,

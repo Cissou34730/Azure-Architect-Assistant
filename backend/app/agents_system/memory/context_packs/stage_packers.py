@@ -218,3 +218,54 @@ def _build_pricing_assumptions_section(state: dict[str, Any]) -> ContextSection:
         return ContextSection(name="pricing_assumptions", content="", priority=2)
     content = f"BUDGET/COST CONSTRAINTS:\n  {cost}"
     return ContextSection(name="pricing_assumptions", content=content, priority=2)
+
+
+def build_general_sections(
+    state: dict[str, Any], thread_summary: str | None = None,
+) -> list[ContextSection]:
+    """Context for general stage: requirements + assumptions + document summaries."""
+    sections = [
+        build_project_facts_section(state),
+        build_thread_summary_section(thread_summary),
+        build_requirements_section(state),
+        _build_assumptions_section(state),
+        _build_document_summaries_section(state),
+        build_open_questions_section(state),
+    ]
+    return [s for s in sections if s.content.strip()]
+
+
+def _build_assumptions_section(state: dict[str, Any]) -> ContextSection:
+    """Extract assumptions from project state."""
+    assumptions = state.get("assumptions", [])
+    if not assumptions:
+        return ContextSection(name="assumptions", content="", priority=3)
+    lines = ["ASSUMPTIONS:"]
+    for a in assumptions:
+        if isinstance(a, dict):
+            text = a.get("text") or a.get("description", "")
+            status = a.get("status", "")
+            prefix = f"  [{status}]" if status else "  -"
+            if text:
+                lines.append(f"{prefix} {text}")
+        elif isinstance(a, str):
+            lines.append(f"  - {a}")
+    return ContextSection(name="assumptions", content="\n".join(lines), priority=3)
+
+
+def _build_document_summaries_section(state: dict[str, Any]) -> ContextSection:
+    """Include uploaded document titles and summaries in the context pack."""
+    docs = state.get("referenceDocuments", [])
+    if not docs:
+        return ContextSection(name="document_summaries", content="", priority=4)
+    lines = ["UPLOADED DOCUMENTS:"]
+    for doc in docs:
+        if not isinstance(doc, dict):
+            continue
+        title = doc.get("title") or doc.get("fileName") or "Untitled"
+        summary = doc.get("summary") or doc.get("analysisSummary") or ""
+        line = f"  - {title}"
+        if summary:
+            line += f": {str(summary)[:200]}"
+        lines.append(line)
+    return ContextSection(name="document_summaries", content="\n".join(lines), priority=4)

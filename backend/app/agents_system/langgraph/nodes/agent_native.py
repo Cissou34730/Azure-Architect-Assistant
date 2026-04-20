@@ -39,7 +39,7 @@ from ...tools.tool_registry import (
     get_allowed_runtime_tool_names,
 )
 from ...tools.tool_wrappers import ToolRuntimeContext, make_single_input_wrapper
-from ..state import MAX_AGENT_ITERATIONS, GraphState
+from ..state import MAX_AGENT_ITERATIONS, GraphState, get_max_agent_iterations
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +167,8 @@ def _build_system_directives(state: GraphState) -> str:
         if isinstance(raw_budget, int):
             context_budget = raw_budget
 
+    artifact_edit = bool(state.get("artifact_edit_detected"))
+
     directives = [
         get_prompt_loader().compose_prompt(
             agent_type="orchestrator",
@@ -174,6 +176,27 @@ def _build_system_directives(state: GraphState) -> str:
             context_budget=context_budget,
         )
     ]
+
+    # Artifact-edit override: highest-priority directive
+    if artifact_edit:
+        directives.append(
+            "### Artifact persistence override\n"
+            "The user has explicitly asked to update project artifacts. "
+            "You MUST persist changes using the appropriate AAA tool:\n"
+            "- Requirements, assumptions, clarification questions → `aaa_manage_artifacts`\n"
+            "- Candidate architectures → `aaa_generate_candidate_architecture`\n"
+            "- ADRs → `aaa_manage_adr`\n"
+            "- Validation findings / WAF checklist → `aaa_record_validation_results`\n"
+            "- IaC artifacts → `aaa_record_iac_artifacts`\n"
+            "- Cost estimates → `aaa_record_cost_estimate`\n"
+            "- Diagrams → `aaa_create_diagram_set`\n\n"
+            "Do NOT just describe what should change — call the tool. "
+            "Persistence takes priority over research. "
+            "Use `project_document_search` to gather evidence from uploaded documents, "
+            "then call the appropriate AAA tool to persist each artifact. "
+            "Do NOT require MCP searches before persisting when the user's "
+            "instruction and document content provide sufficient context."
+        )
 
     stage_text = state.get("stage_directives")
     research_plan = state.get("research_plan") or []
@@ -208,20 +231,33 @@ def _build_system_directives(state: GraphState) -> str:
 
     directives.append(f"### Guidance precedence\n{_stage_policy_notes(stage_value)}")
 
-    directives.append(
-        "### Behavioral guardrails\n"
-        "- Always call MCP tools for at least one search and one fetch before final answer.\n"
-        "- Cite Azure/WAF/ASB sources with names and URLs; include mind map node ids when adding artifacts.\n"
-        "- Mind map guidance is advisory-only and must not enforce a rigid workflow.\n"
-        "- In validation turns, checklist status updates and persistence rules take priority over exploratory prompts.\n"
-        "- Challenge assumptions: If a user choice contradicts Azure WAF best practices or NFRs, you MUST explain the risk and offer alternatives.\n"
-        "- Treat WAF checklist as first-class: when analysis supports a status change, proactively persist checklist updates (fixed/in_progress/open) without waiting for explicit user wording.\n"
-        "- If evidence is insufficient for a status change, ask a focused status/evidence clarification and propose the next checklist completion step.\n"
-        "- Persist decisions: Whenever a design choice is made, use the appropriate AAA tool so the system records a reviewable pending change set and confirm that the architect should review/approve it.\n"
-        "- Proactive driving: Drive the project forward. If requirements are clear, propose the architecture; if architecture is clear, move to ADRs.\n"
-        "- Document recall: When discussing specific details from uploaded documents, use the project_document_search tool to retrieve exact excerpts. "
-        "Do not rely solely on the context summary — original documents contain details that the summary may not fully capture."
-    )
+    # Behavioral guardrails — relaxed for artifact-edit turns
+    if artifact_edit:
+        directives.append(
+            "### Behavioral guardrails\n"
+            "- Persist first: call the appropriate AAA tool to save each artifact change before composing your response.\n"
+            "- Use `project_document_search` to retrieve evidence from uploaded documents when the edit depends on document content.\n"
+            "- Cite Azure/WAF/ASB sources with names and URLs when available.\n"
+            "- Mind map guidance is advisory-only and must not enforce a rigid workflow.\n"
+            "- Challenge assumptions: If a user choice contradicts Azure WAF best practices, explain the risk.\n"
+            "- Treat WAF checklist as first-class: proactively persist checklist updates when analysis supports a status change.\n"
+            "- Proactive driving: After persisting artifact changes, propose the logical next step."
+        )
+    else:
+        directives.append(
+            "### Behavioral guardrails\n"
+            "- Always call MCP tools for at least one search and one fetch before final answer.\n"
+            "- Cite Azure/WAF/ASB sources with names and URLs; include mind map node ids when adding artifacts.\n"
+            "- Mind map guidance is advisory-only and must not enforce a rigid workflow.\n"
+            "- In validation turns, checklist status updates and persistence rules take priority over exploratory prompts.\n"
+            "- Challenge assumptions: If a user choice contradicts Azure WAF best practices or NFRs, you MUST explain the risk and offer alternatives.\n"
+            "- Treat WAF checklist as first-class: when analysis supports a status change, proactively persist checklist updates (fixed/in_progress/open) without waiting for explicit user wording.\n"
+            "- If evidence is insufficient for a status change, ask a focused status/evidence clarification and propose the next checklist completion step.\n"
+            "- Persist decisions: Whenever a design choice is made, use the appropriate AAA tool so the system records a reviewable pending change set and confirm that the architect should review/approve it.\n"
+            "- Proactive driving: Drive the project forward. If requirements are clear, propose the architecture; if architecture is clear, move to ADRs.\n"
+            "- Document recall: When discussing specific details from uploaded documents, use the project_document_search tool to retrieve exact excerpts. "
+            "Do not rely solely on the context summary — original documents contain details that the summary may not fully capture."
+        )
 
     context_summary = state.get("context_summary")
     if context_summary:
@@ -426,6 +462,7 @@ async def _dispatch_agent(
 
 def _compile_agent_graph(llm: Any, tools: list[BaseTool], final_llm: Any) -> Any:
     """Helper to build and compile the internal agent graph."""
+    max_iterations = get_max_agent_iterations()
     tool_node = ToolNode(tools)
     final_directive = (
         "Tool iteration budget reached. Provide the best possible final answer now "
@@ -439,7 +476,7 @@ def _compile_agent_graph(llm: Any, tools: list[BaseTool], final_llm: Any) -> Any
         last_message = messages[-1]
         iterations = agent_state.get("iterations", 0)
 
-        if iterations >= MAX_AGENT_ITERATIONS:
+        if iterations >= max_iterations:
             logger.warning("Reached max iterations in native agent loop")
             return "final"
 
@@ -488,6 +525,7 @@ async def _run_streaming_agent_loop(
     event_callback: StreamEventCallback,
 ) -> dict[str, Any]:
     tool_node = ToolNode(tools)
+    max_iterations = get_max_agent_iterations()
     messages = list(agent_initial_state["messages"])
     iterations = int(agent_initial_state.get("iterations", 0))
     final_directive = (
@@ -499,7 +537,7 @@ async def _run_streaming_agent_loop(
     await _emit_stream_event(event_callback, "message_start", {"role": "assistant"})
 
     while True:
-        if iterations >= MAX_AGENT_ITERATIONS:
+        if iterations >= max_iterations:
             logger.warning("Reached max iterations in streaming agent loop")
             final_messages = [*messages, SystemMessage(content=final_directive)]
             final_response = await _astream_final_response(

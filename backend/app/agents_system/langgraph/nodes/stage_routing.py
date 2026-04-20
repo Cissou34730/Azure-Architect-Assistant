@@ -151,6 +151,8 @@ def classify_next_stage(state: GraphState) -> dict[str, Any]:
     project_state = state.get("current_project_state") or {}
     agent_output = _normalize_text(state.get("agent_output"))
 
+    artifact_edit = _has_explicit_artifact_edit_intent(user_message)
+
     classification = _detect_intent_from_keywords(user_message, agent_output)
     if classification is None:
         classification = _detect_intent_from_state(project_state)
@@ -161,10 +163,13 @@ def classify_next_stage(state: GraphState) -> dict[str, Any]:
         classification.confidence,
         classification.source,
     )
-    return {
+    result: dict[str, Any] = {
         "next_stage": classification.stage,
         "stage_classification": classification.model_dump(mode="json", by_alias=True),
     }
+    if artifact_edit:
+        result["artifact_edit_detected"] = True
+    return result
 
 
 def _detect_intent_from_keywords(
@@ -186,9 +191,9 @@ def _detect_intent_from_keywords(
             _has_explicit_artifact_edit_intent(user_message),
             _build_classification(
                 stage=ProjectStage.GENERAL,
-                confidence=0.86,
+                confidence=0.95,
                 source="intent_rules",
-                rationale="Detected explicit artifact-edit intent that should stay in the general workflow.",
+                rationale="Detected explicit artifact-edit intent requiring tool-based persistence.",
             ),
         ),
         (
