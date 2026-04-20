@@ -12,6 +12,7 @@ export const projectWorkspaceAgentTabs: readonly ProjectWorkspaceStaticTabDefini
     intents: ["requirements"],
     treeEntry: { label: "Requirements", icon: FileBadge, color: "blue" },
     badgeKey: "requirements",
+    category: "requirements",
   },
   {
     id: "artifact-assumptions",
@@ -21,6 +22,7 @@ export const projectWorkspaceAgentTabs: readonly ProjectWorkspaceStaticTabDefini
     intents: ["assumptions"],
     treeEntry: { label: "Assumptions", icon: ListChecks, color: "blue" },
     badgeKey: "assumptions",
+    category: "requirements",
   },
   {
     id: "artifact-questions",
@@ -30,6 +32,7 @@ export const projectWorkspaceAgentTabs: readonly ProjectWorkspaceStaticTabDefini
     intents: ["questions"],
     treeEntry: { label: "Questions", icon: MessageSquareQuote, color: "blue" },
     badgeKey: "questions",
+    category: "requirements",
   },
   {
     id: "artifact-adrs",
@@ -39,6 +42,7 @@ export const projectWorkspaceAgentTabs: readonly ProjectWorkspaceStaticTabDefini
     intents: ["adrs"],
     treeEntry: { label: "ADRs", icon: ScrollText, color: "blue" },
     badgeKey: "adrs",
+    category: "architecture",
   },
   {
     id: "artifact-findings",
@@ -48,6 +52,7 @@ export const projectWorkspaceAgentTabs: readonly ProjectWorkspaceStaticTabDefini
     intents: ["findings"],
     treeEntry: { label: "Findings", icon: ShieldAlert, color: "blue" },
     badgeKey: "findings",
+    category: "validation",
   },
   {
     id: "artifact-iac",
@@ -57,6 +62,7 @@ export const projectWorkspaceAgentTabs: readonly ProjectWorkspaceStaticTabDefini
     intents: ["iac"],
     treeEntry: { label: "IaC", icon: FileBadge, color: "blue" },
     badgeKey: "iac",
+    category: "operations",
   },
   {
     id: "artifact-costs",
@@ -66,6 +72,7 @@ export const projectWorkspaceAgentTabs: readonly ProjectWorkspaceStaticTabDefini
     intents: ["costs"],
     treeEntry: { label: "Cost Estimates", icon: FileBadge, color: "blue" },
     badgeKey: "costs",
+    category: "operations",
   },
   {
     id: "artifact-traceability",
@@ -75,6 +82,7 @@ export const projectWorkspaceAgentTabs: readonly ProjectWorkspaceStaticTabDefini
     intents: ["traceability"],
     treeEntry: { label: "Traceability", icon: Waypoints, color: "blue" },
     badgeKey: "traceability",
+    category: "validation",
   },
   {
     id: "artifact-candidates",
@@ -84,6 +92,7 @@ export const projectWorkspaceAgentTabs: readonly ProjectWorkspaceStaticTabDefini
     intents: ["candidates"],
     treeEntry: { label: "Candidates", icon: Layers, color: "blue" },
     badgeKey: "candidates",
+    category: "architecture",
   },
   {
     id: "artifact-iterations",
@@ -93,6 +102,7 @@ export const projectWorkspaceAgentTabs: readonly ProjectWorkspaceStaticTabDefini
     intents: ["iterations"],
     treeEntry: { label: "Iterations", icon: MessageSquareQuote, color: "blue" },
     badgeKey: "iterations",
+    category: "activity",
   },
   {
     id: "artifact-mcp",
@@ -102,5 +112,6 @@ export const projectWorkspaceAgentTabs: readonly ProjectWorkspaceStaticTabDefini
     intents: ["mcp"],
     treeEntry: { label: "MCP Queries", icon: FileBadge, color: "blue" },
     badgeKey: "mcpQueries",
+    category: "activity",
   },
 ];

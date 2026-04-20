@@ -1,8 +1,10 @@
-import { FileText } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronRight, FileText } from "lucide-react";
 import { SectionHeader, TreeButton, TreeGroup, TreeRow, EmptyRow } from "./TreeElements";
 import { getArtifactTotal, type ArtifactCounts } from "./artifactCounts";
 import type { ReferenceDocument } from "../../../types/api-artifacts";
 import type { WorkspaceTab } from "../workspace/types";
+import type { ArtifactCategory, ProjectWorkspaceArtifactTabDefinition } from "../../../workspaceDefinition";
 import {
   createProjectDocumentTab,
   createProjectWorkspaceTab,
@@ -110,36 +112,103 @@ interface ArtifactsSectionProps {
   readonly onOpenTab: (tab: WorkspaceTab) => void;
 }
 
+const CATEGORY_LABELS: Record<ArtifactCategory, string> = {
+  requirements: "Requirements & Discovery",
+  architecture: "Architecture",
+  validation: "Validation",
+  operations: "Operations",
+  activity: "Activity",
+};
+
+const CATEGORY_ORDER: readonly ArtifactCategory[] = [
+  "requirements",
+  "architecture",
+  "validation",
+  "operations",
+  "activity",
+];
+
 export function ArtifactsSection({ artifacts, onOpenTab }: ArtifactsSectionProps) {
-  const getBadge = (item: ArtifactItem) => {
+  const [expandedCategories, setExpandedCategories] = useState<Set<ArtifactCategory>>(
+    () => new Set(["requirements", "architecture"]),
+  );
+
+  const getBadge = (item: ProjectWorkspaceArtifactTabDefinition) => {
     if (item.badgeKey === "traceability") {
       return artifacts.traceabilityLinks + artifacts.traceabilityIssues;
     }
     return artifacts[item.badgeKey];
   };
 
+  const grouped = new Map<ArtifactCategory, ProjectWorkspaceArtifactTabDefinition[]>();
+  for (const item of projectWorkspaceArtifactTreeEntries) {
+    const category = item.category ?? "activity";
+    const existing = grouped.get(category) ?? [];
+    existing.push(item);
+    grouped.set(category, existing);
+  }
+
+  const toggleCategory = (category: ArtifactCategory) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
+
+  const getCategoryTotal = (items: ProjectWorkspaceArtifactTabDefinition[]) =>
+    items.reduce((sum, item) => sum + getBadge(item), 0);
+
   return (
     <div className="space-y-2">
       <SectionHeader title="Artifacts" count={getArtifactTotal(artifacts)} />
-      {projectWorkspaceArtifactTreeEntries.map((item) => (
-        <TreeButton
-          key={item.id}
-          icon={item.treeEntry.icon}
-          label={item.treeEntry.label}
-          badge={getBadge(item)}
-          color={item.treeEntry.color}
-          onClick={() => {
-            onOpenTab(createProjectWorkspaceTab(item.id));
-          }}
-        />
-      ))}
+      {CATEGORY_ORDER.map((category) => {
+        const items = grouped.get(category);
+        if (items === undefined || items.length === 0) {
+          return null;
+        }
+        const isExpanded = expandedCategories.has(category);
+        const total = getCategoryTotal(items);
+        return (
+          <div key={category} className="rounded-lg border border-border bg-card overflow-hidden">
+            <button
+              type="button"
+              onClick={() => { toggleCategory(category); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-dim hover:bg-surface transition-colors"
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+              )}
+              <span className="flex-1 text-left">{CATEGORY_LABELS[category]}</span>
+              <span className="text-xs font-normal tabular-nums text-secondary">{total}</span>
+            </button>
+            {isExpanded && (
+              <div className="border-t border-border p-2 space-y-1">
+                {items.map((item) => (
+                  <TreeButton
+                    key={item.id}
+                    icon={item.treeEntry.icon}
+                    label={item.treeEntry.label}
+                    badge={getBadge(item)}
+                    color={item.treeEntry.color}
+                    onClick={() => {
+                      onOpenTab(createProjectWorkspaceTab(item.id));
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
-}
-
-interface ArtifactItem {
-  readonly id: string;
-  readonly badgeKey: keyof ArtifactCounts | "traceability";
 }
 
 function toWorkflowLabel(state: "idle" | "running" | "success" | "error"): string {

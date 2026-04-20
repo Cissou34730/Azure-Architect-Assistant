@@ -12,5 +12,6 @@ export const projectWorkspaceDiagramTabs: readonly ProjectWorkspaceStaticTabDefi
     intents: ["deliverables", "diagrams"],
     treeEntry: { label: "Diagrams", icon: Network, color: "blue" },
     badgeKey: "diagrams",
+    category: "architecture",
   },
 ];

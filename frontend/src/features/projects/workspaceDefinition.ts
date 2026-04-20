@@ -59,6 +59,13 @@ export interface ProjectWorkspaceInputTabDefinition {
   readonly treeEntry: ProjectWorkspaceTreeEntry;
 }
 
+export type ArtifactCategory =
+  | "requirements"
+  | "architecture"
+  | "validation"
+  | "operations"
+  | "activity";
+
 export interface ProjectWorkspaceArtifactTabDefinition {
   readonly id: ArtifactTab;
   readonly kind: ArtifactTab;
@@ -67,6 +74,7 @@ export interface ProjectWorkspaceArtifactTabDefinition {
   readonly intents: readonly string[];
   readonly treeEntry: ProjectWorkspaceTreeEntry;
   readonly badgeKey: ProjectWorkspaceArtifactBadgeKey;
+  readonly category: ArtifactCategory;
 }
 
 export type ProjectWorkspaceStaticTabDefinition =

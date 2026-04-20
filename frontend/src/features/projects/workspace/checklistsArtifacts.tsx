@@ -12,5 +12,6 @@ export const projectWorkspaceChecklistTabs: readonly ProjectWorkspaceStaticTabDe
     intents: ["waf"],
     treeEntry: { label: "WAF Checklist", icon: ListChecks, color: "blue" },
     badgeKey: "waf",
+    category: "validation",
   },
 ];
