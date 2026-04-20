@@ -24,8 +24,15 @@ def make_single_input_wrapper(
 
         try:
             raw_result = await _call_function(target_fn, payload)
-        except Exception:  # noqa: BLE001
-            raw_result = await _call_function_fallback(target_fn, payload)
+        except TypeError:
+            # Signature-shape mismatch — retry with simple positional call
+            try:
+                raw_result = await _call_function_fallback(target_fn, payload)
+            except Exception as fallback_exc:  # noqa: BLE001
+                raw_result = _format_tool_error(name, fallback_exc)
+        except Exception as exc:  # noqa: BLE001
+            # Non-signature errors: surface to the agent, do NOT retry
+            raw_result = _format_tool_error(name, exc)
 
         return await maybe_persist_tool_result(
             tool_name=name,
@@ -99,3 +106,9 @@ def _run_async_in_new_thread(coro: Any) -> Any:
     t = threading.Thread(target=_thread_worker, args=(fut, coro))
     t.start()
     return fut.result()
+
+
+def _format_tool_error(tool_name: str, exc: Exception) -> str:
+    """Format an exception as a structured error string the agent can act on."""
+    exc_type = type(exc).__name__
+    return f"ERROR: tool {tool_name} failed ({exc_type}): {exc}"
