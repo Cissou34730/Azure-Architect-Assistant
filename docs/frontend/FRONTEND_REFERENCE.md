@@ -44,6 +44,8 @@ Top-level route modules are registered in `frontend/src/app/workspaceRegistry.ts
 - `TabStrip.tsx` — Tab strip UI with drag-reorder, pin, close.
 - `ChatPanel.tsx` — Chat sidebar (composed from `ChatListHeader`, `ChatListFooter`, `ChatInputForm`, `ChatMessagesList`).
 - `ChatReviewPanel.tsx` — focused review surface embedded in the right chat panel for stage rail visibility, a typed clarification-answer form, pending-change review, and lightweight tool/citation inspection.
+- `RightChatPanel.tsx` — Right chat sidebar wrapper; the workflow review section is now collapsible (collapsed by default, auto-expands when pending changes or clarification questions are present).
+- `LeftInputsArtifactsPanel/Sections.tsx` — left tree panel; artifact buttons are grouped into collapsible categories (Requirements & Discovery, Architecture, Validation, Operations, Activity) with aggregate badge counts per group. Categories that have items default to expanded for Requirements & Architecture; the rest start collapsed.
 - `workspaceTabRegistry.tsx` — static tab-content registry keyed from the workspace manifest; `WorkspaceTabContent.tsx` only special-cases dynamic document tabs.
 - `WafChecklistView.tsx` — WAF checklist tab.
 - `ProjectNotesPanel.tsx` — unified workspace notes surface for adding, editing, and deleting durable per-project notes.
