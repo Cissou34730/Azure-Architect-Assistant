@@ -269,6 +269,20 @@ def _build_system_directives(state: GraphState) -> str:
             "Do not rely solely on the context summary — original documents contain details that the summary may not fully capture."
         )
 
+    # Layer 1: Always-on output discipline — applies to ALL turns
+    directives.append(
+        "### Output discipline (always active)\n"
+        "- NEVER include raw Mermaid, PlantUML, or diagram code in your response text — "
+        "always persist diagrams via `aaa_create_diagram_set`.\n"
+        "- NEVER dump full architecture proposals, trade-off tables, or NFR analysis as inline chat text — "
+        "persist via `aaa_generate_candidate_architecture`.\n"
+        "- When you generate NEW requirements, assumptions, or clarification questions, "
+        "persist them via `aaa_manage_artifacts` — do not just list them as chat text.\n"
+        "- You MAY summarize, discuss, and reference existing artifacts in your response. "
+        "Read-only answers (e.g. 'here are the current requirements') are fine as chat text.\n"
+        "- Your chat response should be a concise summary of what you did, not a copy of persisted content."
+    )
+
     context_summary = state.get("context_summary")
     if context_summary:
         directives.append(f"### Project context (read-only)\n{context_summary}")

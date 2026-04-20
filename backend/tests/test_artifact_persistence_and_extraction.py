@@ -20,7 +20,8 @@ import pytest
 class TestArtifactEditDetection:
     """Verify stage classification emits artifact_edit_detected in state."""
 
-    def test_artifact_edit_intent_sets_state_flag(self) -> None:
+    @pytest.mark.asyncio
+    async def test_artifact_edit_intent_sets_state_flag(self) -> None:
         from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
 
         state = {
@@ -28,21 +29,32 @@ class TestArtifactEditDetection:
             "current_project_state": {},
             "agent_output": "",
         }
-        result = classify_next_stage(state)
+        result = await classify_next_stage(state)
         assert result["artifact_edit_detected"] is True
 
-    def test_no_artifact_edit_intent_omits_flag(self) -> None:
+    @pytest.mark.asyncio
+    async def test_no_artifact_edit_intent_omits_flag(self) -> None:
         from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
+        from app.agents_system.langgraph.nodes.intent_classifier import ArtifactIntentResult
+        from unittest.mock import AsyncMock, patch
 
-        state = {
-            "user_message": "what is the current architecture?",
-            "current_project_state": {"requirements": [{"id": "r1", "text": "need HA"}]},
-            "agent_output": "",
-        }
-        result = classify_next_stage(state)
-        assert result.get("artifact_edit_detected", False) is False
+        # Mock LLM to return no intent (since keyword won't match)
+        llm_result = ArtifactIntentResult(intent=False, types=[])
+        with patch(
+            "app.agents_system.langgraph.nodes.stage_routing.classify_artifact_intent",
+            new_callable=AsyncMock,
+            return_value=llm_result,
+        ):
+            state = {
+                "user_message": "what is the current architecture?",
+                "current_project_state": {"requirements": [{"id": "r1", "text": "need HA"}]},
+                "agent_output": "",
+            }
+            result = await classify_next_stage(state)
+            assert result.get("artifact_edit_detected", False) is False
 
-    def test_artifact_edit_confidence_is_high(self) -> None:
+    @pytest.mark.asyncio
+    async def test_artifact_edit_confidence_is_high(self) -> None:
         from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
 
         state = {
@@ -50,11 +62,11 @@ class TestArtifactEditDetection:
             "current_project_state": {},
             "agent_output": "",
         }
-        result = classify_next_stage(state)
+        result = await classify_next_stage(state)
         classification = result["stage_classification"]
         assert classification["confidence"] >= 0.92
 
-    # --- Creation/generation verbs (NEW: addresses verb coverage gap) ---
+    # --- Creation/generation verbs (keyword fast-path) ---
 
     @pytest.mark.parametrize(
         "message",
@@ -70,7 +82,8 @@ class TestArtifactEditDetection:
             "come up with clarification questions",
         ],
     )
-    def test_creation_verbs_trigger_artifact_edit(self, message: str) -> None:
+    @pytest.mark.asyncio
+    async def test_creation_verbs_trigger_artifact_edit(self, message: str) -> None:
         from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
 
         state = {
@@ -78,7 +91,7 @@ class TestArtifactEditDetection:
             "current_project_state": {},
             "agent_output": "",
         }
-        result = classify_next_stage(state)
+        result = await classify_next_stage(state)
         assert result["artifact_edit_detected"] is True, (
             f"Expected artifact_edit_detected=True for: {message!r}"
         )
@@ -92,18 +105,28 @@ class TestArtifactEditDetection:
             "generate a summary of the project",
         ],
     )
-    def test_creation_verbs_without_artifact_target_no_trigger(self, message: str) -> None:
+    @pytest.mark.asyncio
+    async def test_creation_verbs_without_artifact_target_no_trigger(self, message: str) -> None:
         from app.agents_system.langgraph.nodes.stage_routing import classify_next_stage
+        from app.agents_system.langgraph.nodes.intent_classifier import ArtifactIntentResult
+        from unittest.mock import AsyncMock, patch
 
-        state = {
-            "user_message": message,
-            "current_project_state": {},
-            "agent_output": "",
-        }
-        result = classify_next_stage(state)
-        assert result.get("artifact_edit_detected", False) is False, (
-            f"Should NOT trigger artifact_edit for: {message!r}"
-        )
+        # Mock LLM to return no intent (these have no artifact target)
+        llm_result = ArtifactIntentResult(intent=False, types=[])
+        with patch(
+            "app.agents_system.langgraph.nodes.stage_routing.classify_artifact_intent",
+            new_callable=AsyncMock,
+            return_value=llm_result,
+        ):
+            state = {
+                "user_message": message,
+                "current_project_state": {},
+                "agent_output": "",
+            }
+            result = await classify_next_stage(state)
+            assert result.get("artifact_edit_detected", False) is False, (
+                f"Should NOT trigger artifact_edit for: {message!r}"
+            )
 
 
 # ---------------------------------------------------------------------------

@@ -70,3 +70,13 @@ class LLMTuningSettingsMixin(BaseModel):
         default=15, ge=5, le=50,
         description="Maximum tool-call iterations per agent turn before forcing a final answer",
     )
+
+    # ── Intent classifier (cheap LLM call for artifact intent detection) ─────
+    intent_classifier_max_tokens: int = Field(
+        default=64, ge=16, le=256,
+        description="Max tokens for the lightweight intent classification LLM call",
+    )
+    intent_classifier_timeout_seconds: float = Field(
+        default=5.0, ge=1.0, le=30.0,
+        description="Timeout in seconds for the intent classification LLM call",
+    )

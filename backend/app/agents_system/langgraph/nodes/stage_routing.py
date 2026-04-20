@@ -11,6 +11,7 @@ from typing import Any, Literal
 from app.agents_system.contracts import StageClassification
 
 from ..state import GraphState
+from .intent_classifier import ArtifactIntentResult, classify_artifact_intent
 
 logger = logging.getLogger(__name__)
 
@@ -158,13 +159,32 @@ class ProjectStage(str, Enum):
     EXPORT = "export"
 
 
-def classify_next_stage(state: GraphState) -> dict[str, Any]:
+async def classify_next_stage(state: GraphState) -> dict[str, Any]:
     """Classify which stage should be executed next."""
     user_message = _normalize_text(state.get("user_message"))
     project_state = state.get("current_project_state") or {}
     agent_output = _normalize_text(state.get("agent_output"))
 
+    # Layer 2: keyword fast-path (instant, free)
     artifact_edit = _has_explicit_artifact_edit_intent(user_message)
+
+    # Layer 3: LLM fallback when keywords don't match
+    if not artifact_edit:
+        try:
+            llm_result: ArtifactIntentResult = await classify_artifact_intent(
+                user_message
+            )
+            artifact_edit = llm_result.intent
+            if artifact_edit:
+                logger.info(
+                    "LLM intent classifier detected artifact intent: types=%s",
+                    llm_result.types,
+                )
+        except Exception:
+            logger.warning(
+                "LLM intent classifier failed; falling back to keyword-only",
+                exc_info=True,
+            )
 
     classification = _detect_intent_from_keywords(user_message, agent_output)
     if classification is None:
