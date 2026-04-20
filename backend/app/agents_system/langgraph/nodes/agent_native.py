@@ -357,6 +357,57 @@ async def run_stage_aware_agent(
     }
 
     event_callback = event_callback or state.get("event_callback")
+
+    try:
+        return await _dispatch_agent(
+            llm=llm,
+            base_llm=base_llm,
+            tools=tools,
+            agent_initial_state=agent_initial_state,
+            event_callback=event_callback,
+        )
+    except Exception as exc:
+        # Detect unsupported-parameter errors via the ModelCapabilityCache.
+        # Parameter rejections always occur on the FIRST model invocation,
+        # before any tool calls, so retrying the full dispatch is safe.
+        from app.shared.ai.model_capability_cache import ModelCapabilityCache  # noqa: PLC0415
+
+        rejected_param = ModelCapabilityCache.extract_rejected_param(exc)
+        if rejected_param is None:
+            raise
+
+        provider = ai_service.config.llm_provider
+        model_id = ai_service.config.active_llm_model
+        ModelCapabilityCache.instance().mark_unsupported(provider, model_id, rejected_param)
+        logger.warning(
+            "Model %s/%s rejected parameter '%s'; retrying without it",
+            provider,
+            model_id,
+            rejected_param,
+        )
+
+        # Recreate LLM — create_chat_llm now consults the cache and will
+        # proactively omit the newly-learned unsupported parameter.
+        base_llm = ai_service.create_chat_llm(temperature=temperature)
+        llm = base_llm.bind_tools(tools)
+        return await _dispatch_agent(
+            llm=llm,
+            base_llm=base_llm,
+            tools=tools,
+            agent_initial_state=agent_initial_state,
+            event_callback=event_callback,
+        )
+
+
+async def _dispatch_agent(
+    *,
+    llm: Any,
+    base_llm: Any,
+    tools: list[BaseTool],
+    agent_initial_state: AgentState,
+    event_callback: Any,
+) -> dict[str, Any]:
+    """Route agent execution to the streaming or graph path."""
     if callable(event_callback):
         logger.info("Running stage-aware native agent with streaming events")
         return await _run_streaming_agent_loop(
@@ -368,10 +419,8 @@ async def run_stage_aware_agent(
         )
 
     agent_graph = _compile_agent_graph(llm, tools, base_llm)
-
     logger.info("Running stage-aware native agent")
     result_state = cast(dict[str, Any], await agent_graph.ainvoke(agent_initial_state))
-
     return _parse_agent_results(result_state)
 
 

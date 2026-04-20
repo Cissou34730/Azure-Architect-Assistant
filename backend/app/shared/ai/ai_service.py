@@ -59,32 +59,51 @@ class AIService:
         )
 
     def create_chat_llm(self, *, temperature: float | None = None, **kwargs: Any) -> Any:
-        """Create a provider-selected LangChain chat model for native agent runtimes."""
+        """Create a provider-selected LangChain chat model for native agent runtimes.
+
+        The :class:`ModelCapabilityCache` is consulted before constructing the
+        LangChain object: if a parameter (e.g. ``temperature``) has previously
+        been rejected by this ``(provider, model)`` pair, it is silently omitted
+        — no retry needed on subsequent calls.
+        """
+        from .model_capability_cache import ModelCapabilityCache  # noqa: PLC0415
+
+        cache = ModelCapabilityCache.instance()
+        provider = self.config.llm_provider
+        model_id = self.config.active_llm_model
+
         effective_temperature = (
             temperature if temperature is not None else self.config.default_temperature
         )
+        # Proactively strip temperature if the cache says this model rejects it
+        if not cache.is_supported(provider, model_id, "temperature"):
+            effective_temperature = None
 
-        if self.config.llm_provider == "foundry":
+        if provider == "foundry":
             from langchain_openai import AzureChatOpenAI  # noqa: PLC0415
 
-            return AzureChatOpenAI(
-                azure_deployment=self.config.foundry_model,
-                api_version=self.config.foundry_api_version,
-                azure_endpoint=self.config.foundry_endpoint,
-                api_key=self.config.foundry_api_key,
-                temperature=effective_temperature,
+            foundry_kwargs: dict[str, Any] = {
+                "azure_deployment": self.config.foundry_model,
+                "api_version": self.config.foundry_api_version,
+                "azure_endpoint": self.config.foundry_endpoint,
+                "api_key": self.config.foundry_api_key,
                 **kwargs,
-            )
+            }
+            if effective_temperature is not None:
+                foundry_kwargs["temperature"] = effective_temperature
+            return AzureChatOpenAI(**foundry_kwargs)
 
-        if self.config.llm_provider == "openai":
+        if provider == "openai":
             from langchain_openai import ChatOpenAI  # noqa: PLC0415
 
-            return ChatOpenAI(
-                model=self.config.openai_llm_model,
-                temperature=effective_temperature,
-                openai_api_key=self.config.openai_api_key,
+            openai_kwargs: dict[str, Any] = {
+                "model": self.config.openai_llm_model,
+                "openai_api_key": self.config.openai_api_key,
                 **kwargs,
-            )
+            }
+            if effective_temperature is not None:
+                openai_kwargs["temperature"] = effective_temperature
+            return ChatOpenAI(**openai_kwargs)
 
         if self.config.llm_provider == "copilot":
             from .providers.copilot_chat_model import CopilotChatModel  # noqa: PLC0415

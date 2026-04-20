@@ -172,6 +172,7 @@ The backend uses singletons for expensive, shared resources with lifecycle manag
 | **KBManager** | `app/service_registry.py` | Vector index caching (150MB in memory), preloaded at startup | 3.2s load time per KB, indices cached in memory |
 | **LLMService** | `app/services/llm_service.py` | Connection pooling to OpenAI/Foundry-backed runtimes | HTTP client reuse, rate limiting |
 | **AIService** | `app/services/ai/ai_service.py` | Provider abstraction (OpenAI, Foundry, Copilot, Anthropic) | Model caching, connection pooling |
+| **ModelCapabilityCache** | `app/shared/ai/model_capability_cache.py` | Process-scoped cache of unsupported API parameters per (provider, model) | Learns from runtime errors, proactively strips params |
 | **PromptLoader** | `app/agents_system/config/prompt_loader.py` | File I/O caching for YAML prompts | Avoids repeated disk reads |
 
 ### Accessing Singletons

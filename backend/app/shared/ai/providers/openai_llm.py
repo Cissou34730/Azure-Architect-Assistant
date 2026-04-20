@@ -190,6 +190,17 @@ class OpenAILLMProvider(LLMProvider):
                     )
                 except BadRequestError as error:
                     last_error = error
+
+                    # Populate the capability cache so other call paths
+                    # (e.g. the LangChain agent) learn from this failure.
+                    from ..model_capability_cache import ModelCapabilityCache  # noqa: PLC0415
+
+                    rejected = ModelCapabilityCache.extract_rejected_param(error)
+                    if rejected:
+                        ModelCapabilityCache.instance().mark_unsupported(
+                            self.config.llm_provider, self.model, rejected,
+                        )
+
                     if (
                         token_limit_param == "max_tokens"  # noqa: S105
                         and self._requires_max_completion_tokens(error)
@@ -268,6 +279,15 @@ class OpenAILLMProvider(LLMProvider):
                 )
             except BadRequestError as error:
                 last_error = error
+
+                from ..model_capability_cache import ModelCapabilityCache  # noqa: PLC0415
+
+                rejected = ModelCapabilityCache.extract_rejected_param(error)
+                if rejected:
+                    ModelCapabilityCache.instance().mark_unsupported(
+                        self.config.llm_provider, self.model, rejected,
+                    )
+
                 logger.warning(
                     "Responses attempt %s/3 failed for model %s: %s",
                     index,
