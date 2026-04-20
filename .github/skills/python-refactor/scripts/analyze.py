@@ -6,14 +6,13 @@ Produces a JSON report of candidates.
 import ast
 import json
 from pathlib import Path
-from typing import List, Dict
 
 
-def find_py_files(path: Path) -> List[Path]:
+def find_py_files(path: Path) -> list[Path]:
     return [p for p in path.rglob('*.py') if not any(part.startswith('.') for part in p.parts)]
 
 
-def analyze_file(path: Path) -> Dict:
+def analyze_file(path: Path) -> dict:
     src = path.read_text(encoding='utf-8')
     tree = ast.parse(src)
     findings = []
@@ -45,7 +44,7 @@ def analyze_file(path: Path) -> Dict:
     return {'path': str(path), 'findings': findings}
 
 
-def analyze_dir(target: str) -> Dict:
+def analyze_dir(target: str) -> dict:
     path = Path(target)
     files = find_py_files(path)
     report = {'target': str(path), 'files_analyzed': len(files), 'results': []}

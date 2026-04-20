@@ -140,7 +140,7 @@ class BaseSchemaValidator:
             except Exception as e:
                 errors.append(
                     f"  {xml_file.relative_to(self.unpacked_dir)}: "
-                    f"Unexpected error: {str(e)}"
+                    f"Unexpected error: {e!s}"
                 )
 
         if errors:
@@ -501,9 +501,7 @@ class BaseSchemaValidator:
             # e.g., "sldId" -> "sld", "sldMasterId" -> "sldMaster"
             prefix = elem_lower[:-2]  # Remove "id"
             # Check if this might be a compound like "sldMasterId"
-            if prefix.endswith("master"):
-                return prefix.lower()
-            elif prefix.endswith("layout"):
+            if prefix.endswith("master") or prefix.endswith("layout"):
                 return prefix.lower()
             else:
                 # Simple case like "sldId" -> "slide"
@@ -725,7 +723,7 @@ class BaseSchemaValidator:
             if original_error_count:
                 print(f"  - With original errors (ignored): {original_error_count}")
             print(
-                f"  - With NEW errors: {len(new_errors) > 0 and len([e for e in new_errors if not e.startswith('    ')]) or 0}"
+                f"  - With NEW errors: {(len(new_errors) > 0 and len([e for e in new_errors if not e.startswith('    ')])) or 0}"
             )
 
         if new_errors:
@@ -800,7 +798,7 @@ class BaseSchemaValidator:
 
             tag_str = str(elem.tag)
             if tag_str.startswith("{"):
-                ns = tag_str.split("}")[0][1:]
+                ns = tag_str.split("}", maxsplit=1)[0][1:]
                 if ns not in self.OOXML_NAMESPACES:
                     elements_to_remove.append(elem)
                     continue
@@ -839,7 +837,7 @@ class BaseSchemaValidator:
                 schema = lxml.etree.XMLSchema(xsd_doc)
 
             # Load and preprocess XML
-            with open(xml_file, "r") as f:
+            with open(xml_file) as f:
                 xml_doc = lxml.etree.parse(f)
 
             xml_doc, _ = self._remove_template_tags_from_text_nodes(xml_doc)

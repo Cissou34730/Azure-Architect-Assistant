@@ -3,9 +3,9 @@
 
 This is a small helper that takes a unified diff and applies it, creating a .bak of the original.
 """
+import difflib
 import sys
 from pathlib import Path
-import difflib
 
 
 def apply_patch_from_diff(diff_text: str):

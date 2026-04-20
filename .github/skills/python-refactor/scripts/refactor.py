@@ -8,7 +8,6 @@ Current transforms:
 import ast
 import difflib
 from pathlib import Path
-from typing import List
 
 
 def to_fstring(src: str) -> str:
@@ -17,7 +16,7 @@ def to_fstring(src: str) -> str:
     return src
 
 
-def remove_unused_imports(src: str, unused_names: List[str]) -> str:
+def remove_unused_imports(src: str, unused_names: list[str]) -> str:
     lines = src.splitlines()
     new_lines = []
     for i, line in enumerate(lines, start=1):

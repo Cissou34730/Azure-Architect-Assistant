@@ -160,9 +160,8 @@ class DocxXMLEditor(XMLEditor):
             if is_inside_deletion(elem):
                 if not elem.hasAttribute("w:rsidDel"):
                     elem.setAttribute("w:rsidDel", self.rsid)
-            else:
-                if not elem.hasAttribute("w:rsidR"):
-                    elem.setAttribute("w:rsidR", self.rsid)
+            elif not elem.hasAttribute("w:rsidR"):
+                elem.setAttribute("w:rsidR", self.rsid)
 
         def add_tracked_change_attrs(elem):
             # Auto-assign w:id if not present

@@ -262,11 +262,10 @@ def convert_to_images(pptx_path, temp_dir, dpi):
             placeholder_img = create_hidden_slide_placeholder(placeholder_size)
             placeholder_img.save(placeholder_path, "JPEG")
             all_images.append(placeholder_path)
-        else:
-            # Use the actual visible slide image
-            if visible_idx < len(visible_images):
-                all_images.append(visible_images[visible_idx])
-                visible_idx += 1
+        # Use the actual visible slide image
+        elif visible_idx < len(visible_images):
+            all_images.append(visible_images[visible_idx])
+            visible_idx += 1
 
     return all_images
 
