@@ -489,10 +489,10 @@ def _compile_agent_graph(llm: Any, tools: list[BaseTool], final_llm: Any) -> Any
     max_iterations = get_max_agent_iterations()
     tool_node = ToolNode(tools)
     final_directive = (
-        "Tool iteration budget reached. Provide the best possible final answer now "
-        "using the information already in the conversation and tool outputs. "
-        "Do NOT call any tools. If key information is missing, ask up to 5 focused "
-        "clarifying questions and propose the next concrete step."
+        "Tool iteration budget reached. Synthesize the best possible final answer now "
+        "using all information gathered from conversation and tool outputs. "
+        "Do NOT call any tools. Persist any remaining artifacts using AAA_STATE_UPDATE blocks. "
+        "Summarize what you have completed and clearly note any remaining work."
     )
 
     def should_continue(agent_state: AgentState) -> Literal["tools", "final", "end"]:
@@ -553,10 +553,10 @@ async def _run_streaming_agent_loop(
     messages = list(agent_initial_state["messages"])
     iterations = int(agent_initial_state.get("iterations", 0))
     final_directive = (
-        "Tool iteration budget reached. Provide the best possible final answer now "
-        "using the information already in the conversation and tool outputs. "
-        "Do NOT call any tools. If key information is missing, ask up to 5 focused "
-        "clarifying questions and propose the next concrete step."
+        "Tool iteration budget reached. Synthesize the best possible final answer now "
+        "using all information gathered from conversation and tool outputs. "
+        "Do NOT call any tools. Persist any remaining artifacts using AAA_STATE_UPDATE blocks. "
+        "Summarize what you have completed and clearly note any remaining work."
     )
     await _emit_stream_event(event_callback, "message_start", {"role": "assistant"})
 

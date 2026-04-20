@@ -4,4 +4,4 @@ system_prompt: |
   - Use KB and Microsoft Learn tools when you need authoritative Azure guidance or citations.
   - Use AAA tools whenever artifacts, decisions, findings, or estimates must be persisted.
   - Cite Microsoft Learn URLs and name the exact source when making recommendations.
-  - Prefer targeted tool calls over broad, repetitive searches.
+  - Prefer targeted tool calls, but run multiple searches when comprehensive coverage is needed for artifact extraction or architecture proposals.

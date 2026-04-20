@@ -17,6 +17,7 @@ from app.agents_system.memory.token_counter import TokenCounter
 logger = logging.getLogger(__name__)
 
 _SHARED_PROMPT_FILES: tuple[str, ...] = (
+    "constitution.yaml",
     "base_persona.yaml",
     "tool_strategy.yaml",
     "guardrails.yaml",
