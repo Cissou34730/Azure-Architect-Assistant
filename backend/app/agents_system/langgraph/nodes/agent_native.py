@@ -39,7 +39,7 @@ from ...tools.tool_registry import (
     get_allowed_runtime_tool_names,
 )
 from ...tools.tool_wrappers import ToolRuntimeContext, make_single_input_wrapper
-from ..state import MAX_AGENT_ITERATIONS, GraphState, get_max_agent_iterations
+from ..state import GraphState, get_max_agent_iterations
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +206,16 @@ def _build_system_directives(state: GraphState) -> str:
             "- Your chat response should be a concise summary of what you persisted "
             "(e.g. 'I added 12 requirements and 8 clarification questions from the uploaded document'), "
             "NOT a copy of the artifact content."
+        )
+
+    # Quality retry feedback — inject reason when retrying
+    quality_retry_reason = state.get("quality_retry_reason")
+    if quality_retry_reason:
+        directives.append(
+            "### Quality gate retry\n"
+            f"Your previous response was rejected by the quality gate: {quality_retry_reason}\n"
+            "You MUST address this issue in your next response. "
+            "Call the appropriate AAA tool to persist artifacts before responding."
         )
 
     stage_text = state.get("stage_directives")

@@ -26,6 +26,7 @@ from .nodes.iac_generator import execute_iac_stage_worker_node
 from .nodes.manage_adr import execute_manage_adr_stage_worker_node
 from .nodes.persist import apply_state_updates_node, persist_messages_node
 from .nodes.postprocess import postprocess_node
+from .nodes.quality_gate import build_quality_retry, completeness_check
 from .nodes.research import build_research_plan_node, execute_research_worker_node
 from .nodes.routing import (
     prepare_architecture_planner_handoff,
@@ -99,6 +100,8 @@ def _build_project_chat_workflow(
     workflow.add_node('architecture_planner', architecture_planner_node)
     workflow.add_node('cost_stage_worker', execute_cost_stage_worker_node)
     workflow.add_node('run_agent', _wrap_run_agent(db))
+    workflow.add_node('quality_check', _pass_through_quality_check)
+    workflow.add_node('quality_retry', build_quality_retry)
     workflow.add_node('persist_messages', _wrap_persist_messages(db))
     workflow.add_node('postprocess', _wrap_postprocess(response_message_id))
     workflow.add_node('apply_updates', _wrap_apply_updates(db))
@@ -177,6 +180,11 @@ def _pass_through_mindmap_guidance(state: GraphState) -> dict:
     return {
         'mindmap_guidance': state.get('mindmap_guidance'),
     }
+
+
+def _pass_through_quality_check(state: GraphState) -> dict:
+    """Pass-through node for quality check — routing is done via conditional edges."""
+    return {}
 
 
 def _build_workflow_edges(workflow: StateGraph):
@@ -276,7 +284,14 @@ def _build_workflow_edges(workflow: StateGraph):
     workflow.add_edge('iac_stage_worker', 'persist_messages')
     workflow.add_edge('manage_adr_stage_worker', 'persist_messages')
     workflow.add_edge('validate_stage_worker', 'persist_messages')
-    workflow.add_edge('run_agent', 'persist_messages')
+    # Quality gate: run_agent → quality_check → [retry | persist]
+    workflow.add_edge('run_agent', 'quality_check')
+    workflow.add_conditional_edges(
+        'quality_check',
+        completeness_check,
+        {'retry': 'quality_retry', 'continue': 'persist_messages'},
+    )
+    workflow.add_edge('quality_retry', 'run_agent')
     workflow.add_conditional_edges(
         'persist_messages',
         route_after_persist,
@@ -287,6 +302,7 @@ def _build_workflow_edges(workflow: StateGraph):
         check_for_retry,
         {'retry': 'retry_prompt', 'continue': 'apply_updates'},
     )
-    workflow.add_edge('retry_prompt', END)
+    # Fix: retry_prompt loops back to run_agent (not END)
+    workflow.add_edge('retry_prompt', 'run_agent')
     workflow.add_edge('apply_updates', 'propose_next_step')
     workflow.add_edge('propose_next_step', END)

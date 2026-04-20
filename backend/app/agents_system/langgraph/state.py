@@ -70,6 +70,8 @@ class GraphState(TypedDict, total=False):
     stage_classification: dict[str, Any] | None
     artifact_edit_detected: bool
     retry_count: int
+    quality_retry_count: int
+    quality_retry_reason: str | None
 
     # Phase 2 fields (multi-agent handoff)
     current_agent: str | None  # "main", "architecture_planner", "iac_generator"

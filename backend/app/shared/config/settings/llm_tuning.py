@@ -80,3 +80,9 @@ class LLMTuningSettingsMixin(BaseModel):
         default=5.0, ge=1.0, le=30.0,
         description="Timeout in seconds for the intent classification LLM call",
     )
+
+    # ── Quality gate retry budget ────────────────────────────────────────────
+    quality_retry_max: int = Field(
+        default=2, ge=0, le=5,
+        description="Maximum quality-gate retries when output is incomplete (0 disables)",
+    )
