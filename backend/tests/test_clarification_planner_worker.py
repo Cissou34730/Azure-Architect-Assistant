@@ -241,3 +241,23 @@ def test_classify_next_stage_prefers_clarify_when_open_questions_exist() -> None
     )
 
     assert result["next_stage"] == "clarify"
+
+
+def test_clarification_prompt_has_required_question_structure() -> None:
+    """Each clarification question must advertise its decision impact, default, and risk."""
+    loader = PromptLoader()
+    prompt_data = loader.load_prompt_file("clarification_planner.yaml")
+    prompt = prompt_data.get("system_prompt", "")
+    prompt_lower = prompt.lower()
+    assert "why_it_matters" in prompt or "why it matters" in prompt_lower
+    assert "affected_decision" in prompt or "affected decision" in prompt_lower
+    assert "default_assumption" in prompt or "default assumption" in prompt_lower
+    assert "risk_if_wrong" in prompt or "risk if wrong" in prompt_lower
+
+
+def test_clarification_limits_to_top_questions() -> None:
+    """The prompt must restrict the response to 3-5 high-impact questions."""
+    loader = PromptLoader()
+    prompt_data = loader.load_prompt_file("clarification_planner.yaml")
+    prompt = prompt_data.get("system_prompt", "")
+    assert "3 to 5" in prompt or "3-5" in prompt or "top 3" in prompt
