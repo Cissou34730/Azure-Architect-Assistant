@@ -17,7 +17,7 @@ For architecture-related turns, the assistant should:
 - Persist structured artifacts through pending change sets.
 - Summarize what was persisted without hiding all architectural insight from the user.
 
-## Priority 1: Add an Architect Briefing Output Contract
+## Priority 1: Add an Architect Briefing Output Contract ✅ IMPLEMENTED
 
 ### Problem
 
@@ -59,7 +59,7 @@ The current prompts and runtime directives tell the model to persist artifacts a
 - The assistant no longer responds only with a change-set id for architecture work.
 - The chat answer does not include raw Mermaid, raw IaC, or full artifact dumps.
 
-## Priority 2: Resolve Prompt Contradictions
+## Priority 2: Resolve Prompt Contradictions ✅ IMPLEMENTED
 
 ### Problem
 
@@ -140,7 +140,7 @@ This creates model confusion and encourages shallow answers.
 - The runtime can detect whether important sections are missing.
 - The final response is more specific than generic Azure best-practice boilerplate.
 
-## Priority 4: Expand the Candidate Architecture Artifact Model
+## Priority 4: Expand the Candidate Architecture Artifact Model ✅ IMPLEMENTED
 
 ### Problem
 
@@ -188,7 +188,7 @@ This loses key value such as components, risks, trade-offs, WAF mapping, cost dr
 - A candidate architecture pending change contains the same core insight the assistant explains in chat.
 - Approving a candidate preserves risks, trade-offs, WAF mapping, and implementation guidance in canonical project state.
 
-## Priority 5: Add Quality Gates for Architecture Completeness
+## Priority 5: Add Quality Gates for Architecture Completeness ✅ IMPLEMENTED
 
 ### Problem
 
@@ -256,7 +256,7 @@ The model may create a good pending change set, but the chat answer can still be
 - ✅ The pending change id and review instruction remain present.
 - ✅ 30 tests pass covering all stages and integration flow.
 
-## Priority 7: Improve Research-to-Decision Traceability
+## Priority 7: Improve Research-to-Decision Traceability ✅ IMPLEMENTED
 
 ### Problem
 
@@ -325,7 +325,7 @@ Clarification can feel procedural. Questions should be fewer, sharper, and tied 
 - ✅ Default assumptions are persisted as pending changes when user proceeds
 - ✅ Tests pass
 
-## Priority 9: Improve Cost Estimation Precision and Transparency
+## Priority 9: Improve Cost Estimation Precision and Transparency ✅ IMPLEMENTED
 
 ### Problem
 
@@ -370,7 +370,7 @@ The cost estimator can produce baseline estimates from heuristic service mapping
 - Cost answers are transparent about confidence.
 - The assistant does not present heuristic baseline pricing as precise estimation.
 
-## Priority 10: Improve Diagram Quality and Explanation
+## Priority 10: Improve Diagram Quality and Explanation ✅ IMPLEMENTED
 
 ### Problem
 
@@ -551,7 +551,7 @@ Added 5 new tests to `test_eval_runner.py` and 4 new tests to `test_reporting.py
 - Critical artifacts are produced through validated contracts, not ad hoc text parsing.
 - `AAA_STATE_UPDATE` becomes a fallback path, not the primary correctness mechanism.
 
-## Priority 13: Refactor the Prompt Stack
+## Priority 13: Refactor the Prompt Stack ✅ IMPLEMENTED
 
 ### Problem
 
@@ -588,7 +588,7 @@ The code uses modular prompts, but the legacy `agent_prompts.yaml` still contain
 - Developers can explain exactly what prompt the model receives for each stage.
 - Legacy and modular prompts no longer contradict each other.
 
-## Priority 14: Add End-to-End Journey Tests
+## Priority 14: Add End-to-End Journey Tests ✅ IMPLEMENTED
 
 ### Problem
 
@@ -624,7 +624,7 @@ The code has many unit tests, but correctness should be proven across the full p
 - The full assistant journey can be validated automatically.
 - Regressions in workflow articulation are caught before release.
 
-## Priority 15: Add Answer-Quality Evaluation Scenarios
+## Priority 15: Add Answer-Quality Evaluation Scenarios ✅ IMPLEMENTED
 
 ### Problem
 
