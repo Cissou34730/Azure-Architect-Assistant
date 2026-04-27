@@ -1068,6 +1068,9 @@ class _PromptLoaderStub:
         assert prompt_name == "waf_validator.yaml"
         return {"system_prompt": "Generate remediation-focused WAF findings as JSON."}
 
+    def load_prompt_file(self, prompt_name: str, force_reload: bool = False) -> dict[str, str]:
+        return self.load_prompt(prompt_name, force_reload)
+
 
 @pytest.mark.asyncio
 async def test_validate_stage_worker_builds_validation_tool_payload() -> None:
@@ -1192,6 +1195,7 @@ async def test_validate_stage_worker_builds_validation_tool_payload() -> None:
         "actionable_items": 1,
         "findings_generated": 1,
         "waf_evaluations_generated": 1,
+        "typed_snapshot_status": "validated",
     }
     assert result.get("handled_by_stage_worker") is not True
 

@@ -90,6 +90,8 @@ async def test_execute_research_worker_skips_when_plan_is_missing() -> None:
         "reason": "no_research_plan",
         "stage": "propose_candidate",
         "packets_created": 0,
+        "groundedPackets": None,
+        "plan_items": None,
     }
     assert result.get("research_evidence_packets") == []
 
