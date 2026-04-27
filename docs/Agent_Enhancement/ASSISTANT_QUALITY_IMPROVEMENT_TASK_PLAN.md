@@ -99,16 +99,17 @@ This creates model confusion and encourages shallow answers.
 - No prompt layer tells the assistant to hide all meaningful architecture analysis from the user.
 - The assistant is still forbidden from dumping raw diagram code, IaC bundles, or complete artifact JSON in chat.
 
-## Priority 3: Strengthen the Architecture Planner Rubric
+## Priority 3: Strengthen the Architecture Planner Rubric ✅ IMPLEMENTED
 
 ### Problem
 
 `architecture_planner_prompt.yaml` asks for a complete proposal, but it does not enforce a strict enough consulting-quality rubric. It says to include NFRs and diagrams, but not enough about rejected alternatives, explicit risk analysis, service-by-service rationale, ADR candidates, and implementation sequencing.
 
-### Files to Change
+### Files Changed
 
 - `backend/config/prompts/architecture_planner_prompt.yaml`
 - `backend/app/agents_system/langgraph/nodes/architecture_planner.py`
+- `backend/tests/agents_system/test_architecture_planner_node.py`
 
 ### Tasks
 
@@ -394,18 +395,18 @@ The diagram tool persists diagrams, but value depends on whether diagrams are me
 - Generated diagrams are not only syntactically valid but architecturally useful.
 - User receives a short explanation of what each diagram validates.
 
-## Priority 11: Add ADR Candidate Detection
+## Priority 11: Add ADR Candidate Detection ✅ IMPLEMENTED
 
 ### Problem
 
 Architecture proposals naturally imply decisions, but the assistant may not capture ADR candidates unless explicitly asked.
 
-### Files to Change
+### Files Changed
 
+- `backend/config/prompts/architecture_planner_prompt.yaml`
 - `backend/app/agents_system/langgraph/nodes/architecture_planner.py`
-- `backend/app/features/agent/infrastructure/tools/aaa_adr_tool.py`
 - `backend/config/prompts/adr_writer.yaml`
-- Candidate architecture tool/schema
+- `backend/tests/agents_system/test_architecture_planner_node.py`
 
 ### Tasks
 

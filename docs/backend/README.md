@@ -20,8 +20,10 @@ Comprehensive human-facing backend documentation.
 - `BACKEND_REFERENCE.md` now also covers the minimal server-side validation tool surface: `aaa_validate_mermaid_diagram` exposes Mermaid syntax checks with line-aware diagnostics, `aaa_validate_iac_bundle` validates ARM/JSON/YAML plus lightweight Bicep/Terraform structure, and both tools are stage-scoped through the canonical runtime tool registry.
 - `BACKEND_REFERENCE.md` also documents the new unified `research` facade plus grounded evidence-packet shape for `propose_candidate`, and the standalone `azure_retail_prices` tool path that the cost tool now calls before persisting `costEstimates`.
 
+- `BACKEND_REFERENCE.md` also documents P10 diagram quality improvements: the `diagram_explanation` and `how_to_read` optional fields on the `aaa_create_diagram_set` tool input, and the new pure `validate_diagram_semantics(diagram_code, diagram_type)` function in `semantic_validator.py` that performs non-blocking structural checks (missing actors, unlabeled flows, placeholder text, bare abbreviations, missing external dependencies) surfaced as warnings in the validation pipeline.
+
 ---
 
 **Status**: Active  
-**Last Updated**: 2026-04-17  
+**Last Updated**: 2026-04-18  
 **Owner**: Engineering

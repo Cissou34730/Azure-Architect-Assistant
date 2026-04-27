@@ -135,9 +135,28 @@ def _build_synthesizer_contract(state: GraphState, handoff_context: dict[str, An
     return (
         "**Required Output Contract:**\n"
         "- Default to exactly 1 candidate unless the user explicitly asks for more.\n"
-        "- Use explicit section headings: Evidence Packet Consumption, Assumptions linked to requirements, "
-        "Trade-offs, System Context Diagram [Target Architecture], Container Diagram [Target Architecture], "
-        "WAF Delta, Mindmap Delta, Citations.\n"
+        "- Use explicit section headings: Executive Recommendation, Workload Classification, Target Topology, "
+        "Azure Service-by-Service Rationale, Evidence Packet Consumption, Assumptions linked to requirements, "
+        "Trade-offs, Alternatives Rejected, Risks and Mitigations, "
+        "System Context Diagram [Target Architecture], Container Diagram [Target Architecture], "
+        "NFR Achievement Summary, WAF Pillar Mapping, NFR Achievement Matrix, "
+        "Cost Drivers, Operational Model, Security Model, "
+        "ADR Candidates, Implementation Phases, "
+        "WAF Delta, Mindmap Delta, Citations, Persisted Artifacts Summary.\n"
+        "- Executive Recommendation: 1-2 sentences stating the recommended approach and primary reason.\n"
+        "- Workload Classification: classify compute type, data tier, integration pattern, deployment model.\n"
+        "- Azure Service-by-Service Rationale: for each key service, state why chosen, which NFR it satisfies, and one alternative considered.\n"
+        "- Alternatives Rejected: at least 2 alternatives with explicit Azure-specific reasons why rejected.\n"
+        "- Risks and Mitigations: at least 3 identified risks with concrete mitigations.\n"
+        "- WAF Pillar Mapping: for each of the 5 WAF pillars, state how it is addressed or explicitly deferred.\n"
+        "- NFR Achievement Matrix: table mapping each NFR to achieved/partially/deferred.\n"
+        "- Cost Drivers: top 3-5 cost drivers with their optimization levers.\n"
+        "- Operational Model: deployment pipeline, monitoring, alerting approach.\n"
+        "- Security Model: identity, network, data encryption, compliance posture.\n"
+        "- ADR Candidates: identify decisions for hosting model, database choice, identity model, "
+        "network exposure model, regional/DR strategy, integration pattern, observability approach. "
+        "Each candidate must reference the architecture ID and decision domain.\n"
+        "- Implementation Phases: at least Phase 1 (Foundation) and Phase 2 (Full Target).\n"
         "- For C4 artifacts, produce Mermaid System Context and Container diagrams whenever the workload boundary is known; "
         "if a diagram is not applicable, say why.\n"
         "- Make assumptions traceable to requirements or evidence packets.\n"
@@ -169,6 +188,7 @@ def _build_synthesis_execution_artifact(
     research_packets_supplied: int,
 ) -> dict[str, Any]:
     required_sections = {
+        # Original sections
         "assumptions": _contains_any(
             agent_output,
             ("## assumptions linked to requirements", "## assumptions"),
@@ -198,7 +218,54 @@ def _build_synthesis_execution_artifact(
             ("## container diagram [target architecture]", "## container diagram", "c4 container"),
         ),
         "state_update": "aaa_state_update" in agent_output.lower(),
+        # P3: Consulting-quality sections
+        "executive_recommendation": _contains_any(
+            agent_output,
+            ("## executive recommendation",),
+        ),
+        "workload_classification": _contains_any(
+            agent_output,
+            ("## workload classification",),
+        ),
+        "alternatives_rejected": _contains_any(
+            agent_output,
+            ("## alternatives rejected",),
+        ),
+        "risks_and_mitigations": _contains_any(
+            agent_output,
+            ("## risks and mitigations",),
+        ),
+        "waf_pillar_mapping": _contains_any(
+            agent_output,
+            ("## waf pillar mapping",),
+        ),
+        "nfr_achievement_matrix": _contains_any(
+            agent_output,
+            ("## nfr achievement matrix", "## nfr achievement"),
+        ),
+        "cost_drivers": _contains_any(
+            agent_output,
+            ("## cost drivers",),
+        ),
+        "operational_model": _contains_any(
+            agent_output,
+            ("## operational model",),
+        ),
+        "security_model": _contains_any(
+            agent_output,
+            ("## security model",),
+        ),
+        # P11: ADR candidate detection
+        "adr_candidates": _contains_any(
+            agent_output,
+            ("## adr candidates",),
+        ),
+        "implementation_phases": _contains_any(
+            agent_output,
+            ("## implementation phases", "## implementation phase"),
+        ),
     }
+    missing_sections = [key for key, present in required_sections.items() if not present]
     artifact = {
         "status": "completed" if success else "failed",
         "stage": state.get("next_stage") or "propose_candidate",
@@ -207,6 +274,7 @@ def _build_synthesis_execution_artifact(
         "research_packets_supplied": research_packets_supplied,
         "mindmap_guidance_supplied": bool(state.get("mindmap_guidance")),
         "required_sections": required_sections,
+        "missing_sections": missing_sections,
     }
     if error:
         artifact["error"] = error
@@ -283,20 +351,33 @@ async def architecture_planner_node(state: GraphState) -> dict[str, Any]:
 
 ---
 
-**Task:** Design the complete target architecture for this project. Include:
+**Task:** Design the complete target architecture for this project. Include all mandatory sections:
 
-1. **Exactly 1 evidence-backed candidate by default** (produce more only when the user explicitly requests alternatives)
-2. **Target Architecture Design** with Azure services + rationale
-3. **Evidence Packet Consumption** section mapping packet ids to architecture decisions
-4. **Assumptions linked to requirements**
-5. **Trade-offs** explicitly stated
-6. **System Context Diagram** [Target Architecture]
-7. **Container Diagram** [Target Architecture]
-8. **WAF Delta** + **Mindmap Delta**
-9. **User Journey Flow** (if user-facing system)
-10. **NFR Analysis** for each diagram (Scalability, Performance, Security, Reliability, Maintainability, Trade-offs)
-11. Persist reviewable artifacts with aaa_create_diagram_set and aaa_generate_candidate_architecture once the proposal is ready
-12. After presenting target, ask if user wants MVP path
+1. **Executive Recommendation** (1-2 sentences: recommended approach + primary reason)
+2. **Workload Classification** (compute type, data tier, integration pattern, deployment model)
+3. **Target Topology** (structural pattern)
+4. **Azure Service-by-Service Rationale** (why chosen, NFR satisfied, alternative considered)
+5. **Exactly 1 evidence-backed candidate by default** (produce more only when the user explicitly requests alternatives)
+6. **Evidence Packet Consumption** section mapping packet ids to architecture decisions
+7. **Assumptions linked to requirements**
+8. **Trade-offs** explicitly stated (Azure-specific, not generic)
+9. **Alternatives Rejected** (at least 2, with explicit reasons)
+10. **Risks and Mitigations** (at least 3 risks with concrete mitigations)
+11. **System Context Diagram** [Target Architecture]
+12. **Container Diagram** [Target Architecture]
+13. **NFR Achievement Summary**
+14. **WAF Pillar Mapping** (all 5 pillars: addressed or deferred)
+15. **NFR Achievement Matrix** (table: NFR vs achieved/partially/deferred)
+16. **Cost Drivers** (top 3-5 with optimization levers)
+17. **Operational Model** (deployment pipeline, monitoring, alerting)
+18. **Security Model** (identity, network, data encryption, compliance)
+19. **ADR Candidates** (hosting model, database choice, identity model, network exposure, regional/DR strategy, integration pattern, observability)
+20. **Implementation Phases** (at least Phase 1: Foundation and Phase 2: Full Target)
+21. **WAF Delta** + **Mindmap Delta**
+22. **User Journey Flow** (if user-facing system)
+23. **NFR Analysis** for each diagram (Scalability, Performance, Security, Reliability, Maintainability, Trade-offs)
+24. Persist reviewable artifacts with aaa_create_diagram_set and aaa_generate_candidate_architecture once the proposal is ready
+25. After presenting target, ask if user wants MVP path
 
 Ensure all diagrams use valid Mermaid syntax and include comprehensive NFR analysis.
 """
