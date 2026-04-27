@@ -121,13 +121,16 @@ async def apply_state_updates_node(
         pending_change_set = state.get("pending_change_set")
         if isinstance(pending_change_set, dict):
             refreshed_state = await read_project_state(project_id, db)
+            base_answer = sanitize_agent_output(str(agent_output))
             return {
                 "updated_project_state": (
                     refreshed_state
                     if isinstance(refreshed_state, dict)
                     else state.get("current_project_state")
                 ),
-                "final_answer": sanitize_agent_output(str(agent_output)),
+                "final_answer": _enrich_answer_with_briefing(
+                    base_answer, state.get("generated_briefing")
+                ),
                 "success": True,
             }
         return {
@@ -161,6 +164,7 @@ async def apply_state_updates_node(
 
         # Build final answer with additional guidance
         final_answer = sanitize_agent_output(str(agent_output))
+        final_answer = _enrich_answer_with_briefing(final_answer, state.get("generated_briefing"))
         final_answer = await _handle_uncovered_topics(
             project_id, updated_state, final_answer, architect_choice_required, db
         )
@@ -206,6 +210,42 @@ async def apply_state_updates_node(
             "error": f"Failed to apply state updates: {e!s}",
             "success": False,
         }
+
+
+_THIN_RECEIPT_PHRASES = frozenset(
+    {
+        "i've saved",
+        "i have saved",
+        "i've persisted",
+        "i have persisted",
+        "pending change",
+        "change set",
+        "changeset",
+        "saved your candidate",
+        "persisted the",
+        "recorded the",
+    }
+)
+
+_MIN_RICH_ANSWER_LENGTH = 300
+
+
+def _is_thin_receipt(answer: str) -> bool:
+    """Return True when the LLM answer looks like a thin persistence receipt."""
+    if not answer or len(answer) >= _MIN_RICH_ANSWER_LENGTH:
+        return False
+    lower = answer.lower()
+    return any(phrase in lower for phrase in _THIN_RECEIPT_PHRASES)
+
+
+def _enrich_answer_with_briefing(answer: str, generated_briefing: str | None) -> str:
+    """Prepend the generated briefing when the LLM answer is a thin receipt."""
+    if not generated_briefing:
+        return answer
+    if _is_thin_receipt(answer):
+        return generated_briefing + ("\n\n---\n" + answer if answer.strip() else "")
+    # Answer is already rich — append the briefing as a structured summary
+    return answer + "\n\n" + generated_briefing
 
 
 async def _handle_uncovered_topics(

@@ -6,6 +6,10 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
+from app.agents_system.contracts.stage_contracts import (
+    ValidationOutput,
+    _parse_and_validate_output,
+)
 from app.agents_system.services.waf_evaluator import WAFEvaluatorService
 from app.agents_system.services.waf_findings_worker import WAFFindingsWorker
 from app.features.agent.infrastructure.tools.aaa_validation_tool import AAARunValidationTool
@@ -71,6 +75,16 @@ async def execute_validate_stage_worker_node(
         waf_evaluations_count = len(waf_evaluations) if isinstance(waf_evaluations, list) else 0
         actionable_items = _count_actionable_items(evaluator_result)
 
+        # Attempt typed contract validation for structured introspection.
+        # Gracefully falls back to (None, raw) on schema mismatch.
+        import json as _json  # local import to avoid shadowing top-level json usage
+
+        _typed_snapshot, _fallback_raw = _parse_and_validate_output(
+            _json.dumps(_build_validation_output_payload(findings_payload)),
+            ValidationOutput,
+        )
+        typed_snapshot_status = "validated" if _typed_snapshot is not None else "unvalidated"
+
         if findings_count <= 0 and waf_evaluations_count <= 0:
             logger.info(
                 "Validate stage worker found no actionable deltas (evaluated_items=%s, actionable_items=%s)",
@@ -90,6 +104,7 @@ async def execute_validate_stage_worker_node(
                     "actionable_items": actionable_items,
                     "findings_generated": findings_count,
                     "waf_evaluations_generated": waf_evaluations_count,
+                    "typed_snapshot_status": typed_snapshot_status,
                 },
             }
 
@@ -107,6 +122,7 @@ async def execute_validate_stage_worker_node(
                 "actionable_items": actionable_items,
                 "findings_generated": findings_count,
                 "waf_evaluations_generated": waf_evaluations_count,
+                "typed_snapshot_status": typed_snapshot_status,
             },
         }
     except Exception as exc:
@@ -148,3 +164,28 @@ def _count_actionable_items(evaluator_result: Mapping[str, Any]) -> int:
         if isinstance(item, Mapping)
         and str(item.get("status") or "").strip().lower() in _ACTIONABLE_STATUSES
     )
+
+
+def _build_validation_output_payload(findings_payload: dict[str, Any]) -> dict[str, Any]:
+    """Map the internal findings payload to the shape expected by ValidationOutput."""
+    findings = findings_payload.get("findings") or []
+    waf_findings: list[dict[str, Any]] = []
+    severity_counts: dict[str, int] = {}
+    top_issues: list[str] = []
+
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        waf_findings.append(finding)
+        severity = str(finding.get("severity") or "unknown").lower()
+        severity_counts[severity] = severity_counts.get(severity, 0) + 1
+        title = finding.get("title") or finding.get("description") or ""
+        if title:
+            top_issues.append(str(title))
+
+    return {
+        "waf_findings": waf_findings,
+        "severity_breakdown": severity_counts,
+        "top_issues": top_issues[:5],
+        "recommendation": "",
+    }

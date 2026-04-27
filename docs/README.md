@@ -75,6 +75,7 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 ### Agent Enhancement
 
 - [`Agent_Enhancement/PROJECT_MEMORY_CONTEXT_IMPLEMENTATION_BREAKDOWN.md`](./Agent_Enhancement/PROJECT_MEMORY_CONTEXT_IMPLEMENTATION_BREAKDOWN.md) — Memory & context engineering plan (4 phases, all complete)
+- [`Agent_Enhancement/ASSISTANT_QUALITY_IMPROVEMENT_TASK_PLAN.md`](./Agent_Enhancement/ASSISTANT_QUALITY_IMPROVEMENT_TASK_PLAN.md) — Quality improvement task plan (Wave 1 complete). **P6 (Generate Architect Briefing from Pending Changes)** is now implemented: `PendingChangeBriefingService` generates stage-aware briefings (`propose_candidate`, `pricing`, `iac`, `validate`, `clarify`) injected into the agent response when the LLM output is a thin receipt. **P12 (Typed Contracts for Deterministic Stage Outputs)** is now implemented: 5 Pydantic output contracts (`RequirementsExtractionOutput`, `ClarificationPlanOutput`, `ArchitectureDraftOutput`, `ValidationOutput`, `AdrDraftOutput`) plus a `_parse_and_validate_output` helper in `backend/app/agents_system/contracts/stage_contracts.py`; the validate node uses these contracts for typed findings introspection with graceful fallback on malformed output.
 
 ## Agent Lane Index
 

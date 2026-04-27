@@ -224,36 +224,37 @@ The workflow has a quality gate, but the architecture stage needs stronger check
 - Retry prompt names the missing sections.
 - Tests prove that weak answers fail and complete answers pass.
 
-## Priority 6: Generate a Final Briefing From Pending Changes
+## Priority 6: Generate a Final Briefing From Pending Changes ✅ IMPLEMENTED
 
 ### Problem
 
 The model may create a good pending change set, but the chat answer can still be weak. The system should produce a useful user-facing summary from the structured pending change itself.
 
-### Files to Change
+### Files Changed
 
-- Add new service: `backend/app/features/projects/application/pending_change_briefing_service.py`
-- `backend/app/agents_system/langgraph/adapter.py`
-- `backend/app/agents_system/langgraph/nodes/persist.py`
-- `backend/app/agents_system/langgraph/nodes/postprocess.py`
+- Added new service: `backend/app/features/agent/application/pending_change_briefing_service.py` — `PendingChangeBriefingService.generate_briefing()` dispatches to stage-specific formatters for `propose_candidate`, `pricing`, `iac`, `validate`, and `clarify`; falls back to a generic summary for unknown stages.
+- `backend/app/agents_system/langgraph/nodes/postprocess.py` — calls `PendingChangeBriefingService` after extracting the pending change set, attaches `generated_briefing` to graph state.
+- `backend/app/agents_system/langgraph/nodes/persist.py` — `apply_state_updates_node` calls `_enrich_answer_with_briefing()` which prepends the briefing when the LLM answer is a thin receipt (<300 chars with persistence phrases), or appends it when the answer is already rich.
+- `backend/tests/test_pending_change_briefing_service.py` — 30 tests covering all stages, graceful edge cases, and integration flow.
 
 ### Tasks
 
-1. Create a formatter that accepts a `PendingChangeSetContract`.
-2. Generate stage-specific summaries:
+1. ✅ Create a formatter that accepts a `PendingChangeSetContract`.
+2. ✅ Generate stage-specific summaries:
    - candidate architecture: recommendation, risks, WAF impact, trade-offs
-   - diagrams: diagram types and what each helps validate
    - cost: total, assumptions, gaps, confidence
    - IaC: resources, validation, deployment notes
    - validation: findings, severity, remediation
-3. In `postprocess_node`, when `pending_change_set` exists, attach a generated briefing to state.
-4. In `persist_messages_node` or adapter final response building, prefer the generated briefing when the model output is only a receipt.
-5. Ensure the original pending change id remains visible.
+   - clarify: questions with defaults and decision impact
+3. ✅ In `postprocess_node`, when `pending_change_set` exists, attach a generated briefing to state.
+4. ✅ In `apply_state_updates_node`, prefer the generated briefing when the model output is only a receipt.
+5. ✅ Ensure the original pending change id remains visible.
 
 ### Acceptance Criteria
 
-- Even if the LLM final text is weak, the user receives a useful structured explanation based on the pending change.
-- The pending change id and review instruction remain present.
+- ✅ Even if the LLM final text is weak, the user receives a useful structured explanation based on the pending change.
+- ✅ The pending change id and review instruction remain present.
+- ✅ 30 tests pass covering all stages and integration flow.
 
 ## Priority 7: Improve Research-to-Decision Traceability
 
@@ -435,13 +436,39 @@ Architecture proposals naturally imply decisions, but the assistant may not capt
 - The assistant naturally moves from architecture proposal to decision capture.
 - Key architectural decisions are not lost in free-form chat.
 
-## Priority 12: Make More Stages Deterministic
+## Priority 12: Make More Stages Deterministic — ✅ IMPLEMENTED
 
 ### Problem
 
 Several stages depend on the LLM following instructions and emitting correct tool calls. This is flexible but fragile.
 
-### Files to Change
+### Implementation (P12)
+
+- **New file**: `backend/app/agents_system/contracts/stage_contracts.py`
+  - `RequirementsExtractionOutput`: functional_requirements, non_functional_requirements, constraints, open_questions (all default to empty list)
+  - `ClarificationPlanOutput`: questions (list of `_ClarificationQuestion` with question/decision_impact/default_assumption), proceed_with_defaults (bool, default False)
+  - `ArchitectureDraftOutput`: candidate_name, summary (required), components, trade_offs, risks, waf_highlights, next_steps
+  - `ValidationOutput`: waf_findings, severity_breakdown, top_issues, recommendation (all default-safe)
+  - `AdrDraftOutput`: title, context, decision, consequences (required), status (default "proposed"), alternatives_considered
+  - `_parse_and_validate_output(raw, contract)` helper: returns `(model, None)` on success, `(None, raw)` on malformed JSON or schema mismatch with a WARNING log
+- **Updated**: `backend/app/agents_system/contracts/__init__.py` to export all 5 contracts and the helper
+- **Updated**: `backend/app/agents_system/langgraph/nodes/validate.py` imports and uses `_parse_and_validate_output` + `ValidationOutput` to build a typed contract snapshot of findings before forwarding
+- **Tests**: `backend/tests/test_stage_contracts.py` — 20 tests covering valid parse, defaults, required field rejection, malformed JSON, schema mismatch, and integration smoke test
+
+### Files Changed
+
+- `backend/app/agents_system/contracts/stage_contracts.py` (new)
+- `backend/app/agents_system/contracts/__init__.py` (updated exports)
+- `backend/app/agents_system/langgraph/nodes/validate.py` (uses contracts)
+- `backend/tests/test_stage_contracts.py` (new, 20 tests)
+
+### Acceptance Criteria
+
+- ✅ Critical artifacts are produced through validated contracts, not ad hoc text parsing.
+- ✅ `_parse_and_validate_output` provides graceful degradation (returns raw on failure, no crash).
+- ✅ Validate stage worker uses the typed contract for findings introspection.
+
+### Files to Change (original)
 
 - Existing stage workers under `backend/app/agents_system/langgraph/nodes/`
 - Existing application workers under `backend/app/features/agent/application/`

@@ -14,6 +14,10 @@ from app.agents_system.contracts import (
     normalize_structured_payload,
 )
 from app.agents_system.tools.tool_registry import normalize_pending_change_tool_result
+from app.features.agent.application.pending_change_briefing_service import (
+    PendingChangeBriefingService,
+)
+from app.features.projects.contracts import PendingChangeSetContract
 
 from ...services.iteration_logging import (
     build_iteration_event_update,
@@ -21,6 +25,8 @@ from ...services.iteration_logging import (
 )
 from ...services.state_update_parser import extract_state_updates
 from ..state import GraphState
+
+_briefing_service = PendingChangeBriefingService()
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +81,9 @@ async def postprocess_node(state: GraphState, response_message_id: str) -> dict[
     )
     pending_change_set = _extract_pending_change_set(intermediate_steps)
 
+    # P6: Generate architect briefing from pending change set
+    generated_briefing = _generate_briefing_from_pending_change(pending_change_set)
+
     # 2) Extract and merge state updates
     state_updates = None
     if pending_change_set is None:
@@ -109,6 +118,7 @@ async def postprocess_node(state: GraphState, response_message_id: str) -> dict[
 
     return {
         "architect_choice_required_section": architect_choice_required,
+        "generated_briefing": generated_briefing,
         "pending_change_set": pending_change_set,
         "structured_payload": structured_payload,
         "state_updates": state_updates,
@@ -185,6 +195,20 @@ def _extract_pending_change_set(steps: list[Any]) -> dict[str, Any] | None:
             continue
         return canonical_result.pending_change_set.model_dump(mode="json", by_alias=True)
     return None
+
+
+def _generate_briefing_from_pending_change(
+    pending_change_set: dict[str, Any] | None,
+) -> str | None:
+    """Generate an Architect Briefing from a pending change set dict, if present."""
+    if not isinstance(pending_change_set, dict):
+        return None
+    try:
+        cs = PendingChangeSetContract.model_validate(pending_change_set)
+        return _briefing_service.generate_briefing(cs)
+    except Exception:  # noqa: BLE001
+        logger.warning("Failed to generate briefing from pending change set", exc_info=True)
+        return None
 
 
 def _merge_update_sets(update_sets: list[dict[str, Any]]) -> dict[str, Any]:
