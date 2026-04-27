@@ -1,0 +1,17 @@
+scenario_id: journey-clarify-vague-request
+description: >
+  User sends a vague architecture request. The assistant should enter the clarify
+  stage and return structured questions with decision_impact and default_assumption
+  fields rather than a thin receipt.
+input: "I need an Azure solution for my company"
+stage: clarify
+expected_fields:
+  - "stage"
+  - "nextStep"
+  - "structuredPayload.type"
+  - "structuredPayload.questions"
+forbidden_patterns:
+  - "I've saved .*"
+  - "recorded successfully"
+  - "(?i)change set \\w+ created"
+  - "(?i)^I've created a"

@@ -470,6 +470,64 @@ Several stages depend on the LLM following instructions and emitting correct too
 
 ### Files to Change (original)
 
+---
+
+## P14: End-to-End Journey Tests — IMPLEMENTED
+
+### What was done
+
+Added `backend/tests/e2e/test_answer_quality_journey.py` with 13 tests covering the full agent lifecycle for 4 key scenarios using mocks/stubs (no real LLM):
+
+1. **TestClarificationJourney** — vague request hits the clarify stage; verifies `structured_payload` has `type: clarification_questions` and questions have `affectedDecision` + `defaultAssumption` populated.
+2. **TestArchitectureProposalJourney** — propose_candidate stage returns a `WorkflowStageResult` with `stage`, `summary`, `nextStep`, `reasoningSummary`; quality gate passes rich answers and retries thin receipts.
+3. **TestCostEstimationJourney** — pricing stage result has correct structure; quality gate accepts cost answers with and without artifact edit.
+4. **TestQualityGateRetryJourney** — thin receipt triggers retry; `quality_gate_node` increments `quality_retry_count` and sets architectural `quality_retry_reason`; enriched answers pass.
+
+Also added `quality_gate_node` alias to `backend/app/agents_system/langgraph/nodes/quality_gate.py` as a named wrapper for `build_quality_retry`.
+
+### Files Changed
+
+- `backend/tests/e2e/__init__.py` (new)
+- `backend/tests/e2e/test_answer_quality_journey.py` (new, 13 tests)
+- `backend/app/agents_system/langgraph/nodes/quality_gate.py` (added `quality_gate_node`)
+
+### Acceptance Criteria
+
+- ✅ 13 journey tests pass with mocks/stubs — no real LLM calls required.
+- ✅ Clarification payload carries decision fields in camelCase serialized output.
+- ✅ Quality gate correctly distinguishes thin receipts from rich architecture answers.
+- ✅ Retry node increments count and sets an architectural failure reason.
+
+---
+
+## P15: Answer Quality Eval Golden Scenarios — IMPLEMENTED
+
+### What was done
+
+Added 5 YAML golden scenario files in `backend/tests/eval/golden_scenarios/` covering the key journey stages. Extended `eval_runner.py` with `JourneyScenario`, `JourneyScenarioResult`, `JourneyEvalRun`, `discover_journey_scenarios`, `load_journey_scenario`, `validate_journey_response`, and `run_journey_eval_harness`. Extended `reporting.py` with `JourneyScenarioDimension`, `JourneyScenarioReport`, `JourneyEvalReport`, and `build_journey_eval_report`.
+
+Added 5 new tests to `test_eval_runner.py` and 4 new tests to `test_reporting.py`.
+
+### Files Changed
+
+- `backend/tests/eval/golden_scenarios/journey-clarify-vague.yaml` (new)
+- `backend/tests/eval/golden_scenarios/journey-propose-candidate.yaml` (new)
+- `backend/tests/eval/golden_scenarios/journey-cost-estimation.yaml` (new)
+- `backend/tests/eval/golden_scenarios/journey-quality-gate-retry.yaml` (new)
+- `backend/tests/eval/golden_scenarios/journey-compliance-workload.yaml` (new)
+- `backend/tests/eval/eval_runner.py` (journey scenario support)
+- `backend/tests/eval/reporting.py` (journey eval report)
+- `backend/tests/eval/test_eval_runner.py` (5 new journey tests)
+- `backend/tests/eval/test_reporting.py` (4 new journey report tests)
+
+### Acceptance Criteria
+
+- ✅ 5 YAML scenario files define expected fields, forbidden patterns, and stage metadata.
+- ✅ `discover_journey_scenarios()` loads all 5 scenarios by glob pattern.
+- ✅ `validate_journey_response()` checks dot-path field presence and regex forbidden patterns.
+- ✅ `run_journey_eval_harness()` runs all scenarios and produces a `JourneyEvalRun`.
+- ✅ `build_journey_eval_report()` converts results to a typed Pydantic report with pass rate.
+
 - Existing stage workers under `backend/app/agents_system/langgraph/nodes/`
 - Existing application workers under `backend/app/features/agent/application/`
 - Tool contracts under `backend/app/features/agent/contracts/`

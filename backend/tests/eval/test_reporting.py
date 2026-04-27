@@ -1,4 +1,5 @@
-from .reporting import EvalDimension, build_phase0_eval_summary
+from .reporting import EvalDimension, JourneyEvalReport, JourneyScenarioReport, build_journey_eval_report, build_phase0_eval_summary
+from . import eval_runner
 
 
 def test_build_phase0_eval_summary_scores_existing_runner_report_shape() -> None:
@@ -441,3 +442,105 @@ def test_build_phase0_eval_summary_flags_adr_payload_regressions() -> None:
         "ADR payload latest draft missing fields: decision, sourceCitations"
         in summary.baseline_failures
     )
+
+
+# ---------------------------------------------------------------------------
+# P15: Journey Eval Report tests
+# ---------------------------------------------------------------------------
+
+
+def _make_journey_result(
+    *,
+    scenario_id: str = "s1",
+    stage: str = "clarify",
+    passed: bool = True,
+    missing_fields: tuple[str, ...] = (),
+    forbidden_matches: tuple[str, ...] = (),
+) -> eval_runner.JourneyScenarioResult:
+    scenario = eval_runner.JourneyScenario(
+        scenario_id=scenario_id,
+        description="",
+        input="",
+        stage=stage,
+        expected_fields=missing_fields,
+        forbidden_patterns=forbidden_matches,
+    )
+    return eval_runner.JourneyScenarioResult(
+        scenario=scenario,
+        passed=passed,
+        missing_fields=missing_fields,
+        forbidden_pattern_matches=forbidden_matches,
+    )
+
+
+def test_build_journey_eval_report_all_passed() -> None:
+    results = [
+        _make_journey_result(scenario_id="s1", passed=True),
+        _make_journey_result(scenario_id="s2", passed=True),
+        _make_journey_result(scenario_id="s3", passed=True),
+    ]
+    report = build_journey_eval_report(results)
+
+    assert isinstance(report, JourneyEvalReport)
+    assert report.total == 3
+    assert report.passed == 3
+    assert report.failed == 0
+    assert report.pass_rate == 1.0
+    assert len(report.scenarios) == 3
+    assert all(s.passed for s in report.scenarios)
+
+
+def test_build_journey_eval_report_partial_failures() -> None:
+    results = [
+        _make_journey_result(scenario_id="s1", passed=True),
+        _make_journey_result(
+            scenario_id="s2",
+            passed=False,
+            missing_fields=("stage", "summary"),
+        ),
+        _make_journey_result(
+            scenario_id="s3",
+            passed=False,
+            forbidden_matches=("(?i)recorded successfully",),
+        ),
+    ]
+    report = build_journey_eval_report(results)
+
+    assert report.total == 3
+    assert report.passed == 1
+    assert report.failed == 2
+    assert 0.33 <= report.pass_rate <= 0.34
+
+    failed_reports = [s for s in report.scenarios if not s.passed]
+    assert len(failed_reports) == 2
+    s2 = next(s for s in report.scenarios if s.scenario_id == "s2")
+    assert "stage" in s2.missing_fields
+    assert "summary" in s2.missing_fields
+    assert s2.failure_reasons
+
+
+def test_build_journey_eval_report_empty() -> None:
+    report = build_journey_eval_report([])
+
+    assert report.total == 0
+    assert report.passed == 0
+    assert report.failed == 0
+    assert report.pass_rate == 0.0
+    assert report.scenarios == []
+
+
+def test_build_journey_eval_report_failure_reasons_populated() -> None:
+    results = [
+        _make_journey_result(
+            scenario_id="s1",
+            passed=False,
+            missing_fields=("stage",),
+            forbidden_matches=("(?i)bad pattern",),
+        )
+    ]
+    report = build_journey_eval_report(results)
+
+    scenario = report.scenarios[0]
+    assert any("Missing expected fields" in r for r in scenario.failure_reasons)
+    assert any("Forbidden patterns found" in r for r in scenario.failure_reasons)
+

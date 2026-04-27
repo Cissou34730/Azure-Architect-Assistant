@@ -1,0 +1,22 @@
+scenario_id: journey-compliance-workload
+description: >
+  Compliance-driven workload. User asks for architecture with specific regulatory
+  requirements (GDPR, ISO 27001). The response should include WAF findings,
+  compliance mapping, and risks without dumping raw artifacts.
+input: "Design a GDPR and ISO 27001 compliant data platform on Azure"
+stage: propose_candidate
+expected_fields:
+  - "stage"
+  - "summary"
+  - "nextStep"
+  - "reasoningSummary"
+forbidden_patterns:
+  - "(?i)^I've saved"
+  - "(?i)recorded successfully"
+  - "```bicep"
+  - "```terraform"
+  - "(?i)raw artifact"
+required_answer_keywords:
+  - "gdpr"
+  - "compliance"
+  - "risk"

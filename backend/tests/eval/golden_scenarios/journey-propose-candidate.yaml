@@ -1,0 +1,22 @@
+scenario_id: journey-propose-candidate
+description: >
+  User provides sufficient requirements. The assistant should enter propose_candidate
+  stage and return a response containing candidate name, components, trade-offs, and
+  WAF mapping. A thin receipt should fail.
+input: "Design a microservices architecture for a high-availability e-commerce platform on Azure with 99.99% SLA, GDPR compliance, and a budget of $10k/month"
+stage: propose_candidate
+expected_fields:
+  - "stage"
+  - "summary"
+  - "nextStep"
+  - "reasoningSummary"
+forbidden_patterns:
+  - "(?i)^I've saved"
+  - "(?i)^I've created a change set"
+  - "(?i)recorded successfully"
+thin_receipt_detection:
+  max_length: 200
+  required_keywords:
+    - "recommend"
+    - "trade-off"
+    - "risk"

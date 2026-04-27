@@ -1,0 +1,23 @@
+scenario_id: journey-quality-gate-retry
+description: >
+  The agent produces a thin receipt (short change-set confirmation). The quality
+  gate should detect this and trigger a retry with an enriched quality_retry_reason
+  pointing to missing briefing sections.
+input: "Propose a candidate architecture for the project"
+stage: propose_candidate
+expected_fields:
+  - "stage"
+  - "summary"
+forbidden_patterns:
+  - "(?i)^I've created"
+  - "(?i)change set \\w+ created"
+  - "(?i)recorded successfully"
+  - "(?i)^I've saved"
+quality_gate_must_retry_on:
+  - "I've created a pending change set for candidate architecture."
+  - "Pending change set created."
+quality_gate_must_pass_on_keywords:
+  - "recommend"
+  - "trade-off"
+  - "risk"
+  - "waf"

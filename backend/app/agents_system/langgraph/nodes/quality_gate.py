@@ -171,6 +171,14 @@ def completeness_check(state: GraphState) -> Literal["retry", "continue"]:
     return "continue"
 
 
+def quality_gate_node(state: GraphState) -> dict[str, Any]:
+    """LangGraph node that applies quality retry state updates.
+
+    Named alias for build_quality_retry. Intended for test wiring and graph usage.
+    """
+    return build_quality_retry(state)
+
+
 def build_quality_retry(state: GraphState) -> dict[str, Any]:
     """Build state updates for a quality retry.
 

@@ -44,7 +44,7 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 - [`backend/COPILOT_SETUP.md`](./backend/COPILOT_SETUP.md)
 - [`backend/DATA_ROOT_STORAGE_POLICY.md`](./backend/DATA_ROOT_STORAGE_POLICY.md)
 - [`backend/TESTING_DEPENDENCY_INJECTION.md`](./backend/TESTING_DEPENDENCY_INJECTION.md)
-- [`backend/EVAL_HARNESS.md`](./backend/EVAL_HARNESS.md) — Phase 0 golden-scenario eval harness for committed normalized runner reports
+- [`backend/EVAL_HARNESS.md`](./backend/EVAL_HARNESS.md) — Phase 0 golden-scenario eval harness + P14 E2E journey tests (`backend/tests/e2e/`) + P15 YAML journey scenarios (`backend/tests/eval/golden_scenarios/journey-*.yaml`) with `JourneyEvalRun` harness and `JourneyEvalReport`
 - [`../backend/config/prompts/README.md`](../backend/config/prompts/README.md) — Prompt stack layer architecture, architect_briefing.yaml contract, and modular composition order (P1/P2/P13)
 
 ### Refactor
@@ -75,6 +75,7 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 ### Agent Enhancement
 
 - [`Agent_Enhancement/PROJECT_MEMORY_CONTEXT_IMPLEMENTATION_BREAKDOWN.md`](./Agent_Enhancement/PROJECT_MEMORY_CONTEXT_IMPLEMENTATION_BREAKDOWN.md) — Memory & context engineering plan (4 phases, all complete)
+- [`Agent_Enhancement/ASSISTANT_QUALITY_IMPROVEMENT_TASK_PLAN.md`](./Agent_Enhancement/ASSISTANT_QUALITY_IMPROVEMENT_TASK_PLAN.md) — Quality improvement task plan including P14 (E2E journey tests) and P15 (golden eval scenarios), both implemented
 - [`Agent_Enhancement/ASSISTANT_QUALITY_IMPROVEMENT_TASK_PLAN.md`](./Agent_Enhancement/ASSISTANT_QUALITY_IMPROVEMENT_TASK_PLAN.md) — Quality improvement task plan (Wave 1 complete). **P6 (Generate Architect Briefing from Pending Changes)** is now implemented: `PendingChangeBriefingService` generates stage-aware briefings (`propose_candidate`, `pricing`, `iac`, `validate`, `clarify`) injected into the agent response when the LLM output is a thin receipt. **P12 (Typed Contracts for Deterministic Stage Outputs)** is now implemented: 5 Pydantic output contracts (`RequirementsExtractionOutput`, `ClarificationPlanOutput`, `ArchitectureDraftOutput`, `ValidationOutput`, `AdrDraftOutput`) plus a `_parse_and_validate_output` helper in `backend/app/agents_system/contracts/stage_contracts.py`; the validate node uses these contracts for typed findings introspection with graceful fallback on malformed output.
 
 ## Agent Lane Index

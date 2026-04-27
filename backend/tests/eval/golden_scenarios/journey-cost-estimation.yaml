@@ -1,0 +1,19 @@
+scenario_id: journey-cost-estimation
+description: >
+  Candidate architecture exists. The assistant enters the pricing stage and
+  returns a response with confidence level, cost drivers, assumptions, and
+  optimization opportunities.
+input: "Estimate the monthly cost for this architecture"
+stage: pricing
+expected_fields:
+  - "stage"
+  - "summary"
+  - "nextStep"
+forbidden_patterns:
+  - "(?i)^I've saved"
+  - "(?i)^I've created a cost estimate"
+  - "(?i)recorded successfully"
+required_answer_keywords:
+  - "confidence"
+  - "cost"
+  - "assumption"

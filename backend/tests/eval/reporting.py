@@ -509,3 +509,58 @@ def _meaningful_terms(text: str) -> set[str]:
 def _db_status(report: dict[str, Any]) -> str:
     db_persistence = _coerce_mapping(report.get("dbPersistence"))
     return str(db_persistence.get("status") or "").upper()
+
+
+# ---------------------------------------------------------------------------
+# Journey Eval Reporting (P15)
+# ---------------------------------------------------------------------------
+
+
+class JourneyScenarioDimension(str, Enum):
+    FIELD_PRESENCE = "field_presence"
+    PATTERN_SAFETY = "pattern_safety"
+
+
+class JourneyScenarioReport(BaseModel):
+    scenario_id: str
+    stage: str
+    passed: bool
+    missing_fields: list[str] = Field(default_factory=list)
+    forbidden_pattern_matches: list[str] = Field(default_factory=list)
+    failure_reasons: list[str] = Field(default_factory=list)
+
+
+class JourneyEvalReport(BaseModel):
+    total: int = Field(ge=0)
+    passed: int = Field(ge=0)
+    failed: int = Field(ge=0)
+    pass_rate: float = Field(ge=0.0, le=1.0)
+    scenarios: list[JourneyScenarioReport]
+
+
+def build_journey_eval_report(results: list[Any]) -> JourneyEvalReport:
+    """Build a JourneyEvalReport from a list of JourneyScenarioResult objects."""
+    total = len(results)
+    passed = sum(1 for r in results if r.passed)
+    failed = total - passed
+    pass_rate = round(passed / total, 4) if total > 0 else 0.0
+
+    scenario_reports = [
+        JourneyScenarioReport(
+            scenario_id=r.scenario.scenario_id,
+            stage=r.scenario.stage,
+            passed=r.passed,
+            missing_fields=list(r.missing_fields),
+            forbidden_pattern_matches=list(r.forbidden_pattern_matches),
+            failure_reasons=r.failure_reasons,
+        )
+        for r in results
+    ]
+
+    return JourneyEvalReport(
+        total=total,
+        passed=passed,
+        failed=failed,
+        pass_rate=pass_rate,
+        scenarios=scenario_reports,
+    )

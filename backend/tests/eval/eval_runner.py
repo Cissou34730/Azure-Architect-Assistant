@@ -6,6 +6,8 @@ from pathlib import Path
 from statistics import fmean
 from typing import Any
 
+import yaml
+
 from .reporting import ScenarioEvalSummary, build_phase0_eval_summary
 
 _GOLDEN_SCENARIOS_DIR = Path(__file__).resolve().parent / "golden_scenarios"
@@ -129,3 +131,157 @@ def _coerce_string_tuple(value: Any) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(str(item) for item in value if isinstance(item, str))
+
+
+# ---------------------------------------------------------------------------
+# Journey Scenario support (P15)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class JourneyScenario:
+    scenario_id: str
+    description: str
+    input: str
+    stage: str
+    expected_fields: tuple[str, ...]
+    forbidden_patterns: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class JourneyScenarioResult:
+    scenario: JourneyScenario
+    passed: bool
+    missing_fields: tuple[str, ...]
+    forbidden_pattern_matches: tuple[str, ...]
+
+    @property
+    def failure_reasons(self) -> list[str]:
+        reasons: list[str] = []
+        if self.missing_fields:
+            reasons.append(f"Missing expected fields: {', '.join(self.missing_fields)}")
+        if self.forbidden_pattern_matches:
+            reasons.append(
+                f"Forbidden patterns found: {', '.join(self.forbidden_pattern_matches)}"
+            )
+        return reasons
+
+
+@dataclass(frozen=True)
+class JourneyEvalRun:
+    results: tuple[JourneyScenarioResult, ...]
+
+    @property
+    def passed_count(self) -> int:
+        return sum(1 for r in self.results if r.passed)
+
+    @property
+    def failed_count(self) -> int:
+        return sum(1 for r in self.results if not r.passed)
+
+    @property
+    def all_passed(self) -> bool:
+        return all(r.passed for r in self.results)
+
+
+def discover_journey_scenarios(scenarios_dir: Path | None = None) -> list[JourneyScenario]:
+    """Discover YAML journey scenarios from the golden_scenarios directory."""
+    root = scenarios_dir or _GOLDEN_SCENARIOS_DIR
+    yaml_files = sorted(root.glob("journey-*.yaml"))
+    return [load_journey_scenario(yaml_file) for yaml_file in yaml_files]
+
+
+def load_journey_scenario(yaml_path: Path) -> JourneyScenario:
+    """Load a journey scenario from a YAML file."""
+    raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError(f"Expected a YAML object in {yaml_path}")
+
+    scenario_id = str(raw.get("scenario_id") or "").strip()
+    if not scenario_id:
+        raise ValueError(f"journey scenario_id is required: {yaml_path}")
+
+    return JourneyScenario(
+        scenario_id=scenario_id,
+        description=str(raw.get("description") or "").strip(),
+        input=str(raw.get("input") or "").strip(),
+        stage=str(raw.get("stage") or "").strip(),
+        expected_fields=_coerce_string_tuple(raw.get("expected_fields")),
+        forbidden_patterns=_coerce_string_tuple(raw.get("forbidden_patterns")),
+    )
+
+
+def validate_journey_response(
+    response: dict[str, Any],
+    scenario: JourneyScenario,
+    response_text: str = "",
+) -> JourneyScenarioResult:
+    """Validate a workflow response dict against a journey scenario.
+
+    Checks expected_fields (dot-path lookup) and forbidden_patterns (regex on text).
+    """
+    import re as _re
+
+    missing_fields: list[str] = []
+    for field_path in scenario.expected_fields:
+        if not _check_field_path(response, field_path):
+            missing_fields.append(field_path)
+
+    text_to_check = response_text or json.dumps(response)
+    forbidden_matches: list[str] = []
+    for pattern in scenario.forbidden_patterns:
+        try:
+            if _re.search(pattern, text_to_check):
+                forbidden_matches.append(pattern)
+        except _re.error:
+            pass
+
+    passed = not missing_fields and not forbidden_matches
+    return JourneyScenarioResult(
+        scenario=scenario,
+        passed=passed,
+        missing_fields=tuple(missing_fields),
+        forbidden_pattern_matches=tuple(forbidden_matches),
+    )
+
+
+def _check_field_path(obj: Any, path: str) -> bool:
+    """Check if a dot-path field exists and is non-empty in an object."""
+    parts = path.split(".")
+    current = obj
+    for part in parts:
+        if "[" in part:
+            key = part[: part.index("[")]
+            if not isinstance(current, dict) or key not in current:
+                return False
+            arr = current[key]
+            if not isinstance(arr, list) or len(arr) == 0:
+                return False
+            current = arr[0]
+        else:
+            if not isinstance(current, dict) or part not in current:
+                return False
+            current = current[part]
+    return current is not None and current != "" and current != [] and current != {}
+
+
+def run_journey_eval_harness(
+    scenarios_dir: Path | None = None,
+    responses: dict[str, dict[str, Any]] | None = None,
+    response_texts: dict[str, str] | None = None,
+) -> JourneyEvalRun:
+    """Run the journey eval harness against a set of responses.
+
+    responses: mapping from scenario_id to response dict (optional, uses empty dict if missing)
+    response_texts: mapping from scenario_id to response text (optional)
+    """
+    scenarios = discover_journey_scenarios(scenarios_dir)
+    results = tuple(
+        validate_journey_response(
+            response=(responses or {}).get(scenario.scenario_id, {}),
+            scenario=scenario,
+            response_text=(response_texts or {}).get(scenario.scenario_id, ""),
+        )
+        for scenario in scenarios
+    )
+    return JourneyEvalRun(results=results)
