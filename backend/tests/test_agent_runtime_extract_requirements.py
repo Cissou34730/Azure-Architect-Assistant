@@ -571,7 +571,10 @@ async def test_iac_generator_node_surfaces_errors_without_main_agent_fallback(
     monkeypatch.setattr(
         iac_generator_module,
         "PromptLoader",
-        lambda: SimpleNamespace(load_prompt=lambda _name: {"system_prompt": "iac prompt"}),
+        lambda: SimpleNamespace(
+            load_prompt=lambda _name: {"system_prompt": "iac prompt"},
+            load_prompt_file=lambda _name: {"system_prompt": "iac prompt"},
+        ),
     )
     monkeypatch.setattr(
         iac_generator_module,

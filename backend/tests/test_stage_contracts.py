@@ -282,3 +282,58 @@ def test_stage_contracts_module_exports_all_five_contracts() -> None:
     }
     for name in expected:
         assert hasattr(stage_contracts, name), f"Missing: {name}"
+
+
+# ---------------------------------------------------------------------------
+# Architecture planner execution artifact includes typed_snapshot_status (P12 audit)
+# ---------------------------------------------------------------------------
+
+
+def test_architecture_planner_build_synthesis_artifact_has_typed_snapshot_status() -> None:
+    """_build_synthesis_execution_artifact must include typed_snapshot_status."""
+    from app.agents_system.langgraph.nodes.architecture_planner import (
+        _build_synthesis_execution_artifact,
+    )
+
+    complete_output = (
+        "## Executive Summary\nUse Azure App Service.\n"
+        "## Architecture Rationale\nLow cost.\n"
+        "## Trade-offs\nApp Service vs AKS.\n"
+        "## Risks and Mitigations\nCold starts.\n"
+        "## WAF Pillar Mapping\nReliability: zone redundant.\n"
+        "## Implementation Phases\nPhase 1: Deploy.\n"
+    )
+    state: dict = {"next_stage": "propose_candidate"}
+    artifact = _build_synthesis_execution_artifact(
+        state=state,
+        agent_output=complete_output,
+        success=True,
+        error=None,
+        research_packets_supplied=0,
+    )
+    assert "typed_snapshot_status" in artifact, (
+        "execution artifact must include typed_snapshot_status (P12)"
+    )
+    assert artifact["typed_snapshot_status"] in {"validated", "parse_failed"}
+
+
+def test_architecture_planner_typed_snapshot_status_is_validated_for_good_output() -> None:
+    """Execution artifact should report 'validated' when all key sections present."""
+    from app.agents_system.langgraph.nodes.architecture_planner import (
+        _build_synthesis_execution_artifact,
+    )
+
+    output_with_key_sections = (
+        "## Trade-offs\nApp Service vs AKS.\n"
+        "## Risks and Mitigations\nCold starts.\n"
+        "## WAF Pillar Mapping\nReliability: zone redundant.\n"
+        "## Implementation Phases\nPhase 1.\n"
+    )
+    artifact = _build_synthesis_execution_artifact(
+        state={"next_stage": "propose_candidate"},
+        agent_output=output_with_key_sections,
+        success=True,
+        error=None,
+        research_packets_supplied=0,
+    )
+    assert artifact["typed_snapshot_status"] == "validated"

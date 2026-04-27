@@ -224,7 +224,8 @@ async def test_plan_questions_requires_actionable_output() -> None:
 
 
 def test_classify_next_stage_prefers_clarify_when_open_questions_exist() -> None:
-    result = classify_next_stage(
+    import asyncio
+    result = asyncio.get_event_loop().run_until_complete(classify_next_stage(
         {
             "user_message": "Partners authenticate with their own Entra tenants.",
             "current_project_state": {
@@ -238,7 +239,7 @@ def test_classify_next_stage_prefers_clarify_when_open_questions_exist() -> None
                 ],
             },
         }
-    )
+    ))
 
     assert result["next_stage"] == "clarify"
 

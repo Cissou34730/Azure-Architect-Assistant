@@ -140,8 +140,9 @@ def completeness_check(state: GraphState) -> Literal["retry", "continue"]:
         logger.warning("Quality gate: error detected in output, retrying")
         return "retry"
 
-    # No artifact edit expected — only retry on empty output or errors
-    if not artifact_edit:
+    # No artifact edit expected — only retry on empty output or errors.
+    # Exception: always run architecture quality checks for propose_candidate.
+    if not artifact_edit and not _is_propose_candidate_stage(state):
         return "continue"
 
     # Empty output when artifact edit expected — retry

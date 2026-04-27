@@ -368,3 +368,48 @@ class TestArchitectureCompletenessGate:
             "WAF: reliability covered. Change set persisted."
         )
         assert _is_generic_receipt(long_output) is False
+
+    def test_propose_candidate_bypasses_artifact_edit_guard(self) -> None:
+        """propose_candidate stage must run architecture checks even when artifact_edit_detected=False."""
+        from app.agents_system.langgraph.nodes.quality_gate import completeness_check
+        from unittest.mock import Mock
+
+        # Simulate a case where artifact_edit_detected is False but stage is propose_candidate
+        # A thin receipt answer with receipt keywords should still be caught by _is_generic_receipt
+        step = Mock()
+        step.tool = "aaa_generate_candidate_architecture"
+        state: dict[str, Any] = {
+            "next_stage": "propose_candidate",
+            "agent_output": "Architecture persisted as pending change.",  # receipt language
+            "artifact_edit_detected": False,  # guard that used to bypass architecture checks
+            "intermediate_steps": [step],
+            "quality_retry_count": 0,
+            "handled_by_stage_worker": False,
+        }
+        result = completeness_check(state)
+        # Must NOT return "continue" — propose_candidate must not bypass architecture quality checks
+        assert result == "retry"
+
+
+# ---------------------------------------------------------------------------
+# Graph topology: architecture_planner routes through quality_check (P5/audit fix)
+# ---------------------------------------------------------------------------
+
+class TestArchitecturePlannerRouting:
+    """Verify architecture_planner routes through quality_check, not directly to persist."""
+
+    def test_architecture_planner_routes_to_quality_check(self) -> None:
+        """architecture_planner edge must go to quality_check, not persist_messages."""
+        from app.agents_system.langgraph.graph_factory import _build_project_chat_workflow
+        from unittest.mock import MagicMock
+
+        db = MagicMock()
+        workflow = _build_project_chat_workflow(db, "test-msg-id")
+        # edges are (source, target) tuples in the graph
+        planner_targets = [e[1] for e in workflow.edges if e[0] == "architecture_planner"]
+        assert "quality_check" in planner_targets, (
+            "architecture_planner must route to quality_check for P5 gate to apply"
+        )
+        assert "persist_messages" not in planner_targets, (
+            "architecture_planner must NOT bypass quality_check and go directly to persist_messages"
+        )

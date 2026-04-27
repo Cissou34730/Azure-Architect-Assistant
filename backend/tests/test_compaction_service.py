@@ -29,6 +29,9 @@ class _PromptLoaderStub:
             }
         }
 
+    def load_prompt_file(self, prompt_name: str) -> dict[str, object]:
+        return self.load_prompt(prompt_name)
+
 
 def test_build_compaction_prompt_uses_yaml_templates() -> None:
     service = CompactionService(prompt_loader=_PromptLoaderStub())

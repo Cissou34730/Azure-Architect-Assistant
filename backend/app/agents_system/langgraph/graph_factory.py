@@ -279,7 +279,8 @@ def _build_workflow_edges(workflow: StateGraph):
     workflow.add_edge('research_worker', 'build_mindmap_guidance')
     workflow.add_conditional_edges('build_mindmap_guidance', route_after_research, research_routes)
     workflow.add_edge('prepare_architecture_handoff', 'architecture_planner')
-    workflow.add_edge('architecture_planner', 'persist_messages')
+    # Architecture planner output goes through quality_check so P5 gates apply
+    workflow.add_edge('architecture_planner', 'quality_check')
     workflow.add_edge('cost_stage_worker', 'persist_messages')
     workflow.add_edge('iac_stage_worker', 'persist_messages')
     workflow.add_edge('manage_adr_stage_worker', 'persist_messages')
