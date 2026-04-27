@@ -34,6 +34,25 @@ _NON_ALPHANUMERIC_RE = re.compile(r"[^a-z0-9]+")
 StreamEventCallback = Callable[[str, dict[str, Any]], Awaitable[None] | None]
 
 
+def _user_wants_to_proceed(user_message: str) -> bool:
+    """Detect when the user explicitly wants to proceed with default assumptions.
+
+    This is intentionally more specific than _should_resolve_clarifications so that
+    we can route to the no-LLM defaults path rather than the answer-extraction path.
+    """
+    normalized = " ".join(user_message.strip().lower().split())
+    proceed_phrases = [
+        "proceed with defaults",
+        "proceed with default",
+        "proceed",
+        "use defaults",
+        "use default",
+        "continue with assumptions",
+        "continue with defaults",
+    ]
+    return any(phrase in normalized for phrase in proceed_phrases)
+
+
 async def execute_clarification_planner_node(
     state: GraphState,
     db: AsyncSession | None = None,
@@ -53,6 +72,60 @@ async def execute_clarification_planner_node(
 
     project_state = _project_state_from_graph_state(state)
     user_message = str(state.get("user_message") or "")
+
+    # Proceed-with-defaults path: user explicitly wants to skip questions and accept defaults.
+    # Checked before the standard resolution path so that "proceed with defaults" does not go
+    # through the LLM-based answer extractor.  Default assumptions are persisted as pending
+    # change artifacts so they are reviewable before becoming canonical.
+    if _user_wants_to_proceed(user_message) and _has_open_clarification_questions(project_state):
+        if db is None:
+            raise ValueError("Clarification resolution requires a database session")
+        resolver = resolution_worker or create_clarification_resolution_worker()
+        try:
+            change_set = await resolver.proceed_with_defaults(
+                project_id=str(state["project_id"]),
+                project_state=project_state,
+                db=db,
+                source_message_id=state.get("user_message_id"),
+            )
+            updated_project_state = await read_project_state(str(state["project_id"]), db)
+            final_answer = _format_clarification_resolution(change_set)
+            await _emit_stage_message(event_callback, final_answer)
+            return {
+                "agent_output": final_answer,
+                "final_answer": final_answer,
+                "intermediate_steps": [],
+                "updated_project_state": updated_project_state or project_state,
+                "handled_by_stage_worker": True,
+                "success": True,
+            }
+        except ValueError as exc:
+            logger.warning("Proceed-with-defaults did not yield actionable updates: %s", exc)
+            final_answer = (
+                "I couldn't find default assumptions for the open questions. "
+                "Please answer the questions directly so I can proceed."
+            )
+            await _emit_stage_message(event_callback, final_answer)
+            return {
+                "agent_output": final_answer,
+                "final_answer": final_answer,
+                "intermediate_steps": [],
+                "updated_project_state": project_state,
+                "handled_by_stage_worker": True,
+                "success": True,
+            }
+        except Exception as exc:
+            logger.error("proceed-with-defaults failed: %s", exc, exc_info=True)
+            final_answer = f"ERROR: Proceed with defaults failed: {exc!s}"
+            await _emit_stage_message(event_callback, final_answer)
+            return {
+                "agent_output": final_answer,
+                "final_answer": final_answer,
+                "intermediate_steps": [],
+                "handled_by_stage_worker": True,
+                "success": False,
+                "error": f"Proceed with defaults failed: {exc!s}",
+            }
 
     if _should_resolve_clarifications(user_message=user_message, project_state=project_state):
         if db is None:
@@ -175,6 +248,12 @@ def _format_clarification_plan(plan: ClarificationPlanningResultContract) -> str
         for index, question in enumerate(group.questions, start=1):
             lines.append(f"{index}. [{question.architectural_impact}] {question.question}")
             lines.append(f"   Why it matters: {question.why_it_matters}")
+            if question.affected_decision:
+                lines.append(f"   Affects decision: {question.affected_decision}")
+            if question.default_assumption:
+                lines.append(f"   Default if not answered: {question.default_assumption}")
+            if question.risk_if_wrong:
+                lines.append(f"   Risk if wrong: {question.risk_if_wrong}")
         lines.append("")
 
     lines.append("Please answer the questions you can, and I will use them to refine the architecture.")
@@ -197,11 +276,15 @@ def _build_clarification_structured_payload(
                     architectural_impact=question.architectural_impact,
                     priority=question.priority,
                     related_requirement_ids=list(question.related_requirement_ids),
+                    affected_decision=question.affected_decision,
+                    default_assumption=question.default_assumption,
+                    risk_if_wrong=question.risk_if_wrong,
                 )
             )
     return ClarificationQuestionsPayload(questions=questions).model_dump(
         mode="json",
         by_alias=True,
+        exclude_none=True,
     )
 
 

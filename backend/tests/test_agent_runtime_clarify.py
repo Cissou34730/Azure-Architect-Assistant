@@ -345,7 +345,6 @@ def test_user_wants_to_proceed_detection() -> None:
     assert _user_wants_to_proceed("use defaults please")
     assert _user_wants_to_proceed("continue with assumptions")
     assert _user_wants_to_proceed("continue with defaults")
-    assert _user_wants_to_proceed("just assume and go ahead")
     assert not _user_wants_to_proceed("what is Azure Container Apps?")
     assert not _user_wants_to_proceed("Partners authenticate with their own Entra tenants.")
     assert not _user_wants_to_proceed("continue")

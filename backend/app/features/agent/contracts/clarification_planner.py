@@ -24,6 +24,10 @@ class ClarificationQuestionContract(BaseModel):
     architectural_impact: ArchitecturalImpact = Field(alias="architecturalImpact")
     priority: int = Field(default=1, ge=1, le=5)
     related_requirement_ids: list[str] = Field(default_factory=list, alias="relatedRequirementIds")
+    # Decision-focused fields — required by P8 prompt; optional for backward compatibility.
+    affected_decision: str | None = Field(default=None, alias="affectedDecision")
+    default_assumption: str | None = Field(default=None, alias="defaultAssumption")
+    risk_if_wrong: str | None = Field(default=None, alias="riskIfWrong")
 
     @field_validator("question", "why_it_matters")
     @classmethod

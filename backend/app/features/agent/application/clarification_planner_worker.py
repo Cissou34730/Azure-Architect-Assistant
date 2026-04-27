@@ -276,6 +276,9 @@ class ClarificationPlannerWorker:
             "        {\n"
             '          "question": "Focused question",\n'
             '          "whyItMatters": "Why this matters for the architecture",\n'
+            '          "affectedDecision": "e.g. identity topology | compute tier | database selection",\n'
+            '          "defaultAssumption": "What will be assumed if not answered",\n'
+            '          "riskIfWrong": "What could go wrong if assumption is incorrect",\n'
             '          "architecturalImpact": "high | medium | low",\n'
             '          "priority": 1,\n'
             '          "relatedRequirementIds": ["req-1"]\n'
@@ -285,6 +288,7 @@ class ClarificationPlannerWorker:
             "  ]\n"
             "}\n"
             "- Limit the total response to 3-5 questions.\n"
+            "- Every question MUST include affectedDecision, defaultAssumption, and riskIfWrong.\n"
             "- Group related questions under a single theme.\n"
             "- Prefer themes such as security, performance, reliability, cost, and operations.\n"
             "- When canonical requirements are empty, ask onboarding questions about workload type, scale, compliance, budget, and operations."

@@ -286,18 +286,22 @@ Research packets exist, but the code does not guarantee that each architecture d
 - User can see why each major Azure service was chosen.
 - Unsupported or weakly supported decisions are explicitly marked as assumptions or open decisions.
 
-## Priority 8: Improve Clarification Value
+## Priority 8: Improve Clarification Value ✅ COMPLETED
 
 ### Problem
 
 Clarification can feel procedural. Questions should be fewer, sharper, and tied to architecture consequences.
 
-### Files to Change
+### Files Changed
 
-- `backend/config/prompts/clarification_planner.yaml`
-- `backend/app/agents_system/langgraph/nodes/clarify.py`
-- `backend/app/features/agent/application/clarification_planner_worker.py`
-- Clarification worker tests
+- `backend/config/prompts/clarification_planner.yaml` — updated to v1.2 with required question structure (why_it_matters, affected_decision, default_assumption, risk_if_wrong), good/bad examples, >70% proceed rule, and top 3-5 ranking rule.
+- `backend/app/agents_system/langgraph/nodes/clarify.py` — added `_user_wants_to_proceed()` helper and proceed-with-defaults path that persists default assumptions as reviewable pending change artifacts.
+- `backend/app/features/agent/application/clarification_planner_worker.py` — updated LLM JSON schema to require affectedDecision, defaultAssumption, and riskIfWrong fields.
+- `backend/app/features/agent/application/clarification_resolution_worker.py` — added `proceed_with_defaults()` method that builds a change set from default assumptions without an LLM call.
+- `backend/app/features/agent/contracts/clarification_planner.py` — added optional `affected_decision`, `default_assumption`, `risk_if_wrong` fields to `ClarificationQuestionContract`.
+- `backend/app/agents_system/contracts/workflow_result.py` — added optional `affected_decision`, `default_assumption`, `risk_if_wrong` fields to `ClarificationQuestionPayloadItem`.
+- `backend/tests/test_agent_runtime_clarify.py` — added `test_user_wants_to_proceed_detection` and `test_execute_clarification_planner_node_proceeds_with_defaults`.
+- `backend/tests/test_clarification_planner_worker.py` — added `test_clarification_prompt_has_required_question_structure` and `test_clarification_limits_to_top_questions`.
 
 ### Tasks
 
@@ -314,8 +318,11 @@ Clarification can feel procedural. Questions should be fewer, sharper, and tied 
 
 ### Acceptance Criteria
 
-- Clarification answers feel like architecture consulting, not form filling.
-- The user understands the impact of each unanswered question.
+- ✅ Clarification questions include why/decision/default/risk structure
+- ✅ Only top 3-5 questions are asked
+- ✅ User can proceed with default assumptions
+- ✅ Default assumptions are persisted as pending changes when user proceeds
+- ✅ Tests pass
 
 ## Priority 9: Improve Cost Estimation Precision and Transparency
 

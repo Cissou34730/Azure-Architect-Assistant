@@ -78,6 +78,10 @@ class ClarificationQuestionPayloadItem(BaseModel):
     architectural_impact: str
     priority: int = Field(default=1, ge=1)
     related_requirement_ids: list[str] = Field(default_factory=list)
+    # Decision-focused fields added by P8; omitted from serialization when absent.
+    affected_decision: str | None = Field(default=None)
+    default_assumption: str | None = Field(default=None)
+    risk_if_wrong: str | None = Field(default=None)
 
 
 class ClarificationQuestionsPayload(BaseModel):

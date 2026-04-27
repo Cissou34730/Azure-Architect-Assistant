@@ -157,6 +157,10 @@ class ClarificationResolutionWorker:
                 "status": status,
                 "priority": question.get("priority"),
                 "relatedRequirementIds": list(question.get("relatedRequirementIds") or []),
+                # Preserved for the proceed-with-defaults path.
+                "defaultAssumption": str(
+                    question.get("defaultAssumption") or question.get("default_assumption") or ""
+                ).strip(),
             }
         return indexed
 
@@ -277,6 +281,76 @@ class ClarificationResolutionWorker:
             },
             artifactDrafts=artifact_drafts,
             citations=list(resolution.citations),
+        )
+
+    async def proceed_with_defaults(
+        self,
+        *,
+        project_id: str,
+        project_state: Mapping[str, Any] | None,
+        db: object,
+        source_message_id: str | None = None,
+    ) -> PendingChangeSetContract:
+        """Create a pending change set from default assumptions without an LLM call.
+
+        Default assumptions are persisted as reviewable pending change artifacts so the user
+        can inspect and approve them before they become canonical project state.
+        """
+        state = dict(project_state or {})
+        question_index = self._question_index(state)
+
+        if not question_index:
+            raise ValueError("No open clarification questions available to proceed with defaults")
+
+        created_at = self._now_factory()
+        assumption_payloads: list[dict[str, Any]] = []
+        question_payloads: list[dict[str, Any]] = []
+        artifact_drafts: list[dict[str, Any]] = []
+
+        for q_id, question in question_index.items():
+            default_text = question.get("defaultAssumption") or ""
+            if default_text:
+                assumption_id = self._assumption_id_factory()
+                assumption: dict[str, Any] = {
+                    "id": assumption_id,
+                    "text": default_text,
+                    "status": "open",
+                    "relatedRequirementIds": list(question.get("relatedRequirementIds") or []),
+                }
+                assumption_payloads.append(assumption)
+                artifact_drafts.append(
+                    {
+                        "id": self._artifact_id_factory(),
+                        "artifactType": ArtifactDraftType.ASSUMPTION.value,
+                        "artifactId": assumption_id,
+                        "content": assumption,
+                        "createdAt": created_at,
+                    }
+                )
+            question_payloads.append({"id": q_id, "status": "assumed"})
+
+        change_set = PendingChangeSetContract(
+            id=self._change_set_id_factory(),
+            project_id=project_id,
+            stage="clarify",
+            status=ChangeSetStatus.PENDING,
+            createdAt=created_at,
+            source_message_id=source_message_id,
+            bundleSummary="Proceeded with default assumptions for open clarification questions",
+            proposedPatch={
+                "_clarificationResolution": {
+                    "requirements": [],
+                    "clarificationQuestions": question_payloads,
+                    "assumptions": assumption_payloads,
+                }
+            },
+            artifactDrafts=artifact_drafts,
+            citations=[],
+        )
+        return await self._pending_change_recorder.record_pending_change(
+            project_id=project_id,
+            change_set=change_set,
+            db=db,
         )
 
     async def _resolve_with_llm(self, resolution_input: dict[str, Any]) -> dict[str, Any]:
