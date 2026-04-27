@@ -32,6 +32,20 @@ class AAACreateDiagramSetInput(BaseModel):
         default=None,
         description="Optional ADR identifier to link diagrams to a specific decision"
     )
+    diagram_explanation: str | None = Field(
+        default=None,
+        description=(
+            "Human-readable explanation of what this diagram shows, what to look for, "
+            "and how it validates the architecture. ALWAYS provide this field."
+        ),
+    )
+    how_to_read: str | None = Field(
+        default=None,
+        description=(
+            "Brief 'how to read this diagram' guide for someone unfamiliar with "
+            "C4/Mermaid notation. ALWAYS provide this field."
+        ),
+    )
 
 
 class AAACreateDiagramSetToolInput(BaseModel):
@@ -51,7 +65,10 @@ class AAACreateDiagramSetTool(BaseTool):
         "Create and persist architecture diagrams (Mermaid functional, C4 context, C4 container). "
         "This tool generates diagrams from a functional description and stores them "
         "in the diagram database, then adds references to ProjectState.diagrams[]. "
-        "Use this when the user requests diagrams or when diagrams would help visualize the architecture."
+        "Use this when the user requests diagrams or when diagrams would help visualize the architecture. "
+        "IMPORTANT: Always populate 'diagramExplanation' with a clear description of what the diagrams "
+        "show, why they matter, and what the reviewer should look for. "
+        "Always populate 'howToRead' with a brief guide for someone unfamiliar with C4/Mermaid notation."
     )
 
     args_schema: type[BaseModel] = AAACreateDiagramSetToolInput
@@ -200,9 +217,11 @@ class AAACreateDiagramSetTool(BaseTool):
                 logger.info(f"✓ DiagramSet committed: id={diagram_set.id}, diagrams={len(diagram_refs)}")
 
                 # Build state update payload (with full sourceCode for ProjectState)
-                updates = {
-                    "diagrams": diagram_refs
-                }
+                updates: dict[str, Any] = {"diagrams": diagram_refs}
+                if args.diagram_explanation:
+                    updates["diagramExplanation"] = args.diagram_explanation
+                if args.how_to_read:
+                    updates["howToRead"] = args.how_to_read
                 payload_str = json.dumps(updates, ensure_ascii=False, indent=2)
 
                 # Build concise user-facing message (no full diagram code in chat)
@@ -218,8 +237,15 @@ class AAACreateDiagramSetTool(BaseTool):
                     else:
                         diagram_names.append(dtype)
 
+                explanation_lines = ""
+                if args.diagram_explanation:
+                    explanation_lines += f"\n📖 {args.diagram_explanation}"
+                if args.how_to_read:
+                    explanation_lines += f"\n🗺️  How to read: {args.how_to_read}"
+
                 return (
-                    f"✓ Diagrams ready: {', '.join(diagram_names)}\n"
+                    f"✓ Diagrams ready: {', '.join(diagram_names)}"
+                    f"{explanation_lines}\n"
                     "\n"
                     "AAA_STATE_UPDATE\n"
                     "```json\n"

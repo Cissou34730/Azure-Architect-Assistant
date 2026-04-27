@@ -20,7 +20,6 @@ from app.features.diagrams.api import diagram_generation_router
 from app.features.diagrams.application.database import close_diagram_database
 from app.features.ingestion.api import cleanup_running_tasks
 from app.features.ingestion.api import router as ingestion_router
-from app.features.ingestion.application.signals import install_ingestion_signal_handlers
 from app.features.knowledge.api import (
     kb_management_router,
     kb_query_router,
@@ -49,10 +48,6 @@ API_BASE_PREFIX = "/api"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle application startup and shutdown using FastAPI lifespan."""
-    # Install ingestion signal handlers *after* uvicorn has set up its own,
-    # so we chain correctly and stale SIGINT from process launch doesn't
-    # trigger premature shutdown.
-    install_ingestion_signal_handlers()
     install_asyncio_exception_filter()
     await lifecycle.startup()
     try:

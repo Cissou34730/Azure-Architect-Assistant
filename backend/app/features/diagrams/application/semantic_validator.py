@@ -2,10 +2,15 @@
 
 Verifies that generated diagrams accurately represent the input description,
 not just syntactically correct.
+
+Also exposes :func:`validate_diagram_semantics` — a **pure, non-LLM, non-blocking**
+heuristic checker that surfaces structural quality warnings without blocking
+the generation pipeline.
 """
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -14,6 +19,93 @@ from app.features.diagrams.infrastructure.models import DiagramType
 from .llm_client import DiagramLLMClient
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Public standalone helper (no LLM, non-blocking)
+# ---------------------------------------------------------------------------
+
+_PLACEHOLDER_RE = re.compile(
+    r"\b(TODO|PLACEHOLDER|EXAMPLE|FIXME|TBD|FILL_?IN)\b", re.IGNORECASE
+)
+_UNLABELED_ARROW_RE = re.compile(r"--\s*>(?!\s*\|)")  # --> not followed by |label|
+_BARE_ABBREVIATION_RE = re.compile(
+    r"(?<!['\"\w])(?:DB|SVC|API|SRV|BE|FE|UI)(?!['\"\w\[\(\{])"
+)
+# C4 actor keywords
+_ACTOR_RE = re.compile(r"\bPerson\s*\(", re.IGNORECASE)
+# C4 boundary / system presence
+_SYSTEM_RE = re.compile(r"\b(?:System|Container|Boundary)\s*\(", re.IGNORECASE)
+# External dependencies in container diagrams
+_EXTERNAL_RE = re.compile(
+    r"\b(?:System_Ext|Container_Ext|External)\s*\(", re.IGNORECASE
+)
+
+
+def validate_diagram_semantics(diagram_code: str, diagram_type: str) -> list[str]:
+    """Check a diagram for common quality issues without calling an LLM.
+
+    This function is **non-blocking**: it returns a list of human-readable warning
+    strings (empty list = no issues).  It never raises; bad input yields warnings.
+
+    Args:
+        diagram_code: Raw source code of the diagram (Mermaid or C4 PlantUML).
+        diagram_type: One of ``"c4_context"``, ``"c4_container"``,
+            ``"mermaid_functional"``, or any other string (unknown types are
+            checked only for generic rules).
+
+    Returns:
+        A (possibly empty) list of warning strings.
+    """
+    warnings: list[str] = []
+
+    if not diagram_code or not diagram_code.strip():
+        warnings.append("Diagram is empty — no content to render.")
+        return warnings
+
+    code = diagram_code
+
+    # --- Generic checks (all diagram types) ---
+
+    if _PLACEHOLDER_RE.search(code):
+        warnings.append(
+            "Diagram contains placeholder text (TODO / PLACEHOLDER / EXAMPLE). "
+            "Replace with real architecture content."
+        )
+
+    # --- Type-specific checks ---
+
+    if diagram_type == "c4_context":
+        if not _ACTOR_RE.search(code):
+            warnings.append(
+                "C4 Context diagram has no Person/actor node. "
+                "Add at least one Person() to represent a user or external actor."
+            )
+        if not _SYSTEM_RE.search(code):
+            warnings.append(
+                "C4 Context diagram appears to have no System or Boundary elements. "
+                "Ensure at least one System() is present."
+            )
+
+    elif diagram_type == "c4_container":
+        if not _EXTERNAL_RE.search(code):
+            warnings.append(
+                "C4 Container diagram shows no external dependencies (System_Ext / Container_Ext). "
+                "Show at least one external system or service to provide context."
+            )
+
+    elif diagram_type == "mermaid_functional":
+        if _UNLABELED_ARROW_RE.search(code):
+            warnings.append(
+                "Some Mermaid arrows appear to lack labels. "
+                "Label data flows (e.g. --> |\"HTTP request\"|) to clarify interactions."
+            )
+        if _BARE_ABBREVIATION_RE.search(code):
+            warnings.append(
+                "Some nodes use bare abbreviations (DB, API, SVC, …). "
+                "Use descriptive names (e.g. 'Azure SQL Database' instead of 'DB')."
+            )
+
+    return warnings
 
 
 @dataclass

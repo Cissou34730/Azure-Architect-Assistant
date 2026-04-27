@@ -28,6 +28,16 @@ DISCOVERY_STAGES = {
 MINDMAP_PROMPT_BUDGET = 2
 
 
+def format_research_packet_ids_for_citation(packets: list[dict[str, Any]]) -> list[str]:
+    """Return packet IDs from research evidence packets for use in decision_evidence_map.
+
+    When calling aaa_generate_candidate_architecture, reference these IDs in
+    decision_evidence_map[*].evidence_packet_ids to link each service choice back
+    to the evidence gathered during the research phase.
+    """
+    return [p["packetId"] for p in packets if isinstance(p, dict) and p.get("packetId")]
+
+
 def _mindmap_gaps(mindmap_coverage: dict[str, Any]) -> list[str]:
     topics: list[str] = []
     if not mindmap_coverage:

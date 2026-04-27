@@ -10,7 +10,7 @@ from app.features.diagrams.infrastructure.models import DiagramType
 
 from .c4_compliance_validator import C4ComplianceValidator, C4ValidationResult
 from .llm_client import DiagramLLMClient
-from .semantic_validator import SemanticValidationResult, SemanticValidator
+from .semantic_validator import SemanticValidationResult, SemanticValidator, validate_diagram_semantics
 from .syntax_validator import SyntaxValidator, ValidationResult
 from .visual_quality_checker import QualityReport, VisualQualityChecker
 
@@ -28,6 +28,7 @@ class PipelineValidationResult:
     c4_result: C4ValidationResult | None = None
     error_message: str | None = None
     retry_feedback: str | None = None  # Feedback for LLM retry
+    structural_warnings: list[str] | None = None  # Non-blocking static checks (P10)
 
     def __bool__(self) -> bool:
         return self.is_valid
@@ -132,7 +133,18 @@ class ValidationPipeline:
                 retry_feedback=self._build_c4_retry_feedback(c4_result),
             )
 
-        # Layer 5: Azure Icon Validation - deferred to Phase 5 (US3)
+        # Layer 5: Static structural quality checks (NON-BLOCKING) — P10
+        structural_warnings = validate_diagram_semantics(
+            diagram_source, diagram_type.value
+        )
+        if structural_warnings:
+            logger.warning(
+                "Layer 5 (Structural) warnings for %s: %s",
+                diagram_type.value,
+                "; ".join(structural_warnings),
+            )
+
+        # Layer 6: Azure Icon Validation - deferred to Phase 5 (US3)
         # TODO T050: Add Azure icon validation for plantuml_azure type
 
         logger.info("Validation pipeline passed (all blocking layers)")
@@ -142,6 +154,7 @@ class ValidationPipeline:
             semantic_result=semantic_result,
             quality_report=quality_report,
             c4_result=c4_result,
+            structural_warnings=structural_warnings or [],
         )
 
     async def _validate_syntax(

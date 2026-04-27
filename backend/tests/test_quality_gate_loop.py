@@ -215,3 +215,156 @@ class TestQualityRetrySettings:
         from app.shared.config.settings.llm_tuning import LLMTuningSettingsMixin
         m = LLMTuningSettingsMixin()
         assert m.quality_retry_max == 2
+
+
+# ---------------------------------------------------------------------------
+# P5: Architecture completeness quality gates (propose_candidate stage)
+# ---------------------------------------------------------------------------
+
+class TestArchitectureCompletenessGate:
+    """P5 quality gates for propose_candidate stage."""
+
+    def _make_step(self, tool: str) -> Any:
+        from unittest.mock import Mock
+        m = Mock()
+        m.tool = tool
+        return m
+
+    def test_weak_architecture_answer_fails_quality_gate(self) -> None:
+        """A receipt-only answer should fail quality gate for propose_candidate stage."""
+        from app.agents_system.langgraph.nodes.quality_gate import completeness_check
+        from unittest.mock import Mock
+
+        step = Mock()
+        step.tool = "aaa_generate_candidate_architecture"
+        state: dict[str, Any] = {
+            "next_stage": "propose_candidate",
+            "agent_output": "I have created a pending change set with your architecture.",
+            "artifact_edit_detected": True,
+            "intermediate_steps": [step],
+            "quality_retry_count": 0,
+            "handled_by_stage_worker": False,
+        }
+        result = completeness_check(state)
+        assert result == "retry"
+
+    def test_strong_architecture_answer_passes_quality_gate(self) -> None:
+        """A complete architecture briefing should pass quality gate."""
+        from app.agents_system.langgraph.nodes.quality_gate import completeness_check
+        from unittest.mock import Mock
+
+        step = Mock()
+        step.tool = "aaa_generate_candidate_architecture"
+        state: dict[str, Any] = {
+            "next_stage": "propose_candidate",
+            "agent_output": (
+                "I recommend Azure Container Apps for this workload because it provides "
+                "auto-scaling. Trade-offs: vs AKS it has less control. "
+                "Risks: cold starts may impact latency. "
+                "WAF: reliability pillar covered via zone redundancy. "
+                "Reference: learn.microsoft.com/azure/container-apps. "
+                "I persisted the candidate architecture aaa_generate_candidate."
+            ),
+            "artifact_edit_detected": True,
+            "intermediate_steps": [step],
+            "quality_retry_count": 0,
+            "handled_by_stage_worker": False,
+        }
+        result = completeness_check(state)
+        assert result == "continue"
+
+    def test_quality_retry_reason_names_missing_sections(self) -> None:
+        """build_quality_retry for propose_candidate names missing sections."""
+        from app.agents_system.langgraph.nodes.quality_gate import build_quality_retry
+        from unittest.mock import Mock
+
+        step = Mock()
+        step.tool = "aaa_generate_candidate_architecture"
+        state: dict[str, Any] = {
+            "next_stage": "propose_candidate",
+            "agent_output": "Architecture persisted as change set.",
+            "artifact_edit_detected": True,
+            "intermediate_steps": [step],
+            "quality_retry_count": 0,
+            "handled_by_stage_worker": False,
+        }
+        result = build_quality_retry(state)
+        reason = result["quality_retry_reason"].lower()
+        assert "trade-off" in reason or "missing" in reason
+
+    def test_quality_gate_passes_for_non_architecture_stage(self) -> None:
+        """Non-architecture stages should not be subject to architecture quality checks."""
+        from app.agents_system.langgraph.nodes.quality_gate import completeness_check
+
+        state: dict[str, Any] = {
+            "next_stage": "clarify",
+            "agent_output": "I have some questions for you.",
+            "artifact_edit_detected": False,
+            "intermediate_steps": [],
+            "quality_retry_count": 0,
+            "handled_by_stage_worker": False,
+        }
+        result = completeness_check(state)
+        assert result == "continue"
+
+    def test_generic_receipt_fails_quality_gate(self) -> None:
+        """Short receipt-only output fails gate for propose_candidate."""
+        from app.agents_system.langgraph.nodes.quality_gate import completeness_check
+        from unittest.mock import Mock
+
+        step = Mock()
+        step.tool = "aaa_generate_candidate_architecture"
+        state: dict[str, Any] = {
+            "next_stage": "propose_candidate",
+            "agent_output": "Persisted. Change set created.",
+            "artifact_edit_detected": True,
+            "intermediate_steps": [step],
+            "quality_retry_count": 0,
+            "handled_by_stage_worker": False,
+        }
+        result = completeness_check(state)
+        assert result == "retry"
+
+    def test_architecture_gate_respects_retry_limit(self) -> None:
+        """After exhausting retries, even a weak answer is accepted."""
+        from app.agents_system.langgraph.nodes.quality_gate import completeness_check
+        from unittest.mock import Mock
+
+        step = Mock()
+        step.tool = "aaa_generate_candidate_architecture"
+        state: dict[str, Any] = {
+            "next_stage": "propose_candidate",
+            "agent_output": "Architecture persisted as change set.",
+            "artifact_edit_detected": True,
+            "intermediate_steps": [step],
+            "quality_retry_count": 2,  # at max
+            "handled_by_stage_worker": False,
+        }
+        result = completeness_check(state)
+        assert result == "continue"
+
+    def test_check_architecture_answer_quality_returns_missing(self) -> None:
+        """_check_architecture_answer_quality lists missing sections."""
+        from app.agents_system.langgraph.nodes.quality_gate import _check_architecture_answer_quality
+
+        output = "I have created a pending change set with your architecture. This is a longer string to pass the 100 char threshold for the check."
+        missing = _check_architecture_answer_quality(output)
+        assert len(missing) > 0
+        assert any("trade-off" in m.lower() or "risk" in m.lower() for m in missing)
+
+    def test_is_generic_receipt_detects_receipt(self) -> None:
+        """_is_generic_receipt returns True for short receipt-only output."""
+        from app.agents_system.langgraph.nodes.quality_gate import _is_generic_receipt
+
+        assert _is_generic_receipt("Change set created and persisted.") is True
+
+    def test_is_generic_receipt_rejects_long_output(self) -> None:
+        """_is_generic_receipt returns False for longer architectural answer."""
+        from app.agents_system.langgraph.nodes.quality_gate import _is_generic_receipt
+
+        long_output = (
+            "I recommend Azure Container Apps because of its scalability. "
+            "The trade-offs involve cost vs AKS. Risks include cold starts. "
+            "WAF: reliability covered. Change set persisted."
+        )
+        assert _is_generic_receipt(long_output) is False

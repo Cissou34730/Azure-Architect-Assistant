@@ -4,39 +4,72 @@ This directory contains agent prompts in YAML format for easy editing without co
 
 ## Quick Start
 
-**Edit prompts:** Modify `agent_prompts.yaml` or the modular prompt fragments under this directory  
+**Edit prompts:** Modify the relevant modular YAML file (see Prompt Stack Layers below)  
 **Apply changes:** Restart the backend or call the reload API endpoint
+
+## Prompt Stack Layers (P13)
+
+The prompt stack has a clear layered architecture. Each layer has a single responsibility:
+
+| Layer | File | Purpose |
+|---|---|---|
+| 1 — Global quality | `constitution.yaml` | Overrides all; thoroughness, completeness, persist-before-responding |
+| 2 — Role / Persona | `base_persona.yaml` | AAA identity, core methodology, delivery stance |
+| 3 — Output contract | `architect_briefing.yaml` | Stage-aware Architect Briefing structure (NEW — P1) |
+| 4 — Tool contract | `tool_strategy.yaml` | When and how to use KB/AAA/MCP tools |
+| 5 — Quality rubric | `guardrails.yaml` | Anti-hallucination, reviewability, no raw artifact dumps |
+| 6 — Stage routing | `orchestrator_routing.yaml` | Orchestrator delegation logic |
+| 6 — Agent-specific | `<agent>_prompt.yaml` | Per-agent specialization |
+| Fallback | `agent_prompts.yaml` | Legacy monolithic fallback; kept for compatibility |
 
 ## Files
 
-- **agent_prompts.yaml** - Legacy monolithic prompt configuration and fallback source
+- **agent_prompts.yaml** - Legacy monolithic prompt configuration and compatibility fallback (see P13 header comment inside)
+- **constitution.yaml** - Global quality directives that override all other layers
 - **base_persona.yaml** - Shared AAA persona and methodology
+- **architect_briefing.yaml** - Stage-aware output contract: required Architect Briefing structure (P1)
 - **orchestrator_routing.yaml** - Orchestrator-specific stage routing instructions
 - **tool_strategy.yaml** - Shared tool selection rules
 - **guardrails.yaml** - Shared hallucination/reviewability guardrails
 - **clarification_planner.yaml** - Clarification-stage instructions
-- **architecture_planner_prompt.yaml** - Architecture proposal prompt with C4/NFR guidance and Mermaid examples
+- **architecture_planner_prompt.yaml** - Architecture proposal prompt with C4/NFR guidance
 - **adr_writer.yaml** - ADR-stage instructions
 - **waf_validator.yaml** - Validation-stage instructions
-- **requirements_extraction.yaml** - Source-grounded requirements extraction instructions for Phase 4
+- **requirements_extraction.yaml** - Source-grounded requirements extraction instructions
 
 ## Modular composition
 
 `PromptLoader.compose_prompt(agent_type, stage, context_budget)` assembles a system prompt in this order:
 
-1. `base_persona.yaml`
+1. `constitution.yaml` (always first — global quality overrides)
 2. agent-specific prompt (for example `orchestrator_routing.yaml`)
 3. stage-specific prompt (for example `clarification_planner.yaml`)
-4. `tool_strategy.yaml`
-5. `guardrails.yaml`
+4. `base_persona.yaml`
+5. `architect_briefing.yaml` ← **NEW (P1)** — stage-aware output contract
+6. `tool_strategy.yaml`
+7. `guardrails.yaml`
 
 Each module can interpolate `${agent_type}`, `${stage}`, and `${context_budget}`.
 
-If none of the modular files are present, the loader falls back to `agent_prompts.yaml` so existing behavior remains intact.
+If none of the modular files are present, the loader falls back to `agent_prompts.yaml`.
 
-For the upcoming `extract_requirements` stage, `requirements_extraction.yaml` is also addressable directly through `PromptLoader.load_prompt(...)` and through `compose_prompt(...)` when the stage is `extract_requirements`.
+## Architect Briefing Contract (P1)
 
-The stage-specific prompt files are expected to hold more than one-line reminders: `clarification_planner.yaml`, `adr_writer.yaml`, and `waf_validator.yaml` now carry stage methodology, lifecycle/severity rules, and worked examples so worker implementations can stay thin and deterministic.
+`architect_briefing.yaml` defines what every chat response MUST contain after persisting artifacts.
+It is **stage-aware**: the required structure differs per stage:
+
+- `propose_candidate` — Recommendation, why it fits, key trade-offs, risks, WAF impact, cost drivers, open decisions, persisted artifacts, next action
+- `validate` — Risks, WAF findings, evidence, remediation, persisted artifacts, next action
+- `pricing` — Assumptions, cost drivers, confidence, gaps, persisted artifacts, next action
+- `iac` — Deployment shape, validation status, operational risks, persisted artifacts, next action
+- `clarify` — Questions, default assumptions, impact on architecture
+
+**Key principle**: Artifacts are persisted via AAA tools. The Architect Briefing in chat provides the decision-quality synthesis — not a copy of the persisted content.
+
+Good example: *"I recommend Azure Container Apps because it matches your serverless-first constraint. Key trade-off: less control than AKS. Top risk: cold-start latency — mitigated via min-replicas=2. I persisted candidate CA-001."*
+
+Bad example: *"I created change set X."*
+
 
 ## Structure
 

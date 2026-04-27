@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 _SHARED_PROMPT_FILES: tuple[str, ...] = (
     "constitution.yaml",
     "base_persona.yaml",
+    "architect_briefing.yaml",  # P1: output contract — stage-aware briefing structure
     "tool_strategy.yaml",
     "guardrails.yaml",
 )

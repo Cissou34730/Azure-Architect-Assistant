@@ -45,6 +45,7 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 - [`backend/DATA_ROOT_STORAGE_POLICY.md`](./backend/DATA_ROOT_STORAGE_POLICY.md)
 - [`backend/TESTING_DEPENDENCY_INJECTION.md`](./backend/TESTING_DEPENDENCY_INJECTION.md)
 - [`backend/EVAL_HARNESS.md`](./backend/EVAL_HARNESS.md) — Phase 0 golden-scenario eval harness for committed normalized runner reports
+- [`../backend/config/prompts/README.md`](../backend/config/prompts/README.md) — Prompt stack layer architecture, architect_briefing.yaml contract, and modular composition order (P1/P2/P13)
 
 ### Refactor
 

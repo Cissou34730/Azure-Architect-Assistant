@@ -36,6 +36,59 @@ def _get_quality_retry_max() -> int:
         return 2
 
 
+_RECEIPT_KEYWORDS = frozenset({
+    "change set", "changeset", "created", "persisted", "pending change",
+})
+
+_ARCHITECTURE_CHECKS: list[tuple[str, list[str]]] = [
+    ("Recommendation (recommend/suggest/propose)", ["recommend", "suggest", "propose"]),
+    ("Service rationale (because/rationale/chosen/selected)", ["because", "rationale", "chosen", "selected"]),
+    ("NFR mapping (nfr/availability/scalability/reliability/performance)", ["nfr", "availability", "scalability", "reliability", "performance"]),
+    ("Trade-offs (trade-off/tradeoff/trade off/compromise/drawback)", ["trade-off", "tradeoff", "trade off", "compromise", "drawback"]),
+    ("Risks (risk/concern/caveat/limitation)", ["risk", "concern", "caveat", "limitation"]),
+    ("WAF impact (waf/well-architected/pillar)", ["waf", "well-architected", "pillar"]),
+    ("Citations/evidence (citation/evidence/reference/microsoft/learn.microsoft)", ["citation", "evidence", "reference", "microsoft", "learn.microsoft"]),
+    ("Persisted artifact (aaa_generate_candidate/candidate architecture/pending change/persisted)", ["aaa_generate_candidate", "candidate architecture", "pending change", "persisted"]),
+]
+
+
+def _is_propose_candidate_stage(state: GraphState) -> bool:
+    """Return True when the current stage is propose_candidate."""
+    return state.get("next_stage") == "propose_candidate"
+
+
+def _check_architecture_answer_quality(agent_output: str) -> list[str]:
+    """Return list of missing section labels for architecture quality checks.
+
+    Only runs when the output is longer than 100 chars (short outputs are
+    clearly receipt-only and handled separately by _is_generic_receipt).
+    """
+    if len(agent_output) <= 100:
+        return []
+    lower = agent_output.lower()
+    missing: list[str] = []
+    for label, keywords in _ARCHITECTURE_CHECKS:
+        if not any(kw in lower for kw in keywords):
+            missing.append(label)
+    return missing
+
+
+def _is_generic_receipt(agent_output: str) -> bool:
+    """Return True when output is a short change-set receipt with no architecture.
+
+    Criteria: shorter than 200 chars AND contains receipt language WITHOUT
+    any architectural explanation.
+    """
+    if len(agent_output) >= 200:
+        return False
+    lower = agent_output.lower()
+    has_receipt = any(kw in lower for kw in _RECEIPT_KEYWORDS)
+    # If it also contains architectural explanation keywords, not a pure receipt
+    arch_signals = ["recommend", "because", "trade-off", "tradeoff", "risk", "waf", "pillar", "scalab", "availab"]
+    has_arch = any(kw in lower for kw in arch_signals)
+    return has_receipt and not has_arch
+
+
 def _has_aaa_tool_calls(intermediate_steps: list[Any]) -> bool:
     """Check if any AAA persistence tool was called in intermediate steps."""
     for step in intermediate_steps:
@@ -45,6 +98,9 @@ def _has_aaa_tool_calls(intermediate_steps: list[Any]) -> bool:
         elif isinstance(step, (list, tuple)) and len(step) >= 1:
             action = step[0]
             tool_name = getattr(action, "tool", "") or ""
+        else:
+            # Direct action object (e.g. AgentAction or similar)
+            tool_name = str(getattr(step, "tool", "") or "")
         if tool_name in _AAA_PERSISTENCE_TOOLS:
             return True
     return False
@@ -100,6 +156,18 @@ def completeness_check(state: GraphState) -> Literal["retry", "continue"]:
         )
         return "retry"
 
+    # propose_candidate stage: check architecture answer quality
+    if _is_propose_candidate_stage(state):
+        missing = _check_architecture_answer_quality(agent_output)
+        if missing:
+            logger.warning(
+                "Quality gate: architecture answer missing sections: %s", missing
+            )
+            return "retry"
+        if _is_generic_receipt(agent_output):
+            logger.warning("Quality gate: architecture answer is a generic receipt")
+            return "retry"
+
     return "continue"
 
 
@@ -112,6 +180,23 @@ def build_quality_retry(state: GraphState) -> dict[str, Any]:
     retry_count = int(state.get("quality_retry_count", 0))
     agent_output = str(state.get("agent_output", "")).strip()
     artifact_edit = bool(state.get("artifact_edit_detected"))
+
+    # propose_candidate: give specific missing-sections feedback
+    if _is_propose_candidate_stage(state):
+        missing = _check_architecture_answer_quality(agent_output)
+        if missing or _is_generic_receipt(agent_output):
+            missing_str = ", ".join(missing) if missing else "all required sections"
+            reason = (
+                f"Architecture answer is incomplete. Missing sections: [{missing_str}]. "
+                "Your response MUST include: Recommendation, Why this fits the project, "
+                "Key trade-offs, Main risks and mitigations, WAF impact, Cost drivers. "
+                "Do NOT just return a receipt. Provide a decision-quality architectural briefing."
+            )
+            logger.info("Quality retry %d: %s", retry_count + 1, reason[:100])
+            return {
+                "quality_retry_count": retry_count + 1,
+                "quality_retry_reason": reason,
+            }
 
     reasons: list[str] = []
     if agent_output.startswith("ERROR:"):

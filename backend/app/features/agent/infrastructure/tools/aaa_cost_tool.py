@@ -89,6 +89,48 @@ class AAAGenerateCostInput(BaseModel):
         description="Optional baseline reference total to compute variance% against",
     )
 
+    # --- Transparency and confidence fields (P9) ---
+    region: str = Field(
+        default="eastus",
+        description="Azure region for pricing (e.g., eastus, westeurope)",
+    )
+    environment: str = Field(
+        default="production",
+        description="Environment: production, staging, development",
+    )
+    currency: str = Field(
+        default="USD",
+        description="Currency code (USD, EUR, GBP)",
+    )
+    confidence_level: str = Field(
+        default="low",
+        description="Estimate confidence: high (exact inputs), medium (inferred), low (heuristic)",
+    )
+    pricing_assumptions: list[str] = Field(
+        default_factory=list,
+        description="Explicit pricing assumptions made",
+    )
+    pricing_gaps: list[str] = Field(
+        default_factory=list,
+        description="Missing information that limits estimate accuracy",
+    )
+    excluded_services: list[str] = Field(
+        default_factory=list,
+        description="Services intentionally excluded from estimate",
+    )
+    optimization_opportunities: list[str] = Field(
+        default_factory=list,
+        description="Cost optimization levers identified",
+    )
+    is_baseline_estimate: bool = Field(
+        default=True,
+        description="True if exact usage values were not provided",
+    )
+    accuracy_improvement_tips: list[str] = Field(
+        default_factory=list,
+        description="What would make this estimate more accurate",
+    )
+
 
 class AAAGenerateCostToolInput(BaseModel):
     payload: str | dict[str, Any] = Field(
@@ -105,7 +147,22 @@ class AAAGenerateCostTool(BaseTool):
         self._retail_prices_tool = retail_prices_tool or AzureRetailPricesTool()
     description: str = (
         "Compute and record baseline cost estimates using Azure Retail Prices API. "
-        "Returns an AAA_STATE_UPDATE JSON block with costEstimates."
+        "Returns an AAA_STATE_UPDATE JSON block with costEstimates.\n\n"
+        "INSTRUCTIONS FOR CALLING THIS TOOL:\n"
+        "- When SKU, quantity, region, or usage hours are NOT provided, set "
+        "  is_baseline_estimate=true and confidence_level='low'.\n"
+        "- Set confidence_level='medium' when values are inferred from context; "
+        "  set 'high' only when the user provided exact SKU, quantity, and region.\n"
+        "- ALWAYS populate pricing_assumptions with every assumption made "
+        "  (e.g., '730 hours/month assumed', 'Standard SKU assumed').\n"
+        "- ALWAYS populate pricing_gaps with missing information that limits accuracy "
+        "  (e.g., 'SKU not specified', 'Instance count unknown').\n"
+        "- ALWAYS include at least 3 accuracy_improvement_tips describing what "
+        "  the user could provide to get a more precise estimate.\n"
+        "- Populate optimization_opportunities with cost reduction levers identified.\n"
+        "- List any services intentionally excluded in excluded_services.\n"
+        "- Set region to the Azure region for pricing (default: 'eastus').\n"
+        "- Set currency to the requested currency code (default: 'USD')."
     )
 
     args_schema: type[BaseModel] = AAAGenerateCostToolInput
@@ -173,6 +230,15 @@ class AAAGenerateCostTool(BaseTool):
                 catalog_items=catalog_items,
                 baseline_reference_total=args.baseline_reference_total_monthly_cost,
             )
+            cost_estimate["confidenceLevel"] = args.confidence_level
+            cost_estimate["isBaselineEstimate"] = args.is_baseline_estimate
+            cost_estimate["pricingAssumptions"] = args.pricing_assumptions
+            cost_estimate["pricingGapsMeta"] = args.pricing_gaps
+            cost_estimate["excludedServices"] = args.excluded_services
+            cost_estimate["optimizationOpportunities"] = args.optimization_opportunities
+            cost_estimate["accuracyImprovementTips"] = args.accuracy_improvement_tips
+            cost_estimate["region"] = args.region
+            cost_estimate["environment"] = args.environment
             updates["costEstimates"] = [cost_estimate]
         return updates
 
@@ -183,9 +249,12 @@ class AAAGenerateCostTool(BaseTool):
         *,
         pricing_log_entries: list[dict[str, Any]] | None = None,
     ) -> str:
+        label = "Baseline Estimate" if args.is_baseline_estimate else "Cost Estimate"
         payload_json = json.dumps(updates, ensure_ascii=False, indent=2)
         output = (
-            f"Recorded cost estimate at {_now_iso()} (pricingLines={len(args.pricing_lines)}).\n"
+            f"Recorded {label} at {_now_iso()} "
+            f"(pricingLines={len(args.pricing_lines)}, "
+            f"confidence={args.confidence_level}).\n"
             "\n"
             "AAA_STATE_UPDATE\n"
             "```json\n"

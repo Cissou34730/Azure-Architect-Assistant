@@ -249,6 +249,10 @@ class MicrosoftLearnMCPClient(MCPClient):
                 )
             else:
                 logger.warning(f"Error exiting session: {exc}")
+            # Force-close to prevent GC finalization errors
+            if hasattr(session, "__aexit__"):
+                with contextlib.suppress(Exception):
+                    await session.__aexit__(None, None, None)
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"Error exiting session: {exc}")
 
@@ -269,8 +273,16 @@ class MicrosoftLearnMCPClient(MCPClient):
                 )
             else:
                 logger.warning(f"Error exiting connection context: {exc}")
+            # Force-close the async generator to prevent GC finalization errors
+            if hasattr(connection_context, "aclose"):
+                with contextlib.suppress(Exception):
+                    await connection_context.aclose()
         except Exception as exc:  # noqa: BLE001
             logger.warning(f"Error exiting connection context: {exc}")
+            # Force-close the async generator to prevent GC finalization errors
+            if hasattr(connection_context, "aclose"):
+                with contextlib.suppress(Exception):
+                    await connection_context.aclose()
 
     def _clear_connection_state(self) -> None:
         """Clear connection/session references."""

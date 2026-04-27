@@ -99,6 +99,85 @@ class IngestionStats(BaseModel):
     failures: list[IngestionFailure] = Field(default_factory=list)
 
 
+class CandidateArchitecture(BaseModel):
+    """Typed model for a candidate architecture artifact stored in ProjectState.
+
+    Uses lax config (extra='allow') to remain backward-compatible when new fields
+    are added or when reading older state rows that predate this model.
+    """
+
+    model_config = _AAA_LAX_CONFIG
+
+    id: str
+    title: str
+    summary: str
+
+    assumption_ids: list[str] = Field(default_factory=list)
+    diagram_ids: list[str] = Field(default_factory=list)
+    source_citations: list[dict[str, Any]] = Field(default_factory=list)
+
+    # P4 extended fields
+    components: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Key Azure components/services with roles",
+    )
+    service_choices: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Service choices with rationale and evidence",
+    )
+    alternatives_rejected: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Alternatives considered and rejected with reasons",
+    )
+    tradeoffs: list[str] = Field(
+        default_factory=list,
+        description="Explicit trade-offs accepted in this architecture",
+    )
+    risks: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Identified risks with mitigations",
+    )
+    waf_mapping: dict[str, Any] = Field(
+        default_factory=dict,
+        description="WAF pillar mapping (pillar->coverage)",
+    )
+    nfr_mapping: dict[str, Any] = Field(
+        default_factory=dict,
+        description="NFR achievement mapping (nfr->status+notes)",
+    )
+    cost_drivers: list[str] = Field(
+        default_factory=list,
+        description="Top cost drivers and optimization levers",
+    )
+    operational_considerations: list[str] = Field(
+        default_factory=list,
+        description="Operational model notes",
+    )
+    security_controls: list[str] = Field(
+        default_factory=list,
+        description="Security controls implemented",
+    )
+    implementation_phases: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Implementation phases with scope",
+    )
+    adr_candidates: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Detected ADR candidates",
+    )
+
+    # P7 traceability
+    decision_evidence_map: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "Map of major decisions to evidence. Each entry: "
+            "{'decision_id': str, 'service_choice': str, "
+            "'requirement_ids': list[str], 'evidence_packet_ids': list[str], "
+            "'source_citations': list[str], 'confidence': 'high'|'medium'|'low'}"
+        ),
+    )
+
+
 class IterationEventKind(str, Enum):
     propose = "propose"
     challenge = "challenge"

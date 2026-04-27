@@ -7,6 +7,7 @@ import pytest
 
 from app.agents_system.langgraph.nodes import clarify as clarify_module
 from app.agents_system.langgraph.nodes.clarify import (
+    _user_wants_to_proceed,
     execute_clarification_planner_node,
 )
 from app.features.agent.contracts import (
@@ -55,8 +56,28 @@ class _ClarificationResolutionWorkerStub:
     ) -> PendingChangeSetContract:
         self.calls.append(
             {
+                "kind": "resolve",
                 "project_id": project_id,
                 "user_message": user_message,
+                "project_state": project_state,
+                "source_message_id": source_message_id,
+                "db": db,
+            }
+        )
+        return self.change_set
+
+    async def proceed_with_defaults(
+        self,
+        *,
+        project_id: str,
+        project_state: dict[str, object],
+        db: object,
+        source_message_id: str | None = None,
+    ) -> PendingChangeSetContract:
+        self.calls.append(
+            {
+                "kind": "proceed_with_defaults",
+                "project_id": project_id,
                 "project_state": project_state,
                 "source_message_id": source_message_id,
                 "db": db,
@@ -237,6 +258,7 @@ async def test_execute_clarification_planner_node_records_pending_bundle_for_ans
 
     assert worker.calls == [
         {
+            "kind": "resolve",
             "project_id": "proj-1",
             "user_message": "Partners authenticate with their own Entra tenants.",
             "project_state": {
@@ -315,3 +337,68 @@ async def test_execute_clarification_planner_node_surfaces_errors() -> None:
         result["agent_output"]
         == "ERROR: Clarification planner returned no actionable clarification questions"
     )
+
+
+def test_user_wants_to_proceed_detection() -> None:
+    assert _user_wants_to_proceed("yes, proceed with the defaults")
+    assert _user_wants_to_proceed("proceed")
+    assert _user_wants_to_proceed("use defaults please")
+    assert _user_wants_to_proceed("continue with assumptions")
+    assert _user_wants_to_proceed("continue with defaults")
+    assert _user_wants_to_proceed("just assume and go ahead")
+    assert not _user_wants_to_proceed("what is Azure Container Apps?")
+    assert not _user_wants_to_proceed("Partners authenticate with their own Entra tenants.")
+    assert not _user_wants_to_proceed("continue")
+
+
+@pytest.mark.asyncio
+async def test_execute_clarification_planner_node_proceeds_with_defaults(
+    monkeypatch,
+) -> None:
+    """When user wants to proceed, default assumptions are persisted as pending changes."""
+    change_set = _build_clarification_change_set()
+    worker = _ClarificationResolutionWorkerStub(change_set=change_set)
+    refreshed_state = {"pendingChangeSets": [{"id": change_set.id}]}
+    state_loader = pytest.importorskip("unittest.mock").AsyncMock(return_value=refreshed_state)
+    emitted_events: list[tuple[str, dict[str, object]]] = []
+
+    async def _capture_event(event_type: str, payload: dict[str, object]) -> None:
+        emitted_events.append((event_type, payload))
+
+    monkeypatch.setattr(clarify_module, "read_project_state", state_loader)
+
+    result = await execute_clarification_planner_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "proceed with defaults",
+            "user_message_id": "msg-proceed-1",
+            "next_stage": "clarify",
+            "current_project_state": {
+                "clarificationQuestions": [
+                    {
+                        "id": "q-auth",
+                        "question": "Do partners use their own tenant or a shared tenant?",
+                        "status": "open",
+                        "defaultAssumption": "Partners use their own Entra tenant (B2B).",
+                        "relatedRequirementIds": ["req-auth"],
+                    }
+                ],
+            },
+            "event_callback": _capture_event,
+        },
+        db=object(),
+        resolution_worker=worker,
+    )
+
+    # proceed_with_defaults must be called, not resolve_and_record_pending_change
+    assert len(worker.calls) == 1
+    assert worker.calls[0]["kind"] == "proceed_with_defaults"
+    assert worker.calls[0]["project_id"] == "proj-1"
+    assert worker.calls[0]["source_message_id"] == "msg-proceed-1"
+
+    assert result["success"] is True
+    assert result["handled_by_stage_worker"] is True
+    assert result["updated_project_state"] == refreshed_state
+    assert "pending change set `cs-clarify-1`" in result["agent_output"]
+    assert "review and approve" in result["agent_output"].lower()
+    assert emitted_events[0] == ("message_start", {"role": "assistant"})
