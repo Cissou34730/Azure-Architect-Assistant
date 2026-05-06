@@ -262,6 +262,99 @@ class TestArchitectQuestionsDedup:
         assert len(merged["architectQuestions"]) == 2
 
 
+class TestArchitectQuestionsUpdatesKey:
+    """Tests for the dedicated `updates` key — answer/status updates for existing questions."""
+
+    def test_updates_applies_answer_and_status(self) -> None:
+        service = PendingChangesMergeService()
+        current_state: dict = {
+            "architectQuestions": [
+                {
+                    "id": "aq-1",
+                    "question": "Should we use zone-redundant storage?",
+                    "theme": "Reliability",
+                    "status": "open",
+                    "answer": None,
+                }
+            ]
+        }
+        patch = {
+            "_architectQuestions": {
+                "updates": [
+                    {
+                        "id": "aq-1",
+                        "status": "answered",
+                        "answer": "Use zone-redundant storage.",
+                        "answeredAt": "2024-01-15T10:00:00Z",
+                        "answerSource": "architect",
+                    }
+                ]
+            }
+        }
+        merged = service.apply_approved_patch(
+            current_state=current_state,
+            change_set=_make_change_set(patch),
+        )
+        q = merged["architectQuestions"][0]
+        assert q["status"] == "answered"
+        assert q["answer"] == "Use zone-redundant storage."
+        assert q["answeredAt"] == "2024-01-15T10:00:00Z"
+        assert q["answerSource"] == "architect"
+        assert q["question"] == "Should we use zone-redundant storage?"
+
+    def test_updates_deferred_status(self) -> None:
+        service = PendingChangesMergeService()
+        current_state: dict = {
+            "architectQuestions": [
+                {"id": "aq-2", "question": "Which region?", "status": "open"}
+            ]
+        }
+        patch = {"_architectQuestions": {"updates": [{"id": "aq-2", "status": "deferred"}]}}
+        merged = service.apply_approved_patch(current_state=current_state, change_set=_make_change_set(patch))
+        assert merged["architectQuestions"][0]["status"] == "deferred"
+        assert merged["architectQuestions"][0]["question"] == "Which region?"
+
+    def test_updates_missing_id_raises(self) -> None:
+        service = PendingChangesMergeService()
+        patch = {"_architectQuestions": {"updates": [{"status": "answered"}]}}
+        with pytest.raises(ValueError, match="must include an id"):
+            service.apply_approved_patch(current_state={}, change_set=_make_change_set(patch))
+
+    def test_updates_unknown_id_raises(self) -> None:
+        service = PendingChangesMergeService()
+        current_state: dict = {"architectQuestions": [{"id": "aq-1", "question": "Q?", "status": "open"}]}
+        patch = {"_architectQuestions": {"updates": [{"id": "aq-unknown", "status": "answered"}]}}
+        with pytest.raises(ValueError, match="not found"):
+            service.apply_approved_patch(current_state=current_state, change_set=_make_change_set(patch))
+
+    def test_updates_and_items_can_coexist(self) -> None:
+        service = PendingChangesMergeService()
+        current_state: dict = {
+            "architectQuestions": [
+                {"id": "aq-1", "question": "Existing question?", "status": "open"}
+            ]
+        }
+        patch = {
+            "_architectQuestions": {
+                "items": [{"id": "aq-2", "question": "New question?", "status": "open"}],
+                "updates": [{"id": "aq-1", "status": "answered", "answer": "Yes."}],
+            }
+        }
+        merged = service.apply_approved_patch(current_state=current_state, change_set=_make_change_set(patch))
+        questions = merged["architectQuestions"]
+        assert len(questions) == 2
+        answered = next(q for q in questions if q["id"] == "aq-1")
+        added = next(q for q in questions if q["id"] == "aq-2")
+        assert answered["status"] == "answered"
+        assert added["question"] == "New question?"
+
+    def test_updates_invalid_type_raises(self) -> None:
+        service = PendingChangesMergeService()
+        patch = {"_architectQuestions": {"updates": "not-a-list"}}
+        with pytest.raises(ValueError):
+            service.apply_approved_patch(current_state={}, change_set=_make_change_set(patch))
+
+
 class TestArchitectQuestionsValidation:
     def test_invalid_command_payload_raises(self) -> None:
         service = PendingChangesMergeService()

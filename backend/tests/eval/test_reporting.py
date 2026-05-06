@@ -449,6 +449,98 @@ def test_build_phase0_eval_summary_flags_adr_payload_regressions() -> None:
     )
 
 
+def test_build_phase0_eval_summary_flags_architect_questions_payload_regressions() -> None:
+    report = {
+        "scenario": {"id": "scenario-aq", "name": "Scenario AQ"},
+        "final": {
+            "missingRequiredKeys": [],
+            "stateSummary": {"keys": ["architectQuestions"], "counts": {"architectQuestions": 2}},
+            "architectQuestionsPayload": {
+                "present": False,
+                "missingRequiredKeys": ["architectQuestions"],
+                "questionCount": 0,
+                "openCount": 0,
+                "answeredCount": 0,
+                "deferredCount": 0,
+            },
+        },
+        "dbPersistence": {"status": "PASS"},
+        "steps": [
+            {
+                "id": "us1-clarify",
+                "request": "Generate architect-facing questions for the design.",
+                "answer": "Here are the key design questions.",
+                "success": True,
+                "error": None,
+                "mcpCallCount": 0,
+                "pricingCallCount": 0,
+                "kbCallCount": 0,
+                "advisoryQuality": {
+                    "proactivity": 1,
+                    "correction": 0,
+                    "evidence": 0,
+                    "clarity": 1,
+                    "total": 2,
+                },
+            }
+        ],
+    }
+
+    summary = build_phase0_eval_summary(report)
+
+    assert (
+        "Architect questions payload missing required keys: architectQuestions"
+        in summary.baseline_failures
+    )
+    assert "Architect questions payload did not produce any questions." in summary.baseline_failures
+
+
+def test_build_phase0_eval_summary_architect_questions_payload_healthy() -> None:
+    report = {
+        "scenario": {"id": "scenario-aq-ok", "name": "Scenario AQ OK"},
+        "final": {
+            "missingRequiredKeys": [],
+            "stateSummary": {
+                "keys": ["architectQuestions"],
+                "counts": {"architectQuestions": 3},
+            },
+            "architectQuestionsPayload": {
+                "present": True,
+                "missingRequiredKeys": [],
+                "questionCount": 3,
+                "openCount": 3,
+                "answeredCount": 0,
+                "deferredCount": 0,
+            },
+        },
+        "dbPersistence": {"status": "PASS"},
+        "steps": [
+            {
+                "id": "us1-clarify",
+                "request": "Generate architect questions for the design.",
+                "answer": "Here are the design questions for the architect.",
+                "success": True,
+                "error": None,
+                "mcpCallCount": 1,
+                "pricingCallCount": 0,
+                "kbCallCount": 1,
+                "advisoryQuality": {
+                    "proactivity": 2,
+                    "correction": 1,
+                    "evidence": 1,
+                    "clarity": 2,
+                    "total": 6,
+                },
+            }
+        ],
+    }
+
+    summary = build_phase0_eval_summary(report)
+
+    aq_failures = [f for f in summary.baseline_failures if "Architect questions" in f]
+    assert aq_failures == [], f"Unexpected architect questions failures: {aq_failures}"
+
+
 # ---------------------------------------------------------------------------
 # P15: Journey Eval Report tests
 # ---------------------------------------------------------------------------

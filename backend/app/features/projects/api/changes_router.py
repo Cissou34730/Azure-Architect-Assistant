@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.features.agent.application.architect_question_answer_service import (
+    ArchitectQuestionAnswerService,
+    ArchitectQuestionAnswerStatus,
+)
 from app.features.projects.api._deps import get_pending_changes_service_dep
 from app.features.projects.application.pending_changes_merge_service import (
     PendingChangeConflictError,
@@ -165,3 +170,37 @@ async def revise_project_change(
 ) -> None:
     del project_id, change_set_id, request
     raise HTTPException(status_code=410, detail=_REVISE_DEFERRED_MESSAGE)
+
+
+class ArchitectQuestionAnswerRequest(BaseModel):
+    status: ArchitectQuestionAnswerStatus
+    answer: str | None = None
+    answer_source: str | None = None
+
+
+@router.post(
+    "/projects/{project_id}/architect-questions/{question_id}/answer",
+    response_model=PendingChangeSetContract,
+)
+async def answer_architect_question(
+    project_id: str,
+    question_id: str,
+    request: ArchitectQuestionAnswerRequest,
+    db: AsyncSession = Depends(get_db),
+    pending_changes_service: ProjectPendingChangesService = Depends(
+        get_pending_changes_service_dep
+    ),
+) -> PendingChangeSetContract:
+    """Record an architect question answer as an approval-first pending change."""
+    service = ArchitectQuestionAnswerService(pending_change_recorder=pending_changes_service)
+    try:
+        return await service.record_answer(
+            project_id=project_id,
+            question_id=question_id,
+            answer=request.answer,
+            status=request.status,
+            answer_source=request.answer_source,
+            db=db,
+        )
+    except ValueError as exc:
+        raise map_value_error(exc, default_status=404) from exc

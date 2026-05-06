@@ -210,6 +210,7 @@ def _collect_failures(
     if _db_status(report) != "PASS":
         failures.append("Database persistence assertions failed.")
     failures.extend(_collect_clarify_payload_failures(report))
+    failures.extend(_collect_architect_questions_payload_failures(report))
     failures.extend(_collect_export_payload_failures(report))
     failures.extend(_collect_candidate_payload_failures(report))
     failures.extend(_collect_adr_payload_failures(report))
@@ -221,6 +222,26 @@ def _collect_failures(
             failures.append(
                 f"Low {dimension.value.replace('_', ' ')} score ({average:.1f}/5)."
             )
+    return failures
+
+
+def _collect_architect_questions_payload_failures(report: dict[str, Any]) -> list[str]:
+    final = _coerce_mapping(report.get("final"))
+    aq_payload = _coerce_mapping(final.get("architectQuestionsPayload"))
+    if not aq_payload:
+        return []
+
+    failures: list[str] = []
+    missing_keys = _coerce_string_list(aq_payload.get("missingRequiredKeys"))
+    if missing_keys:
+        failures.append(
+            f"Architect questions payload missing required keys: {', '.join(missing_keys)}"
+        )
+
+    question_count = aq_payload.get("questionCount")
+    if not isinstance(question_count, int) or question_count < 1:
+        failures.append("Architect questions payload did not produce any questions.")
+
     return failures
 
 

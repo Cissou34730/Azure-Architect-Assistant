@@ -203,8 +203,9 @@ class PendingChangesMergeService:
 
         merged_state = deepcopy(current_state)
         items = self._as_dict_list(command.get("items"), field_name="items")
+        updates = self._as_dict_list(command.get("updates"), field_name="updates")
 
-        if not items:
+        if not items and not updates:
             return merged_state
 
         existing_raw = merged_state.get("architectQuestions")
@@ -249,6 +250,20 @@ class PendingChangesMergeService:
             indexed_by_id[item_id] = new_item
             if normalized:
                 normalized_questions[normalized] = new_item
+
+        # Process dedicated answer/status updates (must target existing questions by id)
+        for update in updates:
+            item_id = str(update.get("id") or "").strip()
+            if not item_id:
+                raise ValueError(
+                    "Pending architect questions 'updates' entry must include an id."
+                )
+            existing_item = indexed_by_id.get(item_id)
+            if existing_item is None:
+                raise ValueError(
+                    f"Pending architect questions 'updates' target id '{item_id}' not found in state."
+                )
+            existing_item.update(update)
 
         merged_state["architectQuestions"] = existing
         return merged_state

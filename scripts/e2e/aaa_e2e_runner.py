@@ -200,6 +200,7 @@ def _summarize_state(state: dict[str, Any]) -> dict[str, Any]:
 
     for key in [
         "clarificationQuestions",
+        "architectQuestions",
         "candidateArchitectures",
         "requirements",
         "assumptions",
@@ -294,6 +295,47 @@ def _empty_clarify_payload_summary() -> dict[str, Any]:
         "whyItMattersCount": 0,
         "architecturalImpactCounts": {},
         "ungroupedQuestionCount": 0,
+    }
+
+
+def _empty_architect_questions_payload_summary() -> dict[str, Any]:
+    return {
+        "present": False,
+        "missingRequiredKeys": ["architectQuestions"],
+        "questionCount": 0,
+        "openCount": 0,
+        "answeredCount": 0,
+        "deferredCount": 0,
+    }
+
+
+def _summarize_architect_questions_payload(state: dict[str, Any]) -> dict[str, Any] | None:
+    """Summarize the architectQuestions payload from the project state."""
+    architect_questions = state.get("architectQuestions")
+    if not isinstance(architect_questions, list) or not architect_questions:
+        return None
+
+    open_count = 0
+    answered_count = 0
+    deferred_count = 0
+    for q in architect_questions:
+        if not isinstance(q, dict):
+            continue
+        status = str(q.get("status") or "open").lower()
+        if status == "answered":
+            answered_count += 1
+        elif status == "deferred":
+            deferred_count += 1
+        else:
+            open_count += 1
+
+    return {
+        "present": True,
+        "missingRequiredKeys": [],
+        "questionCount": len(architect_questions),
+        "openCount": open_count,
+        "answeredCount": answered_count,
+        "deferredCount": deferred_count,
     }
 
 
@@ -1321,6 +1363,10 @@ async def _run_with_client(
         if iac_payload is not None and requests_iac_payload:
             step_record["iacPayload"] = iac_payload
 
+        architect_questions_payload = _summarize_architect_questions_payload(current_step_state)
+        if architect_questions_payload is not None:
+            step_record["architectQuestionsPayload"] = architect_questions_payload
+
         steps.append(step_record)
 
         with transcript_path.open("a", encoding="utf-8") as handle:
@@ -1465,6 +1511,15 @@ async def _run_with_client(
                     step["iacPayload"]
                     for step in steps
                     if isinstance(step.get("iacPayload"), dict)
+                ])
+                else {}
+            ),
+            **(
+                {"architectQuestionsPayload": aq_steps[-1]}
+                if (aq_steps := [
+                    step["architectQuestionsPayload"]
+                    for step in steps
+                    if isinstance(step.get("architectQuestionsPayload"), dict)
                 ])
                 else {}
             ),
