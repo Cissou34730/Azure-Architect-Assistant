@@ -138,6 +138,8 @@ class ClarificationResolutionWorker:
         return indexed
 
     def _question_index(self, project_state: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+        # NOTE: Only customer clarification questions trigger resolution.
+        # Architect questions are answered via a separate update path (Q3.4).
         questions = project_state.get("clarificationQuestions")
         if not isinstance(questions, list):
             return {}

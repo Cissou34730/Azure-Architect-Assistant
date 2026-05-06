@@ -115,7 +115,37 @@ class ArchitectChoicePayload(BaseModel):
         return cleaned
 
 
-StructuredPayload = ClarificationQuestionsPayload | ArchitectChoicePayload
+class ArchitectQuestionPayloadCoverageSource(BaseModel):
+    model_config = _WORKFLOW_RESULT_CONFIG
+
+    kind: str
+    id: str
+    pillar: str | None = None
+
+
+class ArchitectQuestionPayloadItem(BaseModel):
+    model_config = _WORKFLOW_RESULT_CONFIG
+
+    question: str
+    theme: str
+    design_decision: str
+    coverage_sources: list[ArchitectQuestionPayloadCoverageSource] = Field(default_factory=list)
+    risk_if_unanswered: str
+    recommended_evidence: list[str] = Field(default_factory=list)
+    status: str = "open"
+    answer: str | None = None
+    answered_at: str | None = None
+    answer_source: str | None = None
+
+
+class ArchitectQuestionsPayload(BaseModel):
+    model_config = _WORKFLOW_RESULT_CONFIG
+
+    type: Literal["architect_questions"] = "architect_questions"
+    questions: list[ArchitectQuestionPayloadItem] = Field(default_factory=list)
+
+
+StructuredPayload = ClarificationQuestionsPayload | ArchitectChoicePayload | ArchitectQuestionsPayload
 _STRUCTURED_PAYLOAD_ADAPTER: TypeAdapter[StructuredPayload] = TypeAdapter(StructuredPayload)
 
 

@@ -20,6 +20,7 @@ from .stream_events import (
 from .workflow_result import (
     ArchitectChoiceOption,
     ArchitectChoicePayload,
+    ArchitectQuestionsPayload,
     ClarificationQuestionPayloadItem,
     ClarificationQuestionsPayload,
     NextStepProposal,
@@ -34,6 +35,7 @@ __all__ = [
     "AdrDraftOutput",
     "ArchitectChoiceOption",
     "ArchitectChoicePayload",
+    "ArchitectQuestionsPayload",
     "ArchitectureDraftOutput",
     "ClarificationPlanOutput",
     "ClarificationQuestionPayloadItem",

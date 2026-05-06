@@ -115,6 +115,15 @@ class ArchitectQuestionGroupContract(BaseModel):
     theme: str
     questions: list[ArchitectQuestionContract]
 
+    @model_validator(mode="before")
+    @classmethod
+    def _handle_architect_questions_alias(cls, data: object) -> object:
+        """Accept ``architect_questions`` as an alias for ``questions``."""
+        if isinstance(data, dict) and "architect_questions" in data and "questions" not in data:
+            data = dict(data)
+            data["questions"] = data.pop("architect_questions")
+        return data
+
     @field_validator("theme")
     @classmethod
     def _validate_theme(cls, value: str) -> str:

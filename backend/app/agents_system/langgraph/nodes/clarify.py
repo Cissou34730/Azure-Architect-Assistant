@@ -188,7 +188,7 @@ async def execute_clarification_planner_node(
         )
         final_answer = _format_clarification_plan(plan)
         await _emit_stage_message(event_callback, final_answer)
-        return {
+        result: dict[str, Any] = {
             "agent_output": final_answer,
             "final_answer": final_answer,
             "intermediate_steps": [],
@@ -196,6 +196,10 @@ async def execute_clarification_planner_node(
             "success": True,
             "structured_payload": _build_clarification_structured_payload(plan),
         }
+        architect_artifact_drafts = _build_architect_artifact_drafts(plan)
+        if architect_artifact_drafts:
+            result["artifact_drafts"] = architect_artifact_drafts
+        return result
     except ValueError as exc:
         final_answer = f"ERROR: {exc!s}"
         await _emit_stage_message(event_callback, final_answer)
@@ -236,56 +240,150 @@ def _mindmap_coverage_from_graph_state(state: GraphState) -> dict[str, Any] | No
 
 
 def _format_clarification_plan(plan: ClarificationPlanningResultContract) -> str:
-    total_questions = sum(len(group.questions) for group in plan.question_groups)
+    customer_total = sum(len(g.questions) for g in plan.customer_clarification_groups)
+    architect_total = sum(len(g.questions) for g in plan.architect_question_groups)
+
     lines = [
         "Clarification planning complete. "
-        f"I identified {total_questions} high-impact question(s) grouped by theme.",
+        f"I identified {customer_total} customer clarification question(s) "
+        f"and {architect_total} internal architect question(s).",
         "",
     ]
 
-    for group in plan.question_groups:
-        lines.append(f"**{group.theme}**")
-        for index, question in enumerate(group.questions, start=1):
-            lines.append(f"{index}. [{question.architectural_impact}] {question.question}")
-            lines.append(f"   Why it matters: {question.why_it_matters}")
-            if question.affected_decision:
-                lines.append(f"   Affects decision: {question.affected_decision}")
-            if question.default_assumption:
-                lines.append(f"   Default if not answered: {question.default_assumption}")
-            if question.risk_if_wrong:
-                lines.append(f"   Risk if wrong: {question.risk_if_wrong}")
+    # Customer section — answerable by the customer
+    if plan.customer_clarification_groups:
+        lines.append("## Customer Clarification Questions")
+        lines.append("_Please answer these questions so I can refine the architecture requirements._")
         lines.append("")
+        for group in plan.customer_clarification_groups:
+            lines.append(f"**{group.theme}**")
+            for idx, q in enumerate(group.questions, start=1):
+                lines.append(f"{idx}. {q.question}")
+                lines.append(f"   Why it matters: {q.why_it_matters}")
+                if q.default_assumption:
+                    lines.append(f"   Default if not answered: {q.default_assumption}")
+            lines.append("")
 
-    lines.append("Please answer the questions you can, and I will use them to refine the architecture.")
+    # Architect section — internal guidance, not customer homework
+    if plan.architect_question_groups:
+        lines.append("## Internal Architect Questions")
+        lines.append("_These are internal design questions for the architecture team. They are not addressed to the customer._")
+        lines.append("")
+        for group in plan.architect_question_groups:
+            lines.append(f"**{group.theme}**")
+            for idx, q in enumerate(group.questions, start=1):
+                sources = ", ".join(
+                    f"{s.kind}:{s.id}" for s in q.coverage_sources
+                    if isinstance(s, object) and hasattr(s, "kind")
+                ) if q.coverage_sources else "none"
+                lines.append(f"{idx}. {q.question}")
+                lines.append(f"   Design decision: {q.design_decision}")
+                lines.append(f"   Coverage: {sources}")
+                lines.append(f"   Risk if unanswered: {q.risk_if_unanswered}")
+            lines.append("")
+
+    if plan.customer_clarification_groups:
+        lines.append("Please answer the customer clarification questions above, and I will use them to refine the architecture.")
     return "\n".join(lines).strip()
 
 
 def _build_clarification_structured_payload(
     plan: ClarificationPlanningResultContract,
 ) -> dict[str, Any]:
-    questions: list[ClarificationQuestionPayloadItem] = []
-    for group in plan.question_groups:
+    # Customer questions payload
+    customer_questions: list[ClarificationQuestionPayloadItem] = []
+    for group in plan.customer_clarification_groups:
         theme_slug = _slugify_theme(group.theme)
-        for index, question in enumerate(group.questions, start=1):
-            questions.append(
+        for idx, q in enumerate(group.questions, start=1):
+            customer_questions.append(
                 ClarificationQuestionPayloadItem(
-                    id=f"{theme_slug}-{index}",
-                    text=question.question,
+                    id=f"{theme_slug}-{idx}",
+                    text=q.question,
                     theme=group.theme,
-                    why_it_matters=question.why_it_matters,
-                    architectural_impact=question.architectural_impact,
-                    priority=question.priority,
-                    related_requirement_ids=list(question.related_requirement_ids),
-                    affected_decision=question.affected_decision,
-                    default_assumption=question.default_assumption,
-                    risk_if_wrong=question.risk_if_wrong,
+                    why_it_matters=q.why_it_matters,
+                    architectural_impact=getattr(q, "architectural_impact", "medium"),
+                    priority=getattr(q, "priority", 1),
+                    related_requirement_ids=list(getattr(q, "related_requirement_ids", [])),
+                    affected_decision=getattr(q, "affected_decision", None),
+                    default_assumption=q.default_assumption,
+                    risk_if_wrong=getattr(q, "risk_if_wrong", None),
                 )
             )
-    return ClarificationQuestionsPayload(questions=questions).model_dump(
-        mode="json",
-        by_alias=True,
-        exclude_none=True,
-    )
+
+    customer_payload = ClarificationQuestionsPayload(questions=customer_questions)
+
+    # Architect questions payload
+    architect_payload = _build_architect_questions_payload(plan)
+
+    # Return combined payload
+    result = customer_payload.model_dump(mode="json", by_alias=True, exclude_none=True)
+    if architect_payload:
+        result["architect_questions"] = architect_payload
+    return result
+
+
+def _build_architect_questions_payload(
+    plan: ClarificationPlanningResultContract,
+) -> list[dict[str, Any]] | None:
+    if not plan.architect_question_groups:
+        return None
+    items = []
+    for group in plan.architect_question_groups:
+        for q in group.questions:
+            coverage_sources = []
+            for s in q.coverage_sources:
+                if isinstance(s, str):
+                    coverage_sources.append({"kind": "mixed", "id": s})
+                else:
+                    entry: dict[str, Any] = {"kind": s.kind, "id": s.id}
+                    if s.pillar:
+                        entry["pillar"] = s.pillar
+                    coverage_sources.append(entry)
+            status_val = q.status if isinstance(q.status, str) else q.status.value
+            items.append({
+                "question": q.question,
+                "theme": group.theme,
+                "designDecision": q.design_decision,
+                "coverageSources": coverage_sources,
+                "riskIfUnanswered": q.risk_if_unanswered,
+                "recommendedEvidence": list(q.recommended_evidence),
+                "status": status_val,
+                "answer": q.answer,
+                "answeredAt": q.answered_at,
+                "answerSource": q.answer_source,
+            })
+    return items if items else None
+
+
+def _build_architect_artifact_drafts(
+    plan: ClarificationPlanningResultContract,
+) -> list[dict[str, Any]]:
+    drafts = []
+    for group in plan.architect_question_groups:
+        for q in group.questions:
+            coverage_sources = []
+            for s in q.coverage_sources:
+                if isinstance(s, str):
+                    coverage_sources.append({"kind": "mixed", "id": s})
+                else:
+                    entry: dict[str, Any] = {"kind": s.kind, "id": s.id}
+                    if s.pillar:
+                        entry["pillar"] = s.pillar
+                    coverage_sources.append(entry)
+            drafts.append({
+                "artifact_family": "architectQuestions",
+                "action": "create",
+                "content": {
+                    "question": q.question,
+                    "theme": group.theme,
+                    "designDecision": q.design_decision,
+                    "coverageSources": coverage_sources,
+                    "riskIfUnanswered": q.risk_if_unanswered,
+                    "recommendedEvidence": list(q.recommended_evidence),
+                    "status": "open",
+                },
+            })
+    return drafts
 
 
 def _slugify_theme(theme: str) -> str:
@@ -346,6 +444,8 @@ def _should_resolve_clarifications(
 
 
 def _has_open_clarification_questions(project_state: dict[str, Any]) -> bool:
+    # NOTE: Only customer clarification questions trigger resolution.
+    # Architect questions are answered via a separate update path (Q3.4).
     questions = project_state.get("clarificationQuestions")
     if not isinstance(questions, list):
         return False
