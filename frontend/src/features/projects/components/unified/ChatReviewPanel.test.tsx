@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatReviewPanel } from "./ChatReviewPanel";
 import { pendingChangesApi } from "../../api/pendingChangesService";
 import type { ActiveChatReview } from "../../types/chat-review";
+import type { WorkflowStructuredPayload } from "../../../knowledge/types/api-kb";
 
 vi.mock("../../api/pendingChangesService", () => ({
   pendingChangesApi: {
@@ -230,5 +231,169 @@ describe("ChatReviewPanel", () => {
     });
     expect(refreshProjectState).toHaveBeenCalledTimes(1);
     expect(refreshMessages).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---- Q0.5 failing tests: architect question type and rendering ----
+// These tests are intentionally RED until ArchitectQuestionsPayload is added to api-kb.ts
+// and ArchitectQuestionsSection is rendered by ChatReviewPanel.
+
+const architectOnlyReview: ActiveChatReview = {
+  assistantMessageId: "assistant-arch-1",
+  answerPreview: "Resolving internal architectural decisions.",
+  stageEvents: [{ stage: "clarify", confidence: 1 }],
+  toolTraces: [],
+  workflowResult: {
+    stage: "clarify",
+    summary: "Architect questions pending resolution.",
+    pendingChangeSet: null,
+    citations: [],
+    warnings: [],
+    nextStep: {
+      stage: "clarify",
+      tool: null,
+      rationale: "Resolve architectural trade-offs before proceeding.",
+      blockingQuestions: [],
+    },
+    reasoningSummary: "Internal trade-off analysis required.",
+    toolCalls: [],
+    // `as unknown` bypasses the missing ArchitectQuestionsPayload union member so the test
+    // file compiles via esbuild.  Running `npm run typecheck` WILL fail until the type is
+    // added to WorkflowStructuredPayload in api-kb.ts — that tsc error is the type-level signal.
+    structuredPayload: {
+      type: "architect_questions",
+      architectQuestionGroups: [
+        {
+          id: "arch-compute-1",
+          topic: "Compute tier",
+          designDecision: "AKS vs App Service",
+          wafPillar: "Reliability",
+          mindmapNodes: ["compute", "networking"],
+          risk: "high",
+          answer: null,
+        },
+      ],
+    } as unknown as WorkflowStructuredPayload,
+  },
+};
+
+const mixedQuestionsReview: ActiveChatReview = {
+  assistantMessageId: "assistant-mixed-1",
+  answerPreview: "I have questions for both you and myself.",
+  stageEvents: [{ stage: "clarify", confidence: 1 }],
+  toolTraces: [],
+  workflowResult: {
+    stage: "clarify",
+    summary: "Mixed question set.",
+    pendingChangeSet: null,
+    citations: [],
+    warnings: [],
+    nextStep: {
+      stage: "clarify",
+      tool: null,
+      rationale: "Gather all inputs.",
+      blockingQuestions: [],
+    },
+    reasoningSummary: "Both customer and architect questions pending.",
+    toolCalls: [],
+    structuredPayload: {
+      type: "architect_questions",
+      customerQuestions: [
+        {
+          id: "customer-sla-1",
+          text: "What is your target SLA?",
+          theme: "Reliability",
+          whyItMatters: "SLA drives redundancy and failover decisions.",
+          architecturalImpact: "high",
+          priority: 1,
+          relatedRequirementIds: [],
+        },
+      ],
+      architectQuestionGroups: [
+        {
+          id: "arch-compute-1",
+          topic: "Compute tier",
+          designDecision: "AKS vs App Service",
+          wafPillar: "Reliability",
+          mindmapNodes: ["compute", "networking"],
+          risk: "high",
+          answer: null,
+        },
+      ],
+    } as unknown as WorkflowStructuredPayload,
+  },
+};
+
+describe("ChatReviewPanel – Q0.5 architect questions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(pendingChangesApi.list).mockResolvedValue([]);
+  });
+
+  it("type annotation: architect_questions payload satisfies WorkflowStructuredPayload (typecheck gate)", () => {
+    // Runtime: passes trivially (esbuild strips types).
+    // Typecheck: `npm run typecheck` will FAIL until ArchitectQuestionsPayload is added to
+    // the WorkflowStructuredPayload union in api-kb.ts.
+    // Remove the `as unknown` cast from the fixtures above once the type is added to verify.
+    const payload = architectOnlyReview.workflowResult?.structuredPayload;
+    expect(payload?.type).toBe("architect_questions");
+  });
+
+  it("renders an architect questions section with WAF pillar and design decision", () => {
+    // FAILS until ArchitectQuestionsSection is rendered by ChatReviewPanel
+    render(
+      <ChatReviewPanel
+        projectId="project-123"
+        activeReview={architectOnlyReview}
+        onSendMessage={vi.fn()}
+        onRefreshMessages={vi.fn()}
+        onRefreshProjectState={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: /architect questions/i })).toBeInTheDocument();
+    expect(screen.getByText(/AKS vs App Service/i)).toBeInTheDocument();
+    expect(screen.getByText(/Reliability/i)).toBeInTheDocument(); // WAF pillar
+    expect(screen.getByText(/high/i)).toBeInTheDocument(); // risk level
+  });
+
+  it("renders both customer clarification form and architect questions section for mixed payloads", () => {
+    // FAILS until ChatReviewPanel renders dual sections for the mixed payload type
+    render(
+      <ChatReviewPanel
+        projectId="project-123"
+        activeReview={mixedQuestionsReview}
+        onSendMessage={vi.fn()}
+        onRefreshMessages={vi.fn()}
+        onRefreshProjectState={vi.fn()}
+      />,
+    );
+
+    // Customer section must include the answer form with a submit button
+    expect(screen.getByText(/clarification questions/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /send clarification answers/i })).toBeInTheDocument();
+    // Architect section must be present alongside the customer form
+    expect(screen.getByRole("region", { name: /architect questions/i })).toBeInTheDocument();
+    expect(screen.getByText(/AKS vs App Service/i)).toBeInTheDocument();
+  });
+
+  it("does not render a customer answer submit button for architect-only questions", () => {
+    // FAILS on the first assertion until ArchitectQuestionsSection is rendered;
+    // once that is green, the second assertion guards against accidentally showing the
+    // customer answer form in an architect-only context.
+    render(
+      <ChatReviewPanel
+        projectId="project-123"
+        activeReview={architectOnlyReview}
+        onSendMessage={vi.fn()}
+        onRefreshMessages={vi.fn()}
+        onRefreshProjectState={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: /architect questions/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /send clarification answers/i }),
+    ).not.toBeInTheDocument();
   });
 });
