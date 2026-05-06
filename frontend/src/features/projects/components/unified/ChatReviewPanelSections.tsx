@@ -1,4 +1,5 @@
 /* eslint-disable max-lines -- Review UI sections stay co-located so the typed chat-review surface can evolve together without cross-file prop churn. */
+import { useState } from "react";
 import { Check, Link2 } from "lucide-react";
 import { Badge, Button } from "../../../../shared/ui";
 import type { ActiveChatReview } from "../../types/chat-review";
@@ -7,11 +8,13 @@ import type {
   PendingChangeSummary,
 } from "../../types/pending-changes";
 import type {
+  ArchitectQuestionGroupItem,
   ClarificationQuestionPayloadItem,
   ClarificationQuestionsPayload,
   SendMessageResponse,
   WorkflowCitation,
 } from "../../../knowledge/types/api-kb";
+import { architectQuestionsApi } from "../../api/architectQuestionsService";
 
 interface ReviewActionState {
   readonly reviewReason: string;
@@ -156,6 +159,7 @@ export function StageProgressRail({ items }: { readonly items: readonly StageRai
   );
 }
 
+// Customer clarification questions only — architect questions answered via Q4.4 path
 export function ClarificationReviewForm({
   payload,
   clarificationAnswers,
@@ -350,6 +354,181 @@ export function PendingChangeReviewSection({
         </div>
       )}
     </div>
+  );
+}
+
+const RISK_BADGE_VARIANTS: Readonly<Record<string, "error" | "warning" | "info">> = {
+  high: "error",
+  medium: "warning",
+  low: "info",
+};
+
+function getRiskBadgeVariant(risk: string): "error" | "warning" | "info" {
+  return RISK_BADGE_VARIANTS[risk.toLowerCase()] ?? "info";
+}
+
+const STATUS_BADGE_VARIANTS: Readonly<
+  Record<string, "success" | "warning" | "default" | "info">
+> = {
+  answered: "success",
+  open: "warning",
+  deferred: "default",
+  not_applicable: "default",
+};
+
+function getStatusBadgeVariant(
+  status: string,
+): "success" | "warning" | "default" | "info" {
+  return STATUS_BADGE_VARIANTS[status] ?? "info";
+}
+
+interface ArchitectQuestionRowProps {
+  readonly question: ArchitectQuestionGroupItem;
+  readonly projectId: string;
+  readonly onAnswered?: () => void;
+}
+
+function ArchitectQuestionRow({
+  question,
+  projectId,
+  onAnswered,
+}: ArchitectQuestionRowProps) {
+  const [localAnswer, setLocalAnswer] = useState<string>("");
+  const [localStatus, setLocalStatus] = useState<
+    "answered" | "deferred" | "not_applicable"
+  >("answered");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [savedAnswer, setSavedAnswer] = useState<string | null>(question.answer);
+  const [savedStatus, setSavedStatus] = useState<string>(
+    question.answer !== null ? "answered" : "open",
+  );
+
+  const canAnswerNow = savedStatus === "open" || savedStatus === "deferred";
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await architectQuestionsApi.answer(projectId, question.id, {
+        status: localStatus,
+        answer: localAnswer,
+        answerSource: "architect",
+      });
+      setSavedAnswer(localAnswer);
+      setSavedStatus(localStatus);
+      setLocalAnswer("");
+      onAnswered?.();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
+      <div className="flex flex-wrap items-start gap-2">
+        <Badge variant={getRiskBadgeVariant(question.risk)} size="sm">
+          {question.risk}
+        </Badge>
+        <Badge variant="primary" size="sm">
+          {question.wafPillar}
+        </Badge>
+        <Badge variant={getStatusBadgeVariant(savedStatus)} size="sm">
+          {savedStatus}
+        </Badge>
+      </div>
+      <p className="text-sm font-medium text-foreground">{question.topic}</p>
+      <p className="text-xs text-secondary">
+        <span className="font-semibold">Decision: </span>
+        {question.designDecision}
+      </p>
+      {question.mindmapNodes.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {question.mindmapNodes.map((node) => (
+            <span
+              key={node}
+              className="rounded-full border border-border px-2 py-0.5 text-xs text-dim"
+            >
+              {node}
+            </span>
+          ))}
+        </div>
+      )}
+      {savedAnswer !== null && (
+        <p className="rounded-md bg-card px-3 py-2 text-xs text-secondary">
+          <span className="font-semibold">Answer: </span>
+          {savedAnswer}
+        </p>
+      )}
+      {canAnswerNow && (
+        <form className="space-y-2 pt-1" onSubmit={(e) => void handleSubmit(e)}>
+          <textarea
+            aria-label={`Answer for: ${question.designDecision}`}
+            className="min-h-16 w-full rounded-lg border border-border-stronger bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            placeholder="Your answer (optional)"
+            value={localAnswer}
+            onChange={(e) => {
+              setLocalAnswer(e.target.value);
+            }}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              aria-label="Answer status"
+              className="rounded-lg border border-border bg-card px-2 py-1 text-xs text-foreground outline-none focus:border-brand"
+              value={localStatus}
+              onChange={(e) => {
+                setLocalStatus(
+                  e.target.value as "answered" | "deferred" | "not_applicable",
+                );
+              }}
+            >
+              <option value="answered">Answered</option>
+              <option value="deferred">Deferred</option>
+              <option value="not_applicable">Not applicable</option>
+            </select>
+            <Button type="submit" size="sm" isLoading={isSubmitting}>
+              Save Answer
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+interface ArchitectQuestionsSectionProps {
+  readonly questions: readonly ArchitectQuestionGroupItem[];
+  readonly projectId: string;
+  readonly onAnswered?: () => void;
+}
+
+export function ArchitectQuestionsSection({
+  questions,
+  projectId,
+  onAnswered,
+}: ArchitectQuestionsSectionProps) {
+  return (
+    <section
+      role="region"
+      aria-label="Internal Architect Questions"
+      className="space-y-4 rounded-xl border border-border bg-card p-4"
+    >
+      <div className="space-y-1">
+        <p className="text-sm font-semibold text-foreground">Internal Architect Questions</p>
+        <p className="text-xs text-dim">
+          These are internal design trade-offs for the architect — not addressed to the customer.
+        </p>
+      </div>
+      <div className="space-y-3">
+        {questions.map((question) => (
+          <ArchitectQuestionRow
+            key={question.id}
+            question={question}
+            projectId={projectId}
+            onAnswered={onAnswered}
+          />
+        ))}
+      </div>
+    </section>
   );
 }
 

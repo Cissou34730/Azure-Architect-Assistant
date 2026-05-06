@@ -53,6 +53,14 @@ class QualityGateTraceSummaryContract(_QualityGateModel):
     )
 
 
+class QualityGateArchitectQuestionsSummaryContract(_QualityGateModel):
+    total: int = 0
+    open: int = 0
+    answered: int = 0
+    deferred: int = 0
+    not_applicable: int = Field(default=0, alias="notApplicable")
+
+
 class QualityGateReportContract(_QualityGateModel):
     generated_at: str = Field(alias="generatedAt")
     waf: QualityGateWafSummaryContract
@@ -62,3 +70,6 @@ class QualityGateReportContract(_QualityGateModel):
     )
     missing_artifacts: QualityGateMissingArtifactsContract = Field(alias="missingArtifacts")
     trace: QualityGateTraceSummaryContract
+    architect_questions_summary: QualityGateArchitectQuestionsSummaryContract | None = Field(
+        default=None, alias="architectQuestionsSummary"
+    )

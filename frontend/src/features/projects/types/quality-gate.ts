@@ -66,6 +66,14 @@ export interface QualityGateTraceSummary {
   readonly eventTypes: readonly QualityGateTraceEventType[];
 }
 
+export interface QualityGateArchitectQuestionsSummary {
+  readonly total: number;
+  readonly open: number;
+  readonly answered: number;
+  readonly deferred: number;
+  readonly notApplicable: number;
+}
+
 export interface QualityGateReport {
   readonly generatedAt: string;
   readonly waf: QualityGateWafSummary;
@@ -73,4 +81,5 @@ export interface QualityGateReport {
   readonly openClarifications: QualityGateOpenClarifications;
   readonly missingArtifacts: QualityGateMissingArtifacts;
   readonly trace: QualityGateTraceSummary;
+  readonly architectQuestionsSummary?: QualityGateArchitectQuestionsSummary;
 }

@@ -50,6 +50,7 @@ Agents should use `/docs/agents` as primary context and should not rely on human
 ### Refactor
 
 - [`refactor/plan-functional-overhaul.md`](./refactor/plan-functional-overhaul.md) — **Active** master plan for the AAA functional overhaul (prompt, tools, UX, memory, observability). Supersedes AAA-refactor.md.
+- [`refactor/plan-question-generation-split.md`](./refactor/plan-question-generation-split.md) — Draft task plan to split customer clarification questions from internal architect solution questions, with WAF checklist and architecture mindmap coverage.
 - [`refactor/AAA-refactor.md`](./refactor/AAA-refactor.md) — Superseded by `plan-functional-overhaul.md`. Kept for historical reference.
 - [`refactor/plan-ai-foundry-migration.md`](./refactor/plan-ai-foundry-migration.md) — Completed Azure OpenAI to Azure AI Foundry provider migration plan and execution record
 

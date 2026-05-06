@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { qualityGateApi } from "../../api/qualityGateService";
 import type {
+  QualityGateArchitectQuestionsSummary,
   QualityGateClarificationItem,
   QualityGateMindMapTopic,
   QualityGateMissingArtifact,
@@ -124,6 +125,44 @@ function TraceEventTypeRow({
         <p className="text-xs text-secondary">{eventType.count} events</p>
       </div>
     </li>
+  );
+}
+
+function ArchitectQuestionsSummarySection({
+  summary,
+}: {
+  readonly summary: QualityGateArchitectQuestionsSummary;
+}) {
+  return (
+    <section
+      aria-label="Architect Questions"
+      className="rounded-xl border border-border bg-card p-4"
+    >
+      <div className="space-y-1">
+        <h3 className="text-base font-semibold text-foreground">Architect Questions</h3>
+        <p className="text-sm text-secondary">
+          Internal design trade-off questions tracked for architectural completeness.
+        </p>
+      </div>
+      <ul className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <li className="rounded-lg border border-border bg-surface p-3 text-center">
+          <p className="text-2xl font-semibold text-foreground">{summary.total}</p>
+          <p className="mt-1 text-xs text-secondary">Total</p>
+        </li>
+        <li className="rounded-lg border border-border bg-surface p-3 text-center">
+          <p className="text-2xl font-semibold text-warning">{summary.open}</p>
+          <p className="mt-1 text-xs text-secondary">Open</p>
+        </li>
+        <li className="rounded-lg border border-border bg-surface p-3 text-center">
+          <p className="text-2xl font-semibold text-success">{summary.answered}</p>
+          <p className="mt-1 text-xs text-secondary">Answered</p>
+        </li>
+        <li className="rounded-lg border border-border bg-surface p-3 text-center">
+          <p className="text-2xl font-semibold text-dim">{summary.deferred}</p>
+          <p className="mt-1 text-xs text-secondary">Deferred</p>
+        </li>
+      </ul>
+    </section>
   );
 }
 
@@ -295,6 +334,10 @@ export function QualityGateTab({ projectId, lastUpdated }: QualityGateTabProps) 
           </ul>
         )}
       </section>
+
+      {report.architectQuestionsSummary !== undefined && (
+        <ArchitectQuestionsSummarySection summary={report.architectQuestionsSummary} />
+      )}
 
       <section
         aria-label="Recent Trace Activity"

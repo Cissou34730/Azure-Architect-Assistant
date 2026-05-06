@@ -55,9 +55,26 @@ export interface ArchitectChoicePayload {
   readonly options: readonly ArchitectChoiceOption[];
 }
 
+export interface ArchitectQuestionGroupItem {
+  readonly id: string;
+  readonly topic: string;
+  readonly designDecision: string;
+  readonly wafPillar: string;
+  readonly mindmapNodes: readonly string[];
+  readonly risk: string;
+  readonly answer: string | null;
+}
+
+export interface ArchitectQuestionsPayload {
+  readonly type: "architect_questions";
+  readonly architectQuestionGroups: readonly ArchitectQuestionGroupItem[];
+  readonly customerQuestions?: readonly ClarificationQuestionPayloadItem[];
+}
+
 export type WorkflowStructuredPayload =
   | ClarificationQuestionsPayload
-  | ArchitectChoicePayload;
+  | ArchitectChoicePayload
+  | ArchitectQuestionsPayload;
 
 export interface WorkflowStageResult {
   readonly stage: string;

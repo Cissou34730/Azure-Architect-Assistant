@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api", tags=["projects"])
 @router.get(
     "/projects/{project_id}/quality-gate",
     response_model=QualityGateReportContract,
+    response_model_exclude_none=True,
 )
 async def get_quality_gate(
     project_id: str,

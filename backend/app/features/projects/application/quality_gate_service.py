@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from app.agents_system.services.mindmap_loader import build_top_level_coverage_scorecard
 from app.features.projects.contracts.quality_gate import (
+    QualityGateArchitectQuestionsSummaryContract,
     QualityGateMissingArtifactsContract,
     QualityGateMindMapSummaryContract,
     QualityGateOpenClarificationsContract,
@@ -91,6 +92,7 @@ class QualityGateService:
             open_clarifications=self._build_open_clarifications_summary(state),
             missing_artifacts=self._build_missing_artifacts_summary(state),
             trace=self._build_trace_summary(trace_summary),
+            architect_questions_summary=self._build_architect_questions_summary(state),
         )
 
     def _build_waf_summary(self, state: Mapping[str, Any]) -> QualityGateWafSummaryContract:
@@ -209,6 +211,25 @@ class QualityGateService:
             if not _artifact_present(key, state)
         ]
         return QualityGateMissingArtifactsContract(count=len(items), items=items)
+
+    def _build_architect_questions_summary(
+        self,
+        state: Mapping[str, Any],
+    ) -> QualityGateArchitectQuestionsSummaryContract | None:
+        questions = _coerce_mapping_list(state.get("architectQuestions"))
+        if not questions:
+            return None
+        counts: Counter[str] = Counter()
+        for question in questions:
+            status = str(question.get("status") or "open").strip().lower()
+            counts[status] += 1
+        return QualityGateArchitectQuestionsSummaryContract(
+            total=len(questions),
+            open=counts["open"],
+            answered=counts["answered"],
+            deferred=counts["deferred"],
+            not_applicable=counts["not_applicable"],
+        )
 
     def _build_trace_summary(
         self,

@@ -5,6 +5,7 @@ import type { SendMessageResponse, WorkflowCitation } from "../../../knowledge/t
 import type { ActiveChatReview } from "../../types/chat-review";
 import { usePendingChangeReview } from "../../hooks/usePendingChangeReview";
 import {
+  ArchitectQuestionsSection,
   buildClarificationMessage,
   ClarificationReviewForm,
   getStageRailItems,
@@ -53,6 +54,21 @@ export function ChatReviewPanel({
     "clarification_questions"
       ? activeReview.workflowResult.structuredPayload
       : null;
+
+  const architectPayload =
+    activeReview?.workflowResult?.structuredPayload?.type === "architect_questions"
+      ? activeReview.workflowResult.structuredPayload
+      : null;
+
+  // Build a synthetic clarification payload from customerQuestions when present in
+  // an architect_questions payload (mixed split scenario).
+  const customerQuestionsFromArchitectPayload =
+    architectPayload?.customerQuestions !== undefined &&
+    architectPayload.customerQuestions.length > 0
+      ? { type: "clarification_questions" as const, questions: architectPayload.customerQuestions }
+      : null;
+
+  const activeClarificationPayload = clarificationPayload ?? customerQuestionsFromArchitectPayload;
   const workflowCitations: readonly WorkflowCitation[] =
     activeReview?.workflowResult?.citations ?? [];
 
@@ -88,9 +104,9 @@ export function ChatReviewPanel({
           </Badge>
         </div>
 
-        {clarificationPayload !== null && (
+        {activeClarificationPayload !== null && (
           <ClarificationReviewForm
-            payload={clarificationPayload}
+            payload={activeClarificationPayload}
             clarificationAnswers={clarificationAnswers}
             onAnswerChange={(questionId, answerText) => {
               setClarificationAnswers((previousAnswers) => ({
@@ -107,11 +123,19 @@ export function ChatReviewPanel({
             onSubmit={() =>
               onSendMessage(
                 buildClarificationMessage(
-                  clarificationPayload,
+                  activeClarificationPayload,
                   clarificationAnswers,
                 ),
               )
             }
+          />
+        )}
+
+        {architectPayload !== null && (
+          <ArchitectQuestionsSection
+            questions={architectPayload.architectQuestionGroups}
+            projectId={projectId}
+            onAnswered={onRefreshProjectState}
           />
         )}
 
