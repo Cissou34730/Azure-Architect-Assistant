@@ -1,9 +1,15 @@
 """Agent feature contracts."""
 
 from .clarification_planner import (
+    ArchitectQuestionContract,
+    ArchitectQuestionCoverageSource,
+    ArchitectQuestionGroupContract,
     ClarificationPlanningResultContract,
     ClarificationQuestionContract,
     ClarificationQuestionGroupContract,
+    CustomerClarificationQuestionContract,
+    CustomerClarificationQuestionGroupContract,
+    UncoveredWafGap,
 )
 from .clarification_resolution import (
     ClarificationAssumptionContract,
@@ -20,6 +26,9 @@ from .extract_requirements import (
 )
 
 __all__ = [
+    "ArchitectQuestionContract",
+    "ArchitectQuestionCoverageSource",
+    "ArchitectQuestionGroupContract",
     "ClarificationAssumptionContract",
     "ClarificationPlanningResultContract",
     "ClarificationQuestionContract",
@@ -28,8 +37,11 @@ __all__ = [
     "ClarificationRequirementUpdateContract",
     "ClarificationResolutionResultContract",
     "ConversationSummaryContract",
+    "CustomerClarificationQuestionContract",
+    "CustomerClarificationQuestionGroupContract",
     "ExtractedRequirementContract",
     "RequirementAmbiguityContract",
     "RequirementSourceContract",
     "RequirementsExtractionResultContract",
+    "UncoveredWafGap",
 ]
