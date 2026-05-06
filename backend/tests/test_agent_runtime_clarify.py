@@ -16,6 +16,9 @@ from app.features.agent.contracts import (
     ClarificationQuestionGroupContract,
 )
 from app.features.projects.contracts import ChangeSetStatus, PendingChangeSetContract
+from app.features.projects.infrastructure.project_state_components_repository import (
+    PROJECT_STATE_COMPONENT_SOURCES,
+)
 
 
 class _ClarificationPlannerWorkerStub:
@@ -401,3 +404,178 @@ async def test_execute_clarification_planner_node_proceeds_with_defaults(
     assert "pending change set `cs-clarify-1`" in result["agent_output"]
     assert "review and approve" in result["agent_output"].lower()
     assert emitted_events[0] == ("message_start", {"role": "assistant"})
+
+
+# ── Q0.4 failing tests for architect question artifact persistence ──────────────
+
+
+def test_architect_questions_registered_in_component_sources() -> None:
+    """architectQuestions must be a durable artifact family in PROJECT_STATE_COMPONENT_SOURCES.
+
+    EXPECTED FAILURE: 'architectQuestions' key is not yet registered.
+    """
+    assert "architectQuestions" in PROJECT_STATE_COMPONENT_SOURCES
+
+
+def test_architect_question_contract_shape() -> None:
+    """ArchitectQuestionContract must validate all lifecycle fields correctly.
+
+    EXPECTED FAILURE: ArchitectQuestionContract does not exist in clarification_planner yet.
+    """
+    from app.features.agent.contracts.clarification_planner import (  # noqa: PLC0415
+        ArchitectQuestionContract,
+    )
+
+    q = ArchitectQuestionContract(
+        question="Should we use zone-redundant storage for blob data?",
+        designDecision="Storage tier selection",
+        coverageSources=["mindmap/storage", "mindmap/resilience"],
+        riskIfUnanswered="May fail HA requirements silently",
+        recommendedEvidence=["SLA spec", "disaster-recovery-runbook.pdf"],
+        status="open",
+        answer=None,
+        answeredAt=None,
+        answerSource=None,
+    )
+    assert q.question == "Should we use zone-redundant storage for blob data?"
+    assert q.status == "open"
+    assert q.answer is None
+    assert q.answeredAt is None
+
+
+@pytest.mark.asyncio
+async def test_execute_clarification_planner_node_structured_payload_includes_architect_questions() -> None:
+    """When the planner returns architect question groups, structured_payload must expose them.
+
+    EXPECTED FAILURE: ClarificationPlanningResultContract does not yet support
+    architect_question_groups and the node does not populate architect questions
+    in the structured_payload.
+    """
+    from app.features.agent.contracts.clarification_planner import (  # noqa: PLC0415
+        ArchitectQuestionGroupContract,
+    )
+
+    plan = ClarificationPlanningResultContract(
+        question_groups=[
+            ClarificationQuestionGroupContract(
+                theme="Security",
+                questions=[
+                    ClarificationQuestionContract(
+                        question="Do partner users sign in with their own tenant?",
+                        why_it_matters="Drives tenant and RBAC decisions.",
+                        architectural_impact="high",
+                        priority=1,
+                        related_requirement_ids=["req-auth"],
+                    )
+                ],
+            )
+        ],
+        architect_question_groups=[
+            ArchitectQuestionGroupContract(
+                theme="Storage",
+                architect_questions=[
+                    {
+                        "question": "Should we use zone-redundant storage?",
+                        "designDecision": "Storage tier selection",
+                        "coverageSources": ["mindmap/storage"],
+                        "riskIfUnanswered": "May miss HA requirements",
+                        "recommendedEvidence": ["SLA doc"],
+                        "status": "open",
+                    }
+                ],
+            )
+        ],
+    )
+
+    emitted_events: list[tuple[str, dict[str, object]]] = []
+
+    async def _capture_event(event_type: str, payload: dict[str, object]) -> None:
+        emitted_events.append((event_type, payload))
+
+    worker = _ClarificationPlannerWorkerStub(result=plan)
+
+    result = await execute_clarification_planner_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Continue",
+            "next_stage": "clarify",
+            "current_project_state": {},
+            "event_callback": _capture_event,
+        },
+        worker=worker,
+    )
+
+    assert result["success"] is True
+    payload = result["structured_payload"]
+    assert payload["type"] == "clarification_questions"
+    # Architect questions must be present alongside customer questions
+    assert "architect_questions" in payload
+
+
+@pytest.mark.asyncio
+async def test_execute_clarification_planner_node_architect_questions_as_pending_artifacts() -> None:
+    """Architect questions must flow into pending artifact drafts so they can be persisted.
+
+    EXPECTED FAILURE: The clarify node does not yet create pending artifact drafts
+    for architect questions returned by the planning worker.
+    """
+    from app.features.agent.contracts.clarification_planner import (  # noqa: PLC0415
+        ArchitectQuestionGroupContract,
+    )
+
+    plan = ClarificationPlanningResultContract(
+        question_groups=[
+            ClarificationQuestionGroupContract(
+                theme="Networking",
+                questions=[
+                    ClarificationQuestionContract(
+                        question="Will this service be internet-facing?",
+                        why_it_matters="Determines perimeter and WAF needs.",
+                        architectural_impact="high",
+                        priority=1,
+                        related_requirement_ids=["req-net"],
+                    )
+                ],
+            )
+        ],
+        architect_question_groups=[
+            ArchitectQuestionGroupContract(
+                theme="Identity",
+                architect_questions=[
+                    {
+                        "question": "Which identity provider handles service-to-service auth?",
+                        "designDecision": "Service identity mechanism",
+                        "coverageSources": ["mindmap/identity"],
+                        "riskIfUnanswered": "Service auth could be misconfigured",
+                        "recommendedEvidence": ["Identity architecture doc"],
+                        "status": "open",
+                    }
+                ],
+            )
+        ],
+    )
+
+    emitted_events: list[tuple[str, dict[str, object]]] = []
+
+    async def _capture_event(event_type: str, payload: dict[str, object]) -> None:
+        emitted_events.append((event_type, payload))
+
+    worker = _ClarificationPlannerWorkerStub(result=plan)
+
+    result = await execute_clarification_planner_node(
+        {
+            "project_id": "proj-1",
+            "user_message": "Continue",
+            "next_stage": "clarify",
+            "current_project_state": {},
+            "event_callback": _capture_event,
+        },
+        worker=worker,
+    )
+
+    assert result["success"] is True
+    # Architect questions must appear as pending artifact drafts for the approval flow
+    artifact_drafts = result.get("artifact_drafts", [])
+    assert any(
+        draft.get("artifact_family") == "architectQuestions" for draft in artifact_drafts
+    ), "Expected at least one pending artifact draft for architectQuestions"
