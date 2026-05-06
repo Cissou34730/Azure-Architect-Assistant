@@ -11,15 +11,29 @@ from pydantic import ValidationError
 
 from app.agents_system.config.prompt_loader import PromptLoader
 from app.features.agent.contracts.clarification_planner import (
+    ArchitectQuestionContract,
+    ArchitectQuestionGroupContract,
     ClarificationPlanningResultContract,
-    ClarificationQuestionContract,
-    ClarificationQuestionGroupContract,
+    CustomerClarificationQuestionContract,
+    CustomerClarificationQuestionGroupContract,
+    UncoveredWafGap,
 )
 from app.shared.ai import llm_service
 from app.shared.config.app_settings import get_app_settings
 
 _IMPACT_RANK = {"high": 0, "medium": 1, "low": 2}
 _RESOLVED_WAF_STATUSES = {"fixed", "false_positive", "done"}
+
+# Phrases that signal an implementation-prescriptive question unsuitable for customers
+_IMPLEMENTATION_PHRASES = (
+    "should we use",
+    "which azure service",
+    "which tier should we",
+    "which sku",
+    "should we use private endpoints",
+    "should we deploy",
+    "which deployment model",
+)
 
 
 class ClarificationPlannerWorker:
@@ -52,19 +66,101 @@ class ClarificationPlannerWorker:
         if not isinstance(planner_result, dict):
             raise ValueError("Clarification planner returned an invalid payload")
 
+        normalized_raw = self._normalize_planner_result(planner_result)
+
         try:
-            normalized_result = ClarificationPlanningResultContract.model_validate(planner_result)
+            normalized_result = ClarificationPlanningResultContract.model_validate(normalized_raw)
         except ValidationError as exc:
             raise ValueError(
                 "Clarification planner returned no actionable clarification questions"
             ) from exc
+
         filtered_result = self._filter_and_prioritize(
             normalized_result,
             prior_history=planning_input["priorClarificationHistory"],
         )
-        if not filtered_result.question_groups:
+
+        # Compute uncovered WAF gaps (WAF items not referenced by any architect question)
+        covered_waf_ids = {
+            source.id
+            for group in filtered_result.architect_question_groups
+            for q in group.questions
+            for source in q.coverage_sources
+            if source.kind == "waf"
+        }
+        all_waf_gap_ids = {
+            gap["itemId"] for gap in planning_input["wafGaps"] if gap.get("itemId")
+        }
+        uncovered_gaps = [
+            UncoveredWafGap(item_id=gap_id)
+            for gap_id in sorted(all_waf_gap_ids - covered_waf_ids)
+        ]
+
+        # Rebuild with uncovered_waf_gaps using model_construct to bypass _validate_has_content
+        filtered_result = ClarificationPlanningResultContract.model_construct(
+            customer_clarification_groups=filtered_result.customer_clarification_groups,
+            architect_question_groups=filtered_result.architect_question_groups,
+            uncovered_waf_gaps=uncovered_gaps,
+        )
+
+        total = (
+            sum(len(g.questions) for g in filtered_result.customer_clarification_groups)
+            + sum(len(g.questions) for g in filtered_result.architect_question_groups)
+        )
+        if total == 0:
             raise ValueError("Clarification planner returned no actionable clarification questions")
         return filtered_result
+
+    def _normalize_planner_result(self, raw: dict[str, Any]) -> dict[str, Any]:
+        """Migrate legacy format and skip individual questions that fail validation."""
+        # Migrate old questionGroups → customerClarificationGroups
+        if "questionGroups" in raw and "customerClarificationGroups" not in raw:
+            raw = {
+                "customerClarificationGroups": raw["questionGroups"],
+                "architectQuestionGroups": raw.get("architectQuestionGroups", []),
+            }
+
+        clean_customer_groups: list[dict[str, Any]] = []
+        for group in raw.get("customerClarificationGroups", []):
+            if not isinstance(group, dict):
+                continue
+            valid_questions: list[Any] = []
+            for q_raw in group.get("questions", []):
+                if not isinstance(q_raw, dict):
+                    continue
+                # Normalize legacy clarificationTarget value "missing" → "missing_input"
+                if q_raw.get("clarificationTarget") == "missing":
+                    q_raw = {**q_raw, "clarificationTarget": "missing_input"}
+                try:
+                    CustomerClarificationQuestionContract.model_validate(q_raw)
+                    valid_questions.append(q_raw)
+                except (ValidationError, Exception):
+                    pass
+            if valid_questions:
+                clean_customer_groups.append(
+                    {"theme": group.get("theme", ""), "questions": valid_questions}
+                )
+
+        clean_architect_groups: list[dict[str, Any]] = []
+        for group in raw.get("architectQuestionGroups", []):
+            if not isinstance(group, dict):
+                continue
+            valid_questions = []
+            for q_raw in group.get("questions", []):
+                try:
+                    ArchitectQuestionContract.model_validate(q_raw)
+                    valid_questions.append(q_raw)
+                except (ValidationError, Exception):
+                    pass
+            if valid_questions:
+                clean_architect_groups.append(
+                    {"theme": group.get("theme", ""), "questions": valid_questions}
+                )
+
+        return {
+            "customerClarificationGroups": clean_customer_groups,
+            "architectQuestionGroups": clean_architect_groups,
+        }
 
     def _build_planning_input(
         self,
@@ -245,6 +341,15 @@ class ClarificationPlannerWorker:
                         if isinstance(content, dict):
                             self._append_pending_questions([content], _append)
 
+        architect_questions = current_state.get("architectQuestions")
+        if isinstance(architect_questions, list):
+            for q in architect_questions:
+                if not isinstance(q, dict):
+                    continue
+                text = str(q.get("question") or "").strip()
+                if text:
+                    _append(text, str(q.get("status") or "open"), "architect")
+
         return history
 
     def _append_pending_questions(
@@ -267,31 +372,53 @@ class ClarificationPlannerWorker:
         system_prompt = str(prompt_data.get("system_prompt") or "").strip()
         system_prompt = (
             f"{system_prompt}\n\n"
-            "Return JSON ONLY with this schema:\n"
+            "Return JSON ONLY with this exact schema:\n"
             "{\n"
-            '  "questionGroups": [\n'
+            '  "customerClarificationGroups": [\n'
+            "    {\n"
+            '      "theme": "Requirements",\n'
+            '      "questions": [\n'
+            "        {\n"
+            '          "question": "Focused customer-facing question targeting a specific requirement gap",\n'
+            '          "whyItMatters": "Requirement consequence without prescribing a solution",\n'
+            '          "clarificationTarget": "conflict | missing_input | ambiguity | inconsistency",\n'
+            '          "sourceRefs": ["req-id"],\n'
+            '          "defaultAssumption": "Optional concrete assumption if safe to proceed",\n'
+            '          "architecturalImpact": "high | medium | low",\n'
+            '          "priority": 1,\n'
+            '          "relatedRequirementIds": []\n'
+            "        }\n"
+            "      ]\n"
+            "    }\n"
+            "  ],\n"
+            '  "architectQuestionGroups": [\n'
             "    {\n"
             '      "theme": "Security",\n'
             '      "questions": [\n'
             "        {\n"
-            '          "question": "Focused question",\n'
-            '          "whyItMatters": "Why this matters for the architecture",\n'
-            '          "affectedDecision": "e.g. identity topology | compute tier | database selection",\n'
-            '          "defaultAssumption": "What will be assumed if not answered",\n'
-            '          "riskIfWrong": "What could go wrong if assumption is incorrect",\n'
-            '          "architecturalImpact": "high | medium | low",\n'
-            '          "priority": 1,\n'
-            '          "relatedRequirementIds": ["req-1"]\n'
+            '          "question": "Internal solution-design question",\n'
+            '          "designDecision": "identity topology",\n'
+            '          "coverageSources": [\n'
+            '            {"kind": "waf", "id": "waf-sec-1", "pillar": "Security"},\n'
+            '            {"kind": "mindmap", "id": "identity"}\n'
+            "          ],\n"
+            '          "riskIfUnanswered": "Architecture may not prove tenant isolation.",\n'
+            '          "recommendedEvidence": ["identity flow", "RBAC matrix"],\n'
+            '          "status": "open",\n'
+            '          "answer": null,\n'
+            '          "answeredAt": null,\n'
+            '          "answerSource": null\n'
             "        }\n"
             "      ]\n"
             "    }\n"
             "  ]\n"
             "}\n"
-            "- Limit the total response to 3-5 questions.\n"
-            "- Every question MUST include affectedDecision, defaultAssumption, and riskIfWrong.\n"
-            "- Group related questions under a single theme.\n"
-            "- Prefer themes such as security, performance, reliability, cost, and operations.\n"
-            "- When canonical requirements are empty, ask onboarding questions about workload type, scale, compliance, budget, and operations."
+            "Rules:\n"
+            "- Customer clarification questions: 3-5 total, must target requirement gaps only — never ask the customer to choose a technical implementation.\n"
+            "- Architect questions: 5-8 total, must tie to WAF checklist items or mindmap topics via coverageSources.\n"
+            "- Every architect question MUST include designDecision, riskIfUnanswered, and at least one coverageSource.\n"
+            "- Group related questions under themes (Security, Reliability, Cost, Operations, etc.).\n"
+            "- When requirements are empty, ask onboarding questions about workload type, scale, compliance, budget, and operations."
         ).strip()
         user_prompt = (
             "Plan the next clarification response for the Azure architecture workflow.\n\n"
@@ -314,42 +441,106 @@ class ClarificationPlannerWorker:
             self._normalize_question_text(str(item.get("question") or ""))
             for item in prior_history
         }
-        seen_questions = set(prior_questions)
 
-        flattened: list[tuple[str, ClarificationQuestionContract]] = []
-        for group in result.question_groups:
+        # Filter customer clarification questions (cap 3-5, dedup against prior history)
+        seen_customer = set(prior_questions)
+        filtered_customer_groups = self._filter_customer_groups(
+            result.customer_clarification_groups,
+            seen_questions=seen_customer,
+            cap=5,
+        )
+
+        # Filter architect questions (cap 5-8, dedup against prior history + customer questions)
+        seen_architect = set(prior_questions)
+        for group in filtered_customer_groups:
+            for q in group.questions:
+                seen_architect.add(self._normalize_question_text(q.question))
+        filtered_architect_groups = self._filter_architect_groups(
+            result.architect_question_groups,
+            seen_questions=seen_architect,
+            cap=8,
+        )
+
+        return ClarificationPlanningResultContract.model_construct(
+            customer_clarification_groups=filtered_customer_groups,
+            architect_question_groups=filtered_architect_groups,
+            uncovered_waf_gaps=result.uncovered_waf_gaps,
+        )
+
+    def _filter_customer_groups(
+        self,
+        groups: list[CustomerClarificationQuestionGroupContract],
+        *,
+        seen_questions: set[str],
+        cap: int,
+    ) -> list[CustomerClarificationQuestionGroupContract]:
+        flattened: list[tuple[str, CustomerClarificationQuestionContract]] = []
+        for group in groups:
             for question in group.questions:
-                normalized_question = self._normalize_question_text(question.question)
-                if not normalized_question or normalized_question in seen_questions:
+                if self._is_implementation_prescriptive(question.question):
                     continue
-                seen_questions.add(normalized_question)
+                normalized = self._normalize_question_text(question.question)
+                if not normalized or normalized in seen_questions:
+                    continue
+                seen_questions.add(normalized)
                 flattened.append((group.theme, question))
 
         flattened.sort(
             key=lambda item: (
-                _IMPACT_RANK[item[1].architectural_impact],
-                item[1].priority,
-                item[0].lower(),
-                self._normalize_question_text(item[1].question),
+                _IMPACT_RANK.get(getattr(item[1], "architectural_impact", "medium"), 1),
+                getattr(item[1], "priority", 1),
             )
         )
-        limited_questions = flattened[:5]
+        limited = flattened[:cap]
 
-        grouped: dict[str, list[ClarificationQuestionContract]] = {}
+        grouped: dict[str, list[CustomerClarificationQuestionContract]] = {}
         theme_order: list[str] = []
-        for theme, question in limited_questions:
+        for theme, question in limited:
             if theme not in grouped:
                 grouped[theme] = []
                 theme_order.append(theme)
             grouped[theme].append(question)
 
-        return ClarificationPlanningResultContract(
-            question_groups=[
-                ClarificationQuestionGroupContract(theme=theme, questions=grouped[theme])
-                for theme in theme_order
-            ]
-        )
+        return [
+            CustomerClarificationQuestionGroupContract(theme=theme, questions=grouped[theme])
+            for theme in theme_order
+        ]
+
+    def _filter_architect_groups(
+        self,
+        groups: list[ArchitectQuestionGroupContract],
+        *,
+        seen_questions: set[str],
+        cap: int,
+    ) -> list[ArchitectQuestionGroupContract]:
+        flattened: list[tuple[str, ArchitectQuestionContract]] = []
+        for group in groups:
+            for question in group.questions:
+                normalized = self._normalize_question_text(question.question)
+                if not normalized or normalized in seen_questions:
+                    continue
+                seen_questions.add(normalized)
+                flattened.append((group.theme, question))
+
+        limited = flattened[:cap]
+
+        grouped: dict[str, list[ArchitectQuestionContract]] = {}
+        theme_order: list[str] = []
+        for theme, question in limited:
+            if theme not in grouped:
+                grouped[theme] = []
+                theme_order.append(theme)
+            grouped[theme].append(question)
+
+        return [
+            ArchitectQuestionGroupContract(theme=theme, questions=grouped[theme])
+            for theme in theme_order
+        ]
 
     def _normalize_question_text(self, question: str) -> str:
         return " ".join(question.strip().lower().split())
+
+    def _is_implementation_prescriptive(self, question: str) -> bool:
+        lower = question.lower()
+        return any(phrase in lower for phrase in _IMPLEMENTATION_PHRASES)
 

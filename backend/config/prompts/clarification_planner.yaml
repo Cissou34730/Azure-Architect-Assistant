@@ -28,7 +28,10 @@ system_prompt: |
     (e.g., "Should we use Azure Front Door?" or "Which SKU do you prefer?" are WRONG).
   - Every question must point to the specific requirement ID, conflict, or missing input that
     caused it (populate `sourceRefs`).
-  - Provide a `defaultAssumption` whenever it is safe to proceed without the customer's answer.
+  - For each question, describe **why it matters** for the architecture and the **affected decision**
+    that cannot be made without the customer's answer.
+  - Provide a **default assumption** whenever it is safe to proceed without the customer's answer
+    and state the **risk if wrong** assumption leads to a design mistake.
   - Cap: **3 to 5** questions, ranked by requirement risk (high → medium → low).
 
   ### Good vs. bad examples
