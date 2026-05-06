@@ -1,6 +1,6 @@
 # Question Generation Split Plan
 
-> Status: In progress — Q1.1, Q1.2, Q2.4, Q2.5, Q2.6, Q2.7, Q3.4, Q3.5 complete  
+> Status: In progress — Q1.1, Q1.2, Q2.4, Q2.5, Q2.6, Q2.7, Q3.4, Q3.5, Q4.1–Q4.5 complete  
 > Date: 2026-05-06  
 > Scope: Clarify-stage question quality, internal architect question feature, WAF and mindmap coverage
 
@@ -168,11 +168,11 @@ Compatibility option: keep emitting `structured_payload.type == "clarification_q
 
 | ID | Task | Files | Acceptance |
 |---|---|---|---|
-| Q4.1 | Update TypeScript API types for all backend question fields. | `frontend/src/features/knowledge/types/api-kb.ts` | Types include existing backend optional fields plus the new internal architect question payload. |
-| Q4.2 | Keep the answer form for customer clarifications only. | `frontend/src/features/projects/components/unified/ChatReviewPanelSections.tsx` | Customer questions remain answerable and submit through the existing clarification answer message. |
-| Q4.3 | Render internal architect questions in a separate artifact-backed section. | `frontend/src/features/projects/components/unified/ChatReviewPanelSections.tsx` or a new local component | Internal questions show WAF/mindmap coverage references, design decision, risk, status, and existing answer state, but do not block customer answer submission. |
-| Q4.4 | Add UI affordance for answering or updating internal architect questions. | Frontend artifact/workspace component selected for architect questions | Architect can submit answer text, mark deferred, or mark not applicable; UI reflects persisted status after refresh. |
-| Q4.5 | Surface internal architect questions in the Quality Gate tab. | `frontend/src/features/projects/components/unified/QualityGateTab.tsx`, `backend/app/features/projects/application/quality_gate_service.py` | Quality gate shows open/answered/deferred architect questions alongside WAF/mindmap coverage. |
+| Q4.1 | Update TypeScript API types for all backend question fields. | `frontend/src/features/knowledge/types/api-kb.ts` | ✅ Done — `ArchitectQuestionGroupItem` and `ArchitectQuestionsPayload` added; `WorkflowStructuredPayload` union extended. |
+| Q4.2 | Keep the answer form for customer clarifications only. | `frontend/src/features/projects/components/unified/ChatReviewPanelSections.tsx` | ✅ Done — Comment added; form scoped to customer questions only; mixed payloads build a synthetic `ClarificationQuestionsPayload` from `customerQuestions`. |
+| Q4.3 | Render internal architect questions in a separate artifact-backed section. | `frontend/src/features/projects/components/unified/ChatReviewPanelSections.tsx` | ✅ Done — `ArchitectQuestionsSection` component renders WAF pillar, design decision, risk, mindmap nodes, status badge, and existing answer; does not block customer answer submission. |
+| Q4.4 | Add UI affordance for answering or updating internal architect questions. | `frontend/src/features/projects/api/architectQuestionsService.ts`, `ChatReviewPanelSections.tsx` | ✅ Done — Per-question answer form (textarea + status select + submit) calls `POST /projects/{projectId}/architect-questions/{questionId}/answer`; UI reflects persisted status locally after success. |
+| Q4.5 | Surface internal architect questions in the Quality Gate tab. | `frontend/src/features/projects/components/unified/QualityGateTab.tsx`, `backend/app/features/projects/application/quality_gate_service.py` | ✅ Done — `ArchitectQuestionsSummarySection` added to frontend; `_build_architect_questions_summary` added to backend service; contract extended; route uses `response_model_exclude_none=True` to omit field when no questions exist. |
 
 ### Phase 5 - Documentation and Evaluation
 
