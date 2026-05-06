@@ -31,7 +31,7 @@ The prompt stack has a clear layered architecture. Each layer has a single respo
 - **orchestrator_routing.yaml** - Orchestrator-specific stage routing instructions
 - **tool_strategy.yaml** - Shared tool selection rules
 - **guardrails.yaml** - Shared hallucination/reviewability guardrails
-- **clarification_planner.yaml** - Clarification-stage instructions
+- **clarification_planner.yaml** — Clarification-stage instructions (v2.0): two-audience split — customer clarification questions (requirement gaps, conflicts, ambiguity) and architect solution questions (internal design decisions tied to WAF/mindmap coverage gaps)
 - **architecture_planner_prompt.yaml** - Architecture proposal prompt with C4/NFR guidance
 - **adr_writer.yaml** - ADR-stage instructions
 - **waf_validator.yaml** - Validation-stage instructions

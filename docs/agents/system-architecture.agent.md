@@ -20,7 +20,7 @@ Concise architecture reference for agents performing coding and documentation ta
 - Persistent storage includes project, ingestion, and diagram SQLite databases plus file-based KB indices.
 - Project state reads are composed: architecture inputs live in `project_architecture_inputs`, stable artifact families live in `project_state_components`, and `/api/projects/{project_id}/workspace` is the canonical read surface.
 - Approval-first runtime behavior is active for requirements extraction: when project chat routes to `extract_requirements`, the LangGraph workflow short-circuits into a dedicated stage worker, records a pending requirements bundle, and skips the generic LLM/postprocess path before any canonical `requirements` mutation.
-- Clarify-stage turns can also short-circuit into a dedicated planner worker that groups 3-5 high-impact questions from canonical requirements, ambiguity markers, WAF gaps, mindmap gaps, and prior clarification history instead of relying on the generic agent path.
+- Clarify-stage turns can also short-circuit into a dedicated planner worker that groups 3-5 high-impact questions from canonical requirements, ambiguity markers, WAF gaps, mindmap gaps, and prior clarification history instead of relying on the generic agent path. The planner now runs **two independent filtering pipelines**: `_filter_customer_groups` produces customer-facing requirement-gap questions (surfaced in chat and `structuredPayload.clarifyPayload`), and `_filter_architect_groups` produces internal design-decision questions tied to WAF/mindmap gaps with full answer lifecycle (`answered`, `deferred`, `not_applicable`). Architect questions are emitted as both `structuredPayload.architectQuestionsPayload` and `artifact_drafts` (type `architectQuestionArtifact`) so they flow through the approval-first pending-change path. The `architectQuestions` family is stored as a `project_state_components` component and answers are submitted via `POST /api/projects/{project_id}/architect-questions/{question_id}/answer`.
 - When open clarification questions already exist, clarify-stage turns now short-circuit into a dedicated clarification-resolution worker that converts the user's answers into approval-first pending change sets (updated requirements, answered questions, and new assumptions) instead of mutating canonical state directly.
 - Phase 12 cleanup removed the abandoned multi-agent specialist path and dead ReAct prompt shims; project chat now follows a single runtime path through stage classification, stage workers, the native tool-calling agent loop, and approval-time merge semantics.
 - Stage routing now emits typed classification metadata (stage, confidence, source, rationale) into graph state, SSE stage events, and workflow_result.stageClassification; downstream consumers should use that contract instead of inferring intent from free-form text.
@@ -71,7 +71,7 @@ Update this file when:
 ## Metadata
 
 - Status: Active
-- Last Updated: 2026-04-08
+- Last Updated: 2026-07-11
 - Owner: Engineering
 
 

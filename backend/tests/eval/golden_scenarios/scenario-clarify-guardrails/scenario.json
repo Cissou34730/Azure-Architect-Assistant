@@ -4,7 +4,7 @@
   "description": "Baseline grouped-question regression snapshot for clarify-stage output.",
   "tags": ["clarify", "guardrails"],
   "expectedBaselineFailures": [
-    "Clarify payload missing required keys: questionGroups",
+    "Clarify payload missing required keys: customerClarificationGroups",
     "Clarify payload did not produce any questions.",
     "Clarify payload did not group questions under any theme.",
     "Clarify payload left one or more questions outside a named theme.",
