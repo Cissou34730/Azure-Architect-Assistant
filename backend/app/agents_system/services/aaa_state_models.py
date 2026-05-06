@@ -10,6 +10,7 @@ models in this module must allow unknown fields.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal
 
@@ -97,6 +98,40 @@ class IngestionStats(BaseModel):
     parsed_documents: int = 0
     failed_documents: int = 0
     failures: list[IngestionFailure] = Field(default_factory=list)
+
+
+class ArchitectQuestionStatus(str, Enum):
+    open = "open"
+    answered = "answered"
+    deferred = "deferred"
+    not_applicable = "not_applicable"
+
+
+class ArchitectQuestionArtifactCoverageSource(BaseModel):
+    model_config = _AAA_STRICT_CONFIG
+    kind: Literal["waf", "mindmap", "requirement", "conflict", "mixed"]
+    id: str
+    pillar: str | None = None
+
+
+class ArchitectQuestionArtifact(BaseModel):
+    """A single durable internal architect question with lifecycle tracking."""
+
+    model_config = _AAA_STRICT_CONFIG
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    question: str
+    theme: str
+    design_decision: str
+    coverage_sources: list[ArchitectQuestionArtifactCoverageSource] = Field(default_factory=list)
+    risk_if_unanswered: str
+    recommended_evidence: list[str] = Field(default_factory=list)
+    status: ArchitectQuestionStatus = ArchitectQuestionStatus.open
+    answer: str | None = None
+    answered_at: str | None = None
+    answer_source: str | None = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    source_waf_item_ids: list[str] = Field(default_factory=list)
+    source_mindmap_topics: list[str] = Field(default_factory=list)
 
 
 class CandidateArchitecture(BaseModel):
@@ -418,6 +453,7 @@ class AAAProjectState(BaseModel):
         validation_alias=AliasChoices("projectDocumentStats", "ingestionStats"),
     )
     iteration_events: list[IterationEvent] = Field(default_factory=list)
+    architect_questions: list[dict[str, Any]] = Field(default_factory=list)
 
 
 def ensure_aaa_defaults(state: dict[str, Any]) -> dict[str, Any]:
@@ -427,6 +463,7 @@ def ensure_aaa_defaults(state: dict[str, Any]) -> dict[str, Any]:
     updated.setdefault("requirements", [])
     updated.setdefault("assumptions", [])
     updated.setdefault("clarificationQuestions", [])
+    updated.setdefault("architectQuestions", [])
     updated.setdefault("candidateArchitectures", [])
     updated.setdefault("adrs", [])
     updated.setdefault("findings", [])

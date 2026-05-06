@@ -19,6 +19,7 @@ PROJECT_STATE_COMPONENT_SOURCES: dict[str, tuple[str, ...]] = {
     "requirements": ("requirements",),
     "assumptions": ("assumptions",),
     "clarificationQuestions": ("clarificationQuestions",),
+    "architectQuestions": ("architectQuestions",),
     "candidateArchitectures": ("candidateArchitectures",),
     "adrs": ("adrs",),
     "findings": ("findings",),

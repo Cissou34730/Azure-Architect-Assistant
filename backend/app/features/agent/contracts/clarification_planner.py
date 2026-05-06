@@ -85,13 +85,26 @@ class ArchitectQuestionContract(BaseModel):
 
     question: str
     design_decision: str
-    coverage_sources: list[ArchitectQuestionCoverageSource] = Field(default_factory=list)
+    coverage_sources: list[ArchitectQuestionCoverageSource | str] = Field(default_factory=list)
     risk_if_unanswered: str
     recommended_evidence: list[str] = Field(default_factory=list)
     status: Literal["open", "answered", "deferred", "not_applicable"] = "open"
     answer: str | None = None
     answered_at: str | None = None  # ISO timestamp
     answer_source: str | None = None
+
+    # camelCase alias properties for attribute access convenience
+    @property
+    def answeredAt(self) -> str | None:
+        return self.answered_at
+
+    @property
+    def designDecision(self) -> str:
+        return self.design_decision
+
+    @property
+    def answerSource(self) -> str | None:
+        return self.answer_source
 
 
 class ArchitectQuestionGroupContract(BaseModel):

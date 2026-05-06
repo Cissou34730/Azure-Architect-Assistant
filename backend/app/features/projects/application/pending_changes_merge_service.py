@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from copy import deepcopy
 from typing import Any
 
@@ -49,6 +50,13 @@ class PendingChangesMergeService:
             merged_state = self._apply_clarification_resolution(
                 current_state=merged_state,
                 command=clarification_resolution,
+            )
+
+        architect_questions_command = proposed_patch.pop("_architectQuestions", None)
+        if architect_questions_command is not None:
+            merged_state = self._apply_architect_questions(
+                current_state=merged_state,
+                command=architect_questions_command,
             )
 
         if not proposed_patch:
@@ -183,6 +191,70 @@ class PendingChangesMergeService:
                 continue
             existing_item.update(update)
         return items
+
+    def _apply_architect_questions(
+        self,
+        *,
+        current_state: dict[str, Any],
+        command: Any,
+    ) -> dict[str, Any]:
+        if not isinstance(command, dict):
+            raise ValueError("Pending architect questions payload must be an object.")
+
+        merged_state = deepcopy(current_state)
+        items = self._as_dict_list(command.get("items"), field_name="items")
+
+        if not items:
+            return merged_state
+
+        existing_raw = merged_state.get("architectQuestions")
+        if existing_raw is None:
+            existing: list[dict[str, Any]] = []
+        elif isinstance(existing_raw, list):
+            existing = [dict(item) for item in existing_raw if isinstance(item, dict)]
+        else:
+            raise ValueError("'architectQuestions' in state must be a list.")
+
+        indexed_by_id: dict[str, dict[str, Any]] = {
+            str(item.get("id")): item
+            for item in existing
+            if str(item.get("id") or "").strip()
+        }
+        normalized_questions: dict[str, dict[str, Any]] = {
+            self._normalize_question(str(item.get("question") or "")): item
+            for item in existing
+            if str(item.get("question") or "").strip()
+        }
+
+        for new_item in items:
+            item_id = str(new_item.get("id") or "").strip()
+
+            # Update existing item matched by id (answer/status update)
+            if item_id and item_id in indexed_by_id:
+                indexed_by_id[item_id].update(new_item)
+                continue
+
+            # Dedup by normalized question text — skip already-present questions
+            question_text = str(new_item.get("question") or "").strip()
+            normalized = self._normalize_question(question_text)
+            if normalized and normalized in normalized_questions:
+                continue
+
+            # Create new item — assign an id if missing
+            new_item = dict(new_item)
+            if not item_id:
+                new_item["id"] = str(uuid.uuid4())
+                item_id = new_item["id"]
+            existing.append(new_item)
+            indexed_by_id[item_id] = new_item
+            if normalized:
+                normalized_questions[normalized] = new_item
+
+        merged_state["architectQuestions"] = existing
+        return merged_state
+
+    def _normalize_question(self, question: str) -> str:
+        return " ".join(question.strip().lower().split())
 
     def _as_dict_list(
         self,

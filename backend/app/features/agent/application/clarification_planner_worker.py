@@ -562,7 +562,7 @@ class ClarificationPlannerWorker:
         for group in architect_question_groups:
             for question in group.questions:
                 for source in question.coverage_sources:
-                    if source.kind == "waf":
+                    if hasattr(source, "kind") and source.kind == "waf":
                         covered_ids.add(source.id)
 
         all_gap_ids = {str(gap["itemId"]) for gap in waf_gaps if gap.get("itemId")}
@@ -577,4 +577,20 @@ class ClarificationPlannerWorker:
     def _is_implementation_prescriptive(self, question: str) -> bool:
         lower = question.lower()
         return any(phrase in lower for phrase in _IMPLEMENTATION_PHRASES)
+
+    def _should_reopen_architect_question(
+        self,
+        existing: dict[str, Any],
+        new_question: str,
+    ) -> bool:
+        """A deferred/answered question can be re-opened if the new question text is substantially similar."""
+        status = str(existing.get("status") or "open").lower()
+        if status in {"open"}:
+            return False  # already open
+        normalized_existing = self._normalize_question_text(str(existing.get("question") or ""))
+        normalized_new = self._normalize_question_text(new_question)
+        # Simple similarity: if first 10 words match, consider same question
+        existing_words = normalized_existing.split()[:10]
+        new_words = normalized_new.split()[:10]
+        return existing_words == new_words
 
