@@ -1,6 +1,6 @@
 # Question Generation Split Plan
 
-> Status: In progress — Q1.1, Q1.2, Q2.4, Q2.5, Q2.6, Q2.7 complete  
+> Status: In progress — Q1.1, Q1.2, Q2.4, Q2.5, Q2.6, Q2.7, Q3.4, Q3.5 complete  
 > Date: 2026-05-06  
 > Scope: Clarify-stage question quality, internal architect question feature, WAF and mindmap coverage
 
@@ -161,8 +161,8 @@ Compatibility option: keep emitting `structured_payload.type == "clarification_q
 | Q3.1 | Update clarify-node formatting so the assistant response clearly separates customer questions from internal architect questions. | `backend/app/agents_system/langgraph/nodes/clarify.py` | Customer-facing section remains answerable; internal section is labeled as architect work and is not phrased as customer homework. |
 | Q3.2 | Add a structured payload variant for internal architect questions. | `backend/app/agents_system/contracts/workflow_result.py` | `WorkflowStructuredPayload` can represent customer clarification questions and internal architect questions without text parsing. |
 | Q3.3 | Keep customer clarification resolution scoped to customer answers only. | `backend/app/features/agent/application/clarification_resolution_worker.py`, `backend/app/agents_system/langgraph/nodes/clarify.py` | Customer answer parsing ignores internal architect questions. |
-| Q3.4 | Add an internal architect-question answer path. | Backend route/service selected for artifact updates, pending-change contracts, merge service | An architect can answer, defer, or mark a question not applicable; the update is persisted and visible in project state. |
-| Q3.5 | Update stage/eval reporting to recognize the new payload shape and persisted artifacts. | `backend/tests/eval`, `scripts/e2e/aaa_e2e_runner.py` | Eval can fail separately for missing customer clarifications, missing internal WAF/mindmap questions, and missing architect-question answer tracking. |
+| Q3.4 | Add an internal architect-question answer path. | Backend route/service selected for artifact updates, pending-change contracts, merge service | Done -- `updates` key added to `_apply_architect_questions` in merge service; `ArchitectQuestionAnswerService` + `PendingChangeRecorder` Protocol added; `POST /projects/{project_id}/architect-questions/{question_id}/answer` endpoint added to `changes_router.py` (statuses: answered/deferred/not_applicable). |
+| Q3.5 | Update stage/eval reporting to recognize the new payload shape and persisted artifacts. | `backend/tests/eval`, `scripts/e2e/aaa_e2e_runner.py` | Done -- `_collect_architect_questions_payload_failures()` added to `reporting.py`; `_summarize_architect_questions_payload()` added to `aaa_e2e_runner.py` with per-step recording and final-dict aggregation. |
 
 ### Phase 4 - Frontend UX
 
