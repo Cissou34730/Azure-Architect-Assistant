@@ -81,20 +81,10 @@ class ClarificationPlannerWorker:
         )
 
         # Compute uncovered WAF gaps (WAF items not referenced by any architect question)
-        covered_waf_ids = {
-            source.id
-            for group in filtered_result.architect_question_groups
-            for q in group.questions
-            for source in q.coverage_sources
-            if source.kind == "waf"
-        }
-        all_waf_gap_ids = {
-            gap["itemId"] for gap in planning_input["wafGaps"] if gap.get("itemId")
-        }
-        uncovered_gaps = [
-            UncoveredWafGap(item_id=gap_id)
-            for gap_id in sorted(all_waf_gap_ids - covered_waf_ids)
-        ]
+        uncovered_gaps = self._compute_uncovered_waf_gaps(
+            waf_gaps=planning_input["wafGaps"],
+            architect_question_groups=filtered_result.architect_question_groups,
+        )
 
         # Rebuild with uncovered_waf_gaps using model_construct to bypass _validate_has_content
         filtered_result = ClarificationPlanningResultContract.model_construct(
@@ -242,15 +232,30 @@ class ClarificationPlannerWorker:
             status = self._waf_item_status(item)
             if status in _RESOLVED_WAF_STATUSES:
                 continue
-            gaps.append(
-                {
-                    "itemId": item.get("id") or item.get("templateItemId"),
-                    "title": item.get("title") or item.get("topic") or "Unnamed checklist item",
-                    "pillar": item.get("pillar") or "Unknown",
-                    "status": status,
-                }
-            )
-        return gaps[:5]
+            gap: dict[str, Any] = {
+                "itemId": item.get("id") or item.get("templateItemId"),
+                "title": item.get("title") or item.get("topic") or "Unnamed checklist item",
+                "pillar": item.get("pillar") or "Unknown",
+                "status": status,
+                "severity": item.get("severity") or (item.get("recommendation") or {}).get("severity"),
+                "evaluationNotes": self._waf_latest_evaluation_notes(item),
+                "category": item.get("category"),
+            }
+            gaps.append(gap)
+        return gaps[:10]
+
+    def _waf_latest_evaluation_notes(self, item: dict[str, Any]) -> str | None:
+        """Extract notes/description from the latest evaluation of a WAF checklist item."""
+        evaluations = item.get("evaluations")
+        if not isinstance(evaluations, list) or not evaluations:
+            return None
+        latest = next(
+            (ev for ev in reversed(evaluations) if isinstance(ev, dict)),
+            None,
+        )
+        if latest is None:
+            return None
+        return latest.get("notes") or latest.get("description") or None
 
     def _waf_item_status(self, item: dict[str, Any]) -> str:
         evaluations = item.get("evaluations")
@@ -290,10 +295,17 @@ class ClarificationPlannerWorker:
             status = str(details.get("status") or "").strip().lower()
             if status not in status_rank:
                 continue
-            gap_items.append({"topic": str(topic), "status": status})
+            gap: dict[str, Any] = {"topic": str(topic), "status": status}
+            confidence = details.get("confidence")
+            if confidence is not None:
+                gap["confidence"] = confidence
+            evidence = details.get("evidenceSummary") or details.get("evidence_summary")
+            if evidence is not None:
+                gap["evidenceSummary"] = evidence
+            gap_items.append(gap)
 
         gap_items.sort(key=lambda item: (status_rank[item["status"]], item["topic"]))
-        return gap_items[:5]
+        return gap_items[:10]
 
     def _build_prior_history(self, current_state: dict[str, Any]) -> list[dict[str, Any]]:
         history: list[dict[str, Any]] = []
@@ -535,6 +547,28 @@ class ClarificationPlannerWorker:
         return [
             ArchitectQuestionGroupContract(theme=theme, questions=grouped[theme])
             for theme in theme_order
+        ]
+
+    def _compute_uncovered_waf_gaps(
+        self,
+        waf_gaps: list[dict[str, Any]],
+        architect_question_groups: list[ArchitectQuestionGroupContract],
+    ) -> list[UncoveredWafGap]:
+        """Return WAF gap items not referenced by any architect question."""
+        if not waf_gaps:
+            return []
+
+        covered_ids: set[str] = set()
+        for group in architect_question_groups:
+            for question in group.questions:
+                for source in question.coverage_sources:
+                    if source.kind == "waf":
+                        covered_ids.add(source.id)
+
+        all_gap_ids = {str(gap["itemId"]) for gap in waf_gaps if gap.get("itemId")}
+        return [
+            UncoveredWafGap(item_id=gap_id)
+            for gap_id in sorted(all_gap_ids - covered_ids)
         ]
 
     def _normalize_question_text(self, question: str) -> str:
