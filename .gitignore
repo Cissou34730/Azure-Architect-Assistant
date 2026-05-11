@@ -223,6 +223,17 @@ backups/
 merge-analysis.txt
 backend/data/knowledge_bases/waf/checkpoint.json
 
+# Diagnostic / output scratch files
+_diag_output*.txt
+lint-output.txt
+lint-compact.txt
+test_out.txt
+test_results.txt
+pytest_copilot_targeted_output.txt
+
+# Runtime cache files (generated at startup, not source)
+backend/data/*_cache.json
+
 # SecretKeeper vault (encrypted secrets — do not commit)
 .secretkeeper/vault.enc
 .secretkeeper/vault.meta
@@ -237,3 +248,6 @@ __tests__/
 backend/tests/*
 !backend/tests/eval/
 !backend/tests/eval/**
+# Re-exclude __pycache__ after the negation rules above
+backend/tests/**/__pycache__/
+backend/tests/**/*.pyc
