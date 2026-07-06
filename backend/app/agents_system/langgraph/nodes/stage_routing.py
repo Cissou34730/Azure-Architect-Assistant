@@ -144,6 +144,15 @@ _ADR_KEYWORDS = (
     "architecture decision",
 )
 
+_OVERRIDE_KEYWORDS = (
+    "override",
+    "risk accepted",
+    "accept the risk",
+    "accepted risk",
+    "exception",
+    "waiver",
+)
+
 
 class ProjectStage(str, Enum):
     """Project workflow stages."""
@@ -180,7 +189,7 @@ async def classify_next_stage(state: GraphState) -> dict[str, Any]:
                     "LLM intent classifier detected artifact intent: types=%s",
                     llm_result.types,
                 )
-        except Exception:
+        except Exception:  # noqa: BLE001
             logger.warning(
                 "LLM intent classifier failed; falling back to keyword-only",
                 exc_info=True,
@@ -210,6 +219,18 @@ def _detect_intent_from_keywords(
     agent_output: str,
 ) -> StageClassification | None:
     """Detect intended stage from keywords in user message or agent output."""
+    # Human architect overrides outrank validation, WAF, pricing, and IaC routing.
+    if _has_human_override_intent(user_message):
+        return _build_classification(
+            stage=ProjectStage.MANAGE_ADR,
+            confidence=0.94,
+            source="intent_rules",
+            rationale=(
+                "Detected human architect override or accepted-risk intent requiring "
+                "decision/risk capture."
+            ),
+        )
+
     intent_rules = (
         (
             _has_review_intent(user_message),
@@ -335,6 +356,9 @@ def _contains_iac_generation_intent(user_message: str) -> bool:
         return False
     return _contains_any(user_message, _IAC_KEYWORDS)
 
+def _has_human_override_intent(user_message: str) -> bool:
+    return _contains_any(user_message, _OVERRIDE_KEYWORDS)
+
 
 def _has_explicit_artifact_edit_intent(user_message: str) -> bool:
     return any(verb in user_message for verb in _ARTIFACT_ACTION_VERBS) and any(
@@ -343,92 +367,63 @@ def _has_explicit_artifact_edit_intent(user_message: str) -> bool:
 
 
 def _detect_intent_from_state(project_state: dict[str, Any]) -> StageClassification:
-    """Detect next stage based on gaps in current project state."""
+    """Detect the next useful decision-support stage from project state.
+
+    State gaps should reveal unresolved decisions. They should not force the
+    assistant through cost, IaC, or export work just because those artifact
+    collections are empty.
+    """
     if _has_parsed_documents(project_state) and not project_state.get("requirements"):
-        return _build_classification(
+        classification = _build_classification(
             stage=ProjectStage.EXTRACT_REQUIREMENTS,
             confidence=0.82,
             source="state_gaps",
             rationale="Parsed documents exist, but canonical requirements have not been extracted yet.",
         )
-    if _has_open_clarification_questions(project_state):
-        return _build_classification(
+    elif _has_open_clarification_questions(project_state):
+        classification = _build_classification(
             stage=ProjectStage.CLARIFY,
             confidence=0.74,
             source="state_gaps",
             rationale="Open clarification questions remain unresolved.",
         )
-
-    requirements = [
-        (
-            "requirements",
-            ProjectStage.CLARIFY,
-            0.68,
-            "Requirements are still missing from project state, so clarification should continue.",
-        ),
-        (
-            "candidateArchitectures",
-            ProjectStage.PROPOSE_CANDIDATE,
-            0.7,
-            "Requirements exist, but no candidate architecture has been proposed yet.",
-        ),
-        (
-            "adrs",
-            ProjectStage.MANAGE_ADR,
-            0.69,
-            "Candidate architecture exists, but key decisions are not yet captured as ADRs.",
-        ),
-    ]
-
-    for field, stage, confidence, rationale in requirements:
-        if not project_state.get(field):
-            return _build_classification(
-                stage=stage,
-                confidence=confidence,
-                source="state_gaps",
-                rationale=rationale,
-            )
-
-    waf = project_state.get("wafChecklist") or {}
-    if not project_state.get("findings") or not waf:
-        return _build_classification(
+    elif not project_state.get("requirements"):
+        classification = _build_classification(
+            stage=ProjectStage.CLARIFY,
+            confidence=0.68,
+            source="state_gaps",
+            rationale="Requirements are still missing from project state, so clarification should continue.",
+        )
+    elif not project_state.get("candidateArchitectures"):
+        classification = _build_classification(
+            stage=ProjectStage.PROPOSE_CANDIDATE,
+            confidence=0.7,
+            source="state_gaps",
+            rationale="Requirements exist, but the primary architecture direction is still undecided.",
+        )
+    elif _has_pending_adr_decision(project_state):
+        classification = _build_classification(
+            stage=ProjectStage.MANAGE_ADR,
+            confidence=0.69,
+            source="state_gaps",
+            rationale="A candidate architecture exists with decision candidates that are not yet captured as ADRs.",
+        )
+    elif _needs_validation_decision(project_state, project_state.get("wafChecklist") or {}):
+        classification = _build_classification(
             stage=ProjectStage.VALIDATE,
             confidence=0.71,
             source="state_gaps",
-            rationale="Validation findings or checklist evidence are still missing from project state.",
+            rationale="Candidate architecture exists, but WAF or mindmap risk evidence still needs targeted validation.",
+        )
+    else:
+        classification = _build_classification(
+            stage=ProjectStage.GENERAL,
+            confidence=0.55,
+            source="state_gaps",
+            rationale="No unresolved architecture decision was detected from state alone; keep the next response advisory.",
         )
 
-    post_validation = [
-        (
-            "costEstimates",
-            ProjectStage.PRICING,
-            0.67,
-            "Validation is complete, but baseline pricing has not been captured yet.",
-        ),
-        (
-            "iacArtifacts",
-            ProjectStage.IAC,
-            0.67,
-            "Validation is complete, but IaC artifacts have not been generated yet.",
-        ),
-    ]
-
-    for field, stage, confidence, rationale in post_validation:
-        if not project_state.get(field):
-            return _build_classification(
-                stage=stage,
-                confidence=confidence,
-                source="state_gaps",
-                rationale=rationale,
-            )
-
-    return _build_classification(
-        stage=ProjectStage.CLARIFY,
-        confidence=0.55,
-        source="state_gaps",
-        rationale="No stronger state gap was detected, so continue with clarification.",
-    )
-
+    return classification
 
 def _has_parsed_documents(project_state: dict[str, Any]) -> bool:
     reference_documents = project_state.get("referenceDocuments")
@@ -547,4 +542,41 @@ def propose_next_step(state: GraphState) -> dict[str, Any]:
     }
 
 
+
+
+
+def _has_pending_adr_decision(project_state: dict[str, Any]) -> bool:
+    if project_state.get("adrs"):
+        return False
+
+    candidates = project_state.get("candidateArchitectures")
+    if not isinstance(candidates, list) or not candidates:
+        return False
+
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        adr_candidates = candidate.get("adrCandidates") or candidate.get("adr_candidates")
+        if isinstance(adr_candidates, list) and adr_candidates:
+            return True
+    return False
+
+
+def _needs_validation_decision(project_state: dict[str, Any], waf: Any) -> bool:
+    if not project_state.get("candidateArchitectures"):
+        return False
+    if not project_state.get("findings"):
+        return True
+    if not waf:
+        return True
+    mindmap_coverage = project_state.get("mindMapCoverage") or project_state.get("mind_map_coverage")
+    if not isinstance(mindmap_coverage, dict):
+        return False
+    topics = mindmap_coverage.get("topics")
+    if not isinstance(topics, dict):
+        return False
+    return any(
+        isinstance(topic, dict) and str(topic.get("status") or "").lower() in {"partial", "not-addressed"}
+        for topic in topics.values()
+    )
 

@@ -22,6 +22,50 @@ _STOPWORDS = {
     "with",
 }
 
+_WAF_PILLAR_TERMS = {
+    "reliability",
+    "security",
+    "cost optimization",
+    "operational excellence",
+    "performance efficiency",
+}
+
+_ZERO_TRUST_DECISION_TERMS = {
+    "identity",
+    "authentication",
+    "authorization",
+    "network",
+    "private endpoint",
+    "public endpoint",
+    "secrets",
+    "key vault",
+    "data",
+    "encryption",
+    "monitoring",
+    "security",
+}
+
+_ZERO_TRUST_SIGNAL_TERMS = {
+    "zero trust",
+    "least privilege",
+    "verify explicitly",
+    "assume breach",
+    "segmentation",
+    "segment",
+    "continuous",
+}
+
+_DECISION_TERMS = {
+    "recommend",
+    "decision",
+    "risk",
+    "trade-off",
+    "tradeoff",
+    "next",
+    "question",
+    "because",
+}
+
 
 class EvalDimension(str, Enum):
     SPECIFICITY = "specificity"
@@ -216,6 +260,7 @@ def _collect_failures(
     failures.extend(_collect_adr_payload_failures(report))
     failures.extend(_collect_cost_payload_failures(report))
     failures.extend(_collect_iac_payload_failures(report))
+    failures.extend(_collect_decision_quality_failures(report))
 
     for dimension, average in dimension_averages.items():
         if average <= 2.0:
@@ -224,6 +269,55 @@ def _collect_failures(
             )
     return failures
 
+
+
+def _collect_decision_quality_failures(report: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+    for step in _coerce_mapping_list(report.get("steps")):
+        turn_id = str(step.get("id") or "unknown")
+        request = str(step.get("request") or "")
+        answer = str(step.get("answer") or "")
+        if _is_verbose_low_signal_answer(request, answer):
+            failures.append(f"Verbose answer without clear decision value in turn {turn_id}.")
+        if _is_generic_waf_boilerplate(request, answer):
+            failures.append(f"Generic WAF boilerplate in turn {turn_id}.")
+        if _misses_zero_trust_baseline(request, answer):
+            failures.append(f"Zero Trust baseline missing in security-sensitive turn {turn_id}.")
+    return failures
+
+
+def _is_verbose_low_signal_answer(request: str, answer: str) -> bool:
+    answer_words = re.findall(r"[a-zA-Z0-9]+", answer)
+    if len(answer_words) < 450:
+        return False
+    request_terms = _meaningful_terms(request)
+    answer_terms = _meaningful_terms(answer)
+    overlap = len(request_terms & answer_terms)
+    decision_signals = sum(1 for term in _DECISION_TERMS if term in answer.lower())
+    return overlap < 4 or decision_signals < 3
+
+
+def _is_generic_waf_boilerplate(request: str, answer: str) -> bool:
+    answer_lower = answer.lower()
+    pillar_count = sum(1 for term in _WAF_PILLAR_TERMS if term in answer_lower)
+    if pillar_count < 4:
+        return False
+    request_overlap = len(_meaningful_terms(request) & _meaningful_terms(answer))
+    project_specific_terms = {"sla", "rto", "rpo", "gdpr", "pci", "budget", "region", "tenant", "payment", "ingestion", "latency"}
+    project_specific_count = sum(1 for term in project_specific_terms if term in answer_lower)
+    return request_overlap < 3 and project_specific_count < 2
+
+
+def _misses_zero_trust_baseline(request: str, answer: str) -> bool:
+    request_lower = request.lower()
+    answer_lower = answer.lower()
+    if not any(term in request_lower for term in _ZERO_TRUST_DECISION_TERMS):
+        return False
+    if any(term in answer_lower for term in _ZERO_TRUST_SIGNAL_TERMS):
+        return False
+    # Security-sensitive turns should at least address concrete identity, network, data, or monitoring controls.
+    concrete_controls = {"managed identity", "private endpoint", "rbac", "key vault", "encryption", "logging", "monitor", "firewall"}
+    return not any(term in answer_lower for term in concrete_controls)
 
 def _collect_architect_questions_payload_failures(report: dict[str, Any]) -> list[str]:
     final = _coerce_mapping(report.get("final"))

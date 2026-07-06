@@ -541,6 +541,116 @@ def test_build_phase0_eval_summary_architect_questions_payload_healthy() -> None
     assert aq_failures == [], f"Unexpected architect questions failures: {aq_failures}"
 
 
+
+def test_build_phase0_eval_summary_flags_generic_waf_boilerplate() -> None:
+    report = {
+        "scenario": {"id": "scenario-slop", "name": "Scenario Slop"},
+        "final": {
+            "missingRequiredKeys": [],
+            "stateSummary": {"keys": ["requirements"], "counts": {"requirements": 1}},
+        },
+        "dbPersistence": {"status": "PASS"},
+        "steps": [
+            {
+                "id": "turn-generic-waf",
+                "request": "Can Azure App Service host this workload?",
+                "answer": (
+                    "Reliability: use redundancy. Security: secure the app. "
+                    "Cost Optimization: optimize spend. Operational Excellence: operate well. "
+                    "Performance Efficiency: scale the system."
+                ),
+                "success": True,
+                "error": None,
+                "mcpCallCount": 0,
+                "pricingCallCount": 0,
+                "kbCallCount": 0,
+                "advisoryQuality": {
+                    "proactivity": 1,
+                    "correction": 0,
+                    "evidence": 0,
+                    "clarity": 1,
+                    "total": 2,
+                },
+            }
+        ],
+    }
+
+    summary = build_phase0_eval_summary(report)
+
+    assert "Generic WAF boilerplate in turn turn-generic-waf." in summary.baseline_failures
+
+
+def test_build_phase0_eval_summary_flags_zero_trust_omission() -> None:
+    report = {
+        "scenario": {"id": "scenario-zero-trust", "name": "Scenario Zero Trust"},
+        "final": {
+            "missingRequiredKeys": [],
+            "stateSummary": {"keys": ["requirements"], "counts": {"requirements": 1}},
+        },
+        "dbPersistence": {"status": "PASS"},
+        "steps": [
+            {
+                "id": "turn-security",
+                "request": "Can we expose the admin API over a public endpoint for operations?",
+                "answer": "Yes, expose it publicly and rely on HTTPS for protection.",
+                "success": True,
+                "error": None,
+                "mcpCallCount": 0,
+                "pricingCallCount": 0,
+                "kbCallCount": 0,
+                "advisoryQuality": {
+                    "proactivity": 1,
+                    "correction": 0,
+                    "evidence": 0,
+                    "clarity": 1,
+                    "total": 2,
+                },
+            }
+        ],
+    }
+
+    summary = build_phase0_eval_summary(report)
+
+    assert (
+        "Zero Trust baseline missing in security-sensitive turn turn-security."
+        in summary.baseline_failures
+    )
+
+
+def test_build_phase0_eval_summary_flags_verbose_low_signal_answer() -> None:
+    verbose_answer = " ".join(["general"] * 470)
+    report = {
+        "scenario": {"id": "scenario-verbose", "name": "Scenario Verbose"},
+        "final": {
+            "missingRequiredKeys": [],
+            "stateSummary": {"keys": ["requirements"], "counts": {"requirements": 1}},
+        },
+        "dbPersistence": {"status": "PASS"},
+        "steps": [
+            {
+                "id": "turn-verbose",
+                "request": "Should we use Azure Container Apps?",
+                "answer": verbose_answer,
+                "success": True,
+                "error": None,
+                "mcpCallCount": 0,
+                "pricingCallCount": 0,
+                "kbCallCount": 0,
+                "advisoryQuality": {
+                    "proactivity": 1,
+                    "correction": 0,
+                    "evidence": 0,
+                    "clarity": 1,
+                    "total": 2,
+                },
+            }
+        ],
+    }
+
+    summary = build_phase0_eval_summary(report)
+
+    assert "Verbose answer without clear decision value in turn turn-verbose." in summary.baseline_failures
+
 # ---------------------------------------------------------------------------
 # P15: Journey Eval Report tests
 # ---------------------------------------------------------------------------
@@ -640,4 +750,5 @@ def test_build_journey_eval_report_failure_reasons_populated() -> None:
     scenario = report.scenarios[0]
     assert any("Missing expected fields" in r for r in scenario.failure_reasons)
     assert any("Forbidden patterns found" in r for r in scenario.failure_reasons)
+
 

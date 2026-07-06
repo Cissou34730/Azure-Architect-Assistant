@@ -5,7 +5,9 @@
   "tags": ["behavior", "baseline"],
   "expectedBaselineFailures": [
     "Database persistence assertions failed.",
+    "Zero Trust baseline missing in security-sensitive turn turn1-suboptimal-choice.",
     "Low tool usage score (1.0/5).",
     "Low persistence score (1.0/5)."
   ]
 }
+

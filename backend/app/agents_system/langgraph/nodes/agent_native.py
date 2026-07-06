@@ -1,8 +1,7 @@
 """
 Stage-aware LangGraph-native agent execution using ToolNode.
 
-Uses MCP + KB + AAA tools with explicit directives to research,
-cite sources, and avoid pushback.
+Uses MCP + KB + AAA tools with explicit directives to support decision-quality Azure architecture work, cite sources when needed, and avoid artifact churn.
 """
 
 import asyncio
@@ -156,7 +155,7 @@ def _stage_policy_notes(stage_value: str) -> str:
     )
 
 
-def _build_system_directives(state: GraphState) -> str:
+def _build_system_directives(state: GraphState) -> str:  # noqa: C901, PLR0912
     stage_value = str(state.get("next_stage") or "clarify")
     context_budget_meta = state.get("context_budget_meta")
     context_budget = 0
@@ -190,28 +189,18 @@ def _build_system_directives(state: GraphState) -> str:
             "- IaC artifacts → `aaa_record_iac_artifacts`\n"
             "- Cost estimates → `aaa_record_cost_estimate`\n"
             "- Diagrams → `aaa_create_diagram_set`\n\n"
-            "Do NOT just describe what should change — call the tool. "
-            "Persistence takes priority over research. "
-            "Use `project_document_search` to gather evidence from uploaded documents, "
-            "then call the appropriate AAA tool to persist each artifact. "
-            "Do NOT require MCP searches before persisting when the user's "
-            "instruction and document content provide sufficient context.\n\n"
+            "Do NOT just describe explicit artifact changes — call the tool. "
+            "Persistence takes priority over research when the requested change is clear. "
+            "Use `project_document_search` to gather evidence from uploaded documents when needed. "
+            "Do NOT require MCP searches before persisting when the user's instruction and document content provide sufficient context.\n\n"
             "### Output discipline — persist artifacts, explain the value\n"
             "- NEVER include raw Mermaid, PlantUML, or diagram code in your response text — "
             "always persist diagrams via `aaa_create_diagram_set`.\n"
-            "- NEVER list requirements, assumptions, or clarification questions as plain text "
-            "in your response — always persist them via `aaa_manage_artifacts`.\n"
             "- NEVER dump full architecture artifacts, IaC bundles, or complete JSON payloads "
             "inline in chat — persist them via the appropriate AAA tool.\n"
-            "- Your chat response MUST include an Architect Briefing (see architect_briefing.yaml "
-            "for the required stage-specific structure): a decision-quality synthesis that "
-            "explains the recommendation, key trade-offs, risks, and what was persisted. "
-            "A bare receipt like 'I created change set X' is NOT acceptable.\n"
-            "Good example: 'I recommend Azure Container Apps because it matches your "
-            "serverless-first constraint. Key trade-off: less Kubernetes control vs AKS. "
-            "Top risk: cold-start latency for SLA-sensitive paths — mitigated via min-replicas. "
-            "I persisted candidate architecture CA-001.'\n"
-            "Bad example: 'I created change set X.'"
+            "- Use the full Architect Briefing only for major artifact work. For small updates, "
+            "summarize what changed, why it matters, the relevant WAF/mindmap signal, and the next architect decision.\n"
+            "- A bare receipt like 'I created change set X' is NOT acceptable. Explain the architectural value."
         )
 
     # Quality retry feedback — inject reason when retrying
@@ -261,26 +250,26 @@ def _build_system_directives(state: GraphState) -> str:
     if artifact_edit:
         directives.append(
             "### Behavioral guardrails\n"
-            "- Persist first: call the appropriate AAA tool to save each artifact change before composing your response.\n"
+            "- Persist first for explicit artifact changes: call the appropriate AAA tool before composing your response.\n"
             "- Use `project_document_search` to retrieve evidence from uploaded documents when the edit depends on document content.\n"
             "- Cite Azure/WAF/ASB sources with names and URLs when available.\n"
             "- Mind map guidance is advisory-only and must not enforce a rigid workflow.\n"
             "- Challenge assumptions: If a user choice contradicts Azure WAF best practices, explain the risk.\n"
-            "- Treat WAF checklist as first-class: proactively persist checklist updates when analysis supports a status change.\n"
+            "- Treat WAF checklist as first-class: persist checklist updates when analysis supports a status change and the turn is validation or artifact-update oriented.\n"
             "- Proactive driving: After persisting artifact changes, propose the logical next step."
         )
     else:
         directives.append(
             "### Behavioral guardrails\n"
-            "- Always call MCP tools for at least one search and one fetch before final answer.\n"
-            "- Cite Azure/WAF/ASB sources with names and URLs; include mind map node ids when adding artifacts.\n"
+            "- Use MCP, KB, or document search when source evidence is needed; do not call tools only to satisfy ceremony.\n"
+            "- Cite Azure/WAF/ASB/Zero Trust sources with names and URLs when making factual recommendations; include mind map node ids when adding artifacts.\n"
             "- Mind map guidance is advisory-only and must not enforce a rigid workflow.\n"
             "- In validation turns, checklist status updates and persistence rules take priority over exploratory prompts.\n"
             "- Challenge assumptions: If a user choice contradicts Azure WAF best practices or NFRs, you MUST explain the risk and offer alternatives.\n"
-            "- Treat WAF checklist as first-class: when analysis supports a status change, proactively persist checklist updates (fixed/in_progress/open) without waiting for explicit user wording.\n"
+            "- Treat WAF checklist as first-class: when analysis supports a status change during validation or artifact-update work, persist checklist updates (fixed/in_progress/open).\n"
             "- If evidence is insufficient for a status change, ask a focused status/evidence clarification and propose the next checklist completion step.\n"
-            "- Persist decisions: Whenever a design choice is made, use the appropriate AAA tool so the system records a reviewable pending change set and confirm that the architect should review/approve it.\n"
-            "- Proactive driving: Drive the project forward. If requirements are clear, propose the architecture; if architecture is clear, move to ADRs.\n"
+            "- Persist decisions only after the architect confirms the choice, explicitly asks for a draft artifact, or the evidence supports a reviewable proposal.\n"
+            "- Proactive driving: identify the next unresolved architecture decision. Do not move to ADRs, cost, IaC, or export only because a project-state field is empty.\n"
             "- Document recall: When discussing specific details from uploaded documents, use the project_document_search tool to retrieve exact excerpts. "
             "Do not rely solely on the context summary — original documents contain details that the summary may not fully capture."
         )
@@ -292,11 +281,12 @@ def _build_system_directives(state: GraphState) -> str:
         "always persist diagrams via `aaa_create_diagram_set`.\n"
         "- NEVER dump full architecture proposals, trade-off tables, or NFR analysis as inline chat text — "
         "persist via `aaa_generate_candidate_architecture`.\n"
-        "- When you generate NEW requirements, assumptions, or clarification questions, "
-        "persist them via `aaa_manage_artifacts` — do not just list them as chat text.\n"
+        "- When you generate NEW requirements, assumptions, or clarification questions for artifact work, "
+        "persist them via `aaa_manage_artifacts`; for advisory discussion, ask or recommend without creating state churn.\n"
         "- You MAY summarize, discuss, and reference existing artifacts in your response. "
         "Read-only answers (e.g. 'here are the current requirements') are fine as chat text.\n"
-        "- Your chat response should be a concise summary of what you did, not a copy of persisted content."
+        "- Your chat response should be a concise decision-support summary, not a copy of persisted content.\n"
+        "- Remove generic WAF, mindmap, and Zero Trust boilerplate that is not tied to this project or current decision."
     )
 
     context_summary = state.get("context_summary")
