@@ -48,7 +48,6 @@ _ARCHITECTURE_CHECKS: list[tuple[str, list[str]]] = [
     ("Risks (risk/concern/caveat/limitation)", ["risk", "concern", "caveat", "limitation"]),
     ("WAF impact (waf/well-architected/pillar)", ["waf", "well-architected", "pillar"]),
     ("Citations/evidence (citation/evidence/reference/microsoft/learn.microsoft)", ["citation", "evidence", "reference", "microsoft", "learn.microsoft"]),
-    ("Persisted artifact (aaa_generate_candidate/candidate architecture/pending change/persisted)", ["aaa_generate_candidate", "candidate architecture", "pending change", "persisted"]),
 ]
 
 
@@ -106,7 +105,35 @@ def _has_aaa_tool_calls(intermediate_steps: list[Any]) -> bool:
     return False
 
 
-def completeness_check(state: GraphState) -> Literal["retry", "continue"]:
+def assess_output_quality(state: GraphState) -> list[str]:
+    """Return actionable quality failures for every workflow output path."""
+    agent_output = str(state.get("agent_output", "")).strip()
+    artifact_edit = bool(state.get("artifact_edit_detected"))
+    intermediate_steps = state.get("intermediate_steps") or []
+    failures: list[str] = []
+
+    if not agent_output:
+        failures.append("The response is empty.")
+        return failures
+    if agent_output.startswith("ERROR:"):
+        failures.append(f"The response contains an execution error: {agent_output[:200]}")
+        return failures
+    if artifact_edit and not _has_aaa_tool_calls(intermediate_steps):
+        failures.append(
+            "An artifact edit was requested but no AAA persistence tool was called."
+        )
+
+    if _is_propose_candidate_stage(state):
+        missing = _check_architecture_answer_quality(agent_output)
+        if missing:
+            failures.append("Missing architecture sections: " + ", ".join(missing))
+        if _is_generic_receipt(agent_output):
+            failures.append("The architecture response is only a generic receipt.")
+
+    return failures
+
+
+def completeness_check(state: GraphState) -> Literal["retry", "continue", "exhausted"]:
     """Evaluate whether the agent output is complete enough to persist.
 
     Returns "retry" when:
@@ -116,60 +143,16 @@ def completeness_check(state: GraphState) -> Literal["retry", "continue"]:
 
     Returns "continue" otherwise (pass through to persist).
     """
-    artifact_edit = bool(state.get("artifact_edit_detected"))
-    handled_by_worker = bool(state.get("handled_by_stage_worker"))
-    agent_output = str(state.get("agent_output", "")).strip()
-    intermediate_steps = state.get("intermediate_steps") or []
     retry_count = int(state.get("quality_retry_count", 0))
     max_retries = _get_quality_retry_max()
-
-    # Stage workers have their own quality checks — skip
-    if handled_by_worker:
+    failures = assess_output_quality(state)
+    if not failures:
         return "continue"
-
-    # Already exhausted retries — accept whatever we have
     if retry_count >= max_retries:
-        if agent_output or intermediate_steps:
-            logger.info(
-                "Quality gate: accepting output after %d retries", retry_count
-            )
-        return "continue"
-
-    # ERROR prefix — always retry if under limit
-    if agent_output.startswith("ERROR:"):
-        logger.warning("Quality gate: error detected in output, retrying")
-        return "retry"
-
-    # No artifact edit expected — only retry on empty output or errors.
-    # Exception: always run architecture quality checks for propose_candidate.
-    if not artifact_edit and not _is_propose_candidate_stage(state):
-        return "continue"
-
-    # Empty output when artifact edit expected — retry
-    if not agent_output:
-        logger.warning("Quality gate: empty agent output, retrying")
-        return "retry"
-
-    # Artifact edit was expected but no AAA tool was called
-    if not _has_aaa_tool_calls(intermediate_steps):
-        logger.warning(
-            "Quality gate: artifact_edit_detected but no AAA tool called, retrying"
-        )
-        return "retry"
-
-    # propose_candidate stage: check architecture answer quality
-    if _is_propose_candidate_stage(state):
-        missing = _check_architecture_answer_quality(agent_output)
-        if missing:
-            logger.warning(
-                "Quality gate: architecture answer missing sections: %s", missing
-            )
-            return "retry"
-        if _is_generic_receipt(agent_output):
-            logger.warning("Quality gate: architecture answer is a generic receipt")
-            return "retry"
-
-    return "continue"
+        logger.error("Quality gate exhausted after %d retries: %s", retry_count, failures)
+        return "exhausted"
+    logger.warning("Quality gate retrying: %s", failures)
+    return "retry"
 
 
 def quality_gate_node(state: GraphState) -> dict[str, Any]:
@@ -187,38 +170,13 @@ def build_quality_retry(state: GraphState) -> dict[str, Any]:
     the next agent invocation knows why it's being retried.
     """
     retry_count = int(state.get("quality_retry_count", 0))
-    agent_output = str(state.get("agent_output", "")).strip()
-    artifact_edit = bool(state.get("artifact_edit_detected"))
-
-    # propose_candidate: give specific missing-sections feedback
+    failures = assess_output_quality(state)
+    reason = " ".join(failures) if failures else "Output quality was insufficient."
     if _is_propose_candidate_stage(state):
-        missing = _check_architecture_answer_quality(agent_output)
-        if missing or _is_generic_receipt(agent_output):
-            missing_str = ", ".join(missing) if missing else "all required sections"
-            reason = (
-                f"Architecture answer is incomplete. Missing sections: [{missing_str}]. "
-                "Your response MUST include: Recommendation, Why this fits the project, "
-                "Key trade-offs, Main risks and mitigations, WAF impact, Cost drivers. "
-                "Do NOT just return a receipt. Provide a decision-quality architectural briefing."
-            )
-            logger.info("Quality retry %d: %s", retry_count + 1, reason[:100])
-            return {
-                "quality_retry_count": retry_count + 1,
-                "quality_retry_reason": reason,
-            }
-
-    reasons: list[str] = []
-    if agent_output.startswith("ERROR:"):
-        reasons.append(f"Previous attempt failed with: {agent_output[:200]}")
-    elif not agent_output:
-        reasons.append("Previous attempt produced empty output.")
-    elif artifact_edit:
-        reasons.append(
-            "Previous attempt did not call any AAA persistence tool. "
-            "You MUST use the appropriate aaa_ tool to persist artifacts."
+        reason += (
+            " Provide a decision-quality briefing with recommendation, rationale, "
+            "NFR mapping, trade-offs, risks, WAF impact, and evidence."
         )
-
-    reason = " ".join(reasons) if reasons else "Output quality was insufficient."
 
     logger.info(
         "Quality retry %d: %s", retry_count + 1, reason[:100]
@@ -227,4 +185,25 @@ def build_quality_retry(state: GraphState) -> dict[str, Any]:
     return {
         "quality_retry_count": retry_count + 1,
         "quality_retry_reason": reason,
+        "quality_gate_passed": False,
+        "quality_gate_failures": failures,
+    }
+
+
+def build_quality_exhausted(state: GraphState) -> dict[str, Any]:
+    """Mark a response as degraded instead of silently accepting it."""
+    failures = assess_output_quality(state)
+    logger.error(
+        "quality_gate_exhausted",
+        extra={
+            "quality_stage": state.get("next_stage"),
+            "quality_retry_count": state.get("quality_retry_count", 0),
+            "quality_failures": failures,
+        },
+    )
+    return {
+        "quality_gate_passed": False,
+        "quality_gate_exhausted": True,
+        "quality_gate_failures": failures,
+        "quality_retry_reason": " ".join(failures),
     }

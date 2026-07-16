@@ -6,8 +6,21 @@ from pathlib import Path
 from statistics import fmean
 from typing import Any
 
-import yaml
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from .journey_scenarios import (
+    JourneyEvalRun,
+    JourneyExecutor,
+    JourneyScenario,
+    JourneyScenarioResult,
+    QualityAssertions,
+    ThinReceiptRule,
+    discover_journey_scenarios as _discover_journey_scenarios,
+    load_journey_scenario,
+    run_journey_eval_harness as _run_journey_eval_harness,
+    run_live_journey_eval_harness as _run_live_journey_eval_harness,
+    validate_journey_response,
+)
 from .reporting import ScenarioEvalSummary, build_phase0_eval_summary
 
 _GOLDEN_SCENARIOS_DIR = Path(__file__).resolve().parent / "golden_scenarios"
@@ -20,19 +33,20 @@ class GoldenScenario:
     description: str
     report_path: Path
     tags: tuple[str, ...] = ()
-    expected_baseline_failures: tuple[str, ...] = ()
+    minimum_overall_score: float = 4.0
 
 
 @dataclass(frozen=True)
 class EvaluatedGoldenScenario:
     scenario: GoldenScenario
     summary: ScenarioEvalSummary
-    missing_expected_failures: tuple[str, ...] = ()
-    unexpected_failures: tuple[str, ...] = ()
+    quality_failures: tuple[str, ...] = ()
+    below_minimum_score: bool = False
 
     @property
     def matches_expected_failures(self) -> bool:
-        return not self.missing_expected_failures and not self.unexpected_failures
+        """Compatibility name: healthy baselines now require no expected failures."""
+        return not self.quality_failures and not self.below_minimum_score
 
 
 @dataclass(frozen=True)
@@ -53,6 +67,27 @@ class EvalHarnessRun:
             return 0.0
         return round(fmean(scenario.summary.overall_score for scenario in self.scenarios), 2)
 
+    @property
+    def all_passed(self) -> bool:
+        return bool(self.scenarios) and all(
+            scenario.matches_expected_failures for scenario in self.scenarios
+        )
+
+
+class _GoldenScenarioManifest(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    description: str = ""
+    tags: list[str] = Field(default_factory=list)
+    minimum_overall_score: float = Field(
+        default=4.0,
+        ge=1.0,
+        le=5.0,
+        alias="minimumOverallScore",
+    )
+
 
 def discover_golden_scenarios(scenarios_dir: Path | None = None) -> list[GoldenScenario]:
     root = scenarios_dir or _GOLDEN_SCENARIOS_DIR
@@ -62,27 +97,21 @@ def discover_golden_scenarios(scenarios_dir: Path | None = None) -> list[GoldenS
 
 def load_golden_scenario(manifest_path: Path) -> GoldenScenario:
     raw_manifest = _load_json_object(manifest_path)
+    try:
+        manifest = _GoldenScenarioManifest.model_validate(raw_manifest)
+    except ValidationError as exc:
+        raise ValueError(f"Invalid golden scenario {manifest_path}: {exc}") from exc
     report_path = manifest_path.with_name("report.normalized.json")
     if not report_path.exists():
         raise FileNotFoundError(f"Golden scenario report not found: {report_path}")
 
-    scenario_id = str(raw_manifest.get("id") or "").strip()
-    scenario_name = str(raw_manifest.get("name") or "").strip()
-    if not scenario_id:
-        raise ValueError(f"Golden scenario id is required: {manifest_path}")
-    if not scenario_name:
-        raise ValueError(f"Golden scenario name is required: {manifest_path}")
-
-    description = str(raw_manifest.get("description") or "").strip()
     return GoldenScenario(
-        id=scenario_id,
-        name=scenario_name,
-        description=description,
+        id=manifest.id,
+        name=manifest.name,
+        description=manifest.description,
         report_path=report_path,
-        tags=_coerce_string_tuple(raw_manifest.get("tags")),
-        expected_baseline_failures=_coerce_string_tuple(
-            raw_manifest.get("expectedBaselineFailures")
-        ),
+        tags=tuple(manifest.tags),
+        minimum_overall_score=manifest.minimum_overall_score,
     )
 
 
@@ -94,21 +123,11 @@ def evaluate_golden_scenario(scenario: GoldenScenario) -> EvaluatedGoldenScenari
             f"Golden scenario report id '{summary.scenario_id}' does not match '{scenario.id}'."
         )
 
-    missing_expected_failures = tuple(
-        expected_failure
-        for expected_failure in scenario.expected_baseline_failures
-        if expected_failure not in summary.baseline_failures
-    )
-    unexpected_failures = tuple(
-        failure
-        for failure in summary.baseline_failures
-        if failure not in scenario.expected_baseline_failures
-    )
     return EvaluatedGoldenScenario(
         scenario=scenario,
         summary=summary,
-        missing_expected_failures=missing_expected_failures,
-        unexpected_failures=unexpected_failures,
+        quality_failures=tuple(summary.baseline_failures),
+        below_minimum_score=summary.overall_score < scenario.minimum_overall_score,
     )
 
 
@@ -133,136 +152,8 @@ def _coerce_string_tuple(value: Any) -> tuple[str, ...]:
     return tuple(str(item) for item in value if isinstance(item, str))
 
 
-# ---------------------------------------------------------------------------
-# Journey Scenario support (P15)
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class JourneyScenario:
-    scenario_id: str
-    description: str
-    input: str
-    stage: str
-    expected_fields: tuple[str, ...]
-    forbidden_patterns: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class JourneyScenarioResult:
-    scenario: JourneyScenario
-    passed: bool
-    missing_fields: tuple[str, ...]
-    forbidden_pattern_matches: tuple[str, ...]
-
-    @property
-    def failure_reasons(self) -> list[str]:
-        reasons: list[str] = []
-        if self.missing_fields:
-            reasons.append(f"Missing expected fields: {', '.join(self.missing_fields)}")
-        if self.forbidden_pattern_matches:
-            reasons.append(
-                f"Forbidden patterns found: {', '.join(self.forbidden_pattern_matches)}"
-            )
-        return reasons
-
-
-@dataclass(frozen=True)
-class JourneyEvalRun:
-    results: tuple[JourneyScenarioResult, ...]
-
-    @property
-    def passed_count(self) -> int:
-        return sum(1 for r in self.results if r.passed)
-
-    @property
-    def failed_count(self) -> int:
-        return sum(1 for r in self.results if not r.passed)
-
-    @property
-    def all_passed(self) -> bool:
-        return all(r.passed for r in self.results)
-
-
 def discover_journey_scenarios(scenarios_dir: Path | None = None) -> list[JourneyScenario]:
-    """Discover YAML journey scenarios from the golden_scenarios directory."""
-    root = scenarios_dir or _GOLDEN_SCENARIOS_DIR
-    yaml_files = sorted(root.glob("journey-*.yaml"))
-    return [load_journey_scenario(yaml_file) for yaml_file in yaml_files]
-
-
-def load_journey_scenario(yaml_path: Path) -> JourneyScenario:
-    """Load a journey scenario from a YAML file."""
-    raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
-    if not isinstance(raw, dict):
-        raise ValueError(f"Expected a YAML object in {yaml_path}")
-
-    scenario_id = str(raw.get("scenario_id") or "").strip()
-    if not scenario_id:
-        raise ValueError(f"journey scenario_id is required: {yaml_path}")
-
-    return JourneyScenario(
-        scenario_id=scenario_id,
-        description=str(raw.get("description") or "").strip(),
-        input=str(raw.get("input") or "").strip(),
-        stage=str(raw.get("stage") or "").strip(),
-        expected_fields=_coerce_string_tuple(raw.get("expected_fields")),
-        forbidden_patterns=_coerce_string_tuple(raw.get("forbidden_patterns")),
-    )
-
-
-def validate_journey_response(
-    response: dict[str, Any],
-    scenario: JourneyScenario,
-    response_text: str = "",
-) -> JourneyScenarioResult:
-    """Validate a workflow response dict against a journey scenario.
-
-    Checks expected_fields (dot-path lookup) and forbidden_patterns (regex on text).
-    """
-    import re as _re
-
-    missing_fields: list[str] = []
-    for field_path in scenario.expected_fields:
-        if not _check_field_path(response, field_path):
-            missing_fields.append(field_path)
-
-    text_to_check = response_text or json.dumps(response)
-    forbidden_matches: list[str] = []
-    for pattern in scenario.forbidden_patterns:
-        try:
-            if _re.search(pattern, text_to_check):
-                forbidden_matches.append(pattern)
-        except _re.error:
-            pass
-
-    passed = not missing_fields and not forbidden_matches
-    return JourneyScenarioResult(
-        scenario=scenario,
-        passed=passed,
-        missing_fields=tuple(missing_fields),
-        forbidden_pattern_matches=tuple(forbidden_matches),
-    )
-
-
-def _check_field_path(obj: Any, path: str) -> bool:
-    """Check if a dot-path field exists and is non-empty in an object."""
-    parts = path.split(".")
-    current = obj
-    for part in parts:
-        if "[" in part:
-            key = part[: part.index("[")]
-            if not isinstance(current, dict) or key not in current:
-                return False
-            arr = current[key]
-            if not isinstance(arr, list) or len(arr) == 0:
-                return False
-            current = arr[0]
-        else:
-            if not isinstance(current, dict) or part not in current:
-                return False
-            current = current[part]
-    return current is not None and current != "" and current != [] and current != {}
+    return _discover_journey_scenarios(scenarios_dir or _GOLDEN_SCENARIOS_DIR)
 
 
 def run_journey_eval_harness(
@@ -270,18 +161,18 @@ def run_journey_eval_harness(
     responses: dict[str, dict[str, Any]] | None = None,
     response_texts: dict[str, str] | None = None,
 ) -> JourneyEvalRun:
-    """Run the journey eval harness against a set of responses.
-
-    responses: mapping from scenario_id to response dict (optional, uses empty dict if missing)
-    response_texts: mapping from scenario_id to response text (optional)
-    """
-    scenarios = discover_journey_scenarios(scenarios_dir)
-    results = tuple(
-        validate_journey_response(
-            response=(responses or {}).get(scenario.scenario_id, {}),
-            scenario=scenario,
-            response_text=(response_texts or {}).get(scenario.scenario_id, ""),
-        )
-        for scenario in scenarios
+    return _run_journey_eval_harness(
+        root=scenarios_dir or _GOLDEN_SCENARIOS_DIR,
+        responses=responses,
+        response_texts=response_texts,
     )
-    return JourneyEvalRun(results=results)
+
+
+async def run_live_journey_eval_harness(
+    executor: JourneyExecutor,
+    scenarios_dir: Path | None = None,
+) -> JourneyEvalRun:
+    return await _run_live_journey_eval_harness(
+        executor,
+        root=scenarios_dir or _GOLDEN_SCENARIOS_DIR,
+    )

@@ -5,7 +5,6 @@ from fastapi import HTTPException, Response
 
 from app.features.projects.api.changes_router import (
     ChangeSetReviewRequest,
-    ChangesQueryParams,
     approve_project_change,
     get_project_change,
     list_project_changes,
@@ -127,7 +126,7 @@ async def test_list_project_changes_returns_service_results() -> None:
 
     payload = await list_project_changes(
         project_id="proj-1",
-        params=ChangesQueryParams(status=ChangeSetStatus.PENDING),
+        status=ChangeSetStatus.PENDING,
         response=response,
         db=object(),
         pending_changes_service=_PendingChangesServiceStub(changes=[_change_summary()]),
@@ -155,7 +154,7 @@ async def test_changes_router_maps_missing_project_or_change_to_http_404() -> No
     with pytest.raises(HTTPException) as exc_info:
         await list_project_changes(
             project_id="proj-1",
-            params=ChangesQueryParams(status=None),
+            status=None,
             response=Response(),
             db=object(),
             pending_changes_service=_PendingChangesServiceStub(error=ValueError("Project state not found")),
@@ -187,16 +186,14 @@ async def test_reject_and_revise_routes_delegate_to_service() -> None:
         db=object(),
         pending_changes_service=_PendingChangesServiceStub(detail=_change_detail()),
     )
-    revise_payload = await revise_project_change(
-        project_id="proj-1",
-        change_set_id="cs-1",
-        request=ChangeSetReviewRequest(reason="Update the proposal"),
-        db=object(),
-        pending_changes_service=_PendingChangesServiceStub(detail=_change_detail()),
-    )
-
     assert reject_payload.change_set.status is ChangeSetStatus.REJECTED
-    assert revise_payload.change_set.status is ChangeSetStatus.SUPERSEDED
+    with pytest.raises(HTTPException) as exc_info:
+        await revise_project_change(
+            project_id="proj-1",
+            change_set_id="cs-1",
+            request=ChangeSetReviewRequest(reason="Update the proposal"),
+        )
+    assert exc_info.value.status_code == 410
 
 
 @pytest.mark.asyncio

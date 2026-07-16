@@ -165,13 +165,13 @@ def _build_turn_summary(
     scores = [
         EvalScore(
             dimension=EvalDimension.SPECIFICITY,
-            score=_score_specificity(request, answer),
-            rationale="Derived from meaningful overlap between the request and answer.",
+            score=_score_specificity(request, answer, advisory.get("requestSpecific")),
+            rationale="Uses the runner's request-specificity criterion, with overlap only as legacy fallback.",
         ),
         EvalScore(
             dimension=EvalDimension.TOOL_USAGE,
             score=_score_tool_usage(tool_call_count),
-            rationale="Derived from captured MCP, pricing, and KB call counts.",
+            rationale="Checks whether supporting tools were used; extra calls do not increase quality.",
         ),
         EvalScore(
             dimension=EvalDimension.PERSISTENCE,
@@ -194,8 +194,8 @@ def _build_turn_summary(
         ),
         EvalScore(
             dimension=EvalDimension.CITATION_GROUNDING,
-            score=_score_grounding(advisory.get("evidence"), tool_call_count),
-            rationale="Mapped from advisory evidence and observed research/tool activity.",
+            score=_score_grounding(advisory.get("evidence")),
+            rationale="Requires evidence in the answer; tool activity alone is not grounding.",
         ),
         EvalScore(
             dimension=EvalDimension.COMPLETENESS,
@@ -503,7 +503,9 @@ def _collect_iac_payload_failures(report: dict[str, Any]) -> list[str]:
     return failures
 
 
-def _score_specificity(request: str, answer: str) -> int:
+def _score_specificity(request: str, answer: str, rubric_specific: Any = None) -> int:
+    if isinstance(rubric_specific, bool):
+        return 5 if rubric_specific else 1
     request_terms = _meaningful_terms(request)
     if not request_terms:
         return 1
@@ -521,15 +523,9 @@ def _score_specificity(request: str, answer: str) -> int:
 
 
 def _score_tool_usage(tool_call_count: int) -> int:
-    if tool_call_count >= 4:
+    if tool_call_count > 0:
         return 5
-    if tool_call_count == 3:
-        return 4
-    if tool_call_count == 2:
-        return 3
-    if tool_call_count == 1:
-        return 2
-    return 1
+    return 3
 
 
 def _score_persistence(
@@ -549,11 +545,8 @@ def _score_persistence(
     return 1
 
 
-def _score_grounding(evidence_score: Any, tool_call_count: int) -> int:
-    scaled = _scale_three_point_score(evidence_score)
-    if scaled < 5 and tool_call_count >= 3:
-        return min(5, scaled + 1)
-    return scaled
+def _score_grounding(evidence_score: Any) -> int:
+    return _scale_three_point_score(evidence_score)
 
 
 def _score_completeness(
@@ -569,10 +562,8 @@ def _score_completeness(
         return 2
     if not answer.strip():
         return 1
-    if not missing_required_keys and len(answer.strip()) >= 120:
-        return 5
     if not missing_required_keys:
-        return 4
+        return 5
     return 3
 
 

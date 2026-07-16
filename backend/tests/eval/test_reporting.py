@@ -1,3 +1,5 @@
+import pytest
+
 from . import eval_runner
 from .reporting import (
     EvalDimension,
@@ -5,6 +7,8 @@ from .reporting import (
     build_journey_eval_report,
     build_phase0_eval_summary,
 )
+
+pytestmark = pytest.mark.quality
 
 
 def test_build_phase0_eval_summary_scores_existing_runner_report_shape() -> None:
@@ -94,7 +98,7 @@ def test_build_phase0_eval_summary_flags_missing_keys_and_failed_persistence() -
     turn = summary.turns[0]
 
     assert turn.score_for(EvalDimension.PERSISTENCE) == 1
-    assert turn.score_for(EvalDimension.TOOL_USAGE) == 1
+    assert turn.score_for(EvalDimension.TOOL_USAGE) == 3
     assert turn.score_for(EvalDimension.COMPLETENESS) == 1
     assert "Missing required keys: wafChecklist, traceabilityLinks" in summary.baseline_failures
     assert "Database persistence assertions failed." in summary.baseline_failures

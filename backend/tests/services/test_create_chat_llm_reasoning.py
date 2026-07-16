@@ -167,7 +167,7 @@ class TestCreateChatLlmCacheIntegration:
         svc = AIService.__new__(AIService)
         svc.config = config
 
-        with patch("langchain_openai.AzureChatOpenAI") as mock_cls:
+        with patch("langchain_openai.ChatOpenAI") as mock_cls:
             mock_cls.return_value = MagicMock()
             svc.create_chat_llm(temperature=0.1)
 

@@ -56,9 +56,6 @@ async def test_router_primary_success_no_fallback() -> None:
     router = AIRouter(
         primary_llm=_FakeLLMProvider(content="primary"),
         primary_embedding=_FakeEmbeddingProvider(vector=[1.0, 2.0]),
-        fallback_enabled=True,
-        fallback_llm=_FakeLLMProvider(content="fallback"),
-        fallback_embedding=_FakeEmbeddingProvider(vector=[9.0, 9.0]),
     )
 
     chat = await router.chat(messages=[])
@@ -69,44 +66,12 @@ async def test_router_primary_success_no_fallback() -> None:
 
 
 @pytest.mark.asyncio
-async def test_router_transient_failure_falls_back() -> None:
+async def test_router_primary_failure_propagates() -> None:
     router = AIRouter(
         primary_llm=_FakeLLMProvider(chat_error=TimeoutError("timeout")),
         primary_embedding=_FakeEmbeddingProvider(),
-        fallback_enabled=True,
-        fallback_on_transient_only=True,
-        fallback_llm=_FakeLLMProvider(content="fallback-success"),
     )
 
-    result = await router.chat(messages=[])
-
-    assert result.content == "fallback-success"
-
-
-@pytest.mark.asyncio
-async def test_router_non_transient_failure_does_not_fallback() -> None:
-    router = AIRouter(
-        primary_llm=_FakeLLMProvider(chat_error=ValueError("bad request")),
-        primary_embedding=_FakeEmbeddingProvider(),
-        fallback_enabled=True,
-        fallback_on_transient_only=True,
-        fallback_llm=_FakeLLMProvider(content="fallback"),
-    )
-
-    with pytest.raises(ValueError, match="bad request"):
-        await router.chat(messages=[])
-
-
-@pytest.mark.asyncio
-async def test_router_fallback_failure_propagates() -> None:
-    router = AIRouter(
-        primary_llm=_FakeLLMProvider(chat_error=TimeoutError("primary timeout")),
-        primary_embedding=_FakeEmbeddingProvider(),
-        fallback_enabled=True,
-        fallback_on_transient_only=True,
-        fallback_llm=_FakeLLMProvider(chat_error=RuntimeError("fallback failed")),
-    )
-
-    with pytest.raises(RuntimeError, match="fallback failed"):
+    with pytest.raises(TimeoutError, match="timeout"):
         await router.chat(messages=[])
 

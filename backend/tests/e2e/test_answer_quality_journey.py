@@ -12,6 +12,8 @@ from typing import Any
 
 import pytest
 
+pytestmark = pytest.mark.quality
+
 from app.agents_system.langgraph.adapter import _build_workflow_result
 from app.agents_system.langgraph.nodes.clarify import execute_clarification_planner_node
 from app.agents_system.langgraph.nodes.quality_gate import (
@@ -155,6 +157,24 @@ class TestArchitectureProposalJourney:
         assert result["stage"] == "propose_candidate"
         assert result["summary"] == _RICH_ARCHITECTURE_ANSWER
 
+    def test_workflow_result_surfaces_exhausted_quality_gate(self) -> None:
+        state: dict[str, Any] = {
+            "next_stage": "propose_candidate",
+            "agent_output": "Pending change set created.",
+            "intermediate_steps": [],
+            "success": True,
+            "quality_gate_exhausted": True,
+            "quality_gate_failures": ["The response is only a generic receipt."],
+        }
+
+        result = _build_workflow_result(
+            result_state=state,
+            summary=state["agent_output"],
+        )
+
+        assert result["warnings"][0].startswith("Output quality remained below")
+        assert "generic receipt" in result["warnings"][1]
+
     def test_quality_gate_passes_rich_architecture_answer(self) -> None:
         state: dict[str, Any] = {
             "next_stage": "propose_candidate",
@@ -283,7 +303,7 @@ class TestQualityGateRetryJourney:
         }
         updates = quality_gate_node(state)
 
-        assert "Architecture answer is incomplete" in updates["quality_retry_reason"]
+        assert "generic receipt" in updates["quality_retry_reason"]
 
     def test_enriched_answer_passes_quality_gate(self) -> None:
         """When artifact_edit_detected is False the gate passes unconditionally

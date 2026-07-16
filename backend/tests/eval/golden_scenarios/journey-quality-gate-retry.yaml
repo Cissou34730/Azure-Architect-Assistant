@@ -21,3 +21,10 @@ quality_gate_must_pass_on_keywords:
   - "trade-off"
   - "risk"
   - "waf"
+quality_assertions:
+  required_concepts:
+    rationale: ["because", "rationale"]
+    evidence: ["evidence", "reference", "learn.microsoft.com"]
+  max_words: 700
+  minimum_decision_signals: 3
+tags: ["deterministic", "quality-gate"]

@@ -20,3 +20,16 @@ required_answer_keywords:
   - "gdpr"
   - "compliance"
   - "risk"
+quality_assertions:
+  required_concepts:
+    identity_control: ["managed identity", "least privilege", "rbac"]
+    data_protection: ["encryption", "key vault", "private endpoint"]
+    operational_evidence: ["monitor", "audit", "logging"]
+  forbidden_claim_patterns:
+    - "(?i)guarantee(?:s|d)? compliance"
+    - "(?i)fully compliant"
+  require_citations: true
+  allowed_citation_hosts: ["learn.microsoft.com", "azure.microsoft.com"]
+  max_words: 700
+  minimum_decision_signals: 3
+tags: ["live", "security", "compliance"]

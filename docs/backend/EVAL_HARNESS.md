@@ -1,34 +1,62 @@
-# Eval Harness Foundation
+# Output Quality Evaluation Strategy
 
-This repository keeps the Phase 0 baseline eval harness in `backend/tests/eval/`.
+The repository uses layered quality gates so a technically valid response can
+still fail when it is generic, unsupported, incomplete, or not useful for an
+architecture decision.
 
-## Scope
+## Pull-request gates
 
-- `backend/tests/eval/reporting.py` converts normalized runner reports into rubric-friendly turn and scenario summaries.
-- `backend/tests/eval/eval_runner.py` loads committed golden scenarios, evaluates them with the existing reporting layer, and checks that baseline failures still match the expected snapshot.
-- `backend/tests/eval/golden_scenarios/` contains the initial representative scenario set for behavior, clarification guardrails, and delivery-artifact guardrails.
+- Strict YAML journey manifests reject unknown fields.
+- Healthy golden fixtures permit no expected failures and require at least 4/5.
+- Journey checks cover stage, response shape, required concepts, unsupported
+  claims, citation presence and host, word ceilings, and thin receipts.
+- Runtime tests verify every graph output path passes through the quality gate.
+- Rubric calibration tests reject polished but decision-free output.
+- Frontend unit tests run in the main CI workflow.
 
-## Relationship to the live E2E runner
+Run locally with:
 
-- Live replay still belongs to `scripts/e2e/aaa_e2e_runner.py`.
-- The test harness under `backend/tests/eval/` is intentionally report-driven for now: it validates committed normalized reports without spinning up the full backend pipeline.
-- This keeps the Phase 0 baseline cheap to run in unit-test workflows while reusing the same report shape and scoring rules.
+    uv run pytest backend/tests/eval backend/tests/test_quality_gate_loop.py backend/tests/test_aaa_e2e_runner_utils.py -m quality
 
-## Run
+## Live evaluation
 
-```bash
-uv run python -m pytest backend/tests/eval/test_eval_runner.py backend/tests/eval/test_reporting.py
-```
+The live harness accepts an executor and passes each YAML scenario input through
+the actual pipeline. The E2E runner stores the full assistant answer in the run
+report and transcript. Normalized goldens retain the answer hash, advisory
+criteria, and critical failures, so output changes cannot disappear from review.
+
+Run a credentialed live journey explicitly:
+
+    uv run python scripts/e2e/aaa_e2e_runner.py --scenario scenario-behavior --in-process
+
+Live execution is intentionally opt-in. Repository owners must approve the
+credential, schedule, artifact-retention, and redaction policy before enabling a
+hosted scheduled lane. Live failures are release signals and must never be
+automatically promoted as new goldens.
+
+## Runtime protection and telemetry
+
+Every graph output path, including specialist workers, passes through the quality
+gate before persistence. Retry exhaustion is marked as quality_gate_exhausted,
+logged with stage and failure details, and surfaced in response warnings. It is
+never counted as a pass.
+
+## Human calibration
+
+At least monthly, reviewers sample live reports and label recommendation,
+rationale, request specificity, trade-off, risk, evidence, and next action.
+Disagreements are resolved by an Azure architect. Deterministic rules should only
+change when they improve agreement on the labeled set. Track false-pass and
+false-fail rates separately, with a target below 10 percent for each.
 
 ## Extending the harness
 
-1. Add a new folder under `backend/tests/eval/golden_scenarios/`.
-2. Commit `scenario.json` with the scenario id, description, tags, and expected baseline failures.
-3. Commit the matching `report.normalized.json` using the existing E2E runner report shape.
-4. Keep `reporting.py` as the single scoring layer; extend it instead of adding a second scorer.
+1. Add a scenario manifest and reference-oriented assertions.
+2. Add a healthy normalized report with a declared minimum score.
+3. Include hard negative answers that should fail despite polished wording.
+4. Run the deterministic lane and, when credentials are available, a live replay.
+5. Review output diffs; never accept a failure merely because it is expected.
 
----
-
-**Status**: Active  
-**Last Updated**: 2026-04-17  
-**Owner**: Engineering
+Status: Active
+Last updated: 2026-07-16
+Owner: Engineering

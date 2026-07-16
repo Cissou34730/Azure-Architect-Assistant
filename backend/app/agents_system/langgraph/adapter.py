@@ -213,13 +213,23 @@ def _build_workflow_result(
     stage = _resolve_stage_name(result_state)
     stage_classification = _resolve_stage_classification(result_state)
     pending_change_set = _resolve_pending_change_set(result_state)
+    quality_failures = [
+        str(failure)
+        for failure in result_state.get("quality_gate_failures", [])
+        if failure
+    ]
+    warnings = (
+        ["Output quality remained below the release gate after retries.", *quality_failures]
+        if result_state.get("quality_gate_exhausted")
+        else []
+    )
     workflow_result = WorkflowStageResult(
         stage=stage,
         stage_classification=stage_classification,
         summary=summary,
         pending_change_set=pending_change_set,
         citations=_build_citations(tool_calls),
-        warnings=[],
+        warnings=warnings,
         next_step=_build_next_step(
             stage=stage,
             pending_change_set=(

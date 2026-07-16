@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from typing import Any
+
+import pytest
 
 from . import eval_runner
 from .reporting import ScenarioEvalSummary
+
+pytestmark = pytest.mark.quality
 
 
 def test_discover_golden_scenarios_loads_initial_manifest_set() -> None:
@@ -15,7 +21,7 @@ def test_discover_golden_scenarios_loads_initial_manifest_set() -> None:
         "scenario-delivery-guardrails",
     ]
     assert all(scenario.report_path.exists() for scenario in scenarios)
-    assert all(scenario.expected_baseline_failures for scenario in scenarios)
+    assert all(scenario.minimum_overall_score >= 4.0 for scenario in scenarios)
 
 
 def test_evaluate_golden_scenario_reuses_reporting_layer(monkeypatch) -> None:
@@ -40,11 +46,11 @@ def test_evaluate_golden_scenario_reuses_reporting_layer(monkeypatch) -> None:
 
     assert result.summary is sentinel
     assert len(called_with) == 1
-    assert result.missing_expected_failures == scenario.expected_baseline_failures
-    assert result.unexpected_failures == ()
+    assert result.quality_failures == ()
+    assert result.below_minimum_score is True
 
 
-def test_run_foundation_eval_harness_matches_expected_baselines() -> None:
+def test_run_foundation_eval_harness_requires_healthy_baselines() -> None:
     run = eval_runner.run_foundation_eval_harness()
 
     assert run.scenario_count == 3
@@ -54,16 +60,16 @@ def test_run_foundation_eval_harness_matches_expected_baselines() -> None:
         "scenario-clarify-guardrails",
         "scenario-delivery-guardrails",
     ]
-    assert run.average_overall_score >= 2.0
+    assert run.average_overall_score >= 4.0
+    assert run.all_passed
 
     delivery = next(
         evaluation
         for evaluation in run.scenarios
         if evaluation.scenario.id == "scenario-delivery-guardrails"
     )
-    assert delivery.summary.overall_score >= 3.0
-    assert "Candidate payload latest candidate missing citations." in delivery.summary.baseline_failures
-    assert "IaC payload missing validation evidence." in delivery.summary.baseline_failures
+    assert delivery.summary.overall_score >= 4.0
+    assert delivery.summary.baseline_failures == []
 
 
 # ---------------------------------------------------------------------------
@@ -161,6 +167,11 @@ def test_run_journey_eval_harness_produces_correct_counts() -> None:
             "type": "clarification_questions",
             "questions": [{"id": "q-1", "text": "What is your workload?"}],
         },
+            "summary": (
+                "I recommend clarifying workload scale, availability, security, and budget "
+                "because those decisions change the service tier and risk profile. "
+                "My default assumption is a moderate internal workload."
+            ),
     }
     valid_responses = {first.scenario_id: valid_response}
 
@@ -172,4 +183,36 @@ def test_run_journey_eval_harness_produces_correct_counts() -> None:
     run_one = eval_runner.run_journey_eval_harness(responses=valid_responses)
     first_result = next(r for r in run_one.results if r.scenario.scenario_id == first.scenario_id)
     assert first_result.passed is True
+
+
+async def test_live_journey_harness_executes_real_scenario_input() -> None:
+    cache_root = Path.cwd() / ".pytest_cache"
+    cache_root.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=cache_root) as directory:
+        root = Path(directory)
+        scenario_path = root / "journey-live.yaml"
+        scenario_path.write_text(
+            """
+scenario_id: live
+description: Live executor smoke test
+input: Design an Azure API
+stage: propose_candidate
+expected_fields: [stage, summary]
+required_answer_keywords: [recommend, risk]
+""".strip(),
+            encoding="utf-8",
+        )
+        seen: list[str] = []
+
+        async def executor(scenario: eval_runner.JourneyScenario) -> dict[str, Any]:
+            seen.append(scenario.input)
+            return {
+                "stage": "propose_candidate",
+                "summary": "I recommend App Service; the main risk is regional failure.",
+            }
+
+        run = await eval_runner.run_live_journey_eval_harness(executor, root)
+
+        assert seen == ["Design an Azure API"]
+        assert run.all_passed
 

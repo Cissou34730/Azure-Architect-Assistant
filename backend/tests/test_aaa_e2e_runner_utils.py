@@ -6,6 +6,10 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.quality
+
 
 def _import_runner_module():
     repo_root = Path(__file__).resolve().parents[2]
@@ -56,11 +60,61 @@ def test_report_normalization_drops_high_variance_fields() -> None:
 
     step = normalized["steps"][0]
     assert "answer" not in step
-    assert "answerHash" not in step
+    assert step["answerHash"] == "deadbeef"
     assert "durationMs" not in step
     assert "mcpLogs" not in step
     assert "pricingLogs" not in step
     assert step["success"] is True
+
+
+def test_decision_quality_rubric_rejects_polished_slop() -> None:
+    runner = _import_runner_module()
+    result = runner._evaluate_advisory_quality(
+        "Azure is scalable, secure, reliable, cost-effective, and well architected.",
+        "Design a GDPR payment API with a 99.99% SLA.",
+    )
+
+    assert result["passed"] is False
+    assert {"recommendation", "rationale", "tradeoff", "risk", "evidence"} <= set(
+        result["criticalFailures"]
+    )
+
+
+def test_decision_quality_rubric_accepts_complete_specific_answer() -> None:
+    runner = _import_runner_module()
+    result = runner._evaluate_advisory_quality(
+        (
+            "I recommend zone-redundant Azure SQL for the payment API because the "
+            "99.99% SLA needs zone failure tolerance. The trade-off is higher cost. "
+            "The main risk is regional outage; validate geo-replication and GDPR "
+            "residency before committing. Evidence: "
+            "https://learn.microsoft.com/azure/azure-sql/database/high-availability-sla"
+        ),
+        "Design a GDPR payment API with a 99.99% SLA.",
+    )
+
+    assert result["passed"] is True
+    assert result["criticalFailures"] == []
+
+
+def test_decision_quality_rubric_matches_human_calibration_set() -> None:
+    runner = _import_runner_module()
+    calibration_path = (
+        Path(__file__).resolve().parent / "eval" / "human_calibration.jsonl"
+    )
+    records = [
+        json.loads(line)
+        for line in calibration_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+    assert len(records) >= 3
+    for record in records:
+        result = runner._evaluate_advisory_quality(
+            record["answer"],
+            record["request"],
+        )
+        assert result["passed"] is record["humanPass"], record["id"]
 
 
 def test_export_payload_summary_tracks_traceability_and_scorecard_coverage() -> None:

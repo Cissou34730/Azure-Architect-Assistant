@@ -1,5 +1,7 @@
 """Tests for Microsoft Learn MCP client."""
 
+import os
+
 import pytest
 
 from app.shared.mcp.exceptions import (
@@ -88,6 +90,10 @@ class TestMicrosoftLearnMCPClient:
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(
+    os.environ.get("RUN_LIVE_MCP_TESTS") != "true",
+    reason="Set RUN_LIVE_MCP_TESTS=true to run Microsoft Learn network tests.",
+)
 class TestMicrosoftLearnMCPClientIntegration:
     """Integration tests with real Microsoft Learn MCP server."""
 

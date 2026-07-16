@@ -10,14 +10,14 @@
       "counts": {"requirements": 1}
     },
     "clarifyPayload": {
-      "present": false,
-      "missingRequiredKeys": ["customerClarificationGroups"],
-      "themeCount": 0,
-      "themes": [],
-      "questionCount": 0,
-      "whyItMattersCount": 0,
-      "architecturalImpactCounts": {},
-      "ungroupedQuestionCount": 1
+      "present": true,
+      "missingRequiredKeys": [],
+      "themeCount": 3,
+      "themes": ["Scale and availability", "Security and compliance", "Operations"],
+      "questionCount": 6,
+      "whyItMattersCount": 6,
+      "architecturalImpactCounts": {"high": 4, "medium": 2},
+      "ungroupedQuestionCount": 0
     }
   },
   "dbPersistence": {"status": "PASS"},
@@ -25,18 +25,18 @@
     {
       "id": "us1-clarify",
       "request": "Ask the key clarification questions before designing the architecture.",
-      "answer": "Before designing the architecture, I need clarification questions about traffic, security, and failover.",
+      "answer": "Before designing the architecture, I recommend six key clarification questions. Scale and availability: what are peak throughput, latency, SLA, RTO, and RPO targets? Security and compliance: which identities, data classifications, residency rules, and private-network requirements apply? Operations: what budget, deployment model, and on-call capability are available? These answers determine service tier, regional topology, isolation controls, and operational complexity; absent answers I will assume a 99.9% SLA, paired-region recovery, managed identity, private endpoints, and a moderate operations team.",
       "success": true,
       "error": null,
-      "mcpCallCount": 0,
+      "mcpCallCount": 1,
       "pricingCallCount": 0,
-      "kbCallCount": 0,
+      "kbCallCount": 2,
       "advisoryQuality": {
-        "proactivity": 1,
-        "correction": 1,
-        "evidence": 1,
-        "clarity": 1,
-        "total": 4
+        "proactivity": 2,
+        "correction": 2,
+        "evidence": 2,
+        "clarity": 2,
+        "total": 8
       }
     }
   ]

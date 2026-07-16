@@ -30,6 +30,9 @@ jobs:
       - name: Frontend lint
         run: npm run lint
 
+      - name: Frontend unit tests
+        run: npm run test:unit --workspace=frontend
+
   backend-quality:
     name: Backend lint + tests
     runs-on: ubuntu-latest
@@ -72,6 +75,34 @@ jobs:
 
       - name: Run pyright
         run: npx pyright backend
+
+  deterministic-quality-evals:
+    name: Deterministic output-quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run output-quality suites
+        run: >
+          uv run pytest
+          backend/tests/eval
+          backend/tests/e2e/test_answer_quality_journey.py
+          backend/tests/test_quality_gate_loop.py
+          backend/tests/test_aaa_e2e_runner_utils.py
+          -m quality
+          -q
 
   docs-integrity:
     name: Docs lane integrity

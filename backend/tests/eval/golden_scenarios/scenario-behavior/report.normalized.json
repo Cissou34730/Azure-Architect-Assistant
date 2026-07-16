@@ -10,21 +10,21 @@
       "counts": {"requirements": 1}
     }
   },
-  "dbPersistence": {"status": "FAIL"},
+  "dbPersistence": {"status": "PASS"},
   "steps": [
     {
       "id": "turn1-suboptimal-choice",
       "request": "I want to use Azure SQL Database with DTU-based pricing for a global payment API.",
-      "answer": "Use Azure SQL Database with DTU pricing for the payment API.",
+      "answer": "I recommend Azure SQL Database vCore with zone redundancy and active geo-replication because a global payment API needs independently scalable compute and explicit recovery objectives. Use managed identity, least-privilege RBAC, private endpoints, Key Vault, encryption, and monitored failover to apply Zero Trust controls. The trade-off is higher baseline cost and operational testing. Main risks are regional failover lag and capacity limits; validate RTO, RPO, peak TPS, and data-residency constraints before committing. Evidence: https://learn.microsoft.com/azure/azure-sql/database/high-availability-sla-local-zone-redundancy",
       "success": true,
       "error": null,
-      "mcpCallCount": 0,
+      "mcpCallCount": 1,
       "pricingCallCount": 0,
-      "kbCallCount": 0,
+      "kbCallCount": 2,
       "advisoryQuality": {
         "proactivity": 2,
         "correction": 2,
-        "evidence": 1,
+        "evidence": 2,
         "clarity": 2,
         "total": 7
       }
@@ -32,18 +32,18 @@
     {
       "id": "turn2-next-steps",
       "request": "List the next steps to move forward safely.",
-      "answer": "Next steps: validate capacity assumptions and confirm disaster recovery expectations.",
+      "answer": "Next, confirm peak and steady transaction rates, latency targets, budget, residency, RTO, and RPO. Then benchmark vCore tiers, test zone and regional failover, verify least-privilege access and private connectivity, and record the selected tier with its cost and recovery trade-offs. Evidence: https://learn.microsoft.com/azure/reliability/reliability-azure-sql-database",
       "success": true,
       "error": null,
-      "mcpCallCount": 0,
+      "mcpCallCount": 1,
       "pricingCallCount": 0,
-      "kbCallCount": 0,
+      "kbCallCount": 2,
       "advisoryQuality": {
-        "proactivity": 1,
-        "correction": 1,
-        "evidence": 1,
-        "clarity": 1,
-        "total": 4
+        "proactivity": 2,
+        "correction": 2,
+        "evidence": 2,
+        "clarity": 2,
+        "total": 8
       }
     }
   ]

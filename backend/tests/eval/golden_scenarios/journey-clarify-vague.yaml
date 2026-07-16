@@ -15,3 +15,10 @@ forbidden_patterns:
   - "recorded successfully"
   - "(?i)change set \\w+ created"
   - "(?i)^I've created a"
+quality_assertions:
+  required_concepts:
+    decision_context: ["availability", "scale", "security", "budget", "compliance"]
+    assumption: ["assume", "assumption", "default"]
+  max_words: 350
+  minimum_decision_signals: 1
+tags: ["deterministic", "clarify"]

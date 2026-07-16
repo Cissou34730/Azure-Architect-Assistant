@@ -26,7 +26,12 @@ from .nodes.iac_generator import execute_iac_stage_worker_node
 from .nodes.manage_adr import execute_manage_adr_stage_worker_node
 from .nodes.persist import apply_state_updates_node, persist_messages_node
 from .nodes.postprocess import postprocess_node
-from .nodes.quality_gate import build_quality_retry, completeness_check
+from .nodes.quality_gate import (
+    assess_output_quality,
+    build_quality_exhausted,
+    build_quality_retry,
+    completeness_check,
+)
 from .nodes.research import build_research_plan_node, execute_research_worker_node
 from .nodes.routing import (
     prepare_architecture_planner_handoff,
@@ -102,6 +107,7 @@ def _build_project_chat_workflow(
     workflow.add_node('run_agent', _wrap_run_agent(db))
     workflow.add_node('quality_check', _pass_through_quality_check)
     workflow.add_node('quality_retry', build_quality_retry)
+    workflow.add_node('quality_exhausted', build_quality_exhausted)
     workflow.add_node('persist_messages', _wrap_persist_messages(db))
     workflow.add_node('postprocess', _wrap_postprocess(response_message_id))
     workflow.add_node('apply_updates', _wrap_apply_updates(db))
@@ -183,8 +189,13 @@ def _pass_through_mindmap_guidance(state: GraphState) -> dict:
 
 
 def _pass_through_quality_check(state: GraphState) -> dict:
-    """Pass-through node for quality check — routing is done via conditional edges."""
-    return {}
+    """Record quality telemetry before conditional routing."""
+    failures = assess_output_quality(state)
+    return {
+        "quality_gate_passed": not failures,
+        "quality_gate_exhausted": False,
+        "quality_gate_failures": failures,
+    }
 
 
 def _build_workflow_edges(workflow: StateGraph):
@@ -256,9 +267,9 @@ def _build_workflow_edges(workflow: StateGraph):
             'build_research': 'build_research',
         },
     )
-    workflow.add_edge('extract_requirements', 'persist_messages')
-    workflow.add_edge('clarify_stage_worker', 'persist_messages')
-    workflow.add_edge('export_stage_worker', 'persist_messages')
+    workflow.add_edge('extract_requirements', 'quality_check')
+    workflow.add_edge('clarify_stage_worker', 'quality_check')
+    workflow.add_edge('export_stage_worker', 'quality_check')
     workflow.add_conditional_edges(
         'build_research',
         route_after_research_plan,
@@ -281,18 +292,23 @@ def _build_workflow_edges(workflow: StateGraph):
     workflow.add_edge('prepare_architecture_handoff', 'architecture_planner')
     # Architecture planner output goes through quality_check so P5 gates apply
     workflow.add_edge('architecture_planner', 'quality_check')
-    workflow.add_edge('cost_stage_worker', 'persist_messages')
-    workflow.add_edge('iac_stage_worker', 'persist_messages')
-    workflow.add_edge('manage_adr_stage_worker', 'persist_messages')
-    workflow.add_edge('validate_stage_worker', 'persist_messages')
+    workflow.add_edge('cost_stage_worker', 'quality_check')
+    workflow.add_edge('iac_stage_worker', 'quality_check')
+    workflow.add_edge('manage_adr_stage_worker', 'quality_check')
+    workflow.add_edge('validate_stage_worker', 'quality_check')
     # Quality gate: run_agent → quality_check → [retry | persist]
     workflow.add_edge('run_agent', 'quality_check')
     workflow.add_conditional_edges(
         'quality_check',
         completeness_check,
-        {'retry': 'quality_retry', 'continue': 'persist_messages'},
+        {
+            'retry': 'quality_retry',
+            'continue': 'persist_messages',
+            'exhausted': 'quality_exhausted',
+        },
     )
     workflow.add_edge('quality_retry', 'run_agent')
+    workflow.add_edge('quality_exhausted', 'persist_messages')
     workflow.add_conditional_edges(
         'persist_messages',
         route_after_persist,

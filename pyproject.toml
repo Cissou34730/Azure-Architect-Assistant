@@ -206,6 +206,8 @@ python_functions = ["test_*"]
 markers = [
     "unit: Unit tests (fast, no external dependencies)",
     "integration: Integration tests (may require external services)",
+    "quality: Deterministic output-quality and rubric calibration tests",
+    "live_eval: Live model or end-to-end output-quality tests",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

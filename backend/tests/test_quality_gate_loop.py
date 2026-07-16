@@ -16,6 +16,8 @@ from unittest.mock import patch
 
 import pytest
 
+pytestmark = pytest.mark.quality
+
 
 # ---------------------------------------------------------------------------
 # Quality check node logic
@@ -35,24 +37,25 @@ class TestQualityCheckNode:
         base.update(overrides)
         return base
 
-    def test_passes_when_no_artifact_edit(self) -> None:
-        """When artifact_edit_detected is False, always pass."""
+    def test_empty_output_fails_even_without_artifact_edit(self) -> None:
+        """Every output path must produce a response."""
         from app.agents_system.langgraph.nodes.quality_gate import completeness_check
 
         state = self._make_state(artifact_edit_detected=False, agent_output="")
         result = completeness_check(state)
-        assert result == "continue"
+        assert result == "retry"
 
-    def test_passes_when_stage_worker_handled(self) -> None:
-        """Stage workers bypass quality check."""
+    def test_stage_worker_does_not_bypass_quality_check(self) -> None:
+        """Stage workers are subject to the same basic quality checks."""
         from app.agents_system.langgraph.nodes.quality_gate import completeness_check
 
         state = self._make_state(
             artifact_edit_detected=True,
             handled_by_stage_worker=True,
+            agent_output="",
         )
         result = completeness_check(state)
-        assert result == "continue"
+        assert result == "retry"
 
     def test_fails_when_artifact_edit_but_no_tool_calls(self) -> None:
         """artifact_edit_detected=True but no tool calls = incomplete."""
@@ -100,7 +103,7 @@ class TestQualityCheckNode:
             quality_retry_count=2,
         )
         result = completeness_check(state)
-        assert result == "continue"  # Gives up after max retries
+        assert result == "exhausted"
 
     def test_fails_on_empty_output(self) -> None:
         """Empty agent_output always triggers retry if under limit."""
@@ -171,6 +174,11 @@ class TestGraphStateQualityFields:
         from app.agents_system.langgraph.state import GraphState
         assert "quality_retry_reason" in GraphState.__annotations__
 
+    def test_quality_exhaustion_fields_in_state(self) -> None:
+        from app.agents_system.langgraph.state import GraphState
+        assert "quality_gate_exhausted" in GraphState.__annotations__
+        assert "quality_gate_failures" in GraphState.__annotations__
+
 
 # ---------------------------------------------------------------------------
 # Graph topology: quality_check is wired before persist
@@ -202,6 +210,17 @@ class TestGraphTopology:
         targets = [e[1] for e in retry_edges]
         assert "run_agent" in targets or len(retry_edges) == 0  # conditional edges
         assert "__end__" not in targets
+
+    def test_quality_check_records_pass_and_failure_telemetry(self) -> None:
+        from app.agents_system.langgraph.graph_factory import _pass_through_quality_check
+
+        passed = _pass_through_quality_check({"agent_output": "A useful response."})
+        failed = _pass_through_quality_check({"agent_output": ""})
+
+        assert passed["quality_gate_passed"] is True
+        assert passed["quality_gate_failures"] == []
+        assert failed["quality_gate_passed"] is False
+        assert failed["quality_gate_failures"] == ["The response is empty."]
 
 
 # ---------------------------------------------------------------------------
@@ -325,8 +344,8 @@ class TestArchitectureCompletenessGate:
         result = completeness_check(state)
         assert result == "retry"
 
-    def test_architecture_gate_respects_retry_limit(self) -> None:
-        """After exhausting retries, even a weak answer is accepted."""
+    def test_architecture_gate_marks_retry_exhaustion(self) -> None:
+        """After exhausting retries, a weak answer is explicitly degraded."""
         from app.agents_system.langgraph.nodes.quality_gate import completeness_check
         from unittest.mock import Mock
 
@@ -341,7 +360,7 @@ class TestArchitectureCompletenessGate:
             "handled_by_stage_worker": False,
         }
         result = completeness_check(state)
-        assert result == "continue"
+        assert result == "exhausted"
 
     def test_check_architecture_answer_quality_returns_missing(self) -> None:
         """_check_architecture_answer_quality lists missing sections."""

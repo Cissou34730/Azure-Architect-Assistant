@@ -17,3 +17,14 @@ required_answer_keywords:
   - "confidence"
   - "cost"
   - "assumption"
+quality_assertions:
+  required_concepts:
+    range_or_total: ["monthly", "range", "total"]
+    uncertainty: ["confidence", "estimate", "uncertain"]
+    optimization: ["optimiz", "saving", "reserved"]
+  forbidden_claim_patterns:
+    - "(?i)exact cost"
+    - "(?i)guaranteed price"
+  max_words: 500
+  minimum_decision_signals: 1
+tags: ["live", "pricing"]

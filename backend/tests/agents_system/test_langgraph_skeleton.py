@@ -4,6 +4,7 @@ Tests for LangGraph skeleton and graph compilation.
 Phase 1: Verify basic graph structure can be created and compiled.
 """
 
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
@@ -18,6 +19,11 @@ from app.agents_system.langgraph.nodes.validate import execute_validate_stage_wo
 from app.agents_system.langgraph.state import GraphState
 from app.agents_system.services.waf_findings_worker import WAFFindingsWorker
 from app.shared.config.settings.agents import AgentsSettingsMixin
+
+
+async def _invoke_project_graph(state: dict[str, Any]) -> dict[str, Any]:
+    async with build_project_chat_graph(db=MagicMock()) as graph:
+        return await graph.ainvoke(state)
 
 
 def test_graph_can_be_compiled():
@@ -96,7 +102,8 @@ async def test_build_context_summary_uses_routed_stage_for_context_pack(
     assert result["context_summary"] == "packed summary"
 
 
-def test_graph_uses_checkpointer_when_thread_memory_enabled(
+@pytest.mark.asyncio
+async def test_graph_uses_checkpointer_when_thread_memory_enabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
@@ -110,12 +117,19 @@ def test_graph_uses_checkpointer_when_thread_memory_enabled(
         "get_app_settings",
         lambda: SimpleNamespace(aaa_thread_memory_enabled=True),
     )
-    monkeypatch.setattr(graph_factory_module, "MemorySaver", lambda: "memory-saver")
+    @asynccontextmanager
+    async def fake_checkpointer(_settings):
+        yield "memory-saver"
+
+    monkeypatch.setattr(
+        graph_factory_module,
+        "_build_thread_checkpointer",
+        fake_checkpointer,
+    )
     monkeypatch.setattr(graph_factory_module.StateGraph, "compile", fake_compile)
 
-    graph = build_project_chat_graph(db=MagicMock())
-
-    assert graph == "compiled-graph"
+    async with build_project_chat_graph(db=MagicMock()) as graph:
+        assert graph == "compiled-graph"
     assert captured["checkpointer"] == "memory-saver"
 
 
@@ -173,9 +187,7 @@ async def test_graph_classifies_stage_before_building_summary(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock())
-
-    await graph.ainvoke(
+    await _invoke_project_graph(
         {
             "project_id": "proj-1",
             "user_message": "validate this design",
@@ -212,7 +224,8 @@ async def test_graph_routes_extract_requirements_to_stage_worker(
         call_order.append(f"build_summary:{state.get('next_stage')}")
         return {"context_summary": "summary"}
 
-    async def fake_extract_requirements(_state, _db):
+    async def fake_extract_requirements(_state, _db, config=None):
+        del config
         call_order.append("extract_requirements")
         return {
             "agent_output": "requirements extracted",
@@ -256,9 +269,7 @@ async def test_graph_routes_extract_requirements_to_stage_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock())
-
-    result = await graph.ainvoke(
+    result = await _invoke_project_graph(
         {
             "project_id": "proj-1",
             "user_message": "continue",
@@ -393,9 +404,7 @@ async def test_graph_routes_propose_candidate_through_research_worker_and_archit
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock())
-
-    result = await graph.ainvoke(
+    result = await _invoke_project_graph(
         {
             "project_id": "proj-1",
             "user_message": "design the target architecture",
@@ -527,9 +536,7 @@ async def test_graph_routes_pricing_stage_through_dedicated_cost_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock())
-
-    result = await graph.ainvoke(
+    result = await _invoke_project_graph(
         {
             "project_id": "proj-1",
             "user_message": "How much would this run each month?",
@@ -660,9 +667,7 @@ async def test_graph_routes_iac_stage_through_dedicated_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock())
-
-    result = await graph.ainvoke(
+    result = await _invoke_project_graph(
         {
             "project_id": "proj-1",
             "user_message": "Generate Bicep for this architecture",
@@ -749,9 +754,7 @@ async def test_graph_routes_export_to_dedicated_stage_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock())
-
-    result = await graph.ainvoke(
+    result = await _invoke_project_graph(
         {
             "project_id": "proj-1",
             "user_message": "export the deliverable package",
@@ -897,9 +900,7 @@ async def test_graph_routes_validate_stage_through_validate_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock())
-
-    result = await graph.ainvoke(
+    result = await _invoke_project_graph(
         {
             "project_id": "proj-1",
             "user_message": "validate this design against WAF",
@@ -1001,9 +1002,7 @@ async def test_graph_routes_manage_adr_stage_through_dedicated_worker(
         lambda: SimpleNamespace(aaa_thread_memory_enabled=False),
     )
 
-    graph = build_project_chat_graph(db=MagicMock())
-
-    result = await graph.ainvoke(
+    result = await _invoke_project_graph(
         {
             "project_id": "proj-1",
             "user_message": "Create an ADR for the database decision",

@@ -72,6 +72,9 @@ class GraphState(TypedDict, total=False):
     retry_count: int
     quality_retry_count: int
     quality_retry_reason: str | None
+    quality_gate_passed: bool
+    quality_gate_exhausted: bool
+    quality_gate_failures: list[str]
 
     # Phase 2 fields (multi-agent handoff)
     current_agent: str | None  # "main", "architecture_planner", "iac_generator"

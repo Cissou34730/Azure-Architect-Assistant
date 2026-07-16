@@ -20,3 +20,15 @@ thin_receipt_detection:
     - "recommend"
     - "trade-off"
     - "risk"
+quality_assertions:
+  required_concepts:
+    recommendation: ["recommend", "propose"]
+    rationale: ["because", "rationale"]
+    availability: ["99.99", "zone", "region", "failover"]
+    compliance: ["gdpr", "residency", "privacy"]
+    cost: ["budget", "cost"]
+  require_citations: true
+  allowed_citation_hosts: ["learn.microsoft.com", "azure.microsoft.com"]
+  max_words: 800
+  minimum_decision_signals: 3
+tags: ["live", "architecture", "release-gate"]

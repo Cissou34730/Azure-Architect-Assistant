@@ -1,10 +1,17 @@
 """Tests for refactored Microsoft Learn operations."""
 
+import os
+
 import pytest
 
 from app.shared.mcp import operations
 from app.shared.mcp.learn_mcp_client import MicrosoftLearnMCPClient
 from app.shared.mcp.operations.learn_operations import search_microsoft_docs
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get("RUN_LIVE_MCP_TESTS") != "true",
+    reason="Set RUN_LIVE_MCP_TESTS=true to run Microsoft Learn network tests.",
+)
 
 
 @pytest.fixture

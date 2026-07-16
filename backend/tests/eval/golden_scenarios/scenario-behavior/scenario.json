@@ -1,13 +1,8 @@
 {
   "id": "scenario-behavior",
   "name": "Behavior Test - Proactive Advisory",
-  "description": "Baseline advisory-quality regression snapshot for the current backend-driven runner report shape.",
+  "description": "Decision-quality regression fixture for a security-sensitive architecture recommendation.",
   "tags": ["behavior", "baseline"],
-  "expectedBaselineFailures": [
-    "Database persistence assertions failed.",
-    "Zero Trust baseline missing in security-sensitive turn turn1-suboptimal-choice.",
-    "Low tool usage score (1.0/5).",
-    "Low persistence score (1.0/5)."
-  ]
+  "minimumOverallScore": 4.0
 }
 

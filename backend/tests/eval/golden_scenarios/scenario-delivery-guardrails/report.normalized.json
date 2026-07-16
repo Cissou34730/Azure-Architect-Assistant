@@ -25,15 +25,15 @@
     },
     "exportPayload": {
       "present": true,
-      "missingRequiredKeys": ["mindmapCoverageScorecard"],
-      "stateMissingRequiredKeys": ["mindMapCoverage"],
+      "missingRequiredKeys": [],
+      "stateMissingRequiredKeys": [],
       "mindmapCoverageScorecard": {
-        "topicCount": 12,
-        "missingTopicKeys": ["13_learning_and_practice"],
+        "topicCount": 13,
+        "missingTopicKeys": [],
         "summary": {
-          "addressed": 12,
+          "addressed": 13,
           "partial": 0,
-          "notAddressed": 1
+          "notAddressed": 0
         }
       }
     },
@@ -48,8 +48,8 @@
         "id": "cand-1",
         "title": "Hub and spoke baseline",
         "assumptionIdCount": 1,
-        "citationCount": 0,
-        "diagramIdCount": 0
+        "citationCount": 2,
+        "diagramIdCount": 1
       }
     },
     "adrPayload": {
@@ -62,25 +62,25 @@
       },
       "latestChangeSet": {
         "id": "cs-1",
-        "status": "applied",
-        "hasLifecycleCommand": false,
-        "lifecycleAction": null,
-        "artifactDraftCount": 0,
-        "adrDraftCount": 0,
-        "citationCount": 0,
-        "relatedRequirementIdCount": 0,
-        "missingDraftFields": ["decision", "sourceCitations"]
+        "status": "pending",
+        "hasLifecycleCommand": true,
+        "lifecycleAction": "approve",
+        "artifactDraftCount": 1,
+        "adrDraftCount": 1,
+        "citationCount": 2,
+        "relatedRequirementIdCount": 2,
+        "missingDraftFields": []
       }
     },
     "costPayload": {
-      "present": false,
-      "missingRequiredKeys": ["costEstimates"],
+      "present": true,
+      "missingRequiredKeys": [],
       "stateSummary": {
-        "keys": [],
-        "counts": {}
+        "keys": ["costEstimates"],
+        "counts": {"costEstimates": 1}
       },
-      "pricingLogCount": 0,
-      "latestEstimate": null
+      "pricingLogCount": 2,
+      "latestEstimate": {"totalMonthlyCost": 4200, "currency": "USD", "confidence": "medium"}
     },
     "iacPayload": {
       "present": true,
@@ -91,10 +91,10 @@
       },
       "latestArtifact": {
         "id": "iac-1",
-        "fileCount": 0,
-        "formats": [],
-        "validationResultCount": 0,
-        "validationStatusCounts": {}
+        "fileCount": 3,
+        "formats": ["bicep"],
+        "validationResultCount": 2,
+        "validationStatusCounts": {"passed": 2}
       }
     }
   },
@@ -103,18 +103,18 @@
     {
       "id": "us2-delivery",
       "request": "Create the candidate architecture, ADR, export package, IaC package, and cost estimate.",
-      "answer": "The candidate architecture, ADR draft, export package, IaC package, and cost estimate were prepared for review with explicit delivery notes.",
+      "answer": "I recommend the zone-redundant hub-and-spoke candidate because it meets the availability and isolation requirements with a clear operations model. The pending ADR records the decision, alternatives, trade-offs, risks, and Microsoft citations. The linked diagram, validated Bicep files, complete 13-topic export, and USD 4,200 monthly estimate are ready for review. Cost confidence is medium because traffic and retention assumptions remain open; validate those drivers before approval.",
       "success": true,
       "error": null,
-      "mcpCallCount": 1,
-      "pricingCallCount": 0,
-      "kbCallCount": 1,
+      "mcpCallCount": 2,
+      "pricingCallCount": 1,
+      "kbCallCount": 2,
       "advisoryQuality": {
-        "proactivity": 1,
-        "correction": 1,
-        "evidence": 1,
+        "proactivity": 2,
+        "correction": 2,
+        "evidence": 2,
         "clarity": 2,
-        "total": 5
+        "total": 8
       }
     }
   ]

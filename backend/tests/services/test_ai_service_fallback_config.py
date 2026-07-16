@@ -87,7 +87,7 @@ def test_ai_service_builds_foundry_providers() -> None:
     assert isinstance(service._embedding_provider, FoundryEmbeddingProvider)
 
 
-def test_create_chat_llm_uses_foundry_azure_chat_openai() -> None:
+def test_create_chat_llm_uses_foundry_openai_v1_client() -> None:
     config = AIConfig(
         **_foundry_fields(),
         llm_provider="foundry",
@@ -96,14 +96,15 @@ def test_create_chat_llm_uses_foundry_azure_chat_openai() -> None:
     )
     service = AIService(config)
 
-    with patch("langchain_openai.AzureChatOpenAI") as mock_chat_model:
+    with patch("langchain_openai.ChatOpenAI") as mock_chat_model:
         service.create_chat_llm()
 
     mock_chat_model.assert_called_once_with(
-        azure_deployment="gpt-5.3-chat",
-        api_version=config.foundry_api_version,
-        azure_endpoint=config.foundry_endpoint,
+        model="gpt-5.3-chat",
+        base_url="https://example.services.ai.azure.com/openai/v1/",
         api_key=config.foundry_api_key,
+        timeout=config.openai_timeout,
+        max_retries=config.openai_max_retries,
         temperature=0.3,
     )
 

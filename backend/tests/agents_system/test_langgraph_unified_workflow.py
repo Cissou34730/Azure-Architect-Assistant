@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -22,17 +23,14 @@ async def test_execute_project_chat_uses_unified_advanced_graph(monkeypatch):
                 "intermediate_steps": [],
             }
 
-    def fake_build_advanced(
+    @asynccontextmanager
+    async def fake_build_advanced(
         db,
         response_message_id: str,
-        enable_stage_routing: bool,
-        enable_multi_agent: bool,
     ):
         captured["db"] = db
         captured["response_message_id"] = response_message_id
-        captured["enable_stage_routing"] = enable_stage_routing
-        captured["enable_multi_agent"] = enable_multi_agent
-        return DummyGraph()
+        yield DummyGraph()
 
     monkeypatch.setattr(
         adapter_module, "build_project_chat_graph", fake_build_advanced
@@ -44,8 +42,6 @@ async def test_execute_project_chat_uses_unified_advanced_graph(monkeypatch):
         db=object(),
     )
 
-    assert captured["enable_stage_routing"] is True
-    assert captured["enable_multi_agent"] is False
     assert isinstance(captured.get("response_message_id"), str)
     assert captured["initial_state"]["project_id"] == "proj-1"
     assert captured["initial_state"]["user_message"] == "hello"

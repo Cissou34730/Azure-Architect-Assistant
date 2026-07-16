@@ -732,7 +732,7 @@ def _turn_requests_iac_payload(message: str) -> bool:
 
 
 def normalize_report_for_golden(report: dict[str, Any]) -> dict[str, Any]:
-    """Drop high-variance fields so golden diffs are meaningful."""
+    """Drop operational noise while retaining output-change and quality signals."""
     normalized = json.loads(json.dumps(report))
 
     for key in ["runId", "generatedAt", "projectId"]:
@@ -743,7 +743,6 @@ def normalize_report_for_golden(report: dict[str, Any]) -> dict[str, Any]:
         for step in steps:
             if isinstance(step, dict):
                 step.pop("answer", None)
-                step.pop("answerHash", None)
                 step.pop("mcpLogs", None)
                 step.pop("pricingLogs", None)
                 step.pop("durationMs", None)
@@ -1122,109 +1121,49 @@ def _format_simple_diff(expected: Any, actual: Any) -> str:
 
 
 def _evaluate_advisory_quality(answer: str, request: str) -> dict[str, Any]:
-    """Evaluate agent's advisory quality on 4 dimensions (0-2 scale each).
-    
-    Args:
-        answer: Agent's response text
-        request: User's request text
-    
-    Returns:
-        Dict with scores and total:
-        {
-            "proactivity": 0-2,
-            "correction": 0-2,
-            "evidence": 0-2,
-            "clarity": 0-2,
-            "total": 0-8,
-            "details": {...}
-        }
-    """
+    """Evaluate explicit decision criteria without rewarding verbosity or tool volume."""
     answer_lower = answer.lower()
-    scores = {
-        "proactivity": 0,
-        "correction": 0,
-        "evidence": 0,
-        "clarity": 0,
+    request_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", request.lower())
+        if len(term) > 2
+        and term not in {"with", "this", "that", "design", "create", "need", "want"}
     }
-    details = {}
-
-    # Proactivity (0-2): Does agent propose next steps, suggest improvements, or drive forward?
-    proactivity_indicators = [
-        "i recommend", "i suggest", "consider", "shall i", "shall we",
-        "next step", "i propose", "you should", "you might want to",
-        "missing", "not specified", "haven't specified", "notice you",
+    answer_terms = set(re.findall(r"[a-z0-9]+", answer_lower))
+    criteria = {
+        "recommendation": any(term in answer_lower for term in ("recommend", "propose", "suggest")),
+        "rationale": any(term in answer_lower for term in ("because", "rationale", "why this")),
+        "tradeoff": any(term in answer_lower for term in ("trade-off", "tradeoff", "drawback", "alternative")),
+        "risk": any(term in answer_lower for term in ("risk", "caveat", "concern", "limitation")),
+        "evidence": bool(re.search(r"https?://\S+", answer)),
+        "nextAction": any(term in answer_lower for term in ("next step", "validate", "confirm", "before committing")),
+        "requestSpecific": len(request_terms & answer_terms) >= min(3, len(request_terms)),
+    }
+    scores = {
+        "proactivity": int(criteria["recommendation"]) + int(criteria["nextAction"]),
+        "correction": int(criteria["tradeoff"]) + int(criteria["risk"]),
+        "evidence": 2 if criteria["evidence"] else 0,
+        "clarity": 2
+        if all(criteria[key] for key in ("recommendation", "rationale", "tradeoff", "risk"))
+        else 1
+        if sum(criteria[key] for key in ("recommendation", "rationale", "tradeoff", "risk")) >= 2
+        else 0,
+    }
+    failures = [
+        key
+        for key in ("recommendation", "rationale", "tradeoff", "risk", "evidence", "requestSpecific")
+        if not criteria[key]
     ]
-    proactive_count = sum(1 for indicator in proactivity_indicators if indicator in answer_lower)
-    if proactive_count >= 3:
-        scores["proactivity"] = 2
-        details["proactivity"] = f"Strong proactivity ({proactive_count} indicators)"
-    elif proactive_count >= 1:
-        scores["proactivity"] = 1
-        details["proactivity"] = f"Some proactivity ({proactive_count} indicators)"
-    else:
-        details["proactivity"] = "Passive response (no proactive indicators)"
-
-    # Correction (0-2): Does agent challenge assumptions or point out issues?
-    correction_indicators = [
-        "however", "but", "contradict", "risk", "issue", "problem",
-        "not recommended", "concern", "caution", "trade-off", "tradeoff",
-        "instead", "alternative", "better to", "violation", "conflict",
-    ]
-    correction_count = sum(1 for indicator in correction_indicators if indicator in answer_lower)
-    if correction_count >= 3:
-        scores["correction"] = 2
-        details["correction"] = f"Strong correction/challenge ({correction_count} indicators)"
-    elif correction_count >= 1:
-        scores["correction"] = 1
-        details["correction"] = f"Some correction/challenge ({correction_count} indicators)"
-    else:
-        details["correction"] = "No challenges or corrections"
-
-    # Evidence (0-2): Does agent provide citations, sources, or references?
-    evidence_indicators = [
-        "http://", "https://", "microsoft.com", "azure.com", "learn.microsoft",
-        "documentation", "according to", "reference", "cited", "source:",
-        "waf", "well-architected", "benchmark", "study", "guidance",
-    ]
-    evidence_count = sum(1 for indicator in evidence_indicators if indicator in answer_lower)
-    if evidence_count >= 5:
-        scores["evidence"] = 2
-        details["evidence"] = f"Strong evidence ({evidence_count} references)"
-    elif evidence_count >= 2:
-        scores["evidence"] = 1
-        details["evidence"] = f"Some evidence ({evidence_count} references)"
-    else:
-        details["evidence"] = "Minimal evidence/citations"
-
-    # Clarity (0-2): Is the response structured and clear?
-    # Check for structured formatting (headings, lists, sections)
-    has_headings = "##" in answer or "###" in answer
-    has_lists = answer.count("\n- ") >= 3 or answer.count("\n* ") >= 3 or answer.count("\n1.") >= 3
-    has_sections = answer.count("\n\n") >= 3
-    is_long_enough = len(answer) >= 200
-
-    clarity_score = 0
-    if has_headings and has_lists:
-        clarity_score = 2
-        details["clarity"] = "Well-structured (headings + lists)"
-    elif has_headings or has_lists or has_sections:
-        clarity_score = 1
-        details["clarity"] = "Some structure (basic formatting)"
-    elif is_long_enough:
-        clarity_score = 1
-        details["clarity"] = "Adequate length but minimal structure"
-    else:
-        details["clarity"] = "Brief or unstructured"
-    scores["clarity"] = clarity_score
-
     total = sum(scores.values())
 
     return {
         **scores,
         "total": total,
         "maxTotal": 8,
-        "passed": total >= 4,  # Pass threshold: avg >= 4/8
-        "details": details,
+        "passed": total >= 6 and not failures,
+        "criteria": criteria,
+        "criticalFailures": failures,
+        "requestSpecific": criteria["requestSpecific"],
     }
 
 
@@ -1385,6 +1324,8 @@ async def _run_with_client(
                         "success": step_record["success"],
                         "error": step_record["error"],
                         "answerHash": step_record["answerHash"],
+                        "content": answer,
+                        "advisoryQuality": advisory_quality,
                     },
                     ensure_ascii=False,
                 )
