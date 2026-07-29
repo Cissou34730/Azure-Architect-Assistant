@@ -4,7 +4,11 @@ AI Provider Implementations
 
 from .copilot_llm import CopilotLLMProvider
 from .copilot_runtime import reset_copilot_runtime
-from .foundry_client import get_foundry_client, reset_foundry_client
+from .foundry_client import (
+    build_foundry_v1_base_url,
+    get_foundry_client,
+    reset_foundry_client,
+)
 from .foundry_embedding import FoundryEmbeddingProvider
 from .foundry_llm import FoundryLLMProvider
 from .github_models_client import get_github_models_client, reset_github_models_client
@@ -18,6 +22,7 @@ __all__ = [
     "FoundryLLMProvider",
     "OpenAIEmbeddingProvider",
     "OpenAILLMProvider",
+    "build_foundry_v1_base_url",
     "get_foundry_client",
     "get_github_models_client",
     "get_openai_client",
@@ -26,4 +31,3 @@ __all__ = [
     "reset_github_models_client",
     "reset_openai_client",
 ]
-

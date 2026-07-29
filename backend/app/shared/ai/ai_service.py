@@ -80,18 +80,21 @@ class AIService:
             effective_temperature = None
 
         if provider == "foundry":
-            from langchain_openai import AzureChatOpenAI  # noqa: PLC0415
+            from langchain_openai import ChatOpenAI  # noqa: PLC0415
+
+            from .providers.foundry_client import build_foundry_v1_base_url  # noqa: PLC0415
 
             foundry_kwargs: dict[str, Any] = {
-                "azure_deployment": self.config.foundry_model,
-                "api_version": self.config.foundry_api_version,
-                "azure_endpoint": self.config.foundry_endpoint,
+                "model": self.config.foundry_model,
+                "base_url": build_foundry_v1_base_url(self.config.foundry_endpoint),
                 "api_key": self.config.foundry_api_key,
+                "timeout": self.config.openai_timeout,
+                "max_retries": self.config.openai_max_retries,
                 **kwargs,
             }
             if effective_temperature is not None:
                 foundry_kwargs["temperature"] = effective_temperature
-            return AzureChatOpenAI(**foundry_kwargs)
+            return ChatOpenAI(**foundry_kwargs)
 
         if provider == "openai":
             from langchain_openai import ChatOpenAI  # noqa: PLC0415
@@ -436,4 +439,3 @@ def get_ai_service(config: AIConfig | None = None) -> AIService:
         AIService instance
     """
     return AIServiceManager.get_instance(config)
-

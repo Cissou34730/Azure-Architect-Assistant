@@ -5,6 +5,60 @@ import pytest
 
 from app.shared.ai.config import AIConfig
 from app.shared.ai.models_service import ModelsService
+from app.shared.ai.providers import foundry_client as foundry_client_module
+from app.shared.ai.providers.foundry_client import (
+    build_foundry_v1_base_url,
+    get_foundry_client,
+    reset_foundry_client,
+)
+
+
+def test_build_foundry_v1_base_url_normalizes_account_endpoint() -> None:
+    assert (
+        build_foundry_v1_base_url("https://aaa-foundry.services.ai.azure.com/")
+        == "https://aaa-foundry.services.ai.azure.com/openai/v1/"
+    )
+    assert (
+        build_foundry_v1_base_url("https://aaa-foundry.openai.azure.com/openai")
+        == "https://aaa-foundry.openai.azure.com/openai/v1/"
+    )
+    assert (
+        build_foundry_v1_base_url("https://aaa-foundry.openai.azure.com/openai/v1/")
+        == "https://aaa-foundry.openai.azure.com/openai/v1/"
+    )
+    assert build_foundry_v1_base_url("") == ""
+
+
+def test_get_foundry_client_uses_openai_v1_base_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured_kwargs: dict[str, object] = {}
+
+    class FakeAsyncOpenAI:
+        def __init__(self, **kwargs: object) -> None:
+            captured_kwargs.update(kwargs)
+
+    config = AIConfig(
+        llm_provider="foundry",
+        embedding_provider="foundry",
+        foundry_endpoint="https://aaa-foundry.services.ai.azure.com/",
+        foundry_api_key="test-foundry-key",
+        foundry_model="gpt-5.3-chat",
+        openai_timeout=42.0,
+        openai_max_retries=3,
+    )
+
+    reset_foundry_client()
+    monkeypatch.setattr(foundry_client_module, "AsyncOpenAI", FakeAsyncOpenAI)
+
+    client = get_foundry_client(config)
+
+    assert isinstance(client, FakeAsyncOpenAI)
+    assert captured_kwargs == {
+        "api_key": "test-foundry-key",
+        "base_url": "https://aaa-foundry.services.ai.azure.com/openai/v1/",
+        "timeout": 42.0,
+        "max_retries": 3,
+    }
+    reset_foundry_client()
 
 
 @pytest.mark.asyncio
@@ -94,4 +148,3 @@ async def test_models_service_cache_only_returns_copilot_fallback_models(
     models, _ = await service.get_available_models(cache_only=True)
 
     assert [model.id for model in models] == ["gpt-5.2", "gpt-5-mini"]
-

@@ -16,7 +16,7 @@ Record these values for the target AIServices account:
 - `AI_FOUNDRY_ENDPOINT`
 - `AI_FOUNDRY_API_KEY`
 - `AI_FOUNDRY_RESOURCE_ID`
-- optional `AI_FOUNDRY_API_VERSION` override (defaults to `2024-10-21`)
+- no runtime `api-version` setting is required for inference; the backend uses the Microsoft Foundry/OpenAI v1 base URL
 
 Example endpoint shape:
 
@@ -83,7 +83,7 @@ That selection is persisted to `backend/data/runtime_ai_selection.json` and reus
 
 - `GET /api/settings/llm-options?refresh=true` returns Foundry deployments under provider id `foundry`
 - `PUT /api/settings/llm-selection` with `provider_id="foundry"` activates the selected deployment
-- `AIService.create_chat_llm()` uses `AzureChatOpenAI` against the Foundry endpoint with the selected deployment id
+- `AIService.create_chat_llm()` uses `ChatOpenAI` against the Foundry `/openai/v1/` endpoint with the selected deployment id
 - embedding calls use the Foundry endpoint and auto-select an embedding deployment when needed
 
 ## 8) Discovery behavior

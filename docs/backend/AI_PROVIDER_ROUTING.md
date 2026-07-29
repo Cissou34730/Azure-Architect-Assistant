@@ -36,7 +36,7 @@ All fields use the `AI_` env prefix and are read through `AppSettings`.
 
 - `AI_FOUNDRY_ENDPOINT`
 - `AI_FOUNDRY_API_KEY` (SecretKeeper-first)
-- `AI_FOUNDRY_API_VERSION` (default: `2024-10-21`)
+- inference uses the Microsoft Foundry/OpenAI v1 base URL and does not require a runtime `api-version`
 - `AI_FOUNDRY_RESOURCE_ID`
 
 There is no static Foundry deployment env var. The active Foundry deployment is selected through the settings API and persisted at runtime.
@@ -94,12 +94,11 @@ For Foundry, deployment discovery uses the Cognitive Services management-plane e
 
 `backend/app/agents_system/langgraph/nodes/agent_native.py` builds its chat LLM through `AIService.create_chat_llm()`.
 
-For Foundry, `AIService.create_chat_llm()` uses `langchain_openai.AzureChatOpenAI` with:
+For Foundry, `AIService.create_chat_llm()` uses `langchain_openai.ChatOpenAI` with the Microsoft Foundry/OpenAI v1 base URL:
 
-- `azure_endpoint=config.foundry_endpoint`
+- `base_url=<foundry endpoint>/openai/v1/`
 - `api_key=config.foundry_api_key`
-- `api_version=config.foundry_api_version`
-- `azure_deployment=config.foundry_model`
+- `model=config.foundry_model`
 
 ## KB and ingestion defaults
 

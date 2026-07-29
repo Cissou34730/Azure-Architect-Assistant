@@ -1,33 +1,44 @@
-"""Shared AsyncAzureOpenAI client for AI Foundry-backed inference."""
+"""Shared OpenAI v1 client for AI Foundry-backed inference."""
 
 from __future__ import annotations
 
 import logging
 
-from openai import AsyncAzureOpenAI
+from openai import AsyncOpenAI
 
 from ..config import AIConfig
 
 logger = logging.getLogger(__name__)
 
-_foundry_client: AsyncAzureOpenAI | None = None
+_foundry_client: AsyncOpenAI | None = None
 
 
-def get_foundry_client(config: AIConfig) -> AsyncAzureOpenAI:
+def build_foundry_v1_base_url(endpoint: str) -> str:
+    """Return the Microsoft Foundry/OpenAI v1 base URL for an account endpoint."""
+    normalized = endpoint.strip().rstrip("/")
+    if not normalized:
+        return ""
+    if normalized.endswith("/openai/v1"):
+        return f"{normalized}/"
+    if normalized.endswith("/openai"):
+        return f"{normalized}/v1/"
+    return f"{normalized}/openai/v1/"
+
+
+def get_foundry_client(config: AIConfig) -> AsyncOpenAI:
     """Return the process-wide shared AI Foundry client."""
     global _foundry_client  # noqa: PLW0603
     if _foundry_client is None:
-        _foundry_client = AsyncAzureOpenAI(
+        base_url = build_foundry_v1_base_url(config.foundry_endpoint)
+        _foundry_client = AsyncOpenAI(
             api_key=config.foundry_api_key,
-            api_version=config.foundry_api_version,
-            azure_endpoint=config.foundry_endpoint,
+            base_url=base_url,
             timeout=config.openai_timeout,
             max_retries=config.openai_max_retries,
         )
         logger.info(
-            "Shared AI Foundry client created (endpoint=%s, api_version=%s, timeout=%.1fs, max_retries=%d)",
-            config.foundry_endpoint,
-            config.foundry_api_version,
+            "Shared AI Foundry v1 client created (base_url=%s, timeout=%.1fs, max_retries=%d)",
+            base_url,
             config.openai_timeout,
             config.openai_max_retries,
         )
