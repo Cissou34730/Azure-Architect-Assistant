@@ -238,3 +238,4 @@ __tests__/
 backend/tests/*
 !backend/tests/eval/
 !backend/tests/eval/**
+backend/tests/**/__pycache__/
