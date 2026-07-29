@@ -4,5 +4,11 @@
     "timeout": 30,
     "auto_reconnect": true,
     "max_retries": 3
+  },
+  "context7": {
+    "endpoint": "https://mcp.context7.com/mcp",
+    "timeout": 30,
+    "auto_reconnect": true,
+    "max_retries": 3
   }
 }

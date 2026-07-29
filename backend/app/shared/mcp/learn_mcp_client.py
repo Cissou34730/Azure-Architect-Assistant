@@ -366,6 +366,16 @@ class MicrosoftLearnMCPClient(MCPClient):
             self._stop_event = None
             self._startup_error = None
 
+    async def _reinitialize(self) -> None:
+        """Tear down the current connection and establish a fresh one.
+
+        Used by the auto-reconnect path in ``call_tool`` when the session has
+        dropped (e.g. network reset, server restart). Safe to call when the
+        client is already closed.
+        """
+        await self.close()
+        await self.initialize()
+
     async def _cleanup_session(self) -> None:
         """Internal helper to close the MCP session (innermost).
 
@@ -453,13 +463,17 @@ class MicrosoftLearnMCPClient(MCPClient):
 
         call_timeout = timeout or self.timeout
 
-        # Retry policy: 3 attempts total then fail.
+        # Retry policy: max_retries attempts, then (optionally) one reconnect
+        # and a final attempt when auto_reconnect is enabled.
         max_attempts = max(int(self.max_retries or 3), 1)
         attempt_details: list[dict[str, Any]] = []
         start_total = time.perf_counter()
         last_exc: BaseException | None = None
+        reconnect_attempted = False
 
-        for attempt_number in range(1, max_attempts + 1):
+        attempt_number = 0
+        while True:
+            attempt_number += 1
             start_attempt = time.perf_counter()
             try:
                 logger.debug(
@@ -515,6 +529,30 @@ class MicrosoftLearnMCPClient(MCPClient):
                 base = min(0.5 * (2 ** (attempt_number - 1)), 8.0)
                 jitter = secrets.randbelow(250) / 1000.0
                 await asyncio.sleep(min(base + jitter, 8.0))
+                continue
+
+            # Retries exhausted: optionally reconnect once and try a final attempt.
+            if self.auto_reconnect and not reconnect_attempted:
+                reconnect_attempted = True
+                logger.warning(
+                    "Tool '%s' failed after %s attempts; attempting MCP reconnect",
+                    tool_name,
+                    max_attempts,
+                )
+                try:
+                    await self._reinitialize()
+                except Exception as reconnect_exc:  # noqa: BLE001
+                    attempt_details.append(
+                        {"attempt": "reconnect", "latencyMs": None, "error": str(reconnect_exc)}
+                    )
+                    last_exc = reconnect_exc
+                    break
+                attempt_details.append(
+                    {"attempt": "reconnect", "latencyMs": None, "error": None}
+                )
+                continue
+
+            break
 
         total_ms = (time.perf_counter() - start_total) * 1000.0
         if isinstance(last_exc, asyncio.TimeoutError):
