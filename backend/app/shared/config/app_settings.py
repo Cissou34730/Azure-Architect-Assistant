@@ -157,7 +157,7 @@ class AppSettings(
         return (
             _read_secretkeeper_secret("AI_COPILOT_TOKEN")
             or self.ai_copilot_token
-            or os.environ.get("GITHUB_TOKEN", "")
+            or self.github_token
         )
 
 

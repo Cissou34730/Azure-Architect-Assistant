@@ -437,7 +437,7 @@ class ClarificationPlannerWorker:
             "Planning input:\n"
             f"{prompt_payload}"
         )
-        return await llm_service.get_llm_service()._complete_json(
+        return await llm_service.get_llm_service().complete_json(
             system_prompt,
             user_prompt,
             max_tokens=min(get_app_settings().llm_analyze_max_tokens, 4000),

@@ -145,6 +145,16 @@ EXTRACTION RULES (mandatory):
 
         return project_state
 
+    async def complete_json(
+        self, system_prompt: str, user_prompt: str, max_tokens: int = 2000
+    ) -> dict[str, Any]:
+        """Public API: make an LLM call requesting JSON-only output and parse it.
+
+        Delegates to :meth:`_complete_json`.  Prefer this over the private
+        method so callers do not depend on implementation details.
+        """
+        return await self._complete_json(system_prompt, user_prompt, max_tokens=max_tokens)
+
     async def _complete_json(
         self, system_prompt: str, user_prompt: str, max_tokens: int = 2000
     ) -> dict[str, Any]:

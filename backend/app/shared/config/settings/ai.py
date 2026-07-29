@@ -53,7 +53,8 @@ class AISettingsMixin(BaseModel):
     ai_foundry_resource_id: str = ""
 
     # ── GitHub Copilot settings (AI_COPILOT_* env vars) ────────────────────
-    ai_copilot_token: str = ""              # reads AI_COPILOT_TOKEN; also accepts GITHUB_TOKEN
+    ai_copilot_token: str = ""              # reads AI_COPILOT_TOKEN
+    github_token: str = ""                  # reads GITHUB_TOKEN; fallback for ai_copilot_token
     ai_copilot_default_model: str = "gpt-5.2"
     ai_copilot_allowed_models: str = ""
     ai_copilot_request_timeout: float = Field(default=120.0)
