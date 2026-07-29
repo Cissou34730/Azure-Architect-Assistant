@@ -33,6 +33,7 @@ class AIConfig(BaseModel):
     openai_timeout: float = 600.0
     openai_max_retries: int = 0
     transient_max_attempts: int = 3
+    llm_fallback_providers: str = ""
 
     # AI Foundry
     foundry_endpoint: str = ""
@@ -90,6 +91,7 @@ class AIConfig(BaseModel):
             openai_timeout=settings.ai_openai_timeout,
             openai_max_retries=settings.ai_openai_max_retries,
             transient_max_attempts=settings.ai_transient_max_attempts,
+            llm_fallback_providers=settings.ai_llm_fallback_providers,
             foundry_endpoint=settings.effective_foundry_endpoint,
             foundry_api_key=settings.effective_foundry_api_key,
             foundry_api_version=settings.ai_foundry_api_version,

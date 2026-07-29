@@ -50,6 +50,7 @@ class AIService:
         self._router = AIRouter(
             primary_llm=self._llm_provider,
             primary_embedding=self._embedding_provider,
+            fallback_llm_factories=self._build_fallback_llm_factories(),
         )
 
         logger.info(
@@ -135,6 +136,44 @@ class AIService:
             raise NotImplementedError("Anthropic LLM provider not yet implemented")
         else:
             raise ValueError(f"Unknown LLM provider: {provider_name}")
+
+    def _build_fallback_llm_factories(self) -> dict[str, Any]:
+        """Build lazy factories for configured cross-provider LLM fallbacks.
+
+        Reads the comma-separated ``llm_fallback_providers`` config list,
+        excludes the active primary provider, and skips providers whose
+        credentials are not configured.  Factories are only invoked by the
+        router when a transient fault actually occurs.
+        """
+        factories: dict[str, Any] = {}
+        primary = self.config.llm_provider
+        requested = [
+            name.strip()
+            for name in self.config.llm_fallback_providers.split(",")
+            if name.strip()
+        ]
+        for name in requested:
+            if name == primary:
+                continue
+            if not self._provider_credentials_configured(name):
+                logger.info(
+                    "Skipping LLM fallback provider '%s': credentials not configured", name
+                )
+                continue
+            factories[name] = lambda n=name: self._create_llm_provider(n)
+        if factories:
+            logger.info("LLM fallback chain configured: %s", list(factories.keys()))
+        return factories
+
+    def _provider_credentials_configured(self, provider_name: str) -> bool:
+        """Return True when the given provider has the minimum config to run."""
+        if provider_name == "openai":
+            return bool(self.config.openai_api_key)
+        if provider_name == "foundry":
+            return bool(self.config.foundry_endpoint and self.config.foundry_api_key)
+        if provider_name == "copilot":
+            return bool(self.config.copilot_token)
+        return False
 
     def _create_embedding_provider(self, provider_name: str) -> EmbeddingProvider:
         """Factory method to create embedding provider based on config."""

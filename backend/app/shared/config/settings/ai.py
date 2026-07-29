@@ -40,6 +40,12 @@ class AISettingsMixin(BaseModel):
     # Distinct from ai_openai_max_retries which controls the OpenAI SDK itself.
     ai_transient_max_attempts: int = Field(default=3, ge=1, le=10)
 
+    # ── Cross-provider fallback ──────────────────────────────────────────────
+    # Comma-separated provider names tried (in order) when the primary LLM
+    # fails with a transient fault.  Only providers with valid credentials
+    # configured are used; unconfigured entries are skipped.  Empty = disabled.
+    ai_llm_fallback_providers: str = Field(default="")
+
     # ── AI Foundry settings (AI_FOUNDRY_* env vars) ──────────────────────────
     ai_foundry_endpoint: str = ""
     ai_foundry_api_key: str = ""
