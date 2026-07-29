@@ -33,7 +33,12 @@ class AISettingsMixin(BaseModel):
     ai_openai_llm_model: str = Field(default="gpt-4o-mini")
     ai_openai_embedding_model: str = Field(default="text-embedding-3-small")
     ai_openai_timeout: float = Field(default=600.0)
-    ai_openai_max_retries: int = Field(default=0)  # callers own retry strategy
+    ai_openai_max_retries: int = Field(default=0)  # SDK-level retries disabled; see ai_transient_max_attempts
+
+    # ── Transient-fault retry (application level) ────────────────────────────
+    # Explicit retry policy for rate-limit/5xx/connection/timeout faults.
+    # Distinct from ai_openai_max_retries which controls the OpenAI SDK itself.
+    ai_transient_max_attempts: int = Field(default=3, ge=1, le=10)
 
     # ── AI Foundry settings (AI_FOUNDRY_* env vars) ──────────────────────────
     ai_foundry_endpoint: str = ""

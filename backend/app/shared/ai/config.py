@@ -32,6 +32,7 @@ class AIConfig(BaseModel):
     openai_embedding_model: str = "text-embedding-3-small"
     openai_timeout: float = 600.0
     openai_max_retries: int = 0
+    transient_max_attempts: int = 3
 
     # AI Foundry
     foundry_endpoint: str = ""
@@ -88,6 +89,7 @@ class AIConfig(BaseModel):
             openai_embedding_model=effective_emb_model,
             openai_timeout=settings.ai_openai_timeout,
             openai_max_retries=settings.ai_openai_max_retries,
+            transient_max_attempts=settings.ai_transient_max_attempts,
             foundry_endpoint=settings.effective_foundry_endpoint,
             foundry_api_key=settings.effective_foundry_api_key,
             foundry_api_version=settings.ai_foundry_api_version,

@@ -13,6 +13,7 @@ from openai import APITimeoutError, BadRequestError, NotFoundError
 
 from ..config import AIConfig
 from ..interfaces import ChatMessage, LLMProvider, LLMResponse
+from ..transient_retry import call_with_transient_retry
 from .openai_client import get_openai_client
 
 logger = logging.getLogger(__name__)
@@ -320,7 +321,7 @@ class OpenAILLMProvider(LLMProvider):
 
         response_format: dict | None = kwargs.pop("response_format", None)
 
-        try:
+        async def _dispatch() -> LLMResponse:
             ordered_apis = self._ordered_apis()
             last_error: Exception | None = None
 
@@ -377,6 +378,12 @@ class OpenAILLMProvider(LLMProvider):
                 raise last_error
             raise RuntimeError("OpenAI inference failed without explicit error")
 
+        try:
+            return await call_with_transient_retry(
+                _dispatch,
+                max_attempts=self.config.transient_max_attempts,
+                operation=f"OpenAI chat (model={self.model})",
+            )
         except Exception as e:
             logger.error("OpenAI chat error: %s", e)
             raise
