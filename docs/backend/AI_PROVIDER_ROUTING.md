@@ -2,15 +2,34 @@
 
 ## Overview
 
-The backend AI abstraction now routes through a single active provider with no fallback path in the migrated runtime.
+The backend AI abstraction routes through a primary provider with an optional cross-provider fallback chain for transient faults.
 
-Application code still uses `AIService` as the public entry point for:
+Application code uses `AIService` as the public entry point for:
 
 - `chat`
 - `complete`
 - `embed_text`
 - `embed_batch`
 - provider-selected LangGraph chat adapter creation
+
+## Resilience
+
+### Transient-fault retry
+
+Non-streaming LLM calls are wrapped in an explicit application-level retry (`app/shared/ai/transient_retry.py`). The OpenAI SDK itself runs with `max_retries=0` so the retry policy is fully controlled by the backend.
+
+- Retryable faults: rate limits (429), timeouts, connection errors, and 5xx / 408 / 409 / 425 status codes.
+- Policy: exponential backoff with jitter, `AI_TRANSIENT_MAX_ATTEMPTS` attempts (default 3, env `AI_TRANSIENT_MAX_ATTEMPTS`).
+- Non-transient errors (auth failures, bad requests) are re-raised immediately.
+
+### Cross-provider fallback
+
+`AIRouter` accepts an ordered list of fallback provider factories. When the primary LLM fails with a *transient* error, the router lazily instantiates the next configured fallback and retries the call there.
+
+- Configured via `AI_LLM_FALLBACK_PROVIDERS` (comma-separated provider names, e.g. `foundry,openai`).
+- Only providers with valid credentials configured are used; unconfigured entries are skipped.
+- Fallback applies to `chat` and `complete`; streaming calls and embeddings do **not** fall back.
+- Fallback providers are instantiated lazily and cached; a broken fallback is skipped for the rest of the process.
 
 ## Supported providers
 
@@ -43,7 +62,7 @@ There is no static Foundry deployment env var. The active Foundry deployment is 
 
 ### GitHub Copilot
 
-- `AI_COPILOT_TOKEN` (or `GITHUB_TOKEN`)
+- `AI_COPILOT_TOKEN` (SecretKeeper-first; falls back to the `GITHUB_TOKEN` env var through the `github_token` settings field)
 - `AI_COPILOT_DEFAULT_MODEL`
 - `AI_COPILOT_ALLOWED_MODELS`
 - `AI_COPILOT_REQUEST_TIMEOUT`
