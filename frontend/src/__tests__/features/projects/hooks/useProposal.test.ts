@@ -25,7 +25,7 @@ let capturedCallbacks: {
 
 const mockClose = vi.fn();
 
-vi.mock("../../../../services/proposalService", () => ({
+vi.mock("../../../../features/projects/api/proposalService", () => ({
   proposalApi: {
     createProposalStream: vi.fn(
       (

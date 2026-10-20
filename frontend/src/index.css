@@ -4,9 +4,10 @@
 
 @theme {
   /* Typography + radii */
-  --font-sans: "Segoe UI", "Inter", sans-serif;
-  --radius-card: 0.75rem;
-  --radius-button: 0.625rem;
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "Consolas", monospace;
+  --radius-card: 1rem;
+  --radius-button: 0.75rem;
   --radius-pill: 9999px;
 
   /* Light theme-neutral scale (used by existing gray/slate utility classes) */
@@ -32,15 +33,15 @@
   --color-slate-800: var(--color-gray-800);
   --color-slate-900: var(--color-gray-900);
 
-  /* Brand scale */
-  --color-blue-50: oklch(0.97 0.015 245);
-  --color-blue-100: oklch(0.94 0.03 245);
-  --color-blue-200: oklch(0.89 0.05 245);
-  --color-blue-300: oklch(0.82 0.08 245);
-  --color-blue-400: oklch(0.74 0.11 245);
-  --color-blue-500: oklch(0.66 0.14 247);
-  --color-blue-600: oklch(0.58 0.16 250);
-  --color-blue-700: oklch(0.5 0.15 252);
+  /* Brand scale (teal) */
+  --color-blue-50: oklch(0.97 0.015 185);
+  --color-blue-100: oklch(0.94 0.03 185);
+  --color-blue-200: oklch(0.89 0.05 185);
+  --color-blue-300: oklch(0.82 0.08 185);
+  --color-blue-400: oklch(0.74 0.11 185);
+  --color-blue-500: oklch(0.66 0.14 187);
+  --color-blue-600: oklch(0.58 0.16 190);
+  --color-blue-700: oklch(0.5 0.15 192);
 
   /* Semantic app tokens */
   --color-surface-page: var(--color-gray-50);
@@ -180,14 +181,14 @@
     --color-slate-800: var(--color-gray-800);
     --color-slate-900: var(--color-gray-900);
 
-    --color-blue-50: oklch(0.28 0.03 250);
-    --color-blue-100: oklch(0.34 0.05 250);
-    --color-blue-200: oklch(0.42 0.08 250);
-    --color-blue-300: oklch(0.51 0.11 250);
-    --color-blue-400: oklch(0.61 0.13 250);
-    --color-blue-500: oklch(0.7 0.14 250);
-    --color-blue-600: oklch(0.77 0.13 248);
-    --color-blue-700: oklch(0.84 0.11 246);
+    --color-blue-50: oklch(0.28 0.03 190);
+    --color-blue-100: oklch(0.34 0.05 190);
+    --color-blue-200: oklch(0.42 0.08 190);
+    --color-blue-300: oklch(0.51 0.11 190);
+    --color-blue-400: oklch(0.61 0.13 190);
+    --color-blue-500: oklch(0.7 0.14 190);
+    --color-blue-600: oklch(0.77 0.13 188);
+    --color-blue-700: oklch(0.84 0.11 186);
 
     --color-surface-page: var(--color-gray-50);
     --color-surface-card: var(--color-gray-100);
@@ -220,6 +221,7 @@
   gap: 0.5rem;
   font-weight: 600;
   border: 1px solid transparent;
+  border-radius: var(--radius-button);
   cursor: pointer;
   transition:
     background-color 150ms ease,
